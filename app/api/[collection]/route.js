@@ -28,7 +28,7 @@ export async function GET(request, { params }) {
       const rb = b.rank ?? Number.MAX_SAFE_INTEGER;
       return ra - rb;
     });
-    const sheetUrl = await getOverviewSheetUrl(collection);
+    const sheetUrl = await getOverviewSheetUrl(collection, listings);
     return NextResponse.json({ listings, sheetUrl });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
