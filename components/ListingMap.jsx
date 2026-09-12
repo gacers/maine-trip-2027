@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/loadGoogleMaps";
-import { FIXED_DESTINATIONS, BROOKLYN_ORIGIN, HOUSE_COLOR } from "@/lib/mapConstants";
+import { ACADIA, BROOKLYN_ORIGIN, HOUSE_COLOR, closestPuffinTour } from "@/lib/mapConstants";
 
 function starIcon(google, color) {
   const svg =
@@ -23,7 +23,7 @@ export default function ListingMap({ house, houseLabel, extraMarkers }) {
   const [routeInfo, setRouteInfo] = useState({}); // label -> { text, url }
   const [brooklynInfo, setBrooklynInfo] = useState(null);
 
-  const destinations = [...FIXED_DESTINATIONS, ...(extraMarkers || [])];
+  const destinations = [ACADIA, closestPuffinTour(house), ...(extraMarkers || [])];
 
   useEffect(() => {
     let cancelled = false;

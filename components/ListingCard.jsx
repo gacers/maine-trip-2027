@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ListingMap from "./ListingMap";
+import { geocodeAddress } from "@/lib/loadGoogleMaps";
 
 const REASON_OPTIONS = [
   { key: "too_expensive", label: "Too expensive" },
@@ -47,6 +48,9 @@ export default function ListingCard({ listing, onPatch, onDelete, bare = false, 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(null);
+  const [address, setAddress] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeMsg, setGeocodeMsg] = useState("");
   const reasons = reasonSet(listing.archiveReason);
   const isArchived = listing.status === "archived";
   const extraMarkers = parseExtraMarkers(listing.extraMarkers);
@@ -87,7 +91,24 @@ export default function ListingCard({ listing, onPatch, onDelete, bare = false, 
         ? extraMarkers
         : [],
     });
+    setAddress("");
+    setGeocodeMsg("");
     setIsEditing(true);
+  }
+
+  async function handleFindCoords() {
+    if (!address.trim()) return;
+    setGeocoding(true);
+    setGeocodeMsg("");
+    try {
+      const { lat, lng, formattedAddress } = await geocodeAddress(address);
+      setDraft((d) => ({ ...d, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+      setGeocodeMsg(`Found: ${formattedAddress}`);
+    } catch (err) {
+      setGeocodeMsg(err.message);
+    } finally {
+      setGeocoding(false);
+    }
   }
 
   function updateDraftMarker(i, field, value) {
@@ -278,6 +299,26 @@ export default function ListingCard({ listing, onPatch, onDelete, bare = false, 
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>
+            <div className="flex flex-col gap-1 text-sm sm:col-span-2">
+              <label>Or find lat/lng from an address</label>
+              <div className="flex gap-2">
+                <input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="e.g. 45 Ocean Ave, Jonesport, ME"
+                  className="flex-1 rounded border border-zinc-300 px-2 py-1.5"
+                />
+                <button
+                  type="button"
+                  onClick={handleFindCoords}
+                  disabled={geocoding || !address.trim()}
+                  className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+                >
+                  {geocoding ? "Finding..." : "Find"}
+                </button>
+              </div>
+              {geocodeMsg && <p className="text-xs text-zinc-500">{geocodeMsg}</p>}
+            </div>
             <label className="flex flex-col gap-1 text-sm sm:col-span-2">
               Group label (optional — only if this is a 2-house option)
               <input

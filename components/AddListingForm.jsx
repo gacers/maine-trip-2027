@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { geocodeAddress } from "@/lib/loadGoogleMaps";
 
 const initialFields = { title: "", price: "", posterImage: "", description: "", lat: "", lng: "", notes: "", groupLabel: "" };
 
@@ -11,6 +12,24 @@ export default function AddListingForm({ onAdded }) {
   const [warnings, setWarnings] = useState([]);
   const [duplicate, setDuplicate] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [address, setAddress] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeMsg, setGeocodeMsg] = useState("");
+
+  async function handleFindCoords() {
+    if (!address.trim()) return;
+    setGeocoding(true);
+    setGeocodeMsg("");
+    try {
+      const { lat, lng, formattedAddress } = await geocodeAddress(address);
+      setFields((f) => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+      setGeocodeMsg(`Found: ${formattedAddress}`);
+    } catch (err) {
+      setGeocodeMsg(err.message);
+    } finally {
+      setGeocoding(false);
+    }
+  }
 
   function reset() {
     setUrl("");
@@ -18,6 +37,8 @@ export default function AddListingForm({ onAdded }) {
     setFields(initialFields);
     setWarnings([]);
     setDuplicate(null);
+    setAddress("");
+    setGeocodeMsg("");
     setErrorMsg("");
   }
 
@@ -192,6 +213,26 @@ export default function AddListingForm({ onAdded }) {
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>
+            <div className="flex flex-col gap-1 text-sm sm:col-span-2">
+              <label>Or find lat/lng from an address</label>
+              <div className="flex gap-2">
+                <input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="e.g. 129 State Route 32, New Harbor, ME"
+                  className="flex-1 rounded border border-zinc-300 px-2 py-1.5"
+                />
+                <button
+                  type="button"
+                  onClick={handleFindCoords}
+                  disabled={geocoding || !address.trim()}
+                  className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+                >
+                  {geocoding ? "Finding..." : "Find"}
+                </button>
+              </div>
+              {geocodeMsg && <p className="text-xs text-zinc-500">{geocodeMsg}</p>}
+            </div>
             <label className="flex flex-col gap-1 text-sm sm:col-span-2">
               Notes
               <textarea
