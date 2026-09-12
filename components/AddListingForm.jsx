@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const initialFields = { title: "", price: "", posterImage: "", description: "", lat: "", lng: "", notes: "" };
+const initialFields = { title: "", price: "", posterImage: "", description: "", lat: "", lng: "", notes: "", groupLabel: "" };
 
 export default function AddListingForm({ onAdded }) {
   const [url, setUrl] = useState("");
@@ -198,6 +198,15 @@ export default function AddListingForm({ onAdded }) {
                 value={fields.notes}
                 onChange={(e) => setFields({ ...fields, notes: e.target.value })}
                 rows={2}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+              Group label (optional — only if this is a 2-house option)
+              <input
+                value={fields.groupLabel}
+                onChange={(e) => setFields({ ...fields, groupLabel: e.target.value })}
+                placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both houses)'
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>

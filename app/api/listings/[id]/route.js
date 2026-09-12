@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAllListings, updateListingByRow, deleteListingByRow } from "@/lib/sheets";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const EDITABLE_FIELDS = [
   "rank",
   "title",
@@ -13,6 +16,7 @@ const EDITABLE_FIELDS = [
   "lng",
   "extraMarkers",
   "notes",
+  "groupLabel",
 ];
 
 export async function PATCH(request, { params }) {

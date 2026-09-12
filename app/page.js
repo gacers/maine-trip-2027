@@ -3,12 +3,43 @@
 import { useEffect, useState } from "react";
 import AddListingForm from "@/components/AddListingForm";
 import ListingCard from "@/components/ListingCard";
+import ListingSection from "@/components/ListingSection";
+
+const BASE_SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/1ohdYnmbI01dDDEqx1vcLvv_XzPEufSZ6Ie7cuRv60bo/edit";
+
+// Groups a rank-sorted list of listings into render units: a "group" unit
+// for two listings sharing the same non-empty groupLabel (a 2-house
+// option), otherwise a "solo" unit per listing. Order follows the first
+// listing encountered in each pair.
+function groupListings(sortedListings) {
+  const seen = new Set();
+  const units = [];
+  for (const l of sortedListings) {
+    if (seen.has(l.id)) continue;
+    if (l.groupLabel) {
+      const partner = sortedListings.find(
+        (o) => o.id !== l.id && o.groupLabel === l.groupLabel && !seen.has(o.id)
+      );
+      if (partner) {
+        seen.add(l.id);
+        seen.add(partner.id);
+        units.push({ type: "group", label: l.groupLabel, listings: [l, partner] });
+        continue;
+      }
+    }
+    seen.add(l.id);
+    units.push({ type: "solo", listing: l });
+  }
+  return units;
+}
 
 export default function Home() {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [sheetUrl, setSheetUrl] = useState(BASE_SHEET_URL);
 
   async function load() {
     setLoading(true);
@@ -18,6 +49,7 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load listings");
       setListings(data.listings);
+      if (data.sheetUrl) setSheetUrl(data.sheetUrl);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -77,7 +109,7 @@ export default function Home() {
           Maine Coast Trip &mdash; July 2027
         </h1>
         <a
-          href="https://docs.google.com/spreadsheets/d/1ohdYnmbI01dDDEqx1vcLvv_XzPEufSZ6Ie7cuRv60bo/edit"
+          href={sheetUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
@@ -103,14 +135,33 @@ export default function Home() {
               {active.length === 0 && (
                 <p className="text-zinc-500 text-sm">No listings yet &mdash; paste a URL above.</p>
               )}
-              {active.map((listing) => (
-                <ListingCard
-                  key={listing.id}
-                  listing={listing}
-                  onPatch={handlePatch}
-                  onDelete={handleDelete}
-                />
-              ))}
+              {groupListings(active).map((unit) =>
+                unit.type === "group" ? (
+                  <ListingSection key={unit.listings.map((l) => l.id).join("-")} title={unit.label}>
+                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
+                      {unit.listings.map((listing) => (
+                        <div key={listing.id} className="sm:w-1/2 min-w-0">
+                          <ListingCard
+                            listing={listing}
+                            onPatch={handlePatch}
+                            onDelete={handleDelete}
+                            bare
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </ListingSection>
+                ) : (
+                  <ListingSection key={unit.listing.id} title={unit.listing.title}>
+                    <ListingCard
+                      listing={unit.listing}
+                      onPatch={handlePatch}
+                      onDelete={handleDelete}
+                      bare
+                    />
+                  </ListingSection>
+                )
+              )}
             </div>
 
             {archived.length > 0 && (
@@ -123,14 +174,36 @@ export default function Home() {
                 </button>
                 {showArchived && (
                   <div className="flex flex-col gap-4 mt-3">
-                    {archived.map((listing) => (
-                      <ListingCard
-                        key={listing.id}
-                        listing={listing}
-                        onPatch={handlePatch}
-                        onDelete={handleDelete}
-                      />
-                    ))}
+                    {groupListings(archived).map((unit) =>
+                      unit.type === "group" ? (
+                        <ListingSection
+                          key={unit.listings.map((l) => l.id).join("-")}
+                          title={unit.label}
+                        >
+                          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
+                            {unit.listings.map((listing) => (
+                              <div key={listing.id} className="sm:w-1/2 min-w-0">
+                                <ListingCard
+                                  listing={listing}
+                                  onPatch={handlePatch}
+                                  onDelete={handleDelete}
+                                  bare
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </ListingSection>
+                      ) : (
+                        <ListingSection key={unit.listing.id} title={unit.listing.title}>
+                          <ListingCard
+                            listing={unit.listing}
+                            onPatch={handlePatch}
+                            onDelete={handleDelete}
+                            bare
+                          />
+                        </ListingSection>
+                      )
+                    )}
                   </div>
                 )}
               </div>

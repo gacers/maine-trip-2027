@@ -42,7 +42,7 @@ function BulletList({ items }) {
   );
 }
 
-export default function ListingCard({ listing, onPatch, onDelete }) {
+export default function ListingCard({ listing, onPatch, onDelete, bare = false }) {
   const [rankDraft, setRankDraft] = useState(listing.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -82,6 +82,7 @@ export default function ListingCard({ listing, onPatch, onDelete }) {
       notes: listing.notes || "",
       lat: listing.lat ?? "",
       lng: listing.lng ?? "",
+      groupLabel: listing.groupLabel || "",
       extraMarkers: extraMarkers.length
         ? extraMarkers
         : [],
@@ -119,6 +120,7 @@ export default function ListingCard({ listing, onPatch, onDelete }) {
       notes: draft.notes,
       lat: draft.lat === "" ? "" : Number(draft.lat),
       lng: draft.lng === "" ? "" : Number(draft.lng),
+      groupLabel: draft.groupLabel || "",
       extraMarkers: JSON.stringify(cleanMarkers),
     });
     setIsEditing(false);
@@ -130,8 +132,14 @@ export default function ListingCard({ listing, onPatch, onDelete }) {
   return (
     <article
       id={`listing-${listing.id}`}
-      className={`rounded-xl border p-4 sm:p-5 shadow-sm bg-white flex flex-col gap-3 ${
-        isArchived ? "border-zinc-200 opacity-70" : "border-zinc-200"
+      className={`flex flex-col gap-3 ${
+        bare
+          ? isArchived
+            ? "opacity-70"
+            : ""
+          : `rounded-xl border p-4 sm:p-5 shadow-sm bg-white ${
+              isArchived ? "border-zinc-200 opacity-70" : "border-zinc-200"
+            }`
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -255,6 +263,15 @@ export default function ListingCard({ listing, onPatch, onDelete }) {
               <input
                 value={draft.lng}
                 onChange={(e) => setDraft({ ...draft, lng: e.target.value })}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+              Group label (optional — only if this is a 2-house option)
+              <input
+                value={draft.groupLabel}
+                onChange={(e) => setDraft({ ...draft, groupLabel: e.target.value })}
+                placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both houses)'
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>
