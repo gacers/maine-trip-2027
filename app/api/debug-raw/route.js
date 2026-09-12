@@ -16,11 +16,7 @@ function getAuth() {
   }
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.replace(/\\n/g, "\n");
-  return new google.auth.JWT({
-    email,
-    key,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
+  return new google.auth.JWT({ email, key, scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
 }
 
 export async function GET() {
@@ -29,20 +25,32 @@ export async function GET() {
     await auth.authorize();
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+
+    // Clear rows 2+ first so we get a clean test.
+    await sheets.spreadsheets.values.clear({ spreadsheetId, range: "Listings!A2:P" });
+
+    const testRow = [
+      "TESTID","7","TESTTITLE","TESTPRICE","TESTURL","TESTIMG","TESTDESC",
+      "active","","44.1","-68.1","","TESTNOTES","2026-01-01T00:00:00.000Z","TESTLINK","",
+    ];
+    const appendRes = await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "Listings!A1",
+      valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: [testRow] },
+    });
+
     const raw = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "Listings!A1:P5",
       valueRenderOption: "FORMULA",
     });
-    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+
     return NextResponse.json({
-      raw: raw.data.values,
-      sheets: meta.data.sheets.map((s) => ({
-        title: s.properties.title,
-        sheetId: s.properties.sheetId,
-        index: s.properties.index,
-        hidden: s.properties.hidden || false,
-      })),
+      appendUpdatedRange: appendRes.data.updates?.updatedRange,
+      appendUpdatedRows: appendRes.data.updates?.updatedRows,
+      rawAfter: raw.data.values,
     });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
