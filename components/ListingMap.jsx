@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useGoogleMaps } from "@/lib/useGoogleMaps";
-import { ACADIA, STONINGTON, BROOKLYN_ORIGIN, HOUSE_COLOR, closestOtherPuffinTour } from "@/lib/mapConstants";
+import { reverseGeocodeTown } from "@/lib/loadGoogleMaps";
+import {
+  ACADIA,
+  STONINGTON,
+  BROOKLYN_ORIGIN,
+  HOUSE_COLOR,
+  TOWN_COLOR,
+  closestOtherPuffinTour,
+} from "@/lib/mapConstants";
 
 function starIcon(google, color) {
   const svg =
@@ -26,10 +34,37 @@ export default function ListingMap({ houses, extraMarkers }) {
   const { google, status, errorMsg } = useGoogleMaps();
   const [routeInfo, setRouteInfo] = useState({}); // label -> { text, url }
   const [brooklynInfo, setBrooklynInfo] = useState(null);
+  const [closestTown, setClosestTown] = useState(null); // { name, searchQuery, lat, lng }
 
   const referenceHouse = houses[0];
-  const destinations = [ACADIA, STONINGTON, closestOtherPuffinTour(referenceHouse), ...(extraMarkers || [])];
+  const destinations = [
+    ACADIA,
+    STONINGTON,
+    closestOtherPuffinTour(referenceHouse),
+    ...(extraMarkers || []),
+    ...(closestTown ? [{ lat: closestTown.lat, lng: closestTown.lng, label: closestTown.name, color: TOWN_COLOR }] : []),
+  ];
   const housesKey = houses.map((h) => `${h.lat},${h.lng}`).join("|");
+
+  // Resolved separately from the main map effect below since it's an
+  // extra async lookup (reverse geocoding), not just drawing already-known
+  // points — once it resolves, closestTown feeds back into `destinations`
+  // above and the main effect re-runs to add its pin + driving time.
+  useEffect(() => {
+    let cancelled = false;
+    reverseGeocodeTown(referenceHouse.lat, referenceHouse.lng)
+      .then((town) => {
+        if (!cancelled) setClosestTown(town);
+      })
+      .catch(() => {
+        // Non-fatal — the rest of the map/driving-times still work fine
+        // without a resolved closest town.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [housesKey]);
 
   useEffect(() => {
     if (!google || !mapDivRef.current) return;
@@ -140,7 +175,7 @@ export default function ListingMap({ houses, extraMarkers }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [google, housesKey]);
+  }, [google, housesKey, closestTown]);
 
   const liveMapUrl =
     "https://www.google.com/maps/dir/" +
@@ -183,6 +218,22 @@ export default function ListingMap({ houses, extraMarkers }) {
           </li>
         ))}
       </ul>
+
+      {closestTown && (
+        <div>
+          <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium mt-2 mb-1">
+            Closest Town
+          </h3>
+          <a
+            href={`https://www.google.com/search?q=${encodeURIComponent(closestTown.searchQuery)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-blue-600 hover:underline"
+          >
+            {closestTown.name}
+          </a>
+        </div>
+      )}
 
       <div>
         <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium mt-2 mb-1">
