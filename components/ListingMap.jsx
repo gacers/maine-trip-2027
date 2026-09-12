@@ -68,13 +68,8 @@ export default function ListingMap({ house, houseLabel, extraMarkers }) {
           });
           bounds.extend({ lat: dest.lat, lng: dest.lng });
 
-          const renderer = new google.maps.DirectionsRenderer({
-            map,
-            suppressMarkers: true,
-            preserveViewport: true,
-            polylineOptions: { strokeColor: dest.color, strokeWeight: 4, strokeOpacity: 0.8 },
-          });
-
+          // Just compute duration/distance for the Driving Times list below —
+          // no route polyline drawn on the map itself, just the pins.
           directionsService.route(
             {
               origin: house,
@@ -84,7 +79,6 @@ export default function ListingMap({ house, houseLabel, extraMarkers }) {
             (result, routeStatus) => {
               if (cancelled) return;
               if (routeStatus === "OK") {
-                renderer.setDirections(result);
                 const leg = result.routes[0].legs[0];
                 newRouteInfo[dest.label] = {
                   text: `${leg.duration.text} (${leg.distance.text})`,

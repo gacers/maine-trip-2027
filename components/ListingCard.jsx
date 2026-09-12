@@ -42,7 +42,7 @@ function BulletList({ items }) {
   );
 }
 
-export default function ListingCard({ listing, onPatch, onDelete, bare = false }) {
+export default function ListingCard({ listing, onPatch, onDelete, bare = false, showTitle = true }) {
   const [rankDraft, setRankDraft] = useState(listing.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -144,18 +144,30 @@ export default function ListingCard({ listing, onPatch, onDelete, bare = false }
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <a
-            href={listing.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-lg font-semibold text-zinc-900 hover:text-blue-600 underline decoration-blue-400 break-words"
-          >
-            {listing.title}
-          </a>
+          {showTitle && (
+            <a
+              href={listing.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-lg font-semibold text-zinc-900 hover:text-blue-600 underline decoration-blue-400 break-words"
+            >
+              {listing.title}
+            </a>
+          )}
           {listing.price ? (
             <div className="text-sm text-zinc-600 mt-0.5">{listing.price}</div>
           ) : (
             <div className="text-sm text-zinc-400 mt-0.5 italic">No price yet</div>
+          )}
+          {!showTitle && (
+            <a
+              href={listing.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:underline"
+            >
+              Original listing &#8599;
+            </a>
           )}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">

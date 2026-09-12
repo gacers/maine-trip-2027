@@ -156,12 +156,17 @@ export default function Home() {
                     </div>
                   </ListingSection>
                 ) : (
-                  <ListingSection key={unit.listing.id} title={unit.listing.title}>
+                  <ListingSection
+                    key={unit.listing.id}
+                    title={unit.listing.title}
+                    href={unit.listing.url}
+                  >
                     <ListingCard
                       listing={unit.listing}
                       onPatch={handlePatch}
                       onDelete={handleDelete}
                       bare
+                      showTitle={false}
                     />
                   </ListingSection>
                 )
@@ -199,12 +204,17 @@ export default function Home() {
                           </div>
                         </ListingSection>
                       ) : (
-                        <ListingSection key={unit.listing.id} title={unit.listing.title}>
+                        <ListingSection
+                          key={unit.listing.id}
+                          title={unit.listing.title}
+                          href={unit.listing.url}
+                        >
                           <ListingCard
                             listing={unit.listing}
                             onPatch={handlePatch}
                             onDelete={handleDelete}
                             bare
+                            showTitle={false}
                           />
                         </ListingSection>
                       )
