@@ -4,7 +4,9 @@ import { google } from "googleapis";
 // Temporary: inspect live tab state (titles/hidden/gid) to verify the
 // Overview rename + hidden-Listings-tab fix actually took effect.
 // Remove after use.
-export async function GET() {
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const valuesOf = searchParams.get("values");
   const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_B64;
   const auth = b64
     ? new google.auth.JWT({
@@ -27,5 +29,12 @@ export async function GET() {
     hidden: !!s.properties.hidden,
     index: s.properties.index,
   }));
+  if (valuesOf) {
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${valuesOf}!A1:H`,
+    });
+    return NextResponse.json({ tabs, values: res.data.values || [] });
+  }
   return NextResponse.json({ tabs });
 }
