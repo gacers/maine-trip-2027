@@ -137,7 +137,11 @@ export default function Home() {
               )}
               {groupListings(active).map((unit) =>
                 unit.type === "group" ? (
-                  <ListingSection key={unit.listings.map((l) => l.id).join("-")} title={unit.label}>
+                  <ListingSection
+                    key={unit.listings.map((l) => l.id).join("-")}
+                    id={`group-${unit.listings[0].id}`}
+                    title={unit.label}
+                  >
                     <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
                       {unit.listings.map((listing) => (
                         <div key={listing.id} className="sm:w-1/2 min-w-0">
@@ -178,6 +182,7 @@ export default function Home() {
                       unit.type === "group" ? (
                         <ListingSection
                           key={unit.listings.map((l) => l.id).join("-")}
+                          id={`group-${unit.listings[0].id}`}
                           title={unit.label}
                         >
                           <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
