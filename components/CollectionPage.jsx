@@ -6,48 +6,15 @@ import ListingCard from "@/components/ListingCard";
 import ListingSection from "@/components/ListingSection";
 import GroupMap from "@/components/GroupMap";
 import OverviewMap from "@/components/OverviewMap";
-
-// Groups a rank-sorted list of items into render units: a "group" unit
-// for two items sharing the same non-empty groupLabel (a 2-house
-// option, or any other paired option), otherwise a "solo" unit per item.
-// Order follows the first item encountered in each pair.
-function groupListings(sortedListings) {
-  const seen = new Set();
-  const units = [];
-  for (const l of sortedListings) {
-    if (seen.has(l.id)) continue;
-    if (l.groupLabel) {
-      const partner = sortedListings.find(
-        (o) => o.id !== l.id && o.groupLabel === l.groupLabel && !seen.has(o.id)
-      );
-      if (partner) {
-        seen.add(l.id);
-        seen.add(partner.id);
-        units.push({ type: "group", label: l.groupLabel, listings: [l, partner] });
-        continue;
-      }
-    }
-    seen.add(l.id);
-    units.push({ type: "solo", listing: l });
-  }
-  return units;
-}
+import { groupUnits } from "@/lib/groupUnits";
 
 function pinFor(unit) {
-  if (unit.type === "group") {
-    const primary = unit.listings[0];
-    return {
-      anchor: `group-${primary.id}`,
-      label: unit.label,
-      lat: primary.lat,
-      lng: primary.lng,
-    };
-  }
+  const primary = unit.listings[0];
   return {
-    anchor: `listing-${unit.listing.id}`,
-    label: unit.listing.title,
-    lat: unit.listing.lat,
-    lng: unit.listing.lng,
+    anchor: unit.type === "group" ? `group-${primary.id}` : `listing-${primary.id}`,
+    label: unit.type === "group" ? primary.groupLabel : primary.title,
+    lat: primary.lat,
+    lng: primary.lng,
   };
 }
 
@@ -122,7 +89,7 @@ export default function CollectionPage({ collection }) {
     .sort((a, b) => (a.rank ?? 999999) - (b.rank ?? 999999));
   const archived = listings.filter((l) => l.status === "archived");
 
-  const activeUnits = groupListings(active);
+  const activeUnits = groupUnits(active);
   const pins = activeUnits.map(pinFor);
 
   function renderUnit(unit) {
@@ -131,7 +98,7 @@ export default function CollectionPage({ collection }) {
         <ListingSection
           key={unit.listings.map((l) => l.id).join("-")}
           id={`group-${unit.listings[0].id}`}
-          title={unit.label}
+          title={unit.listings[0].groupLabel}
           rank={unit.listings[0].rank ?? undefined}
           onRankChange={(newRank) =>
             unit.listings.forEach((l) => handlePatch(l.id, { rank: newRank }))
@@ -156,10 +123,11 @@ export default function CollectionPage({ collection }) {
         </ListingSection>
       );
     }
+    const listing = unit.listings[0];
     return (
-      <ListingSection key={unit.listing.id} title={unit.listing.title} href={unit.listing.url}>
+      <ListingSection key={listing.id} title={listing.title} href={listing.url}>
         <ListingCard
-          listing={unit.listing}
+          listing={listing}
           onPatch={handlePatch}
           onDelete={handleDelete}
           bare
@@ -214,7 +182,7 @@ export default function CollectionPage({ collection }) {
               </button>
               {showArchived && (
                 <div className="flex flex-col gap-4 mt-3">
-                  {groupListings(archived).map(renderUnit)}
+                  {groupUnits(archived).map(renderUnit)}
                 </div>
               )}
             </div>

@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { loadGoogleMaps } from "@/lib/loadGoogleMaps";
+import { useEffect, useRef } from "react";
+import { useGoogleMaps } from "@/lib/useGoogleMaps";
 
 // A map at the top of a collection page showing one pin per render unit
 // (a paired 2-item option collapses to a single pin). Clicking a pin
 // scrolls the matching section into view.
 export default function OverviewMap({ pins }) {
   const mapDivRef = useRef(null);
-  const [status, setStatus] = useState("loading"); // loading | ready | error | empty
-  const [errorMsg, setErrorMsg] = useState("");
+  const { google, status, errorMsg } = useGoogleMaps();
 
   const validPins = pins.filter(
     (p) => p.lat !== null && p.lat !== "" && p.lat !== undefined && p.lng !== null && p.lng !== "" && p.lng !== undefined
@@ -17,57 +16,39 @@ export default function OverviewMap({ pins }) {
   const pinsKey = validPins.map((p) => `${p.anchor}:${p.lat},${p.lng}`).join("|");
 
   useEffect(() => {
-    if (validPins.length === 0) return;
-    let cancelled = false;
+    if (!google || !mapDivRef.current || validPins.length === 0) return;
 
-    loadGoogleMaps()
-      .then((google) => {
-        if (cancelled || !mapDivRef.current) return;
+    const map = new google.maps.Map(mapDivRef.current, {
+      zoom: 8,
+      center: { lat: validPins[0].lat, lng: validPins[0].lng },
+    });
 
-        const map = new google.maps.Map(mapDivRef.current, {
-          zoom: 8,
-          center: { lat: validPins[0].lat, lng: validPins[0].lng },
-        });
+    const bounds = new google.maps.LatLngBounds();
 
-        const bounds = new google.maps.LatLngBounds();
-
-        validPins.forEach((p) => {
-          const marker = new google.maps.Marker({
-            position: { lat: p.lat, lng: p.lng },
-            map,
-            title: p.label,
-          });
-          marker.addListener("click", () => {
-            const el = document.getElementById(p.anchor);
-            if (el) {
-              el.scrollIntoView({ behavior: "smooth", block: "start" });
-              if (typeof window !== "undefined" && window.history) {
-                window.history.replaceState(null, "", `#${p.anchor}`);
-              }
-            }
-          });
-          bounds.extend({ lat: p.lat, lng: p.lng });
-        });
-
-        map.fitBounds(bounds);
-        google.maps.event.addListenerOnce(map, "bounds_changed", () => {
-          if (map.getZoom() > 12) map.setZoom(12);
-        });
-
-        setStatus("ready");
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setStatus("error");
-          setErrorMsg(err.message);
+    validPins.forEach((p) => {
+      const marker = new google.maps.Marker({
+        position: { lat: p.lat, lng: p.lng },
+        map,
+        title: p.label,
+      });
+      marker.addListener("click", () => {
+        const el = document.getElementById(p.anchor);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+          if (typeof window !== "undefined" && window.history) {
+            window.history.replaceState(null, "", `#${p.anchor}`);
+          }
         }
       });
+      bounds.extend({ lat: p.lat, lng: p.lng });
+    });
 
-    return () => {
-      cancelled = true;
-    };
+    map.fitBounds(bounds);
+    google.maps.event.addListenerOnce(map, "bounds_changed", () => {
+      if (map.getZoom() > 12) map.setZoom(12);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pinsKey]);
+  }, [google, pinsKey]);
 
   if (validPins.length === 0) return null;
 
