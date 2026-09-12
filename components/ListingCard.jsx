@@ -6,6 +6,7 @@ import ArchiveDialog from "./ArchiveDialog";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { formatBedBath } from "@/lib/extractCounts";
+import { extractAvgPerNight, formatAvgPerNight } from "@/lib/priceUtils";
 
 function toBullets(text) {
   return (text || "")
@@ -50,6 +51,7 @@ export default function ListingCard({
   const isArchived = listing.status === "archived";
   const extraMarkers = parseExtraMarkers(listing.extraMarkers);
   const bedBath = formatBedBath(listing);
+  const avgPerNight = extractAvgPerNight(listing.price);
 
   function archive(reason) {
     onPatch(listing.id, { archiveReason: reason, status: "archived" });
@@ -180,7 +182,14 @@ export default function ListingCard({
             </a>
           )}
           {listing.price ? (
-            <div className="text-sm text-zinc-600 mt-0.5">{listing.price}</div>
+            <div className="text-sm text-zinc-600 mt-0.5">
+              {listing.price}
+              {/* Only show our own computed average when the price text
+                  doesn't already spell out a nightly rate itself. */}
+              {showBedBath && avgPerNight != null && !/\/\s?night|per\s?night/i.test(listing.price) && (
+                <span className="text-zinc-500"> ({formatAvgPerNight(avgPerNight)})</span>
+              )}
+            </div>
           ) : (
             <div className="text-sm text-zinc-400 mt-0.5 italic">No price yet</div>
           )}
