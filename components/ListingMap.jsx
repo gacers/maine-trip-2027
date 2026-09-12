@@ -16,14 +16,21 @@ function starIcon(google, color) {
   };
 }
 
-export default function ListingMap({ house, houseLabel, extraMarkers }) {
+// `houses` is one or more { lat, lng, label } points. A solo listing passes
+// a single-item array; a 2-house-option group passes both houses so they
+// share one map, one set of reference-point pins, and one set of driving
+// times (computed from the first house — the two are always close together
+// by definition, so this stays accurate enough to be useful).
+export default function ListingMap({ houses, extraMarkers }) {
   const mapDivRef = useRef(null);
   const [status, setStatus] = useState("loading"); // loading | ready | error
   const [errorMsg, setErrorMsg] = useState("");
   const [routeInfo, setRouteInfo] = useState({}); // label -> { text, url }
   const [brooklynInfo, setBrooklynInfo] = useState(null);
 
-  const destinations = [ACADIA, STONINGTON, closestOtherPuffinTour(house), ...(extraMarkers || [])];
+  const referenceHouse = houses[0];
+  const destinations = [ACADIA, STONINGTON, closestOtherPuffinTour(referenceHouse), ...(extraMarkers || [])];
+  const housesKey = houses.map((h) => `${h.lat},${h.lng}`).join("|");
 
   useEffect(() => {
     let cancelled = false;
@@ -34,19 +41,21 @@ export default function ListingMap({ house, houseLabel, extraMarkers }) {
 
         const map = new google.maps.Map(mapDivRef.current, {
           zoom: 9,
-          center: house,
-        });
-
-        new google.maps.Marker({
-          position: house,
-          map,
-          title: houseLabel || "House",
-          zIndex: 999,
-          icon: starIcon(google, HOUSE_COLOR),
+          center: referenceHouse,
         });
 
         const bounds = new google.maps.LatLngBounds();
-        bounds.extend(house);
+
+        houses.forEach((h) => {
+          new google.maps.Marker({
+            position: h,
+            map,
+            title: h.label || "House",
+            zIndex: 999,
+            icon: starIcon(google, HOUSE_COLOR),
+          });
+          bounds.extend(h);
+        });
 
         const directionsService = new google.maps.DirectionsService();
         const newRouteInfo = {};
@@ -72,7 +81,7 @@ export default function ListingMap({ house, houseLabel, extraMarkers }) {
           // no route polyline drawn on the map itself, just the pins.
           directionsService.route(
             {
-              origin: house,
+              origin: referenceHouse,
               destination: { lat: dest.lat, lng: dest.lng },
               travelMode: google.maps.TravelMode.DRIVING,
             },
@@ -82,13 +91,13 @@ export default function ListingMap({ house, houseLabel, extraMarkers }) {
                 const leg = result.routes[0].legs[0];
                 newRouteInfo[dest.label] = {
                   text: `${leg.duration.text} (${leg.distance.text})`,
-                  url: `https://www.google.com/maps/dir/?api=1&origin=${house.lat},${house.lng}&destination=${dest.lat},${dest.lng}`,
+                  url: `https://www.google.com/maps/dir/?api=1&origin=${referenceHouse.lat},${referenceHouse.lng}&destination=${dest.lat},${dest.lng}`,
                   color: dest.color,
                 };
               } else {
                 newRouteInfo[dest.label] = {
                   text: "Couldn't get directions",
-                  url: `https://www.google.com/maps/dir/?api=1&origin=${house.lat},${house.lng}&destination=${dest.lat},${dest.lng}`,
+                  url: `https://www.google.com/maps/dir/?api=1&origin=${referenceHouse.lat},${referenceHouse.lng}&destination=${dest.lat},${dest.lng}`,
                   color: dest.color,
                 };
               }
@@ -107,7 +116,7 @@ export default function ListingMap({ house, houseLabel, extraMarkers }) {
         directionsService.route(
           {
             origin: BROOKLYN_ORIGIN,
-            destination: house,
+            destination: referenceHouse,
             travelMode: google.maps.TravelMode.DRIVING,
           },
           (result, routeStatus) => {
@@ -118,14 +127,14 @@ export default function ListingMap({ house, houseLabel, extraMarkers }) {
                 text: `${leg.duration.text} (${leg.distance.text})`,
                 url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
                   BROOKLYN_ORIGIN
-                )}&destination=${house.lat},${house.lng}`,
+                )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
               });
             } else {
               setBrooklynInfo({
                 text: "Couldn't get directions",
                 url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
                   BROOKLYN_ORIGIN
-                )}&destination=${house.lat},${house.lng}`,
+                )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
               });
             }
           }
@@ -144,11 +153,11 @@ export default function ListingMap({ house, houseLabel, extraMarkers }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [house.lat, house.lng]);
+  }, [housesKey]);
 
   const liveMapUrl =
     "https://www.google.com/maps/dir/" +
-    [house, ...destinations].map((p) => `${p.lat},${p.lng}`).join("/");
+    [...houses, ...destinations].map((p) => `${p.lat},${p.lng}`).join("/");
 
   return (
     <div className="flex flex-col gap-2">
@@ -168,13 +177,15 @@ export default function ListingMap({ house, houseLabel, extraMarkers }) {
       )}
 
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        <li className="flex items-center gap-1.5">
-          <span
-            className="inline-block w-3 h-3 rounded-full shrink-0"
-            style={{ background: HOUSE_COLOR }}
-          />
-          {houseLabel || "House (approximate location)"}
-        </li>
+        {houses.map((h) => (
+          <li key={h.label} className="flex items-center gap-1.5">
+            <span
+              className="inline-block w-3 h-3 rounded-full shrink-0"
+              style={{ background: HOUSE_COLOR }}
+            />
+            {h.label}
+          </li>
+        ))}
         {destinations.map((dest) => (
           <li key={dest.label} className="flex items-center gap-1.5">
             <span

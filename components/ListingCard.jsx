@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ListingMap from "./ListingMap";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
+import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 
 const REASON_OPTIONS = [
   { key: "too_expensive", label: "Too expensive" },
@@ -20,16 +21,6 @@ function toBullets(text) {
     .filter(Boolean);
 }
 
-function parseExtraMarkers(raw) {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
 const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#616161"];
 
 function BulletList({ items }) {
@@ -43,7 +34,15 @@ function BulletList({ items }) {
   );
 }
 
-export default function ListingCard({ listing, onPatch, onDelete, bare = false, showTitle = true }) {
+export default function ListingCard({
+  listing,
+  onPatch,
+  onDelete,
+  bare = false,
+  showTitle = true,
+  showRank = true,
+  showMap = true,
+}) {
   const [rankDraft, setRankDraft] = useState(listing.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -148,7 +147,7 @@ export default function ListingCard({ listing, onPatch, onDelete, bare = false, 
     setDraft(null);
   }
 
-  const hasHouse = listing.lat !== null && listing.lat !== "" && listing.lng !== null && listing.lng !== "";
+  const hasHouse = hasCoords(listing);
 
   return (
     <article
@@ -191,16 +190,18 @@ export default function ListingCard({ listing, onPatch, onDelete, bare = false, 
             </a>
           )}
         </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <label className="text-xs text-zinc-500">Rank</label>
-          <input
-            type="number"
-            value={rankDraft}
-            onChange={(e) => setRankDraft(e.target.value)}
-            onBlur={commitRank}
-            className="w-16 rounded border border-zinc-300 px-2 py-1 text-sm text-center"
-          />
-        </div>
+        {showRank && (
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <label className="text-xs text-zinc-500">Rank</label>
+            <input
+              type="number"
+              value={rankDraft}
+              onChange={(e) => setRankDraft(e.target.value)}
+              onBlur={commitRank}
+              className="w-16 rounded border border-zinc-300 px-2 py-1 text-sm text-center"
+            />
+          </div>
+        )}
       </div>
 
       {listing.posterImage && (
@@ -230,10 +231,9 @@ export default function ListingCard({ listing, onPatch, onDelete, bare = false, 
         </div>
       )}
 
-      {!isEditing && hasHouse && (
+      {!isEditing && showMap && hasHouse && (
         <ListingMap
-          house={{ lat: listing.lat, lng: listing.lng }}
-          houseLabel="House (approximate location)"
+          houses={[{ lat: listing.lat, lng: listing.lng, label: "House (approximate location)" }]}
           extraMarkers={extraMarkers}
         />
       )}

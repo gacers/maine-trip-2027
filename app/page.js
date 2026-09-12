@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AddListingForm from "@/components/AddListingForm";
 import ListingCard from "@/components/ListingCard";
 import ListingSection from "@/components/ListingSection";
+import GroupMap from "@/components/GroupMap";
 
 const BASE_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1ohdYnmbI01dDDEqx1vcLvv_XzPEufSZ6Ie7cuRv60bo/edit";
@@ -141,6 +142,10 @@ export default function Home() {
                     key={unit.listings.map((l) => l.id).join("-")}
                     id={`group-${unit.listings[0].id}`}
                     title={unit.label}
+                    rank={unit.listings[0].rank ?? undefined}
+                    onRankChange={(newRank) =>
+                      unit.listings.forEach((l) => handlePatch(l.id, { rank: newRank }))
+                    }
                   >
                     <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
                       {unit.listings.map((listing) => (
@@ -150,10 +155,13 @@ export default function Home() {
                             onPatch={handlePatch}
                             onDelete={handleDelete}
                             bare
+                            showRank={false}
+                            showMap={false}
                           />
                         </div>
                       ))}
                     </div>
+                    <GroupMap listings={unit.listings} />
                   </ListingSection>
                 ) : (
                   <ListingSection
@@ -189,6 +197,10 @@ export default function Home() {
                           key={unit.listings.map((l) => l.id).join("-")}
                           id={`group-${unit.listings[0].id}`}
                           title={unit.label}
+                          rank={unit.listings[0].rank ?? undefined}
+                          onRankChange={(newRank) =>
+                            unit.listings.forEach((l) => handlePatch(l.id, { rank: newRank }))
+                          }
                         >
                           <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
                             {unit.listings.map((listing) => (
@@ -198,10 +210,13 @@ export default function Home() {
                                   onPatch={handlePatch}
                                   onDelete={handleDelete}
                                   bare
+                                  showRank={false}
+                                  showMap={false}
                                 />
                               </div>
                             ))}
                           </div>
+                          <GroupMap listings={unit.listings} />
                         </ListingSection>
                       ) : (
                         <ListingSection
