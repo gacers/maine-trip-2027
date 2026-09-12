@@ -30,7 +30,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { url, title, price, posterImage, lat, lng, notes } = body;
+  const { url, title, price, posterImage, description, lat, lng, notes } = body;
   if (!url || !title) {
     return NextResponse.json({ error: "url and title are required" }, { status: 400 });
   }
@@ -62,10 +62,12 @@ export async function POST(request) {
       price: price || "",
       url: normalizedUrl,
       posterImage: posterImage || "",
+      description: description || "",
       status: "active",
       archiveReason: "",
       lat: lat ?? "",
       lng: lng ?? "",
+      extraMarkers: "",
       notes: notes || "",
       createdAt: new Date().toISOString(),
       siteLink: siteLinkFor(id),

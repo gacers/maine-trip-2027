@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const initialFields = { title: "", price: "", posterImage: "", lat: "", lng: "", notes: "" };
+const initialFields = { title: "", price: "", posterImage: "", description: "", lat: "", lng: "", notes: "" };
 
 export default function AddListingForm({ onAdded }) {
   const [url, setUrl] = useState("");
@@ -164,6 +164,15 @@ export default function AddListingForm({ onAdded }) {
               <input
                 value={fields.posterImage}
                 onChange={(e) => setFields({ ...fields, posterImage: e.target.value })}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+              Description (one bullet per line, optional)
+              <textarea
+                value={fields.description}
+                onChange={(e) => setFields({ ...fields, description: e.target.value })}
+                rows={3}
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>

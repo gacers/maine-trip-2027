@@ -6,10 +6,12 @@ const EDITABLE_FIELDS = [
   "title",
   "price",
   "posterImage",
+  "description",
   "status",
   "archiveReason",
   "lat",
   "lng",
+  "extraMarkers",
   "notes",
 ];
 

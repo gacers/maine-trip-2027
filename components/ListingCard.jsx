@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ListingMap from "./ListingMap";
 
 const REASON_OPTIONS = [
   { key: "too_expensive", label: "Too expensive" },
@@ -11,11 +12,44 @@ function reasonSet(archiveReason) {
   return new Set((archiveReason || "").split(",").map((s) => s.trim()).filter(Boolean));
 }
 
+function toBullets(text) {
+  return (text || "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function parseExtraMarkers(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#616161"];
+
+function BulletList({ items }) {
+  if (!items.length) return null;
+  return (
+    <ul className="list-disc pl-5 text-sm text-zinc-700 flex flex-col gap-0.5">
+      {items.map((line, i) => (
+        <li key={i}>{line}</li>
+      ))}
+    </ul>
+  );
+}
+
 export default function ListingCard({ listing, onPatch, onDelete }) {
   const [rankDraft, setRankDraft] = useState(listing.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(null);
   const reasons = reasonSet(listing.archiveReason);
   const isArchived = listing.status === "archived";
+  const extraMarkers = parseExtraMarkers(listing.extraMarkers);
 
   function toggleReason(key) {
     const next = new Set(reasons);
@@ -38,6 +72,60 @@ export default function ListingCard({ listing, onPatch, onDelete }) {
       onPatch(listing.id, { rank: n });
     }
   }
+
+  function startEdit() {
+    setDraft({
+      title: listing.title || "",
+      price: listing.price || "",
+      posterImage: listing.posterImage || "",
+      description: (listing.description || "").split("\n").filter(Boolean).join("\n"),
+      notes: listing.notes || "",
+      lat: listing.lat ?? "",
+      lng: listing.lng ?? "",
+      extraMarkers: extraMarkers.length
+        ? extraMarkers
+        : [],
+    });
+    setIsEditing(true);
+  }
+
+  function updateDraftMarker(i, field, value) {
+    const next = draft.extraMarkers.map((m, idx) => (idx === i ? { ...m, [field]: value } : m));
+    setDraft({ ...draft, extraMarkers: next });
+  }
+
+  function addDraftMarker() {
+    const color = MARKER_COLORS[draft.extraMarkers.length % MARKER_COLORS.length];
+    setDraft({
+      ...draft,
+      extraMarkers: [...draft.extraMarkers, { label: "", color, lat: "", lng: "" }],
+    });
+  }
+
+  function removeDraftMarker(i) {
+    setDraft({ ...draft, extraMarkers: draft.extraMarkers.filter((_, idx) => idx !== i) });
+  }
+
+  function saveEdit() {
+    const cleanMarkers = draft.extraMarkers
+      .filter((m) => m.label && m.lat !== "" && m.lng !== "")
+      .map((m) => ({ label: m.label, color: m.color, lat: Number(m.lat), lng: Number(m.lng) }));
+
+    onPatch(listing.id, {
+      title: draft.title,
+      price: draft.price,
+      posterImage: draft.posterImage,
+      description: draft.description,
+      notes: draft.notes,
+      lat: draft.lat === "" ? "" : Number(draft.lat),
+      lng: draft.lng === "" ? "" : Number(draft.lng),
+      extraMarkers: JSON.stringify(cleanMarkers),
+    });
+    setIsEditing(false);
+    setDraft(null);
+  }
+
+  const hasHouse = listing.lat !== null && listing.lat !== "" && listing.lng !== null && listing.lng !== "";
 
   return (
     <article
@@ -75,16 +163,173 @@ export default function ListingCard({ listing, onPatch, onDelete }) {
       </div>
 
       {listing.posterImage && (
-        <img
-          src={listing.posterImage}
-          alt={listing.title}
-          className="w-full h-48 sm:h-56 object-cover rounded-lg"
-          loading="lazy"
+        <div className="w-full max-h-[480px] flex items-center justify-center bg-zinc-100 rounded-lg overflow-hidden">
+          <img
+            src={listing.posterImage}
+            alt={listing.title}
+            className="w-full h-auto max-h-[480px] object-contain"
+            loading="lazy"
+          />
+        </div>
+      )}
+
+      {!isEditing && toBullets(listing.description).length > 0 && (
+        <div>
+          <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium mb-1">
+            Description
+          </h3>
+          <BulletList items={toBullets(listing.description)} />
+        </div>
+      )}
+
+      {!isEditing && toBullets(listing.notes).length > 0 && (
+        <div>
+          <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium mb-1">Notes</h3>
+          <BulletList items={toBullets(listing.notes)} />
+        </div>
+      )}
+
+      {!isEditing && hasHouse && (
+        <ListingMap
+          house={{ lat: listing.lat, lng: listing.lng }}
+          houseLabel="House (approximate location)"
+          extraMarkers={extraMarkers}
         />
       )}
 
-      {listing.notes && (
-        <p className="text-sm text-zinc-700 whitespace-pre-wrap">{listing.notes}</p>
+      {isEditing && draft && (
+        <div className="border border-zinc-200 rounded-lg p-3 flex flex-col gap-3 bg-zinc-50">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              Title
+              <input
+                value={draft.title}
+                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              Price
+              <input
+                value={draft.price}
+                onChange={(e) => setDraft({ ...draft, price: e.target.value })}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+              Photo URL
+              <input
+                value={draft.posterImage}
+                onChange={(e) => setDraft({ ...draft, posterImage: e.target.value })}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+              Description (one bullet per line)
+              <textarea
+                value={draft.description}
+                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                rows={4}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+              Notes (one bullet per line)
+              <textarea
+                value={draft.notes}
+                onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+                rows={2}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              House latitude
+              <input
+                value={draft.lat}
+                onChange={(e) => setDraft({ ...draft, lat: e.target.value })}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              House longitude
+              <input
+                value={draft.lng}
+                onChange={(e) => setDraft({ ...draft, lng: e.target.value })}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <h4 className="text-sm font-medium text-zinc-700">
+                Extra map points (restaurants, hikes, puffin tour, nearest town, etc.)
+              </h4>
+              <button
+                type="button"
+                onClick={addDraftMarker}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                + Add point
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              {draft.extraMarkers.map((m, i) => (
+                <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-2 items-center">
+                  <input
+                    placeholder="Label"
+                    value={m.label}
+                    onChange={(e) => updateDraftMarker(i, "label", e.target.value)}
+                    className="rounded border border-zinc-300 px-2 py-1 text-sm"
+                  />
+                  <input
+                    placeholder="Latitude"
+                    value={m.lat}
+                    onChange={(e) => updateDraftMarker(i, "lat", e.target.value)}
+                    className="rounded border border-zinc-300 px-2 py-1 text-sm"
+                  />
+                  <input
+                    placeholder="Longitude"
+                    value={m.lng}
+                    onChange={(e) => updateDraftMarker(i, "lng", e.target.value)}
+                    className="rounded border border-zinc-300 px-2 py-1 text-sm"
+                  />
+                  <input
+                    type="color"
+                    value={m.color}
+                    onChange={(e) => updateDraftMarker(i, "color", e.target.value)}
+                    className="w-8 h-8 p-0 border-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeDraftMarker(i)}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={saveEdit}
+              className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                setDraft(null);
+              }}
+              className="text-sm text-zinc-500 hover:underline"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 border-t border-zinc-100 mt-1">
@@ -99,6 +344,12 @@ export default function ListingCard({ listing, onPatch, onDelete }) {
             {opt.label}
           </label>
         ))}
+
+        {!isEditing && (
+          <button onClick={startEdit} className="text-sm text-zinc-600 hover:underline">
+            Edit details
+          </button>
+        )}
 
         {isArchived && (
           <div className="ml-auto flex items-center gap-3">
