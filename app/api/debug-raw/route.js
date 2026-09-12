@@ -25,12 +25,25 @@ export async function GET() {
     await auth.authorize();
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const listingsTab = meta.data.sheets.find((s) => s.properties.title === "Listings");
+    const sheetId = listingsTab.properties.sheetId;
 
-    // Clear rows 2+ first so we get a clean test.
+    // Unhide the tab, reset to a clean header+no-data state.
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          { updateSheetProperties: { properties: { sheetId, hidden: false }, fields: "hidden" } },
+        ],
+      },
+    });
     await sheets.spreadsheets.values.clear({ spreadsheetId, range: "Listings!A2:P" });
 
+    const before = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Listings!A1:P3" });
+
     const testRow = [
-      "TESTID","7","TESTTITLE","TESTPRICE","TESTURL","TESTIMG","TESTDESC",
+      "TESTID2","8","TESTTITLE2","TESTPRICE","TESTURL","TESTIMG","TESTDESC",
       "active","","44.1","-68.1","","TESTNOTES","2026-01-01T00:00:00.000Z","TESTLINK","",
     ];
     const appendRes = await sheets.spreadsheets.values.append({
@@ -41,16 +54,12 @@ export async function GET() {
       requestBody: { values: [testRow] },
     });
 
-    const raw = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Listings!A1:P5",
-      valueRenderOption: "FORMULA",
-    });
+    const after = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Listings!A1:P5" });
 
     return NextResponse.json({
+      before: before.data.values,
       appendUpdatedRange: appendRes.data.updates?.updatedRange,
-      appendUpdatedRows: appendRes.data.updates?.updatedRows,
-      rawAfter: raw.data.values,
+      after: after.data.values,
     });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
