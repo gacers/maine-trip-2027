@@ -41,17 +41,46 @@ Site base URL: `https://maine-trip-2027.vercel.app`
 
 ## What Claude should actually do, per URL
 
+The site's own `/preview` scraper is regex-based and weak in practice — on a
+real Airbnb listing it returned a generic title ("Vacation home in Jonesport
+· ★5.0 · ...") and no price at all. Use it only for the two things it's
+reliably good for (photo + coordinates + duplicate check); get the title,
+price, and description by actually reading the listing page yourself.
+
 1. `POST {site}/api/{apiSlug}/preview` with body `{"url": "<url>"}`.
-   - If the response is `{"duplicate": true, "existing": {...}}`, don't add it
-     again — tell the user it's already on the list (mention its title).
-   - Otherwise the response is `{"duplicate": false, "scraped": {title,
-     price, description, posterImage, lat, lng, ...}}`.
-2. `POST {site}/api/{apiSlug}` with a JSON body built from the scraped
-   fields, plus:
+   - If the response is `{"duplicate": true, "existing": {...}}`, stop here
+     — don't add it again, just tell the user it's already on the list
+     (mention its title).
+   - Otherwise you get `{"duplicate": false, "scraped": {posterImage, lat,
+     lng, ...}}` — keep `posterImage`, `lat`, `lng` from this if present;
+     ignore its `title`/`price`/`description`, they're too unreliable to use
+     as-is.
+2. Visit the actual listing URL and read it yourself. From the real page,
+   work out:
+   - **Title**: write it as `"<Town> - <House nickname>"` to match the
+     convention already used on the site (e.g. "Jonesport - Sea Duck
+     Cottage", "Gouldsboro - Schoodic East") — not the page's raw SEO title.
+   - **Price**: only include one if the page actually shows a total or
+     nightly rate. Airbnb often won't show a price without check-in/check-out
+     dates selected — if the pasted URL has `check_in`/`check_out` query
+     params, that's the date range to price for; if you still can't get a
+     real number, leave price out and tell the user rather than guessing.
+     Never carry over a price from a previous add of the same listing
+     without saying so — prices change, and doing this silently misleads
+     the user about how current the number is.
+   - **Description**: a handful of short bullet lines (one fact per line, no
+     trailing punctuation) covering bedroom/bed/bath counts, location, and
+     standout features — matching the style of existing entries in the
+     sheet, not a copy-pasted paragraph.
+3. `POST {site}/api/{apiSlug}` with: your title, your price (or omit the
+   field if you couldn't confirm one), your description, `posterImage`/`lat`/
+   `lng` from step 1, plus:
    - `notes`: the text after `Notes:`, if given (same text on every item in
      this message).
    - `groupLabel`: only when two URLs were given together (see below).
-3. Report back what got added (title + which list), or any error.
+4. Report back what got added (title + which list), and explicitly flag
+   anything you couldn't confirm (most commonly: price) rather than staying
+   silent about it.
 
 ### Deriving `groupLabel` for a paired (2-URL) add
 
@@ -97,13 +126,34 @@ site:
 - "Add Maine Activity:"            -> POST to /api/activities          (Activities)
 - "Add Maine Previous Activity:"   -> POST to /api/previous-activities (Previous Activities)
 
-For each URL on its own line after the "Add ..." line:
+For each URL given, in this order:
+
 1. POST {"url": "<url>"} to https://maine-trip-2027.vercel.app/api/<slug>/preview.
-   If it comes back duplicate: true, don't re-add it — just tell me it's
-   already on the list.
-2. Otherwise POST the scraped fields (title, price, description,
-   posterImage, lat, lng, url) to
-   https://maine-trip-2027.vercel.app/api/<slug> to actually add it.
+   If it comes back duplicate: true, stop — don't re-add it, just tell me
+   it's already on the list (name it). Otherwise, keep `posterImage`, `lat`,
+   and `lng` from the response if present — but ignore its `title` and
+   `price`, they come from a weak regex scraper and are usually wrong or
+   missing (e.g. it once returned "Vacation home in Jonesport · ★5.0 ..." as
+   a title and no price at all for a real listing).
+
+2. Actually visit the listing URL yourself and read the real page to work
+   out:
+   - Title, written as "<Town> - <House nickname>" (matching the style
+     already on the site, e.g. "Jonesport - Sea Duck Cottage") — never the
+     page's raw SEO title.
+   - Price, ONLY if the page actually shows one. If the URL has
+     check_in/check_out query params, that's the date range to price for.
+     If you can't get a real number (common — Airbnb often hides price
+     without dates selected), leave the price field out entirely and tell
+     me so in your reply. Never reuse a price from a previous add of the
+     same listing without explicitly telling me it's not freshly checked —
+     prices change, and silently carrying one over is misleading.
+   - A short bullet-point description (one fact per line: bedroom/bed/bath
+     counts, location, standout features) in the style already used in the
+     sheet, not a pasted paragraph.
+
+3. POST the assembled item (your title/price/description plus posterImage/
+   lat/lng from step 1) to https://maine-trip-2027.vercel.app/api/<slug>.
 
 If a line says "Notes: <text>", put that text in the `notes` field of every
 item added from this message.
@@ -115,6 +165,7 @@ listings obviously share (e.g. the same town or a common lead-in phrase in
 their titles); if nothing obvious is shared, ask me for a short label before
 adding rather than guessing.
 
-After adding, tell me what was added (and to which list), or report any
-error plainly.
+After adding, tell me what was added (and to which list), and call out
+anything you couldn't confirm — especially price — rather than staying
+quiet about it. Report any error plainly too.
 ```
