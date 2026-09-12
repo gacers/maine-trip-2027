@@ -100,7 +100,7 @@ export default function AddListingForm({ onAdded }) {
           <input
             type="url"
             required
-            placeholder="Paste an Airbnb listing URL..."
+            placeholder="Paste an Airbnb, VRBO, or other listing URL..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"

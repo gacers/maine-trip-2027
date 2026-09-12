@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
-import { normalizeAirbnbUrl } from "@/lib/scrape";
+import { normalizeListingUrl } from "@/lib/scrape";
 import {
   getAllListings,
   appendListing,
@@ -37,7 +37,7 @@ export async function POST(request) {
 
   let normalizedUrl;
   try {
-    normalizedUrl = normalizeAirbnbUrl(url);
+    normalizedUrl = normalizeListingUrl(url);
   } catch {
     return NextResponse.json({ error: "That doesn't look like a valid URL" }, { status: 400 });
   }

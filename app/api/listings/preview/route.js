@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { scrapeAirbnbListing, normalizeAirbnbUrl } from "@/lib/scrape";
+import { scrapeListing, normalizeListingUrl } from "@/lib/scrape";
 import { findListingByUrl } from "@/lib/sheets";
 
 export async function POST(request) {
@@ -17,7 +17,7 @@ export async function POST(request) {
 
   let normalizedUrl;
   try {
-    normalizedUrl = normalizeAirbnbUrl(url);
+    normalizedUrl = normalizeListingUrl(url);
   } catch {
     return NextResponse.json({ error: "That doesn't look like a valid URL" }, { status: 400 });
   }
@@ -27,6 +27,6 @@ export async function POST(request) {
     return NextResponse.json({ duplicate: true, existing });
   }
 
-  const scraped = await scrapeAirbnbListing(url);
+  const scraped = await scrapeListing(url);
   return NextResponse.json({ duplicate: false, scraped });
 }
