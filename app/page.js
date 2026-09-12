@@ -72,11 +72,18 @@ export default function Home() {
 
   return (
     <div className="flex-1 w-full">
-      <header className="max-w-4xl mx-auto px-4 pt-8 pb-4 text-center">
-        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900">
+      <header className="max-w-4xl mx-auto px-4 pt-8 pb-4 flex flex-col items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 text-center">
           Maine Coast Trip &mdash; July 2027
         </h1>
-        <p className="text-zinc-600 mt-1">House options for the group. 8 people, ~4 dogs.</p>
+        <a
+          href="https://docs.google.com/spreadsheets/d/1ohdYnmbI01dDDEqx1vcLvv_XzPEufSZ6Ie7cuRv60bo/edit"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          Google Sheet
+        </a>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 pb-16 flex flex-col gap-6">
@@ -132,9 +139,7 @@ export default function Home() {
         )}
       </main>
 
-      <footer className="text-center text-xs text-zinc-400 pb-8">
-        Also tracked in the shared Google Sheet.
-      </footer>
+
     </div>
   );
 }
