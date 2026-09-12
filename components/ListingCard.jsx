@@ -2,17 +2,10 @@
 
 import { useState } from "react";
 import ListingMap from "./ListingMap";
+import ArchiveDialog from "./ArchiveDialog";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
-
-const REASON_OPTIONS = [
-  { key: "too_expensive", label: "Too expensive" },
-  { key: "bad_location", label: "Bad location" },
-];
-
-function reasonSet(archiveReason) {
-  return new Set((archiveReason || "").split(",").map((s) => s.trim()).filter(Boolean));
-}
+import { formatBedBath } from "@/lib/extractCounts";
 
 function toBullets(text) {
   return (text || "")
@@ -42,27 +35,25 @@ export default function ListingCard({
   showTitle = true,
   showRank = true,
   showMap = true,
+  showBedBath = true,
 }) {
   const [rankDraft, setRankDraft] = useState(listing.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(null);
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
-  const reasons = reasonSet(listing.archiveReason);
+  const [notesDraft, setNotesDraft] = useState(listing.notes || "");
+  const [concernsDraft, setConcernsDraft] = useState(listing.concerns || "");
   const isArchived = listing.status === "archived";
   const extraMarkers = parseExtraMarkers(listing.extraMarkers);
+  const bedBath = formatBedBath(listing);
 
-  function toggleReason(key) {
-    const next = new Set(reasons);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    const archiveReason = Array.from(next).join(",");
-    onPatch(listing.id, {
-      archiveReason,
-      status: next.size > 0 ? "archived" : "active",
-    });
+  function archive(reason) {
+    onPatch(listing.id, { archiveReason: reason, status: "archived" });
+    setShowArchiveDialog(false);
   }
 
   function restore() {
@@ -76,19 +67,31 @@ export default function ListingCard({
     }
   }
 
+  function commitNotes() {
+    if (notesDraft !== (listing.notes || "")) {
+      onPatch(listing.id, { notes: notesDraft });
+    }
+  }
+
+  function commitConcerns() {
+    if (concernsDraft !== (listing.concerns || "")) {
+      onPatch(listing.id, { concerns: concernsDraft });
+    }
+  }
+
   function startEdit() {
     setDraft({
       title: listing.title || "",
       price: listing.price || "",
       posterImage: listing.posterImage || "",
       description: (listing.description || "").split("\n").filter(Boolean).join("\n"),
-      notes: listing.notes || "",
       lat: listing.lat ?? "",
       lng: listing.lng ?? "",
+      bedrooms: listing.bedrooms ?? "",
+      beds: listing.beds ?? "",
+      bathrooms: listing.bathrooms ?? "",
       groupLabel: listing.groupLabel || "",
-      extraMarkers: extraMarkers.length
-        ? extraMarkers
-        : [],
+      extraMarkers: extraMarkers.length ? extraMarkers : [],
     });
     setAddress("");
     setGeocodeMsg("");
@@ -137,9 +140,11 @@ export default function ListingCard({
       price: draft.price,
       posterImage: draft.posterImage,
       description: draft.description,
-      notes: draft.notes,
       lat: draft.lat === "" ? "" : Number(draft.lat),
       lng: draft.lng === "" ? "" : Number(draft.lng),
+      bedrooms: draft.bedrooms === "" ? "" : Number(draft.bedrooms),
+      beds: draft.beds === "" ? "" : Number(draft.beds),
+      bathrooms: draft.bathrooms === "" ? "" : Number(draft.bathrooms),
       groupLabel: draft.groupLabel || "",
       extraMarkers: JSON.stringify(cleanMarkers),
     });
@@ -178,6 +183,9 @@ export default function ListingCard({
             <div className="text-sm text-zinc-600 mt-0.5">{listing.price}</div>
           ) : (
             <div className="text-sm text-zinc-400 mt-0.5 italic">No price yet</div>
+          )}
+          {showBedBath && bedBath && (
+            <div className="text-xs text-zinc-500 mt-0.5">{bedBath}</div>
           )}
           {!showTitle && (
             <a
@@ -224,13 +232,6 @@ export default function ListingCard({
         </div>
       )}
 
-      {!isEditing && toBullets(listing.notes).length > 0 && (
-        <div>
-          <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium mb-1">Notes</h3>
-          <BulletList items={toBullets(listing.notes)} />
-        </div>
-      )}
-
       {!isEditing && showMap && hasHouse && (
         <ListingMap
           houses={[{ lat: listing.lat, lng: listing.lng, label: "House (approximate location)" }]}
@@ -274,15 +275,41 @@ export default function ListingCard({
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-              Notes (one bullet per line)
-              <textarea
-                value={draft.notes}
-                onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-                rows={2}
-                className="rounded border border-zinc-300 px-2 py-1.5"
-              />
-            </label>
+            {showBedBath && (
+              <div className="grid grid-cols-3 gap-2 sm:col-span-2">
+                <label className="flex flex-col gap-1 text-sm">
+                  Bedrooms
+                  <input
+                    type="number"
+                    value={draft.bedrooms}
+                    onChange={(e) => setDraft({ ...draft, bedrooms: e.target.value })}
+                    className="rounded border border-zinc-300 px-2 py-1.5"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  Beds
+                  <input
+                    type="number"
+                    value={draft.beds}
+                    onChange={(e) => setDraft({ ...draft, beds: e.target.value })}
+                    className="rounded border border-zinc-300 px-2 py-1.5"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  Bathrooms
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={draft.bathrooms}
+                    onChange={(e) => setDraft({ ...draft, bathrooms: e.target.value })}
+                    className="rounded border border-zinc-300 px-2 py-1.5"
+                  />
+                </label>
+                <p className="text-xs text-zinc-500 col-span-3 -mt-1">
+                  Auto-filled from the description when left blank.
+                </p>
+              </div>
+            )}
             <label className="flex flex-col gap-1 text-sm">
               House latitude
               <input
@@ -320,11 +347,11 @@ export default function ListingCard({
               {geocodeMsg && <p className="text-xs text-zinc-500">{geocodeMsg}</p>}
             </div>
             <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-              Group label (optional — only if this is a 2-house option)
+              Group label (optional — only if this is a 2-item option)
               <input
                 value={draft.groupLabel}
                 onChange={(e) => setDraft({ ...draft, groupLabel: e.target.value })}
-                placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both houses)'
+                placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>
@@ -402,18 +429,44 @@ export default function ListingCard({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 border-t border-zinc-100 mt-1">
-        {REASON_OPTIONS.map((opt) => (
-          <label key={opt.key} className="flex items-center gap-1.5 text-sm text-zinc-700">
-            <input
-              type="checkbox"
-              checked={reasons.has(opt.key)}
-              onChange={() => toggleReason(opt.key)}
-              className="h-4 w-4"
-            />
-            {opt.label}
-          </label>
-        ))}
+      <div className="flex flex-col gap-1">
+        <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium">Notes</h3>
+        <textarea
+          value={notesDraft}
+          onChange={(e) => setNotesDraft(e.target.value)}
+          onBlur={commitNotes}
+          rows={2}
+          placeholder="Add a note..."
+          className="w-full rounded border border-zinc-200 px-2 py-1.5 text-sm text-zinc-700 bg-zinc-50 focus:bg-white focus:border-zinc-400"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+        <h3 className="text-sm uppercase tracking-wide text-amber-700 font-medium">Concerns</h3>
+        <textarea
+          value={concernsDraft}
+          onChange={(e) => setConcernsDraft(e.target.value)}
+          onBlur={commitConcerns}
+          rows={2}
+          placeholder="Anything that gives you pause..."
+          className="w-full rounded border border-amber-200 px-2 py-1.5 text-sm text-zinc-700 bg-white focus:border-amber-400"
+        />
+      </div>
+
+      <div className="relative flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 border-t border-zinc-100 mt-1">
+        {!isArchived && (
+          <div className="relative">
+            <button
+              onClick={() => setShowArchiveDialog((v) => !v)}
+              className="text-sm text-red-600 hover:underline"
+            >
+              Delete
+            </button>
+            {showArchiveDialog && (
+              <ArchiveDialog onConfirm={archive} onCancel={() => setShowArchiveDialog(false)} />
+            )}
+          </div>
+        )}
 
         {!isEditing && (
           <button onClick={startEdit} className="text-sm text-zinc-600 hover:underline">
@@ -423,6 +476,9 @@ export default function ListingCard({
 
         {isArchived && (
           <div className="ml-auto flex items-center gap-3">
+            {listing.archiveReason && (
+              <span className="text-xs text-zinc-500 italic">{listing.archiveReason}</span>
+            )}
             <button
               onClick={restore}
               className="text-sm text-blue-600 hover:underline"

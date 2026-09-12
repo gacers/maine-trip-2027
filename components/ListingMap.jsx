@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { loadGoogleMaps } from "@/lib/loadGoogleMaps";
+import { useGoogleMaps } from "@/lib/useGoogleMaps";
 import { ACADIA, STONINGTON, BROOKLYN_ORIGIN, HOUSE_COLOR, closestOtherPuffinTour } from "@/lib/mapConstants";
 
 function starIcon(google, color) {
@@ -23,8 +23,7 @@ function starIcon(google, color) {
 // by definition, so this stays accurate enough to be useful).
 export default function ListingMap({ houses, extraMarkers }) {
   const mapDivRef = useRef(null);
-  const [status, setStatus] = useState("loading"); // loading | ready | error
-  const [errorMsg, setErrorMsg] = useState("");
+  const { google, status, errorMsg } = useGoogleMaps();
   const [routeInfo, setRouteInfo] = useState({}); // label -> { text, url }
   const [brooklynInfo, setBrooklynInfo] = useState(null);
 
@@ -33,127 +32,115 @@ export default function ListingMap({ houses, extraMarkers }) {
   const housesKey = houses.map((h) => `${h.lat},${h.lng}`).join("|");
 
   useEffect(() => {
+    if (!google || !mapDivRef.current) return;
     let cancelled = false;
 
-    loadGoogleMaps()
-      .then((google) => {
-        if (cancelled || !mapDivRef.current) return;
+    const map = new google.maps.Map(mapDivRef.current, {
+      zoom: 9,
+      center: referenceHouse,
+    });
 
-        const map = new google.maps.Map(mapDivRef.current, {
-          zoom: 9,
-          center: referenceHouse,
-        });
+    const bounds = new google.maps.LatLngBounds();
 
-        const bounds = new google.maps.LatLngBounds();
-
-        houses.forEach((h) => {
-          new google.maps.Marker({
-            position: h,
-            map,
-            title: h.label || "House",
-            zIndex: 999,
-            icon: starIcon(google, HOUSE_COLOR),
-          });
-          bounds.extend(h);
-        });
-
-        const directionsService = new google.maps.DirectionsService();
-        const newRouteInfo = {};
-
-        destinations.forEach((dest, i) => {
-          new google.maps.Marker({
-            position: { lat: dest.lat, lng: dest.lng },
-            map,
-            title: dest.label,
-            label: { text: String.fromCharCode(65 + i), color: "#ffffff", fontWeight: "bold" },
-            icon: {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 10,
-              fillColor: dest.color,
-              fillOpacity: 1,
-              strokeColor: "#ffffff",
-              strokeWeight: 2,
-            },
-          });
-          bounds.extend({ lat: dest.lat, lng: dest.lng });
-
-          // Just compute duration/distance for the Driving Times list below —
-          // no route polyline drawn on the map itself, just the pins.
-          directionsService.route(
-            {
-              origin: referenceHouse,
-              destination: { lat: dest.lat, lng: dest.lng },
-              travelMode: google.maps.TravelMode.DRIVING,
-            },
-            (result, routeStatus) => {
-              if (cancelled) return;
-              if (routeStatus === "OK") {
-                const leg = result.routes[0].legs[0];
-                newRouteInfo[dest.label] = {
-                  text: `${leg.duration.text} (${leg.distance.text})`,
-                  url: `https://www.google.com/maps/dir/?api=1&origin=${referenceHouse.lat},${referenceHouse.lng}&destination=${dest.lat},${dest.lng}`,
-                  color: dest.color,
-                };
-              } else {
-                newRouteInfo[dest.label] = {
-                  text: "Couldn't get directions",
-                  url: `https://www.google.com/maps/dir/?api=1&origin=${referenceHouse.lat},${referenceHouse.lng}&destination=${dest.lat},${dest.lng}`,
-                  color: dest.color,
-                };
-              }
-              setRouteInfo({ ...newRouteInfo });
-            }
-          );
-        });
-
-        map.fitBounds(bounds);
-        google.maps.event.addListenerOnce(map, "bounds_changed", () => {
-          if (map.getZoom() > 11) map.setZoom(11);
-        });
-
-        // Brooklyn -> house: real duration/distance, not drawn on this
-        // zoomed-in local map.
-        directionsService.route(
-          {
-            origin: BROOKLYN_ORIGIN,
-            destination: referenceHouse,
-            travelMode: google.maps.TravelMode.DRIVING,
-          },
-          (result, routeStatus) => {
-            if (cancelled) return;
-            if (routeStatus === "OK") {
-              const leg = result.routes[0].legs[0];
-              setBrooklynInfo({
-                text: `${leg.duration.text} (${leg.distance.text})`,
-                url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-                  BROOKLYN_ORIGIN
-                )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
-              });
-            } else {
-              setBrooklynInfo({
-                text: "Couldn't get directions",
-                url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-                  BROOKLYN_ORIGIN
-                )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
-              });
-            }
-          }
-        );
-
-        setStatus("ready");
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setStatus("error");
-          setErrorMsg(err.message);
-        }
+    houses.forEach((h) => {
+      new google.maps.Marker({
+        position: h,
+        map,
+        title: h.label || "House",
+        zIndex: 999,
+        icon: starIcon(google, HOUSE_COLOR),
       });
+      bounds.extend(h);
+    });
+
+    const directionsService = new google.maps.DirectionsService();
+    const newRouteInfo = {};
+
+    destinations.forEach((dest, i) => {
+      new google.maps.Marker({
+        position: { lat: dest.lat, lng: dest.lng },
+        map,
+        title: dest.label,
+        label: { text: String.fromCharCode(65 + i), color: "#ffffff", fontWeight: "bold" },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 10,
+          fillColor: dest.color,
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 2,
+        },
+      });
+      bounds.extend({ lat: dest.lat, lng: dest.lng });
+
+      // Just compute duration/distance for the Driving Times list below —
+      // no route polyline drawn on the map itself, just the pins.
+      directionsService.route(
+        {
+          origin: referenceHouse,
+          destination: { lat: dest.lat, lng: dest.lng },
+          travelMode: google.maps.TravelMode.DRIVING,
+        },
+        (result, routeStatus) => {
+          if (cancelled) return;
+          if (routeStatus === "OK") {
+            const leg = result.routes[0].legs[0];
+            newRouteInfo[dest.label] = {
+              text: `${leg.duration.text} (${leg.distance.text})`,
+              url: `https://www.google.com/maps/dir/?api=1&origin=${referenceHouse.lat},${referenceHouse.lng}&destination=${dest.lat},${dest.lng}`,
+              color: dest.color,
+            };
+          } else {
+            newRouteInfo[dest.label] = {
+              text: "Couldn't get directions",
+              url: `https://www.google.com/maps/dir/?api=1&origin=${referenceHouse.lat},${referenceHouse.lng}&destination=${dest.lat},${dest.lng}`,
+              color: dest.color,
+            };
+          }
+          setRouteInfo({ ...newRouteInfo });
+        }
+      );
+    });
+
+    map.fitBounds(bounds);
+    google.maps.event.addListenerOnce(map, "bounds_changed", () => {
+      if (map.getZoom() > 11) map.setZoom(11);
+    });
+
+    // Brooklyn -> house: real duration/distance, not drawn on this
+    // zoomed-in local map.
+    directionsService.route(
+      {
+        origin: BROOKLYN_ORIGIN,
+        destination: referenceHouse,
+        travelMode: google.maps.TravelMode.DRIVING,
+      },
+      (result, routeStatus) => {
+        if (cancelled) return;
+        if (routeStatus === "OK") {
+          const leg = result.routes[0].legs[0];
+          setBrooklynInfo({
+            text: `${leg.duration.text} (${leg.distance.text})`,
+            url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+              BROOKLYN_ORIGIN
+            )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
+          });
+        } else {
+          setBrooklynInfo({
+            text: "Couldn't get directions",
+            url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+              BROOKLYN_ORIGIN
+            )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
+          });
+        }
+      }
+    );
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [housesKey]);
+  }, [google, housesKey]);
 
   const liveMapUrl =
     "https://www.google.com/maps/dir/" +
