@@ -14,7 +14,7 @@ const EDITABLE_FIELDS = [
 ];
 
 export async function PATCH(request, { params }) {
-  const { id } = params;
+  const { id } = await params;
   let body;
   try {
     body = await request.json();
@@ -44,7 +44,7 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { id } = params;
+  const { id } = await params;
   try {
     const all = await getAllListings();
     const existing = all.find((l) => l.id === id);
