@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { getAllListings, updateListingByRow, deleteListingByRow } from "@/lib/sheets";
+import { getCollectionBySlug } from "@/lib/collections";
+import { extractCounts } from "@/lib/extractCounts";
+import { getAllItems, updateItemByRow, deleteItemByRow } from "@/lib/sheets";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -16,11 +18,20 @@ const EDITABLE_FIELDS = [
   "lng",
   "extraMarkers",
   "notes",
+  "concerns",
+  "bedrooms",
+  "beds",
+  "bathrooms",
   "groupLabel",
 ];
 
 export async function PATCH(request, { params }) {
-  const { id } = await params;
+  const { collection: slug, id } = await params;
+  const collection = getCollectionBySlug(slug);
+  if (!collection) {
+    return NextResponse.json({ error: "Unknown collection" }, { status: 404 });
+  }
+
   let body;
   try {
     body = await request.json();
@@ -36,13 +47,22 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: "No editable fields provided" }, { status: 400 });
   }
 
+  // If the description changed but bed/bath counts weren't explicitly
+  // patched alongside it, re-parse them from the new text.
+  if ("description" in patch && !("bedrooms" in patch) && !("beds" in patch) && !("bathrooms" in patch)) {
+    const counts = extractCounts(patch.description);
+    if (counts.bedrooms !== "") patch.bedrooms = counts.bedrooms;
+    if (counts.beds !== "") patch.beds = counts.beds;
+    if (counts.bathrooms !== "") patch.bathrooms = counts.bathrooms;
+  }
+
   try {
-    const all = await getAllListings();
+    const all = await getAllItems(collection);
     const existing = all.find((l) => l.id === id);
     if (!existing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
-    const updated = await updateListingByRow(existing._row, patch);
+    const updated = await updateItemByRow(collection, existing._row, patch);
     return NextResponse.json({ listing: updated });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -50,14 +70,19 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { id } = await params;
+  const { collection: slug, id } = await params;
+  const collection = getCollectionBySlug(slug);
+  if (!collection) {
+    return NextResponse.json({ error: "Unknown collection" }, { status: 404 });
+  }
+
   try {
-    const all = await getAllListings();
+    const all = await getAllItems(collection);
     const existing = all.find((l) => l.id === id);
     if (!existing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
-    await deleteListingByRow(existing._row);
+    await deleteItemByRow(collection, existing._row);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

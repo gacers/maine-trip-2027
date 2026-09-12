@@ -3,9 +3,22 @@
 import { useState } from "react";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 
-const initialFields = { title: "", price: "", posterImage: "", description: "", lat: "", lng: "", notes: "", groupLabel: "" };
+const initialFields = {
+  title: "",
+  price: "",
+  posterImage: "",
+  description: "",
+  lat: "",
+  lng: "",
+  notes: "",
+  concerns: "",
+  bedrooms: "",
+  beds: "",
+  bathrooms: "",
+  groupLabel: "",
+};
 
-export default function AddListingForm({ onAdded }) {
+export default function AddListingForm({ collection, onAdded }) {
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState("idle"); // idle | loading | editing | duplicate | saving | error
   const [fields, setFields] = useState(initialFields);
@@ -15,6 +28,8 @@ export default function AddListingForm({ onAdded }) {
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
+
+  const apiBase = `/api/${collection.apiSlug}`;
 
   async function handleFindCoords() {
     if (!address.trim()) return;
@@ -48,7 +63,7 @@ export default function AddListingForm({ onAdded }) {
     setPhase("loading");
     setErrorMsg("");
     try {
-      const res = await fetch("/api/listings/preview", {
+      const res = await fetch(`${apiBase}/preview`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -66,12 +81,12 @@ export default function AddListingForm({ onAdded }) {
       }
       const s = data.scraped;
       setFields({
+        ...initialFields,
         title: s.title || "",
         price: s.price || "",
         posterImage: s.posterImage || "",
         lat: s.lat ?? "",
         lng: s.lng ?? "",
-        notes: "",
       });
       setWarnings(s.warnings || []);
       setPhase("editing");
@@ -90,7 +105,7 @@ export default function AddListingForm({ onAdded }) {
     setPhase("saving");
     setErrorMsg("");
     try {
-      const res = await fetch("/api/listings", {
+      const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, ...fields }),
@@ -121,7 +136,7 @@ export default function AddListingForm({ onAdded }) {
           <input
             type="url"
             required
-            placeholder="Paste an Airbnb, VRBO, or other listing URL..."
+            placeholder={collection.addPlaceholder}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
@@ -197,6 +212,41 @@ export default function AddListingForm({ onAdded }) {
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>
+            {collection.showBedBath && (
+              <div className="grid grid-cols-3 gap-2 sm:col-span-2">
+                <label className="flex flex-col gap-1 text-sm">
+                  Bedrooms
+                  <input
+                    type="number"
+                    value={fields.bedrooms}
+                    onChange={(e) => setFields({ ...fields, bedrooms: e.target.value })}
+                    className="rounded border border-zinc-300 px-2 py-1.5"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  Beds
+                  <input
+                    type="number"
+                    value={fields.beds}
+                    onChange={(e) => setFields({ ...fields, beds: e.target.value })}
+                    className="rounded border border-zinc-300 px-2 py-1.5"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  Bathrooms
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={fields.bathrooms}
+                    onChange={(e) => setFields({ ...fields, bathrooms: e.target.value })}
+                    className="rounded border border-zinc-300 px-2 py-1.5"
+                  />
+                </label>
+                <p className="text-xs text-zinc-500 col-span-3 -mt-1">
+                  Leave blank to auto-fill from the description.
+                </p>
+              </div>
+            )}
             <label className="flex flex-col gap-1 text-sm">
               Latitude
               <input
@@ -243,11 +293,20 @@ export default function AddListingForm({ onAdded }) {
               />
             </label>
             <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-              Group label (optional — only if this is a 2-house option)
+              Concerns (optional)
+              <textarea
+                value={fields.concerns}
+                onChange={(e) => setFields({ ...fields, concerns: e.target.value })}
+                rows={2}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+              Group label (optional — only if this is a 2-item option)
               <input
                 value={fields.groupLabel}
                 onChange={(e) => setFields({ ...fields, groupLabel: e.target.value })}
-                placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both houses)'
+                placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>

@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { scrapeListing, normalizeListingUrl } from "@/lib/scrape";
-import { findListingByUrl } from "@/lib/sheets";
+import { getCollectionBySlug } from "@/lib/collections";
+import { findItemByUrl } from "@/lib/sheets";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function POST(request) {
+export async function POST(request, { params }) {
+  const { collection: slug } = await params;
+  const collection = getCollectionBySlug(slug);
+  if (!collection) {
+    return NextResponse.json({ error: "Unknown collection" }, { status: 404 });
+  }
+
   let body;
   try {
     body = await request.json();
@@ -25,7 +32,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "That doesn't look like a valid URL" }, { status: 400 });
   }
 
-  const existing = await findListingByUrl(normalizedUrl);
+  const existing = await findItemByUrl(collection, normalizedUrl);
   if (existing) {
     return NextResponse.json({ duplicate: true, existing });
   }

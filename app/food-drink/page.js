@@ -1,6 +1,6 @@
 import CollectionPage from "@/components/CollectionPage";
 import { COLLECTIONS } from "@/lib/collections";
 
-export default function Home() {
-  return <CollectionPage collection={COLLECTIONS.listings} />;
+export default function FoodDrinkPage() {
+  return <CollectionPage collection={COLLECTIONS.foodDrink} />;
 }
