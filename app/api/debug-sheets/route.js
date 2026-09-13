@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import { COLLECTION_LIST } from "@/lib/collections";
 
-// Temporary: verify Avg/Night now shows "$" text for grouped rows too,
-// and that the row background tint is gone. Remove after use.
+// Temporary: one-off reset of leftover row background tint (from a
+// since-reverted feature) back to no-fill on every Overview tab. Remove
+// after use.
 export async function GET() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const key = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "").replace(/\\n/g, "\n");
@@ -14,10 +16,20 @@ export async function GET() {
   await auth.authorize();
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-  const res = await sheets.spreadsheets.get({
-    spreadsheetId,
-    ranges: ["Possible Properties!A2:D4"],
-    fields: "sheets.data.rowData.values(formattedValue,userEnteredFormat.backgroundColor)",
-  });
-  return NextResponse.json(res.data.sheets[0].data[0].rowData);
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+
+  const overviewNames = new Set(COLLECTION_LIST.map((c) => c.overviewSheetName));
+  const overviewSheets = meta.data.sheets.filter((s) => overviewNames.has(s.properties.title));
+
+  const requests = overviewSheets.map((s) => ({
+    repeatCell: {
+      range: { sheetId: s.properties.sheetId, startRowIndex: 0, endRowIndex: 1000 },
+      cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 1, blue: 1 } } },
+      fields: "userEnteredFormat.backgroundColor",
+    },
+  }));
+
+  await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+
+  return NextResponse.json({ resetSheets: overviewSheets.map((s) => s.properties.title) });
 }
