@@ -9,6 +9,7 @@ export default function ApiKeysManager({ trip }) {
   const [label, setLabel] = useState("");
   const [global, setGlobal] = useState(false);
   const [newToken, setNewToken] = useState(null);
+  const [revealed, setRevealed] = useState({}); // { [keyId]: token }
   const apiBase = `/api/trips/${trip.slug}/api-keys`;
 
   async function load() {
@@ -60,6 +61,18 @@ export default function ApiKeysManager({ trip }) {
     }
   }
 
+  async function handleReveal(id) {
+    setError("");
+    try {
+      const res = await fetch(`${apiBase}/${id}/reveal`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setRevealed((prev) => ({ ...prev, [id]: data.token }));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-zinc-500">
@@ -72,7 +85,8 @@ export default function ApiKeysManager({ trip }) {
       {newToken && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 flex flex-col gap-2">
           <p className="text-sm font-medium text-amber-800">
-            Save this now — it&apos;s shown only once and can&apos;t be recovered later.
+            Save this now, or come back and click &quot;Show&quot; on it later — it&apos;s never emailed or texted
+            to you.
           </p>
           <code className="text-xs bg-white border border-amber-200 rounded p-2 break-all select-all">
             {newToken}
@@ -111,25 +125,39 @@ export default function ApiKeysManager({ trip }) {
           {keys.map((k) => (
             <div
               key={k.id}
-              className={`rounded-lg border p-3 flex items-center justify-between ${
+              className={`rounded-lg border p-3 flex flex-col gap-2 ${
                 k.revoked ? "border-zinc-200 bg-zinc-50 opacity-60" : "border-zinc-200 bg-white"
               }`}
             >
-              <div>
-                <div className="font-medium text-zinc-900 text-sm">
-                  {k.label}
-                  {!k.trip_id && <span className="ml-2 text-xs text-zinc-400 font-normal">(all trips)</span>}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-zinc-900 text-sm">
+                    {k.label}
+                    {!k.trip_id && <span className="ml-2 text-xs text-zinc-400 font-normal">(all trips)</span>}
+                  </div>
+                  <div className="text-xs text-zinc-500">
+                    Created {new Date(k.created_at).toLocaleDateString()}
+                    {k.last_used_at && ` · last used ${new Date(k.last_used_at).toLocaleDateString()}`}
+                    {k.revoked && " · revoked"}
+                  </div>
                 </div>
-                <div className="text-xs text-zinc-500">
-                  Created {new Date(k.created_at).toLocaleDateString()}
-                  {k.last_used_at && ` · last used ${new Date(k.last_used_at).toLocaleDateString()}`}
-                  {k.revoked && " · revoked"}
-                </div>
+                {!k.revoked && (
+                  <div className="flex items-center gap-3 shrink-0">
+                    {k.hasStoredToken && !revealed[k.id] && (
+                      <button onClick={() => handleReveal(k.id)} className="text-sm text-blue-600 hover:underline">
+                        Show
+                      </button>
+                    )}
+                    <button onClick={() => handleRevoke(k.id)} className="text-sm text-red-600 hover:underline">
+                      Revoke
+                    </button>
+                  </div>
+                )}
               </div>
-              {!k.revoked && (
-                <button onClick={() => handleRevoke(k.id)} className="text-sm text-red-600 hover:underline">
-                  Revoke
-                </button>
+              {revealed[k.id] && (
+                <code className="text-xs bg-zinc-50 border border-zinc-200 rounded p-2 break-all select-all">
+                  {revealed[k.id]}
+                </code>
               )}
             </div>
           ))}

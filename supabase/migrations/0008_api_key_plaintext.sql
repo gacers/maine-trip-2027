@@ -1,0 +1,13 @@
+-- Every key was previously shown once at creation and then only ever
+-- checked via its sha256 hash — lose the copy and the only fix was
+-- generating a brand new one. Storing the plaintext here too lets an
+-- admin come back and view/copy it again later. This is a deliberate,
+-- narrow security trade-off (a raw dump of just this table now hands
+-- over live credentials, not just unusable hashes) accepted because
+-- api_keys is already service-role-only with zero RLS policies — the
+-- same lockdown as app_admins — so reaching this table at all already
+-- requires the kind of access (the service-role key itself, or an
+-- admin session over the one route that's allowed to touch it) that's
+-- catastrophic regardless. Nullable: rows created before this migration
+-- keep only their hash, same as always — there's nothing to backfill.
+alter table api_keys add column token_plaintext text;

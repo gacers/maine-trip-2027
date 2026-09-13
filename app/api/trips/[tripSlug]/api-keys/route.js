@@ -29,11 +29,19 @@ export async function GET(request, { params }) {
     // the bearer token's hash comparison offline. It stays server-only.
     const { data, error } = await service
       .from("api_keys")
-      .select("id, trip_id, label, role, created_at, last_used_at, revoked")
+      .select("id, trip_id, label, role, created_at, last_used_at, revoked, token_plaintext")
       .or(`trip_id.eq.${trip.id},trip_id.is.null`)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return NextResponse.json({ apiKeys: data });
+    // The raw token itself is only ever sent over the wire when a key is
+    // first created or explicitly revealed (see the [keyId]/reveal
+    // route) — the list view just says whether one is stored to show/hide
+    // a "Show" button, never the value itself.
+    const apiKeys = data.map(({ token_plaintext, ...rest }) => ({
+      ...rest,
+      hasStoredToken: !!token_plaintext,
+    }));
+    return NextResponse.json({ apiKeys });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -74,11 +82,17 @@ export async function POST(request, { params }) {
     const token = "sk_" + randomBytes(24).toString("base64url");
     const { data, error } = await service
       .from("api_keys")
-      .insert({ trip_id: global ? null : trip.id, label, role, key_hash: hashApiKey(token) })
+      .insert({
+        trip_id: global ? null : trip.id,
+        label,
+        role,
+        key_hash: hashApiKey(token),
+        token_plaintext: token,
+      })
       .select("id, trip_id, label, role, created_at, last_used_at, revoked")
       .single();
     if (error) throw new Error(error.message);
-    return NextResponse.json({ apiKey: data, token }, { status: 201 });
+    return NextResponse.json({ apiKey: { ...data, hasStoredToken: true }, token }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

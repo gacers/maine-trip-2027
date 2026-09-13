@@ -17,6 +17,7 @@ export default function InviteLinksManager({ trip }) {
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [rotateMsg, setRotateMsg] = useState("");
+  const [revealed, setRevealed] = useState({}); // { [keyId]: link }
   const apiBase = `/api/trips/${trip.slug}/api-keys`;
 
   async function load() {
@@ -64,6 +65,19 @@ export default function InviteLinksManager({ trip }) {
       const res = await fetch(`${apiBase}/${id}`, { method: "PATCH" });
       if (!res.ok) throw new Error("Revoke failed");
       load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleReveal(id) {
+    setError("");
+    try {
+      const res = await fetch(`${apiBase}/${id}/reveal`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      const link = `${window.location.origin}/${trip.slug}?invite=${data.token}`;
+      setRevealed((prev) => ({ ...prev, [id]: link }));
     } catch (err) {
       setError(err.message);
     }
@@ -131,7 +145,7 @@ export default function InviteLinksManager({ trip }) {
       {newInvite && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 flex flex-col gap-2">
           <p className="text-sm font-medium text-amber-800">
-            Save this now — it&apos;s shown only once and can&apos;t be recovered later.
+            Save this now, or come back and click &quot;Show&quot; on it later.
           </p>
           <div className="flex gap-2">
             <code className="flex-1 text-xs bg-white border border-amber-200 rounded p-2 break-all select-all">
@@ -171,22 +185,36 @@ export default function InviteLinksManager({ trip }) {
           {keys.map((k) => (
             <div
               key={k.id}
-              className={`rounded-lg border p-3 flex items-center justify-between ${
+              className={`rounded-lg border p-3 flex flex-col gap-2 ${
                 k.revoked ? "border-zinc-200 bg-zinc-50 opacity-60" : "border-zinc-200 bg-white"
               }`}
             >
-              <div>
-                <div className="font-medium text-zinc-900 text-sm">{k.label}</div>
-                <div className="text-xs text-zinc-500">
-                  Created {new Date(k.created_at).toLocaleDateString()}
-                  {k.last_used_at && ` · last used ${new Date(k.last_used_at).toLocaleDateString()}`}
-                  {k.revoked && " · revoked"}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-zinc-900 text-sm">{k.label}</div>
+                  <div className="text-xs text-zinc-500">
+                    Created {new Date(k.created_at).toLocaleDateString()}
+                    {k.last_used_at && ` · last used ${new Date(k.last_used_at).toLocaleDateString()}`}
+                    {k.revoked && " · revoked"}
+                  </div>
                 </div>
+                {!k.revoked && (
+                  <div className="flex items-center gap-3 shrink-0">
+                    {k.hasStoredToken && !revealed[k.id] && (
+                      <button onClick={() => handleReveal(k.id)} className="text-sm text-blue-600 hover:underline">
+                        Show
+                      </button>
+                    )}
+                    <button onClick={() => handleRevoke(k.id)} className="text-sm text-red-600 hover:underline">
+                      Revoke
+                    </button>
+                  </div>
+                )}
               </div>
-              {!k.revoked && (
-                <button onClick={() => handleRevoke(k.id)} className="text-sm text-red-600 hover:underline">
-                  Revoke
-                </button>
+              {revealed[k.id] && (
+                <code className="text-xs bg-zinc-50 border border-zinc-200 rounded p-2 break-all select-all">
+                  {revealed[k.id]}
+                </code>
               )}
             </div>
           ))}

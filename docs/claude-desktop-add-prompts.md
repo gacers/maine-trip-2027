@@ -70,6 +70,14 @@ real Airbnb listing it returned a generic title ("Vacation home in Jonesport
 reliably good for (photo + coordinates + duplicate check); get the title,
 price, and description by actually reading the listing page yourself.
 
+Separately confirmed: Airbnb sometimes blocks this endpoint's server-side
+fetch outright (HTTP 200 with Airbnb's own "404 Page Not Found" page body)
+for a listing that's genuinely live and active — the site now detects that
+shape and returns a clear warning instead of silently empty fields, but
+either way, an empty/failed preview result says nothing about whether the
+listing itself still exists. Don't take it as a signal to give up — always
+fall back to reading the real page.
+
 1. `POST {site}/api/trips/maine-2027/sections/<slug>/preview` with body
    `{"url": "<url>"}` — no auth needed, this endpoint is read-only.
    - If the response is `{"duplicate": true, "existing": {...}}`, stop here
