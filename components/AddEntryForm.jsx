@@ -163,7 +163,11 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
       ...CORE_INITIAL,
       title: place.title || "",
       posterImage: place.photoUrl || "",
-      description: place.address || "",
+      // Prefer Google's own editorial blurb when it has one — a real
+      // description reads far better here than a bare street address,
+      // which still isn't lost: it's what the map/"open in Google Maps"
+      // link is built from regardless of what description ends up as.
+      description: place.summary || place.address || "",
       lat: place.lat ?? "",
       lng: place.lng ?? "",
     });

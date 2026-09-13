@@ -6,6 +6,7 @@ import RequestAccess from "@/components/RequestAccess";
 import EntryCard from "@/components/EntryCard";
 import ListingSection from "@/components/ListingSection";
 import GroupMap from "@/components/GroupMap";
+import SimpleGroupMap from "@/components/SimpleGroupMap";
 import OverviewMap from "@/components/OverviewMap";
 import { groupUnits } from "@/lib/groupUnits";
 import { captureInviteToken } from "@/lib/inviteClient";
@@ -44,10 +45,14 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   const fieldDefs = section.field_defs || [];
   const mapConfig = trip.map_config;
   // `has_map` doubles as "this is a still-deciding-among-options list" —
-  // ranking and driving times exist to help pick a winner, which a
-  // "previous"/already-done section (nothing left to decide) has no use
-  // for either. Off by default for those in the Section Designer/starter
-  // templates; still a per-section admin toggle either way.
+  // ranking and driving times/Closest Town exist to help pick a winner,
+  // which a "previous"/already-done section (nothing left to decide) has
+  // no use for. It still gets a map, just the plain SimplePlaceMap
+  // version (marker + a link to open real Google Maps, no Directions API
+  // calls) instead of ListingMap's full comparison tooling — see
+  // EntryCard's comparisonMode prop. Off by default for "previous"
+  // sections in the Section Designer/starter templates; still a
+  // per-section admin toggle either way.
   const comparisonMode = !!section.has_map;
 
   // An admin's own session cookie already carries full access — an
@@ -208,7 +213,11 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
               </div>
             ))}
           </div>
-          {comparisonMode && <GroupMap listings={unit.listings} mapConfig={mapConfig} />}
+          {comparisonMode ? (
+            <GroupMap listings={unit.listings} mapConfig={mapConfig} />
+          ) : (
+            <SimpleGroupMap listings={unit.listings} />
+          )}
         </ListingSection>
       );
     }
@@ -226,7 +235,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           bare
           showTitle={false}
           showRank={comparisonMode}
-          showMap={comparisonMode}
+          comparisonMode={comparisonMode}
         />
       </ListingSection>
     );

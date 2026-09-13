@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ListingMap from "./ListingMap";
+import SimplePlaceMap from "./SimplePlaceMap";
 import ArchiveDialog from "./ArchiveDialog";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
@@ -163,6 +164,7 @@ export default function EntryCard({
   showTitle = true,
   showRank = true,
   showMap = true,
+  comparisonMode = true,
 }) {
   const [rankDraft, setRankDraft] = useState(entry.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -391,11 +393,15 @@ export default function EntryCard({
       )}
 
       {!isEditing && showMap && hasHouse && (
-        <ListingMap
-          houses={[{ lat: entry.lat, lng: entry.lng, label: "House (approximate location)" }]}
-          extraMarkers={extraMarkers}
-          mapConfig={mapConfig}
-        />
+        comparisonMode ? (
+          <ListingMap
+            houses={[{ lat: entry.lat, lng: entry.lng, label: "House (approximate location)" }]}
+            extraMarkers={extraMarkers}
+            mapConfig={mapConfig}
+          />
+        ) : (
+          <SimplePlaceMap places={[{ lat: entry.lat, lng: entry.lng, label: entry.title || "Location" }]} />
+        )
       )}
 
       {isEditing && draft && (
