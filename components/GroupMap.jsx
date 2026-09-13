@@ -8,7 +8,7 @@ import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 // pins are shown; reference-point distances (Acadia, puffin tour, etc.)
 // are computed from the first house with coordinates, since the two
 // houses in an option are always close together by definition.
-export default function GroupMap({ listings }) {
+export default function GroupMap({ listings, mapConfig }) {
   const houses = listings.filter(hasCoords).map((l) => ({
     lat: l.lat,
     lng: l.lng,
@@ -29,5 +29,5 @@ export default function GroupMap({ listings }) {
     });
   });
 
-  return <ListingMap houses={houses} extraMarkers={extraMarkers} />;
+  return <ListingMap houses={houses} extraMarkers={extraMarkers} mapConfig={mapConfig} />;
 }

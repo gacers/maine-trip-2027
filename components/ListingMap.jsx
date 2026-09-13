@@ -3,14 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useGoogleMaps } from "@/lib/useGoogleMaps";
 import { reverseGeocodeTown } from "@/lib/loadGoogleMaps";
-import {
-  ACADIA,
-  STONINGTON,
-  BROOKLYN_ORIGIN,
-  HOUSE_COLOR,
-  TOWN_COLOR,
-  closestOtherPuffinTour,
-} from "@/lib/mapConstants";
+
+const DEFAULT_TOWN_COLOR = "#1976D2";
+const DEFAULT_HOUSE_COLOR = "#CC0000";
 
 function starIcon(google, color) {
   const svg =
@@ -24,25 +19,56 @@ function starIcon(google, color) {
   };
 }
 
+// Straight-line (haversine) distance in miles — plenty good enough for
+// just picking the nearest option out of a trip's mapConfig.closestOf
+// list; the Directions API still computes the real driving time/distance
+// shown to the user.
+function distance(a, b) {
+  const R = 3958.8;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function closestOf(house, options) {
+  if (!options || options.length === 0) return null;
+  return options.reduce((best, opt) => (distance(house, opt) < distance(house, best) ? opt : best));
+}
+
 // `houses` is one or more { lat, lng, label } points. A solo listing passes
 // a single-item array; a 2-house-option group passes both houses so they
 // share one map, one set of reference-point pins, and one set of driving
 // times (computed from the first house — the two are always close together
 // by definition, so this stays accurate enough to be useful).
-export default function ListingMap({ houses, extraMarkers }) {
+//
+// `mapConfig` is a trip's own reference points (trips.map_config in
+// Supabase) rather than a hardcoded import, so every trip can have its
+// own set without a code change:
+//   { alwaysShown: [{lat,lng,label,color}, ...]   — always shown, e.g. a park
+//     closestOf:   [{lat,lng,label,color}, ...]   — only the nearest one shown
+//     originLabel: "Brooklyn, NY"                 — extra "X -> house" driving time
+//     houseColor, townColor }
+export default function ListingMap({ houses, extraMarkers, mapConfig }) {
   const mapDivRef = useRef(null);
   const { google, status, errorMsg } = useGoogleMaps();
   const [routeInfo, setRouteInfo] = useState({}); // label -> { text, url }
-  const [brooklynInfo, setBrooklynInfo] = useState(null);
+  const [originInfo, setOriginInfo] = useState(null);
   const [closestTown, setClosestTown] = useState(null); // { name, searchQuery, lat, lng }
+
+  const config = mapConfig || {};
+  const houseColor = config.houseColor || DEFAULT_HOUSE_COLOR;
+  const townColor = config.townColor || DEFAULT_TOWN_COLOR;
 
   const referenceHouse = houses[0];
   const destinations = [
-    ACADIA,
-    STONINGTON,
-    closestOtherPuffinTour(referenceHouse),
+    ...(config.alwaysShown || []),
+    ...(closestOf(referenceHouse, config.closestOf) ? [closestOf(referenceHouse, config.closestOf)] : []),
     ...(extraMarkers || []),
-    ...(closestTown ? [{ lat: closestTown.lat, lng: closestTown.lng, label: closestTown.name, color: TOWN_COLOR }] : []),
+    ...(closestTown ? [{ lat: closestTown.lat, lng: closestTown.lng, label: closestTown.name, color: townColor }] : []),
   ];
   const housesKey = houses.map((h) => `${h.lat},${h.lng}`).join("|");
 
@@ -83,7 +109,7 @@ export default function ListingMap({ houses, extraMarkers }) {
         map,
         title: h.label || "House",
         zIndex: 999,
-        icon: starIcon(google, HOUSE_COLOR),
+        icon: starIcon(google, houseColor),
       });
       bounds.extend(h);
     });
@@ -142,34 +168,36 @@ export default function ListingMap({ houses, extraMarkers }) {
       if (map.getZoom() > 11) map.setZoom(11);
     });
 
-    // Brooklyn -> house: real duration/distance, not drawn on this
-    // zoomed-in local map.
-    directionsService.route(
-      {
-        origin: BROOKLYN_ORIGIN,
-        destination: referenceHouse,
-        travelMode: google.maps.TravelMode.DRIVING,
-      },
-      (result, routeStatus) => {
-        if (cancelled) return;
-        if (routeStatus === "OK") {
-          const leg = result.routes[0].legs[0];
-          setBrooklynInfo({
-            text: `${leg.duration.text} (${leg.distance.text})`,
-            url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-              BROOKLYN_ORIGIN
-            )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
-          });
-        } else {
-          setBrooklynInfo({
-            text: "Couldn't get directions",
-            url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-              BROOKLYN_ORIGIN
-            )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
-          });
+    // Origin -> house: real duration/distance, not drawn on this
+    // zoomed-in local map. Only if this trip defines one.
+    if (config.originLabel) {
+      directionsService.route(
+        {
+          origin: config.originLabel,
+          destination: referenceHouse,
+          travelMode: google.maps.TravelMode.DRIVING,
+        },
+        (result, routeStatus) => {
+          if (cancelled) return;
+          if (routeStatus === "OK") {
+            const leg = result.routes[0].legs[0];
+            setOriginInfo({
+              text: `${leg.duration.text} (${leg.distance.text})`,
+              url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+                config.originLabel
+              )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
+            });
+          } else {
+            setOriginInfo({
+              text: "Couldn't get directions",
+              url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+                config.originLabel
+              )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
+            });
+          }
         }
-      }
-    );
+      );
+    }
 
     return () => {
       cancelled = true;
@@ -203,7 +231,7 @@ export default function ListingMap({ houses, extraMarkers }) {
           <li key={h.label} className="flex items-center gap-1.5">
             <span
               className="inline-block w-3 h-3 rounded-full shrink-0"
-              style={{ background: HOUSE_COLOR }}
+              style={{ background: houseColor }}
             />
             {h.label}
           </li>
@@ -240,10 +268,10 @@ export default function ListingMap({ houses, extraMarkers }) {
           Driving Times
         </h3>
         <ul className="text-sm flex flex-col gap-1">
-          {brooklynInfo && (
+          {originInfo && (
             <li>
-              <a href={brooklynInfo.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                Brooklyn &rarr; house: {brooklynInfo.text}
+              <a href={originInfo.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                {config.originLabel} &rarr; house: {originInfo.text}
               </a>
             </li>
           )}

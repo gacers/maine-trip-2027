@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
-import { getAllEntries, findEntryByUrl, createEntry } from "@/lib/entries";
+import { getAllEntries, findEntryByUrl, createEntry, toClientEntry } from "@/lib/entries";
 import { requireWriteAccess } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { normalizeListingUrl } from "@/lib/scrape";
@@ -26,7 +26,7 @@ export async function GET(request, { params }) {
   try {
     const supabase = await supabaseServer();
     const entries = await getAllEntries(supabase, section.id);
-    return NextResponse.json({ trip, section, entries });
+    return NextResponse.json({ trip, section, entries: entries.map(toClientEntry) });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -62,7 +62,7 @@ export async function POST(request, { params }) {
   try {
     const existing = await findEntryByUrl(supabase, section.id, normalizedUrl);
     if (existing) {
-      return NextResponse.json({ error: "duplicate", existing }, { status: 409 });
+      return NextResponse.json({ error: "duplicate", existing: toClientEntry(existing) }, { status: 409 });
     }
 
     const all = await getAllEntries(supabase, section.id);
@@ -98,7 +98,7 @@ export async function POST(request, { params }) {
       group_label: groupLabel || null,
       data: filledData,
     });
-    return NextResponse.json({ entry }, { status: 201 });
+    return NextResponse.json({ entry: toClientEntry(entry) }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

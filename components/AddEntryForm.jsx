@@ -2,26 +2,24 @@
 
 import { useState } from "react";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
+import FieldInput from "./FieldInput";
 
-const initialFields = {
+const CORE_INITIAL = {
   title: "",
-  price: "",
   posterImage: "",
   description: "",
   lat: "",
   lng: "",
   notes: "",
   concerns: "",
-  bedrooms: "",
-  beds: "",
-  bathrooms: "",
   groupLabel: "",
 };
 
-export default function AddListingForm({ collection, onAdded }) {
+export default function AddEntryForm({ trip, section, onAdded }) {
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState("idle"); // idle | loading | editing | duplicate | saving | error
-  const [fields, setFields] = useState(initialFields);
+  const [fields, setFields] = useState(CORE_INITIAL);
+  const [data, setData] = useState({});
   const [warnings, setWarnings] = useState([]);
   const [duplicate, setDuplicate] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
@@ -29,7 +27,16 @@ export default function AddListingForm({ collection, onAdded }) {
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
 
-  const apiBase = `/api/${collection.apiSlug}`;
+  const fieldDefs = section.field_defs || [];
+  const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
+
+  function initialData() {
+    const d = {};
+    fieldDefs.forEach((f) => {
+      d[f.key] = "";
+    });
+    return d;
+  }
 
   async function handleFindCoords() {
     if (!address.trim()) return;
@@ -49,7 +56,8 @@ export default function AddListingForm({ collection, onAdded }) {
   function reset() {
     setUrl("");
     setPhase("idle");
-    setFields(initialFields);
+    setFields(CORE_INITIAL);
+    setData({});
     setWarnings([]);
     setDuplicate(null);
     setAddress("");
@@ -68,26 +76,26 @@ export default function AddListingForm({ collection, onAdded }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
-      const data = await res.json();
+      const resData = await res.json();
       if (!res.ok) {
-        setErrorMsg(data.error || "Something went wrong.");
+        setErrorMsg(resData.error || "Something went wrong.");
         setPhase("idle");
         return;
       }
-      if (data.duplicate) {
-        setDuplicate(data.existing);
+      if (resData.duplicate) {
+        setDuplicate(resData.existing);
         setPhase("duplicate");
         return;
       }
-      const s = data.scraped;
+      const s = resData.scraped;
       setFields({
-        ...initialFields,
+        ...CORE_INITIAL,
         title: s.title || "",
-        price: s.price || "",
         posterImage: s.posterImage || "",
         lat: s.lat ?? "",
         lng: s.lng ?? "",
       });
+      setData(initialData());
       setWarnings(s.warnings || []);
       setPhase("editing");
     } catch (err) {
@@ -108,20 +116,20 @@ export default function AddListingForm({ collection, onAdded }) {
       const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, ...fields }),
+        body: JSON.stringify({ url, ...fields, data }),
       });
-      const data = await res.json();
+      const resData = await res.json();
       if (!res.ok) {
-        if (data.error === "duplicate") {
-          setDuplicate(data.existing);
+        if (resData.error === "duplicate") {
+          setDuplicate(resData.existing);
           setPhase("duplicate");
           return;
         }
-        setErrorMsg(data.error || "Something went wrong.");
+        setErrorMsg(resData.error || "Something went wrong.");
         setPhase("editing");
         return;
       }
-      onAdded(data.listing);
+      onAdded(resData.entry);
       reset();
     } catch (err) {
       setErrorMsg(err.message);
@@ -136,7 +144,7 @@ export default function AddListingForm({ collection, onAdded }) {
           <input
             type="url"
             required
-            placeholder={collection.addPlaceholder}
+            placeholder={section.add_placeholder}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
@@ -186,15 +194,6 @@ export default function AddListingForm({ collection, onAdded }) {
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
-              Price
-              <input
-                value={fields.price}
-                onChange={(e) => setFields({ ...fields, price: e.target.value })}
-                placeholder="e.g. $450/night"
-                className="rounded border border-zinc-300 px-2 py-1.5"
-              />
-            </label>
             <label className="flex flex-col gap-1 text-sm sm:col-span-2">
               Photo URL
               <input
@@ -212,41 +211,25 @@ export default function AddListingForm({ collection, onAdded }) {
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>
-            {collection.showBedBath && (
-              <div className="grid grid-cols-3 gap-2 sm:col-span-2">
-                <label className="flex flex-col gap-1 text-sm">
-                  Bedrooms
-                  <input
-                    type="number"
-                    value={fields.bedrooms}
-                    onChange={(e) => setFields({ ...fields, bedrooms: e.target.value })}
-                    className="rounded border border-zinc-300 px-2 py-1.5"
+
+            {fieldDefs.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:col-span-2">
+                {fieldDefs.map((f) => (
+                  <FieldInput
+                    key={f.key}
+                    fieldDef={f}
+                    value={data[f.key]}
+                    onChange={(v) => setData({ ...data, [f.key]: v })}
                   />
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  Beds
-                  <input
-                    type="number"
-                    value={fields.beds}
-                    onChange={(e) => setFields({ ...fields, beds: e.target.value })}
-                    className="rounded border border-zinc-300 px-2 py-1.5"
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  Bathrooms
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={fields.bathrooms}
-                    onChange={(e) => setFields({ ...fields, bathrooms: e.target.value })}
-                    className="rounded border border-zinc-300 px-2 py-1.5"
-                  />
-                </label>
-                <p className="text-xs text-zinc-500 col-span-3 -mt-1">
-                  Leave blank to auto-fill from the description.
-                </p>
+                ))}
+                {fieldDefs.some((f) => f.field_type === "count") && (
+                  <p className="text-xs text-zinc-500 col-span-full -mt-1">
+                    Leave count fields blank to auto-fill from the description.
+                  </p>
+                )}
               </div>
             )}
+
             <label className="flex flex-col gap-1 text-sm">
               Latitude
               <input
@@ -318,7 +301,7 @@ export default function AddListingForm({ collection, onAdded }) {
               disabled={phase === "saving"}
               className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
-              {phase === "saving" ? "Saving..." : "Save listing"}
+              {phase === "saving" ? "Saving..." : "Save"}
             </button>
             <button type="button" onClick={reset} className="text-sm text-zinc-500 hover:underline">
               Cancel

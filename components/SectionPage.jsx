@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AddListingForm from "@/components/AddListingForm";
-import ListingCard from "@/components/ListingCard";
+import AddEntryForm from "@/components/AddEntryForm";
+import EntryCard from "@/components/EntryCard";
 import ListingSection from "@/components/ListingSection";
 import GroupMap from "@/components/GroupMap";
 import OverviewMap from "@/components/OverviewMap";
@@ -18,14 +18,19 @@ function pinFor(unit) {
   };
 }
 
-export default function CollectionPage({ collection }) {
-  const [listings, setListings] = useState([]);
+// Replaces CollectionPage.jsx — same fetch/patch/delete/add logic and
+// grouping, now against /api/trips/[tripSlug]/sections/[sectionSlug]/
+// entries instead of /api/[collection], and rendering whichever fields
+// `section.field_defs` defines instead of a hardcoded showBedBath flag.
+export default function SectionPage({ trip, section }) {
+  const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [sheetUrl, setSheetUrl] = useState("");
 
-  const apiBase = `/api/${collection.apiSlug}`;
+  const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
+  const fieldDefs = section.field_defs || [];
+  const mapConfig = trip.map_config;
 
   async function load() {
     setLoading(true);
@@ -33,9 +38,8 @@ export default function CollectionPage({ collection }) {
     try {
       const res = await fetch(apiBase, { cache: "no-store" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load listings");
-      setListings(data.listings);
-      if (data.sheetUrl) setSheetUrl(data.sheetUrl);
+      if (!res.ok) throw new Error(data.error || "Failed to load entries");
+      setEntries(data.entries);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -46,10 +50,10 @@ export default function CollectionPage({ collection }) {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collection.apiSlug]);
+  }, [apiBase]);
 
   function applyLocalPatch(id, patch) {
-    setListings((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   }
 
   async function handlePatch(id, patch) {
@@ -62,7 +66,7 @@ export default function CollectionPage({ collection }) {
       });
       if (!res.ok) throw new Error("Update failed");
       const data = await res.json();
-      applyLocalPatch(id, data.listing);
+      applyLocalPatch(id, data.entry);
     } catch (err) {
       setError(err.message);
       load(); // re-sync on failure
@@ -70,7 +74,7 @@ export default function CollectionPage({ collection }) {
   }
 
   async function handleDelete(id) {
-    setListings((prev) => prev.filter((l) => l.id !== id));
+    setEntries((prev) => prev.filter((e) => e.id !== id));
     try {
       const res = await fetch(`${apiBase}/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
@@ -80,14 +84,14 @@ export default function CollectionPage({ collection }) {
     }
   }
 
-  function handleAdded(listing) {
-    setListings((prev) => [...prev, listing]);
+  function handleAdded(entry) {
+    setEntries((prev) => [...prev, entry]);
   }
 
-  const active = listings
-    .filter((l) => l.status !== "archived")
+  const active = entries
+    .filter((e) => e.status !== "archived")
     .sort((a, b) => (a.rank ?? 999999) - (b.rank ?? 999999));
-  const archived = listings.filter((l) => l.status === "archived");
+  const archived = entries.filter((e) => e.status === "archived");
 
   const activeUnits = groupUnits(active);
   const pins = activeUnits.map(pinFor);
@@ -96,43 +100,45 @@ export default function CollectionPage({ collection }) {
     if (unit.type === "group") {
       return (
         <ListingSection
-          key={unit.listings.map((l) => l.id).join("-")}
+          key={unit.listings.map((e) => e.id).join("-")}
           id={`group-${unit.listings[0].id}`}
           title={unit.listings[0].groupLabel}
           rank={unit.listings[0].rank ?? undefined}
           onRankChange={(newRank) =>
-            unit.listings.forEach((l) => handlePatch(l.id, { rank: newRank }))
+            unit.listings.forEach((e) => handlePatch(e.id, { rank: newRank }))
           }
         >
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
-            {unit.listings.map((listing) => (
-              <div key={listing.id} className="sm:w-1/2 min-w-0">
-                <ListingCard
-                  listing={listing}
+            {unit.listings.map((entry) => (
+              <div key={entry.id} className="sm:w-1/2 min-w-0">
+                <EntryCard
+                  entry={entry}
+                  fieldDefs={fieldDefs}
+                  mapConfig={mapConfig}
                   onPatch={handlePatch}
                   onDelete={handleDelete}
                   bare
                   showRank={false}
                   showMap={false}
-                  showBedBath={collection.showBedBath}
                 />
               </div>
             ))}
           </div>
-          <GroupMap listings={unit.listings} />
+          <GroupMap listings={unit.listings} mapConfig={mapConfig} />
         </ListingSection>
       );
     }
-    const listing = unit.listings[0];
+    const entry = unit.listings[0];
     return (
-      <ListingSection key={listing.id} title={listing.title} href={listing.url}>
-        <ListingCard
-          listing={listing}
+      <ListingSection key={entry.id} title={entry.title} href={entry.url}>
+        <EntryCard
+          entry={entry}
+          fieldDefs={fieldDefs}
+          mapConfig={mapConfig}
           onPatch={handlePatch}
           onDelete={handleDelete}
           bare
           showTitle={false}
-          showBedBath={collection.showBedBath}
         />
       </ListingSection>
     );
@@ -141,9 +147,9 @@ export default function CollectionPage({ collection }) {
   return (
     <main className="max-w-4xl mx-auto px-4 pb-16 flex flex-col gap-6 w-full">
       <div className="flex justify-center">
-        {sheetUrl && (
+        {trip.google_sheet_url && (
           <a
-            href={sheetUrl}
+            href={trip.google_sheet_url}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
@@ -153,7 +159,7 @@ export default function CollectionPage({ collection }) {
         )}
       </div>
 
-      <AddListingForm collection={collection} onAdded={handleAdded} />
+      <AddEntryForm trip={trip} section={section} onAdded={handleAdded} />
 
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>
@@ -167,7 +173,7 @@ export default function CollectionPage({ collection }) {
 
           <div className="flex flex-col gap-4">
             {active.length === 0 && (
-              <p className="text-zinc-500 text-sm">{collection.emptyMessage}</p>
+              <p className="text-zinc-500 text-sm">{section.empty_message}</p>
             )}
             {activeUnits.map(renderUnit)}
           </div>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
-import { getAllEntries, updateEntry, deleteEntry } from "@/lib/entries";
+import { getAllEntries, updateEntry, deleteEntry, toClientEntry } from "@/lib/entries";
 import { requireWriteAccess } from "@/lib/auth";
 import { extractCount } from "@/lib/fieldTypes/count";
 
@@ -78,7 +78,7 @@ export async function PATCH(request, { params }) {
     }
 
     const entry = await updateEntry(supabase, entryId, patch);
-    return NextResponse.json({ entry });
+    return NextResponse.json({ entry: toClientEntry(entry) });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

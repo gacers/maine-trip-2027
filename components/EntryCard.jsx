@@ -5,8 +5,9 @@ import ListingMap from "./ListingMap";
 import ArchiveDialog from "./ArchiveDialog";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
-import { formatBedBath } from "@/lib/extractCounts";
-import { extractAvgPerNight, formatAvgPerNight } from "@/lib/priceUtils";
+import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
+import { formatCounts } from "@/lib/fieldTypes/count";
+import FieldInput from "./FieldInput";
 
 function toBullets(text) {
   return (text || "")
@@ -28,17 +29,18 @@ function BulletList({ items }) {
   );
 }
 
-export default function ListingCard({
-  listing,
+export default function EntryCard({
+  entry,
+  fieldDefs = [],
+  mapConfig,
   onPatch,
   onDelete,
   bare = false,
   showTitle = true,
   showRank = true,
   showMap = true,
-  showBedBath = true,
 }) {
-  const [rankDraft, setRankDraft] = useState(listing.rank ?? "");
+  const [rankDraft, setRankDraft] = useState(entry.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -46,54 +48,57 @@ export default function ListingCard({
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
-  const [notesDraft, setNotesDraft] = useState(listing.notes || "");
-  const [concernsDraft, setConcernsDraft] = useState(listing.concerns || "");
-  const isArchived = listing.status === "archived";
-  const extraMarkers = parseExtraMarkers(listing.extraMarkers);
-  const bedBath = formatBedBath(listing);
-  const avgPerNight = extractAvgPerNight(listing.price);
+  const [notesDraft, setNotesDraft] = useState(entry.notes || "");
+  const [concernsDraft, setConcernsDraft] = useState(entry.concerns || "");
+  const isArchived = entry.status === "archived";
+  const extraMarkers = parseExtraMarkers(entry.extraMarkers);
+
+  const priceFields = fieldDefs.filter((f) => f.field_type === "price");
+  const countFields = fieldDefs.filter((f) => f.field_type === "count");
+  const countsSummary = formatCounts(countFields.map((f) => ({ fieldDef: f, value: entry[f.key] })));
 
   function archive(reason) {
-    onPatch(listing.id, { archiveReason: reason, status: "archived" });
+    onPatch(entry.id, { archiveReason: reason, status: "archived" });
     setShowArchiveDialog(false);
   }
 
   function restore() {
-    onPatch(listing.id, { archiveReason: "", status: "active" });
+    onPatch(entry.id, { archiveReason: "", status: "active" });
   }
 
   function commitRank() {
     const n = Number(rankDraft);
-    if (!Number.isNaN(n) && n !== listing.rank) {
-      onPatch(listing.id, { rank: n });
+    if (!Number.isNaN(n) && n !== entry.rank) {
+      onPatch(entry.id, { rank: n });
     }
   }
 
   function commitNotes() {
-    if (notesDraft !== (listing.notes || "")) {
-      onPatch(listing.id, { notes: notesDraft });
+    if (notesDraft !== (entry.notes || "")) {
+      onPatch(entry.id, { notes: notesDraft });
     }
   }
 
   function commitConcerns() {
-    if (concernsDraft !== (listing.concerns || "")) {
-      onPatch(listing.id, { concerns: concernsDraft });
+    if (concernsDraft !== (entry.concerns || "")) {
+      onPatch(entry.id, { concerns: concernsDraft });
     }
   }
 
   function startEdit() {
+    const dataDraft = {};
+    fieldDefs.forEach((f) => {
+      dataDraft[f.key] = entry[f.key] ?? "";
+    });
     setDraft({
-      title: listing.title || "",
-      price: listing.price || "",
-      posterImage: listing.posterImage || "",
-      description: (listing.description || "").split("\n").filter(Boolean).join("\n"),
-      lat: listing.lat ?? "",
-      lng: listing.lng ?? "",
-      bedrooms: listing.bedrooms ?? "",
-      beds: listing.beds ?? "",
-      bathrooms: listing.bathrooms ?? "",
-      groupLabel: listing.groupLabel || "",
+      title: entry.title || "",
+      posterImage: entry.posterImage || "",
+      description: (entry.description || "").split("\n").filter(Boolean).join("\n"),
+      lat: entry.lat ?? "",
+      lng: entry.lng ?? "",
+      groupLabel: entry.groupLabel || "",
       extraMarkers: extraMarkers.length ? extraMarkers : [],
+      data: dataDraft,
     });
     setAddress("");
     setGeocodeMsg("");
@@ -137,28 +142,31 @@ export default function ListingCard({
       .filter((m) => m.label && m.lat !== "" && m.lng !== "")
       .map((m) => ({ label: m.label, color: m.color, lat: Number(m.lat), lng: Number(m.lng) }));
 
-    onPatch(listing.id, {
+    const dataPatch = {};
+    for (const f of fieldDefs) {
+      const v = draft.data[f.key];
+      dataPatch[f.key] = f.field_type === "number" || f.field_type === "count" ? (v === "" ? "" : Number(v)) : v;
+    }
+
+    onPatch(entry.id, {
       title: draft.title,
-      price: draft.price,
       posterImage: draft.posterImage,
       description: draft.description,
       lat: draft.lat === "" ? "" : Number(draft.lat),
       lng: draft.lng === "" ? "" : Number(draft.lng),
-      bedrooms: draft.bedrooms === "" ? "" : Number(draft.bedrooms),
-      beds: draft.beds === "" ? "" : Number(draft.beds),
-      bathrooms: draft.bathrooms === "" ? "" : Number(draft.bathrooms),
       groupLabel: draft.groupLabel || "",
-      extraMarkers: JSON.stringify(cleanMarkers),
+      extraMarkers: cleanMarkers,
+      data: dataPatch,
     });
     setIsEditing(false);
     setDraft(null);
   }
 
-  const hasHouse = hasCoords(listing);
+  const hasHouse = hasCoords(entry);
 
   return (
     <article
-      id={`listing-${listing.id}`}
+      id={`listing-${entry.id}`}
       className={`flex flex-col gap-3 ${
         bare
           ? isArchived
@@ -173,32 +181,32 @@ export default function ListingCard({
         <div className="min-w-0">
           {showTitle && (
             <a
-              href={listing.url}
+              href={entry.url}
               target="_blank"
               rel="noopener noreferrer"
               className="text-lg font-semibold text-zinc-900 hover:text-blue-600 underline decoration-blue-400 break-words"
             >
-              {listing.title}
+              {entry.title}
             </a>
           )}
-          {listing.price ? (
-            <div className="text-sm text-zinc-600 mt-0.5">
-              {listing.price}
-              {/* Only show our own computed average when the price text
-                  doesn't already spell out a nightly rate itself. */}
-              {showBedBath && avgPerNight != null && !/\/\s?night|per\s?night/i.test(listing.price) && (
-                <span className="text-zinc-500"> ({formatAvgPerNight(avgPerNight)})</span>
-              )}
-            </div>
-          ) : (
-            <div className="text-sm text-zinc-400 mt-0.5 italic">No price yet</div>
-          )}
-          {showBedBath && bedBath && (
-            <div className="text-xs text-zinc-500 mt-0.5">{bedBath}</div>
-          )}
+          {priceFields.map((f) => {
+            const value = entry[f.key];
+            const badge = computePriceBadge(value);
+            return value ? (
+              <div key={f.key} className="text-sm text-zinc-600 mt-0.5">
+                {value}
+                {badge && <span className="text-zinc-500"> ({badge})</span>}
+              </div>
+            ) : (
+              <div key={f.key} className="text-sm text-zinc-400 mt-0.5 italic">
+                No {f.label.toLowerCase()} yet
+              </div>
+            );
+          })}
+          {countsSummary && <div className="text-xs text-zinc-500 mt-0.5">{countsSummary}</div>}
           {!showTitle && (
             <a
-              href={listing.url}
+              href={entry.url}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-blue-600 hover:underline"
@@ -221,30 +229,31 @@ export default function ListingCard({
         )}
       </div>
 
-      {listing.posterImage && (
+      {entry.posterImage && (
         <div className="w-full max-h-[480px] flex items-center justify-center bg-zinc-100 rounded-lg overflow-hidden">
           <img
-            src={listing.posterImage}
-            alt={listing.title}
+            src={entry.posterImage}
+            alt={entry.title}
             className="w-full h-auto max-h-[480px] object-contain"
             loading="lazy"
           />
         </div>
       )}
 
-      {!isEditing && toBullets(listing.description).length > 0 && (
+      {!isEditing && toBullets(entry.description).length > 0 && (
         <div>
           <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium mb-1">
             Description
           </h3>
-          <BulletList items={toBullets(listing.description)} />
+          <BulletList items={toBullets(entry.description)} />
         </div>
       )}
 
       {!isEditing && showMap && hasHouse && (
         <ListingMap
-          houses={[{ lat: listing.lat, lng: listing.lng, label: "House (approximate location)" }]}
+          houses={[{ lat: entry.lat, lng: entry.lng, label: "House (approximate location)" }]}
           extraMarkers={extraMarkers}
+          mapConfig={mapConfig}
         />
       )}
 
@@ -260,14 +269,6 @@ export default function ListingCard({
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              Price
-              <input
-                value={draft.price}
-                onChange={(e) => setDraft({ ...draft, price: e.target.value })}
-                className="rounded border border-zinc-300 px-2 py-1.5"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
               Photo URL
               <input
                 value={draft.posterImage}
@@ -284,41 +285,25 @@ export default function ListingCard({
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>
-            {showBedBath && (
-              <div className="grid grid-cols-3 gap-2 sm:col-span-2">
-                <label className="flex flex-col gap-1 text-sm">
-                  Bedrooms
-                  <input
-                    type="number"
-                    value={draft.bedrooms}
-                    onChange={(e) => setDraft({ ...draft, bedrooms: e.target.value })}
-                    className="rounded border border-zinc-300 px-2 py-1.5"
+
+            {fieldDefs.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:col-span-2">
+                {fieldDefs.map((f) => (
+                  <FieldInput
+                    key={f.key}
+                    fieldDef={f}
+                    value={draft.data[f.key]}
+                    onChange={(v) => setDraft({ ...draft, data: { ...draft.data, [f.key]: v } })}
                   />
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  Beds
-                  <input
-                    type="number"
-                    value={draft.beds}
-                    onChange={(e) => setDraft({ ...draft, beds: e.target.value })}
-                    className="rounded border border-zinc-300 px-2 py-1.5"
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  Bathrooms
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={draft.bathrooms}
-                    onChange={(e) => setDraft({ ...draft, bathrooms: e.target.value })}
-                    className="rounded border border-zinc-300 px-2 py-1.5"
-                  />
-                </label>
-                <p className="text-xs text-zinc-500 col-span-3 -mt-1">
-                  Auto-filled from the description when left blank.
-                </p>
+                ))}
+                {countFields.length > 0 && (
+                  <p className="text-xs text-zinc-500 col-span-full -mt-1">
+                    Count fields auto-fill from the description when left blank.
+                  </p>
+                )}
               </div>
             )}
+
             <label className="flex flex-col gap-1 text-sm">
               House latitude
               <input
@@ -485,20 +470,17 @@ export default function ListingCard({
 
         {isArchived && (
           <div className="ml-auto flex items-center gap-3">
-            {listing.archiveReason && (
-              <span className="text-xs text-zinc-500 italic">{listing.archiveReason}</span>
+            {entry.archiveReason && (
+              <span className="text-xs text-zinc-500 italic">{entry.archiveReason}</span>
             )}
-            <button
-              onClick={restore}
-              className="text-sm text-blue-600 hover:underline"
-            >
+            <button onClick={restore} className="text-sm text-blue-600 hover:underline">
               Restore
             </button>
             {confirmingDelete ? (
               <span className="text-sm flex items-center gap-2">
                 Delete for good?
                 <button
-                  onClick={() => onDelete(listing.id)}
+                  onClick={() => onDelete(entry.id)}
                   className="text-red-600 font-medium hover:underline"
                 >
                   Yes
