@@ -40,6 +40,13 @@ export default async function TripsIndexPage() {
           ))}
         </ul>
       )}
+
+      <Link
+        href="/trips/new"
+        className="self-center rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+      >
+        + New trip
+      </Link>
     </main>
   );
 }

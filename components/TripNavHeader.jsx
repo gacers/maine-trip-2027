@@ -15,18 +15,27 @@ function pillClasses(active, size = "text-sm px-4 py-1.5") {
 // already attached and sorted (see lib/sections.js's getTripNav) —
 // entirely data-driven per trip, replacing the old hardcoded
 // GROUPS/COLLECTIONS constants.
-export default function TripNavHeader({ trip, nav }) {
+export default function TripNavHeader({ trip, nav: allNav }) {
   const pathname = usePathname();
   const sectionPath = (slug) => `/${trip.slug}/${slug}`;
 
+  // A nav group with zero sections (e.g. its last section got deleted,
+  // or none has been added to it yet) has nothing to link to — skip it
+  // rather than render a link to "/{trip}/undefined".
+  const nav = allNav.filter((g) => g.sections.length > 0);
   const activeGroup =
     nav.find((g) => g.sections.some((s) => sectionPath(s.slug) === pathname)) || nav[0];
 
   return (
     <header className="max-w-4xl mx-auto w-full px-4 pt-8 pb-4 flex flex-col items-center gap-3">
-      <Link href="/" className="text-xs text-zinc-500 hover:underline">
-        &larr; All trips
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link href="/" className="text-xs text-zinc-500 hover:underline">
+          &larr; All trips
+        </Link>
+        <Link href={`/${trip.slug}/admin/sections`} className="text-xs text-zinc-500 hover:underline">
+          Manage
+        </Link>
+      </div>
       <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 text-center">{trip.name}</h1>
 
       {nav.length > 0 && (

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { getTripBySlug, getTripNav } from "@/lib/sections";
 
@@ -5,7 +6,10 @@ export const dynamic = "force-dynamic";
 
 // Visiting a bare trip URL (/{tripSlug}) redirects to its first section,
 // e.g. /maine-2027 -> /maine-2027/houses — matching how "/" used to just
-// be the listings page directly.
+// be the listings page directly. A brand-new trip has no sections yet
+// (the New Trip flow sends you straight to the Section Designer, but
+// nothing stops you from navigating away first) — show a way back to
+// it instead of a bare 404.
 export default async function TripDefaultPage({ params }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
@@ -13,7 +17,21 @@ export default async function TripDefaultPage({ params }) {
 
   const nav = await getTripNav(trip.id);
   const firstSection = nav.find((g) => g.sections.length > 0)?.sections[0];
-  if (!firstSection) notFound();
+
+  if (!firstSection) {
+    return (
+      <main className="max-w-md mx-auto px-4 py-16 flex flex-col items-center gap-4 text-center">
+        <h1 className="text-xl font-bold text-zinc-900">{trip.name}</h1>
+        <p className="text-zinc-500 text-sm">This trip doesn&apos;t have any sections yet.</p>
+        <Link
+          href={`/${tripSlug}/admin/sections/new`}
+          className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium"
+        >
+          + Add a section
+        </Link>
+      </main>
+    );
+  }
 
   redirect(`/${tripSlug}/${firstSection.slug}`);
 }
