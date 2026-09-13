@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // it instead of a bare 404.
 export default async function TripDefaultPage({ params, searchParams }) {
   const { tripSlug } = await params;
-  const { invite } = await searchParams;
+  const { invite, add } = await searchParams;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) notFound();
 
@@ -36,9 +36,13 @@ export default async function TripDefaultPage({ params, searchParams }) {
     );
   }
 
-  // Forward `?invite=...` through the redirect — otherwise a friend's
-  // invite link would drop the param before SectionPage ever gets a
-  // chance to capture it into localStorage (see lib/inviteClient.js).
-  const qs = invite ? `?invite=${encodeURIComponent(invite)}` : "";
-  redirect(`/${tripSlug}/${firstSection.slug}${qs}`);
+  // Forward `?invite=...` (and `?add=...`, for a "share this specific
+  // listing" link — see lib/inviteClient.js's captureAddUrl) through
+  // the redirect — otherwise either would drop before SectionPage ever
+  // gets a chance to capture it.
+  const qsParams = new URLSearchParams();
+  if (invite) qsParams.set("invite", invite);
+  if (add) qsParams.set("add", add);
+  const qs = qsParams.toString();
+  redirect(`/${tripSlug}/${firstSection.slug}${qs ? `?${qs}` : ""}`);
 }
