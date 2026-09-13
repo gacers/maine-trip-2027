@@ -178,6 +178,11 @@ export default function EntryCard({
   const priceFields = fieldDefs.filter((f) => f.field_type === "price");
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
   const countsSummary = formatCounts(countFields.map((f) => ({ fieldDef: f, value: entry[f.key] })));
+  // Any boolean field flips on a small badge when true (e.g. "Closed") —
+  // generic by field *type*, not by name, so any boolean field an admin
+  // adds to any section gets this for free. False just shows nothing,
+  // which reads naturally for exception-style flags like this.
+  const activeBooleanFields = fieldDefs.filter((f) => f.field_type === "boolean" && entry[f.key]);
 
   function archive(reason) {
     onPatch(entry.id, { archiveReason: reason, status: "archived" });
@@ -317,6 +322,14 @@ export default function EntryCard({
               {entry.title}
             </a>
           )}
+          {activeBooleanFields.map((f) => (
+            <span
+              key={f.key}
+              className="ml-2 inline-block rounded-full bg-amber-100 text-amber-800 text-xs font-medium px-2 py-0.5 align-middle"
+            >
+              {f.label}
+            </span>
+          ))}
           {priceFields.map((f) => {
             const value = entry[f.key];
             const badge = computePriceBadge(value);
