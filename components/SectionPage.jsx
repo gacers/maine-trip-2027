@@ -216,6 +216,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
                   bare
                   showRank={false}
                   showMap={false}
+                  compact={compactCards}
                 />
               </div>
             ))}
@@ -250,6 +251,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           showTitle={false}
           showRank={comparisonMode}
           comparisonMode={comparisonMode}
+          compact={compactCards}
         />
       </ListingSection>
     );

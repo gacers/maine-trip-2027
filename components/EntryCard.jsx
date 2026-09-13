@@ -165,6 +165,7 @@ export default function EntryCard({
   showRank = true,
   showMap = true,
   comparisonMode = true,
+  compact = false,
 }) {
   const [rankDraft, setRankDraft] = useState(entry.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -379,11 +380,21 @@ export default function EntryCard({
       </div>
 
       {entry.posterImage && (
-        <div className="w-full max-h-[480px] flex items-center justify-center bg-zinc-100 rounded-lg overflow-hidden">
+        // Compact (2-up) cards get a fixed height — a tall/portrait photo
+        // used to make its own card noticeably taller than its neighbor
+        // sitting right next to it in that grid. Full-width house cards
+        // keep the old auto-height-up-to-a-cap behavior, unaffected.
+        // object-contain either way: the whole photo stays uncropped,
+        // just letterboxed and centered within whatever box it gets.
+        <div
+          className={`w-full flex items-center justify-center bg-zinc-100 rounded-lg overflow-hidden ${
+            compact ? "h-56 sm:h-64" : "max-h-[480px]"
+          }`}
+        >
           <img
             src={entry.posterImage}
             alt={entry.title}
-            className="w-full h-auto max-h-[480px] object-contain"
+            className={`w-full object-contain ${compact ? "h-full" : "h-auto max-h-[480px]"}`}
             loading="lazy"
           />
         </div>
