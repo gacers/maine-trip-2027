@@ -64,6 +64,8 @@ export default function SectionForm({ trip, navGroups, section }) {
   const [navGroupId, setNavGroupId] = useState(section?.nav_group_id || navGroups[0]?.id || "");
   const [newGroupLabel, setNewGroupLabel] = useState("");
   const [fields, setFields] = useState((section?.field_defs || []).map(fieldDefToRow));
+  const [addCounterpart, setAddCounterpart] = useState(false);
+  const [counterpartLabel, setCounterpartLabel] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -124,6 +126,38 @@ export default function SectionForm({ trip, navGroups, section }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
+
+      // Create the "already visited/done" counterpart in the SAME nav
+      // group the primary section just landed in (reusing its
+      // nav_group_id rather than resolving newNavGroupLabel a second
+      // time, which would create a duplicate group) — same fields, same
+      // pairing/map settings, matching how Houses/Previous Stays,
+      // Food & Drink/Previously Visited, etc. are already set up.
+      if (!isEdit && addCounterpart) {
+        const counterpartPayload = {
+          slug: `${slug}-visited`,
+          label: counterpartLabel || `Previously Visited ${label}`,
+          subNavLabel: "Previously Visited",
+          addPlaceholder: `Paste a link for a ${label.toLowerCase()} you've already been to...`,
+          emptyMessage: `No previous ${label.toLowerCase()} yet — paste a link above.`,
+          supportsPairing,
+          hasMap,
+          navGroupId: data.section.nav_group_id,
+          fieldDefs: fields.map(rowToFieldDef),
+        };
+        const counterpartRes = await fetch(`/api/trips/${trip.slug}/sections`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(counterpartPayload),
+        });
+        const counterpartData = await counterpartRes.json();
+        if (!counterpartRes.ok) {
+          throw new Error(
+            `Created "${label}", but its counterpart failed: ${counterpartData.error || "unknown error"}`
+          );
+        }
+      }
+
       router.push(`/${trip.slug}/admin/sections`);
       router.refresh();
     } catch (err) {
@@ -242,6 +276,36 @@ export default function SectionForm({ trip, navGroups, section }) {
           Show a map when lat/lng are set
         </label>
       </div>
+
+      {!isEdit && (
+        <div className="rounded-lg border border-zinc-200 p-3 flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+            <input
+              type="checkbox"
+              checked={addCounterpart}
+              onChange={(e) => setAddCounterpart(e.target.checked)}
+              className="h-4 w-4"
+            />
+            Also create a &quot;Previously Visited&quot; counterpart
+          </label>
+          <p className="text-xs text-zinc-500">
+            Same pattern as Possible Houses / Previous Stays — a second section in the same nav
+            group, sharing the same fields, for things you&apos;ve already done (e.g. Distilleries
+            you want to visit vs. ones you&apos;ve already been to).
+          </p>
+          {addCounterpart && (
+            <label className="flex flex-col gap-1 text-sm">
+              Counterpart label
+              <input
+                value={counterpartLabel}
+                onChange={(e) => setCounterpartLabel(e.target.value)}
+                placeholder={`Previously Visited ${label || "..."}`}
+                className="rounded border border-zinc-300 px-2 py-1.5"
+              />
+            </label>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
