@@ -2,8 +2,12 @@
 
 Reference for the Claude Desktop Project custom instructions that let you type
 a one-line message to add an item to this site, instead of using the web UI.
-Already working today for houses (`Add Maine: <url>`); this generalizes the
-same pattern to every collection, and to future trips.
+
+**Updated for the multi-trip/Supabase rewrite** — the URL shape, auth
+requirement, and request body all changed from the original single-trip
+version of this doc. If you're re-pasting instructions into an existing
+Claude Desktop Project, replace the whole thing with the block at the bottom,
+not just parts of it.
 
 ## The pattern
 
@@ -13,31 +17,41 @@ Add <Trip>[ <Category>]: <url>
 [Notes: <free text>]
 ```
 
-- **`<Trip>`** — the trip's short name (`Maine` today). One Project = one trip
-  = one site, so this word never actually needs parsing; it's just the
-  human-readable label you type. What matters is which *site* the category
-  maps to (see the table below).
-- **`<Category>`** (optional) — picks which of the 6 collections the item
-  goes into. Omit it and it defaults to the trip's main "possible houses"
-  list, matching how `Add Maine:` already works.
+- **`<Trip>`** — the trip's short name (`Maine` today). Maps to a specific
+  trip slug (`maine-2027`) in the instructions below — this word itself is
+  just what you type, not parsed.
+- **`<Category>`** (optional) — picks which section the item goes into. Omit
+  it and it defaults to the trip's main "possible houses" section.
 - **One or two URLs**, one per line. Two URLs = a paired 2-item option (e.g.
   two houses booked together) — both get added with the same `groupLabel` so
   the site renders them as one linked unit.
 - **`Notes:`** (optional, last line) — free text applied to the `notes` field
   of every item just added.
 
-## Category → collection → API mapping (Maine Trip 2027)
+## Auth (new — this didn't exist in the single-trip version)
 
-Site base URL: `https://maine-trip-2027.vercel.app`
+The site now has real access control. Every write needs an
+`Authorization: Bearer <token>` header — generate one from the site itself:
+sign in at `/login`, go to `/<tripSlug>/admin/api-keys`, click **Generate
+key**, and paste the value (shown once) into the instructions below in place
+of `<API_KEY>`. A key is scoped to one trip; generate a new one for each
+future trip's Claude Desktop Project.
 
-| Trigger | Collection | `apiSlug` | Overview sheet |
-|---|---|---|---|
-| `Add Maine:` (no category) | Possible Houses | `listings` | Possible Properties |
-| `Add Maine Stay:` | Previous Stays | `stayed` | Previous Properties |
-| `Add Maine Food:` | Food & Drink | `food-drink` | Possible Food & Drinks |
-| `Add Maine Visited:` | Previously Visited | `visited-food-drink` | Visited Food & Drink |
-| `Add Maine Activity:` | Activities | `activities` | Possible Activities |
-| `Add Maine Previous Activity:` | Previous Activities | `previous-activities` | Previous Activities |
+## Category → section → API mapping (Maine Trip 2027)
+
+Site base URL: `https://maine-trip-2027.vercel.app`. Trip slug: `maine-2027`.
+
+| Trigger | Section | section slug |
+|---|---|---|
+| `Add Maine:` (no category) | Possible Houses | `houses` |
+| `Add Maine Stay:` | Previous Stays | `previous-stays` |
+| `Add Maine Food:` | Food & Drink | `food-drink` |
+| `Add Maine Visited:` | Previously Visited | `previously-visited` |
+| `Add Maine Activity:` | Activities | `activities` |
+| `Add Maine Previous Activity:` | Previous Activities | `previous-activities` |
+
+Every section's URL is `/api/trips/maine-2027/sections/<section-slug>/entries`
+(plus `/preview` for the scrape-assist endpoint, `/<id>` for a single entry).
 
 ## What Claude should actually do, per URL
 
@@ -47,7 +61,8 @@ real Airbnb listing it returned a generic title ("Vacation home in Jonesport
 reliably good for (photo + coordinates + duplicate check); get the title,
 price, and description by actually reading the listing page yourself.
 
-1. `POST {site}/api/{apiSlug}/preview` with body `{"url": "<url>"}`.
+1. `POST {site}/api/trips/maine-2027/sections/<slug>/preview` with body
+   `{"url": "<url>"}` — no auth needed, this endpoint is read-only.
    - If the response is `{"duplicate": true, "existing": {...}}`, stop here
      — don't add it again, just tell the user it's already on the list
      (mention its title).
@@ -70,14 +85,21 @@ price, and description by actually reading the listing page yourself.
      the user about how current the number is.
    - **Description**: a handful of short bullet lines (one fact per line, no
      trailing punctuation) covering bedroom/bed/bath counts, location, and
-     standout features — matching the style of existing entries in the
-     sheet, not a copy-pasted paragraph.
-3. `POST {site}/api/{apiSlug}` with: your title, your price (or omit the
-   field if you couldn't confirm one), your description, `posterImage`/`lat`/
-   `lng` from step 1, plus:
-   - `notes`: the text after `Notes:`, if given (same text on every item in
-     this message).
-   - `groupLabel`: only when two URLs were given together (see below).
+     standout features — matching the style of existing entries on the site,
+     not a copy-pasted paragraph. (Bedroom/bed/bathroom counts don't need to
+     be typed separately — the site auto-extracts them from this text.)
+3. `POST {site}/api/trips/maine-2027/sections/<slug>/entries` **with
+   `Authorization: Bearer <API_KEY>`** and a JSON body shaped like:
+   ```json
+   {
+     "url": "...", "title": "...", "posterImage": "...", "description": "...",
+     "lat": 44.5, "lng": -67.5, "notes": "...", "groupLabel": "...",
+     "data": { "price": "$450/night" }
+   }
+   ```
+   `data` holds this section's own fields (for Houses/Previous Stays that's
+   just `price` — bedrooms/beds/bathrooms auto-fill from the description).
+   Omit any field you don't have; only `url` and `title` are required.
 4. Report back what got added (title + which list), and explicitly flag
    anything you couldn't confirm (most commonly: price) rather than staying
    silent about it.
@@ -85,8 +107,7 @@ price, and description by actually reading the listing page yourself.
 ### Deriving `groupLabel` for a paired (2-URL) add
 
 The site groups two items into one card/map/rank whenever they share a
-non-empty `groupLabel` — see `lib/groupUnits.js` in the repo. You're not told
-a label explicitly, so derive one:
+non-empty `groupLabel`. You're not told a label explicitly, so derive one:
 - If both scraped titles share an obvious common lead-in before a separator
   (e.g. `"Gouldsboro - Schoodic East"` / `"Gouldsboro - Harbor House"` share
   `"Gouldsboro"`), use that shared piece as the label.
@@ -97,44 +118,44 @@ a label explicitly, so derive one:
 
 ## Generalizing to a future trip
 
-This whole site's code (`lib/collections.js`) already treats every
-collection identically — new trips deployed from this same codebase will
-have the same 6 `apiSlug`s (`listings`, `stayed`, `food-drink`,
-`visited-food-drink`, `activities`, `previous-activities`) and the same
-`/api/<slug>/preview` + `/api/<slug>` contract. So reusing this for a new
-trip is just:
+Every trip on this site works identically — creating one (`/trips/new`) and
+adding sections to it (`/<slug>/admin/sections/new`) needs no code or
+redeploy. For a new trip's Claude Desktop Project:
 
-1. Deploy a new copy of this app (new Vercel project + new Google Sheet) for
-   the new trip, per the deploy steps in the repo.
-2. In your new trip's Claude Desktop Project, paste the instructions below
-   with `{TRIP}` replaced by the new trip's short name and `{SITE}` replaced
-   by its Vercel URL. Nothing else changes.
+1. Create the trip and whatever sections it needs through the site's own
+   admin UI (or clone Maine's 6-section shape if that fits).
+2. Generate an API key for it at `/<new-slug>/admin/api-keys`.
+3. Paste the instructions below with `maine-2027` replaced by the new trip's
+   slug, the category table updated to match its actual sections, and
+   `<API_KEY>` replaced by the new key.
 
 ## Paste-in Project instructions (Maine Trip 2027, ready to use)
 
 ```
-This project manages the Maine Trip 2027 site at https://maine-trip-2027.vercel.app.
+This project manages the Maine Trip 2027 site at https://maine-trip-2027.vercel.app,
+trip slug "maine-2027". Writes need Authorization: Bearer <API_KEY> — replace
+<API_KEY> below with the real key before using this.
 
 When my message starts with "Add Maine" (optionally followed by a category
-word, then a colon), add the URL(s) that follow to the matching list on the
-site:
+word, then a colon), add the URL(s) that follow to the matching section:
 
-- "Add Maine:" (no category)      -> POST to /api/listings            (Possible Houses)
-- "Add Maine Stay:"                -> POST to /api/stayed              (Previous Stays)
-- "Add Maine Food:"                -> POST to /api/food-drink          (Food & Drink)
-- "Add Maine Visited:"             -> POST to /api/visited-food-drink  (Previously Visited)
-- "Add Maine Activity:"            -> POST to /api/activities          (Activities)
-- "Add Maine Previous Activity:"   -> POST to /api/previous-activities (Previous Activities)
+- "Add Maine:" (no category)      -> section slug "houses"               (Possible Houses)
+- "Add Maine Stay:"                -> section slug "previous-stays"       (Previous Stays)
+- "Add Maine Food:"                -> section slug "food-drink"           (Food & Drink)
+- "Add Maine Visited:"             -> section slug "previously-visited"   (Previously Visited)
+- "Add Maine Activity:"            -> section slug "activities"           (Activities)
+- "Add Maine Previous Activity:"   -> section slug "previous-activities"  (Previous Activities)
 
 For each URL given, in this order:
 
-1. POST {"url": "<url>"} to https://maine-trip-2027.vercel.app/api/<slug>/preview.
-   If it comes back duplicate: true, stop — don't re-add it, just tell me
-   it's already on the list (name it). Otherwise, keep `posterImage`, `lat`,
-   and `lng` from the response if present — but ignore its `title` and
-   `price`, they come from a weak regex scraper and are usually wrong or
-   missing (e.g. it once returned "Vacation home in Jonesport · ★5.0 ..." as
-   a title and no price at all for a real listing).
+1. POST {"url": "<url>"} to
+   https://maine-trip-2027.vercel.app/api/trips/maine-2027/sections/<slug>/preview
+   (no auth needed). If it comes back duplicate: true, stop — don't re-add
+   it, just tell me it's already on the list (name it). Otherwise, keep
+   `posterImage`, `lat`, and `lng` from the response if present — but ignore
+   its `title` and `price`, they come from a weak regex scraper and are
+   usually wrong or missing (e.g. it once returned "Vacation home in
+   Jonesport · ★5.0 ..." as a title and no price at all for a real listing).
 
 2. Actually visit the listing URL yourself and read the real page to work
    out:
@@ -144,16 +165,22 @@ For each URL given, in this order:
    - Price, ONLY if the page actually shows one. If the URL has
      check_in/check_out query params, that's the date range to price for.
      If you can't get a real number (common — Airbnb often hides price
-     without dates selected), leave the price field out entirely and tell
-     me so in your reply. Never reuse a price from a previous add of the
-     same listing without explicitly telling me it's not freshly checked —
-     prices change, and silently carrying one over is misleading.
+     without dates selected), leave it out entirely and tell me so in your
+     reply. Never reuse a price from a previous add of the same listing
+     without explicitly telling me it's not freshly checked — prices
+     change, and silently carrying one over is misleading.
    - A short bullet-point description (one fact per line: bedroom/bed/bath
-     counts, location, standout features) in the style already used in the
-     sheet, not a pasted paragraph.
+     counts, location, standout features) — bedroom/bed/bathroom counts
+     auto-fill from this text, don't send them separately.
 
-3. POST the assembled item (your title/price/description plus posterImage/
-   lat/lng from step 1) to https://maine-trip-2027.vercel.app/api/<slug>.
+3. POST to https://maine-trip-2027.vercel.app/api/trips/maine-2027/sections/<slug>/entries
+   with header "Authorization: Bearer <API_KEY>" and JSON body:
+   {"url": "...", "title": "...", "posterImage": "...", "description": "...",
+    "lat": ..., "lng": ..., "notes": "...", "groupLabel": "...",
+    "data": {"price": "..."}}
+   (only "url" and "title" are required; omit anything you don't have —
+   "data" is where this section's own fields go, just "price" for Houses/
+   Previous Stays).
 
 If a line says "Notes: <text>", put that text in the `notes` field of every
 item added from this message.
