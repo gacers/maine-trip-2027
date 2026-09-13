@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { getAdminUser } from "@/lib/auth";
+import { getContactEmail } from "@/lib/settings";
 import SectionPage from "@/components/SectionPage";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export default async function TripSectionPage({ params }) {
   const section = await getSectionBySlug(trip.id, sectionSlug);
   if (!section) notFound();
 
-  const admin = await getAdminUser();
+  const [admin, contactEmail] = await Promise.all([getAdminUser(), getContactEmail()]);
 
-  return <SectionPage trip={trip} section={section} isAdmin={!!admin} />;
+  return <SectionPage trip={trip} section={section} isAdmin={!!admin} contactEmail={contactEmail} />;
 }

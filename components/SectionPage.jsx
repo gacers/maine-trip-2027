@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AddEntryForm from "@/components/AddEntryForm";
+import RequestAccess from "@/components/RequestAccess";
 import EntryCard from "@/components/EntryCard";
 import ListingSection from "@/components/ListingSection";
 import GroupMap from "@/components/GroupMap";
@@ -24,7 +25,7 @@ function pinFor(unit) {
 // grouping, now against /api/trips/[tripSlug]/sections/[sectionSlug]/
 // entries instead of /api/[collection], and rendering whichever fields
 // `section.field_defs` defines instead of a hardcoded showBedBath flag.
-export default function SectionPage({ trip, section, isAdmin = false }) {
+export default function SectionPage({ trip, section, isAdmin = false, contactEmail = null }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -208,6 +209,8 @@ export default function SectionPage({ trip, section, isAdmin = false }) {
           )}
         </div>
       )}
+
+      {!canContribute && <RequestAccess trip={trip} section={section} contactEmail={contactEmail} />}
 
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>

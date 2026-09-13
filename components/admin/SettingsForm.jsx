@@ -13,6 +13,7 @@ function extractFolderId(input) {
 export default function SettingsForm({ settings }) {
   const [folderInput, setFolderInput] = useState(settings?.google_drive_folder_id || "");
   const [siteUrl, setSiteUrl] = useState(settings?.site_url || "");
+  const [contactEmail, setContactEmail] = useState(settings?.contact_email || "");
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -29,6 +30,7 @@ export default function SettingsForm({ settings }) {
         body: JSON.stringify({
           googleDriveFolderId: extractFolderId(folderInput),
           siteUrl: siteUrl.replace(/\/$/, ""),
+          contactEmail: contactEmail.trim(),
         }),
       });
       const data = await res.json();
@@ -68,6 +70,21 @@ export default function SettingsForm({ settings }) {
           value={siteUrl}
           onChange={(e) => setSiteUrl(e.target.value)}
           placeholder="https://www.example.com"
+          className="rounded border border-zinc-300 px-2 py-1.5 text-sm"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <h2 className="text-sm font-medium text-zinc-700">Access request email</h2>
+        <p className="text-xs text-zinc-500">
+          Shown to visitors without an invite link as who to email for access — see the
+          &quot;Request access&quot; button on a trip page.
+        </p>
+        <input
+          type="email"
+          value={contactEmail}
+          onChange={(e) => setContactEmail(e.target.value)}
+          placeholder="you@example.com"
           className="rounded border border-zinc-300 px-2 py-1.5 text-sm"
         />
       </div>

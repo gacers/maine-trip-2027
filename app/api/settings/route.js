@@ -34,6 +34,7 @@ export async function PATCH(request) {
   const patch = {};
   if ("googleDriveFolderId" in body) patch.google_drive_folder_id = body.googleDriveFolderId || null;
   if ("siteUrl" in body) patch.site_url = body.siteUrl || null;
+  if ("contactEmail" in body) patch.contact_email = body.contactEmail || null;
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: "No editable fields provided" }, { status: 400 });
