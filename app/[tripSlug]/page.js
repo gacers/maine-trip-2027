@@ -16,7 +16,9 @@ export default async function TripDefaultPage({ params }) {
   if (!trip) notFound();
 
   const nav = await getTripNav(trip.id);
-  const firstSection = nav.find((g) => g.sections.length > 0)?.sections[0];
+  const firstSection = nav.find((g) => g.sections.some((s) => s.enabled))?.sections.find(
+    (s) => s.enabled
+  );
 
   if (!firstSection) {
     return (

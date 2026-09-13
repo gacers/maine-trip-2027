@@ -44,6 +44,7 @@ export async function PATCH(request, { params }) {
     supportsPairing,
     hasMap,
     navGroupId,
+    enabled,
     fieldDefs,
   } = body;
 
@@ -55,6 +56,7 @@ export async function PATCH(request, { params }) {
   if (supportsPairing !== undefined) patch.supports_pairing = !!supportsPairing;
   if (hasMap !== undefined) patch.has_map = !!hasMap;
   if (navGroupId !== undefined) patch.nav_group_id = navGroupId;
+  if (enabled !== undefined) patch.enabled = !!enabled;
 
   if (fieldDefs) {
     for (const f of fieldDefs) {

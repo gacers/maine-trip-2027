@@ -37,7 +37,7 @@ export default function NewTripForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
-      router.push(`/${data.trip.slug}/admin/sections/new`);
+      router.push(`/${data.trip.slug}/admin/sections`);
     } catch (err) {
       setError(err.message);
       setSaving(false);

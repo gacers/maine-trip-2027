@@ -19,10 +19,14 @@ export default function TripNavHeader({ trip, nav: allNav }) {
   const pathname = usePathname();
   const sectionPath = (slug) => `/${trip.slug}/${slug}`;
 
-  // A nav group with zero sections (e.g. its last section got deleted,
-  // or none has been added to it yet) has nothing to link to — skip it
-  // rather than render a link to "/{trip}/undefined".
-  const nav = allNav.filter((g) => g.sections.length > 0);
+  // A nav group with zero *enabled* sections (all disabled, all deleted,
+  // or none added yet) has nothing to link to — skip it rather than
+  // render a link to "/{trip}/undefined". Disabled sections stay fully
+  // configured/queryable (see the admin sections list), just hidden
+  // from this public-facing nav.
+  const nav = allNav
+    .map((g) => ({ ...g, sections: g.sections.filter((s) => s.enabled) }))
+    .filter((g) => g.sections.length > 0);
   const activeGroup =
     nav.find((g) => g.sections.some((s) => sectionPath(s.slug) === pathname)) || nav[0];
 
