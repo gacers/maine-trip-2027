@@ -15,6 +15,8 @@ export default function InviteLinksManager({ trip }) {
   const [label, setLabel] = useState("");
   const [newInvite, setNewInvite] = useState(null); // { link, token }
   const [copied, setCopied] = useState(false);
+  const [rotating, setRotating] = useState(false);
+  const [rotateMsg, setRotateMsg] = useState("");
   const apiBase = `/api/trips/${trip.slug}/api-keys`;
 
   async function load() {
@@ -77,12 +79,52 @@ export default function InviteLinksManager({ trip }) {
     }
   }
 
+  async function handleRotateSheetInvite() {
+    setRotating(true);
+    setRotateMsg("");
+    setError("");
+    try {
+      const res = await fetch(`/api/trips/${trip.slug}/sheet-invite/rotate`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Rotate failed");
+      setRotateMsg("Done — old links in the Sheet no longer work; every tab now links out with a fresh one.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRotating(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-zinc-500">
         Share a link with a friend so they can add houses/food/activities and leave notes or concerns without
         signing in. They can&apos;t edit or delete anything you&apos;ve already added.
       </p>
+
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 flex flex-col gap-2">
+        <p className="text-sm text-zinc-700">
+          <span className="font-medium">Google Sheet access:</span>{" "}
+          {trip.sheet_invite_token ? (
+            <>every link inside the Sheet already carries its own standing invite — anyone you share the Sheet
+              with can click through and add things, no separate invite link needed.</>
+          ) : (
+            <>set up automatically the first time this trip&apos;s Sheet exports.</>
+          )}
+        </p>
+        {trip.sheet_invite_token && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRotateSheetInvite}
+              disabled={rotating}
+              className="text-sm text-red-600 hover:underline disabled:opacity-50 self-start"
+            >
+              {rotating ? "Rotating..." : "Rotate (invalidate the Sheet's current links)"}
+            </button>
+          </div>
+        )}
+        {rotateMsg && <p className="text-xs text-green-700">{rotateMsg}</p>}
+      </div>
 
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>}
 
