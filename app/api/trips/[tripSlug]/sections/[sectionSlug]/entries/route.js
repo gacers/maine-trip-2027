@@ -38,7 +38,9 @@ export async function POST(request, { params }) {
   const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
   if (notFound) return notFound;
 
-  const { error: authError, supabase } = await requireWriteAccess(request, trip.id);
+  const { error: authError, supabase } = await requireWriteAccess(request, trip.id, {
+    allowContributor: true,
+  });
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   let body;

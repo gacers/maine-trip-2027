@@ -38,7 +38,10 @@ function BulletList({ items, renderItem }) {
 // Concerns. Appending goes through the entries PATCH route's
 // appendNote/appendConcern (see that route), the same operation
 // whether it's triggered by this button or by asking Claude Desktop to
-// add one to an existing entry.
+// add one to an existing entry. `onAdd`/`onRemove` are omitted
+// (undefined/null) to drop that capability entirely — used to gate
+// add-only invite-link contributors (can add, can't remove) and
+// read-only visitors (can't do either) down to the same shared markup.
 function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
@@ -54,51 +57,56 @@ function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }) {
     <div className="flex flex-col gap-1.5">
       <BulletList
         items={items}
-        renderItem={(item, i) => (
-          <span className="group flex items-start justify-between gap-2">
-            <span>{item}</span>
+        renderItem={
+          onRemove
+            ? (item, i) => (
+                <span className="group flex items-start justify-between gap-2">
+                  <span>{item}</span>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(i)}
+                    className="text-xs text-zinc-400 hover:text-red-600 opacity-0 group-hover:opacity-100 shrink-0"
+                  >
+                    Remove
+                  </button>
+                </span>
+              )
+            : undefined
+        }
+      />
+      {onAdd &&
+        (adding ? (
+          <form onSubmit={submit} className="flex gap-2">
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={placeholder}
+              className="flex-1 rounded border border-zinc-300 px-2 py-1 text-sm"
+            />
+            <button type="submit" className="text-sm font-medium text-blue-600 hover:underline">
+              Add
+            </button>
             <button
               type="button"
-              onClick={() => onRemove(i)}
-              className="text-xs text-zinc-400 hover:text-red-600 opacity-0 group-hover:opacity-100 shrink-0"
+              onClick={() => {
+                setAdding(false);
+                setDraft("");
+              }}
+              className="text-sm text-zinc-500 hover:underline"
             >
-              Remove
+              Cancel
             </button>
-          </span>
-        )}
-      />
-      {adding ? (
-        <form onSubmit={submit} className="flex gap-2">
-          <input
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={placeholder}
-            className="flex-1 rounded border border-zinc-300 px-2 py-1 text-sm"
-          />
-          <button type="submit" className="text-sm font-medium text-blue-600 hover:underline">
-            Add
-          </button>
+          </form>
+        ) : (
           <button
             type="button"
-            onClick={() => {
-              setAdding(false);
-              setDraft("");
-            }}
-            className="text-sm text-zinc-500 hover:underline"
+            onClick={() => setAdding(true)}
+            className="text-sm text-blue-600 hover:underline self-start"
           >
-            Cancel
+            + {addLabel}
           </button>
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="text-sm text-blue-600 hover:underline self-start"
-        >
-          + {addLabel}
-        </button>
-      )}
+        ))}
     </div>
   );
 }
@@ -109,6 +117,8 @@ export default function EntryCard({
   mapConfig,
   onPatch,
   onDelete,
+  canManage = true,
+  canContribute = true,
   bare = false,
   showTitle = true,
   showRank = true,
@@ -293,7 +303,7 @@ export default function EntryCard({
             </a>
           )}
         </div>
-        {showRank && (
+        {showRank && canManage && (
           <div className="flex flex-col items-end gap-1 shrink-0">
             <label className="text-xs text-zinc-500">Rank</label>
             <input
@@ -505,8 +515,8 @@ export default function EntryCard({
         <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium">Notes</h3>
         <EditableNoteList
           items={toBullets(entry.notes)}
-          onAdd={addNote}
-          onRemove={removeNoteAt}
+          onAdd={canContribute ? addNote : null}
+          onRemove={canManage ? removeNoteAt : null}
           addLabel="Add note"
           placeholder="Add a note..."
         />
@@ -516,69 +526,71 @@ export default function EntryCard({
         <h3 className="text-sm uppercase tracking-wide text-amber-700 font-medium">Concerns</h3>
         <EditableNoteList
           items={toBullets(entry.concerns)}
-          onAdd={addConcern}
-          onRemove={removeConcernAt}
+          onAdd={canContribute ? addConcern : null}
+          onRemove={canManage ? removeConcernAt : null}
           addLabel="Add concern"
           placeholder="Anything that gives you pause..."
         />
       </div>
 
-      <div className="relative flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 border-t border-zinc-100 mt-1">
-        {!isArchived && (
-          <div className="relative">
-            <button
-              onClick={() => setShowArchiveDialog((v) => !v)}
-              className="text-sm text-red-600 hover:underline"
-            >
-              Delete
-            </button>
-            {showArchiveDialog && (
-              <ArchiveDialog onConfirm={archive} onCancel={() => setShowArchiveDialog(false)} />
-            )}
-          </div>
-        )}
-
-        {!isEditing && (
-          <button onClick={startEdit} className="text-sm text-zinc-600 hover:underline">
-            Edit details
-          </button>
-        )}
-
-        {isArchived && (
-          <div className="ml-auto flex items-center gap-3">
-            {entry.archiveReason && (
-              <span className="text-xs text-zinc-500 italic">{entry.archiveReason}</span>
-            )}
-            <button onClick={restore} className="text-sm text-blue-600 hover:underline">
-              Restore
-            </button>
-            {confirmingDelete ? (
-              <span className="text-sm flex items-center gap-2">
-                Delete for good?
-                <button
-                  onClick={() => onDelete(entry.id)}
-                  className="text-red-600 font-medium hover:underline"
-                >
-                  Yes
-                </button>
-                <button
-                  onClick={() => setConfirmingDelete(false)}
-                  className="text-zinc-500 hover:underline"
-                >
-                  No
-                </button>
-              </span>
-            ) : (
+      {canManage && (
+        <div className="relative flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 border-t border-zinc-100 mt-1">
+          {!isArchived && (
+            <div className="relative">
               <button
-                onClick={() => setConfirmingDelete(true)}
+                onClick={() => setShowArchiveDialog((v) => !v)}
                 className="text-sm text-red-600 hover:underline"
               >
                 Delete
               </button>
-            )}
-          </div>
-        )}
-      </div>
+              {showArchiveDialog && (
+                <ArchiveDialog onConfirm={archive} onCancel={() => setShowArchiveDialog(false)} />
+              )}
+            </div>
+          )}
+
+          {!isEditing && (
+            <button onClick={startEdit} className="text-sm text-zinc-600 hover:underline">
+              Edit details
+            </button>
+          )}
+
+          {isArchived && (
+            <div className="ml-auto flex items-center gap-3">
+              {entry.archiveReason && (
+                <span className="text-xs text-zinc-500 italic">{entry.archiveReason}</span>
+              )}
+              <button onClick={restore} className="text-sm text-blue-600 hover:underline">
+                Restore
+              </button>
+              {confirmingDelete ? (
+                <span className="text-sm flex items-center gap-2">
+                  Delete for good?
+                  <button
+                    onClick={() => onDelete(entry.id)}
+                    className="text-red-600 font-medium hover:underline"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => setConfirmingDelete(false)}
+                    className="text-zinc-500 hover:underline"
+                  >
+                    No
+                  </button>
+                </span>
+              ) : (
+                <button
+                  onClick={() => setConfirmingDelete(true)}
+                  className="text-sm text-red-600 hover:underline"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </article>
   );
 }

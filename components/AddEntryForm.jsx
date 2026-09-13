@@ -15,7 +15,7 @@ const CORE_INITIAL = {
   groupLabel: "",
 };
 
-export default function AddEntryForm({ trip, section, onAdded }) {
+export default function AddEntryForm({ trip, section, onAdded, authToken = null }) {
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState("idle"); // idle | loading | editing | duplicate | saving | error
   const [fields, setFields] = useState(CORE_INITIAL);
@@ -29,6 +29,7 @@ export default function AddEntryForm({ trip, section, onAdded }) {
 
   const fieldDefs = section.field_defs || [];
   const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
+  const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
   function initialData() {
     const d = {};
@@ -73,7 +74,7 @@ export default function AddEntryForm({ trip, section, onAdded }) {
     try {
       const res = await fetch(`${apiBase}/preview`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ url }),
       });
       const resData = await res.json();
@@ -115,7 +116,7 @@ export default function AddEntryForm({ trip, section, onAdded }) {
     try {
       const res = await fetch(apiBase, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ url, ...fields, data }),
       });
       const resData = await res.json();

@@ -36,15 +36,25 @@ export async function PATCH(request, { params }) {
   const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
   if (notFound) return notFound;
 
-  const { error: authError, supabase } = await requireWriteAccess(request, trip.id);
-  if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
-
   let body;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
+
+  // A contributor (invite-link) token may ONLY add a note/concern — any
+  // other field in the same request (rank, a core-field edit, a data
+  // change, archiving, ...) means this isn't a pure append and needs a
+  // full owner/admin credential instead.
+  const bodyKeys = Object.keys(body);
+  const isPureAppend =
+    bodyKeys.length > 0 && bodyKeys.every((k) => k === "appendNote" || k === "appendConcern");
+
+  const { error: authError, supabase } = await requireWriteAccess(request, trip.id, {
+    allowContributor: isPureAppend,
+  });
+  if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   const patch = {};
   for (const [key, column] of Object.entries(CORE_TO_COLUMN)) {

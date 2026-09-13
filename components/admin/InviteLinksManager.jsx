@@ -2,13 +2,19 @@
 
 import { useEffect, useState } from "react";
 
-export default function ApiKeysManager({ trip }) {
+// Same shape as ApiKeysManager, but for `role: "contributor"` keys —
+// each one backs one shareable invite link
+// (`{site}/{tripSlug}?invite=<token>`). Visiting that link lets a friend
+// add new entries and append notes/concerns from the site itself (see
+// SectionPage's invite-capture effect) without ever signing in, and
+// without you generating and handing them a raw API key.
+export default function InviteLinksManager({ trip }) {
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [label, setLabel] = useState("");
-  const [global, setGlobal] = useState(false);
-  const [newToken, setNewToken] = useState(null);
+  const [newInvite, setNewInvite] = useState(null); // { link, token }
+  const [copied, setCopied] = useState(false);
   const apiBase = `/api/trips/${trip.slug}/api-keys`;
 
   async function load() {
@@ -17,7 +23,7 @@ export default function ApiKeysManager({ trip }) {
       const res = await fetch(apiBase, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setKeys(data.apiKeys.filter((k) => k.role !== "contributor"));
+      setKeys(data.apiKeys.filter((k) => k.role === "contributor"));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -37,13 +43,14 @@ export default function ApiKeysManager({ trip }) {
       const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: label || undefined, role: "owner", global }),
+        body: JSON.stringify({ label: label || undefined, role: "contributor" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setNewToken(data.token);
+      const link = `${window.location.origin}/${trip.slug}?invite=${data.token}`;
+      setNewInvite({ link, token: data.token });
       setLabel("");
-      setGlobal(false);
+      setCopied(false);
       load();
     } catch (err) {
       setError(err.message);
@@ -60,52 +67,63 @@ export default function ApiKeysManager({ trip }) {
     }
   }
 
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(newInvite.link);
+      setCopied(true);
+    } catch {
+      // clipboard API can be unavailable (older browser, non-https) —
+      // the link is still selectable/visible in the box below.
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-zinc-500">
-        Full-access keys — for Claude Desktop or other automation. Can add, edit, delete, and archive. To share a
-        limited add-only link with a friend, use Invite Links instead.
+        Share a link with a friend so they can add houses/food/activities and leave notes or concerns without
+        signing in. They can&apos;t edit or delete anything you&apos;ve already added.
       </p>
 
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>}
 
-      {newToken && (
+      {newInvite && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 flex flex-col gap-2">
           <p className="text-sm font-medium text-amber-800">
             Save this now — it&apos;s shown only once and can&apos;t be recovered later.
           </p>
-          <code className="text-xs bg-white border border-amber-200 rounded p-2 break-all select-all">
-            {newToken}
-          </code>
-          <button onClick={() => setNewToken(null)} className="text-xs text-zinc-500 hover:underline self-start">
+          <div className="flex gap-2">
+            <code className="flex-1 text-xs bg-white border border-amber-200 rounded p-2 break-all select-all">
+              {newInvite.link}
+            </code>
+            <button
+              onClick={copyLink}
+              className="shrink-0 rounded bg-zinc-900 text-white px-3 py-1 text-xs font-medium"
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <button onClick={() => setNewInvite(null)} className="text-xs text-zinc-500 hover:underline self-start">
             Dismiss
           </button>
         </div>
       )}
 
-      <form onSubmit={handleCreate} className="flex flex-col gap-2">
-        <div className="flex gap-2">
-          <input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Label (e.g. Claude Desktop)"
-            className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
-          />
-          <button type="submit" className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium">
-            Generate key
-          </button>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-zinc-600">
-          <input type="checkbox" checked={global} onChange={(e) => setGlobal(e.target.checked)} />
-          Valid for all trips, not just this one — generate this once and reuse it everywhere instead of making a
-          new key per trip.
-        </label>
+      <form onSubmit={handleCreate} className="flex gap-2">
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Label (e.g. Alex & Sam)"
+          className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
+        />
+        <button type="submit" className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium">
+          Create invite link
+        </button>
       </form>
 
       {loading ? (
         <p className="text-sm text-zinc-500">Loading...</p>
       ) : keys.length === 0 ? (
-        <p className="text-sm text-zinc-500">No keys yet.</p>
+        <p className="text-sm text-zinc-500">No invite links yet.</p>
       ) : (
         <div className="flex flex-col gap-2">
           {keys.map((k) => (
@@ -116,10 +134,7 @@ export default function ApiKeysManager({ trip }) {
               }`}
             >
               <div>
-                <div className="font-medium text-zinc-900 text-sm">
-                  {k.label}
-                  {!k.trip_id && <span className="ml-2 text-xs text-zinc-400 font-normal">(all trips)</span>}
-                </div>
+                <div className="font-medium text-zinc-900 text-sm">{k.label}</div>
                 <div className="text-xs text-zinc-500">
                   Created {new Date(k.created_at).toLocaleDateString()}
                   {k.last_used_at && ` · last used ${new Date(k.last_used_at).toLocaleDateString()}`}

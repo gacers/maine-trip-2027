@@ -7,6 +7,8 @@ import ListingSection from "@/components/ListingSection";
 import GroupMap from "@/components/GroupMap";
 import OverviewMap from "@/components/OverviewMap";
 import { groupUnits } from "@/lib/groupUnits";
+import { captureInviteToken } from "@/lib/inviteClient";
+import { buildContributorInstructions, downloadTextFile } from "@/lib/agentInstructions";
 
 function pinFor(unit) {
   const primary = unit.listings[0];
@@ -22,15 +24,32 @@ function pinFor(unit) {
 // grouping, now against /api/trips/[tripSlug]/sections/[sectionSlug]/
 // entries instead of /api/[collection], and rendering whichever fields
 // `section.field_defs` defines instead of a hardcoded showBedBath flag.
-export default function SectionPage({ trip, section }) {
+export default function SectionPage({ trip, section, isAdmin = false }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [contributorToken, setContributorToken] = useState(null);
 
   const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
   const fieldDefs = section.field_defs || [];
   const mapConfig = trip.map_config;
+
+  // An admin's own session cookie already carries full access — an
+  // invite link only matters for everyone else, so it's ignored here if
+  // both happen to be present (e.g. the trip owner clicking their own
+  // invite link while signed in).
+  const canManage = isAdmin;
+  const canContribute = isAdmin || !!contributorToken;
+  const authToken = isAdmin ? null : contributorToken;
+
+  useEffect(() => {
+    setContributorToken(captureInviteToken(trip.slug));
+  }, [trip.slug]);
+
+  function authHeaders() {
+    return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+  }
 
   async function load() {
     setLoading(true);
@@ -61,7 +80,7 @@ export default function SectionPage({ trip, section }) {
     try {
       const res = await fetch(`${apiBase}/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(patch),
       });
       if (!res.ok) throw new Error("Update failed");
@@ -76,7 +95,10 @@ export default function SectionPage({ trip, section }) {
   async function handleDelete(id) {
     setEntries((prev) => prev.filter((e) => e.id !== id));
     try {
-      const res = await fetch(`${apiBase}/${id}`, { method: "DELETE" });
+      const res = await fetch(`${apiBase}/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
       if (!res.ok) throw new Error("Delete failed");
     } catch (err) {
       setError(err.message);
@@ -86,6 +108,16 @@ export default function SectionPage({ trip, section }) {
 
   function handleAdded(entry) {
     setEntries((prev) => [...prev, entry]);
+  }
+
+  function handleDownloadInstructions() {
+    const text = buildContributorInstructions({
+      trip,
+      section,
+      siteUrl: window.location.origin,
+      token: contributorToken,
+    });
+    downloadTextFile(`${trip.slug}-agent-instructions.md`, text);
   }
 
   const active = entries
@@ -103,7 +135,7 @@ export default function SectionPage({ trip, section }) {
           key={unit.listings.map((e) => e.id).join("-")}
           id={`group-${unit.listings[0].id}`}
           title={unit.listings[0].groupLabel}
-          rank={unit.listings[0].rank ?? undefined}
+          rank={canManage ? unit.listings[0].rank ?? undefined : undefined}
           onRankChange={(newRank) =>
             unit.listings.forEach((e) => handlePatch(e.id, { rank: newRank }))
           }
@@ -117,6 +149,8 @@ export default function SectionPage({ trip, section }) {
                   mapConfig={mapConfig}
                   onPatch={handlePatch}
                   onDelete={handleDelete}
+                  canManage={canManage}
+                  canContribute={canContribute}
                   bare
                   showRank={false}
                   showMap={false}
@@ -137,6 +171,8 @@ export default function SectionPage({ trip, section }) {
           mapConfig={mapConfig}
           onPatch={handlePatch}
           onDelete={handleDelete}
+          canManage={canManage}
+          canContribute={canContribute}
           bare
           showTitle={false}
         />
@@ -159,7 +195,19 @@ export default function SectionPage({ trip, section }) {
         )}
       </div>
 
-      <AddEntryForm trip={trip} section={section} onAdded={handleAdded} />
+      {canContribute && (
+        <div className="flex flex-col gap-2">
+          <AddEntryForm trip={trip} section={section} onAdded={handleAdded} authToken={authToken} />
+          {contributorToken && (
+            <button
+              onClick={handleDownloadInstructions}
+              className="text-sm text-zinc-500 hover:underline self-start"
+            >
+              Download agent instructions (add via your own AI agent instead)
+            </button>
+          )}
+        </div>
+      )}
 
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>

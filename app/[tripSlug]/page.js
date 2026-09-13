@@ -10,8 +10,9 @@ export const dynamic = "force-dynamic";
 // (the New Trip flow sends you straight to the Section Designer, but
 // nothing stops you from navigating away first) — show a way back to
 // it instead of a bare 404.
-export default async function TripDefaultPage({ params }) {
+export default async function TripDefaultPage({ params, searchParams }) {
   const { tripSlug } = await params;
+  const { invite } = await searchParams;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) notFound();
 
@@ -35,5 +36,9 @@ export default async function TripDefaultPage({ params }) {
     );
   }
 
-  redirect(`/${tripSlug}/${firstSection.slug}`);
+  // Forward `?invite=...` through the redirect — otherwise a friend's
+  // invite link would drop the param before SectionPage ever gets a
+  // chance to capture it into localStorage (see lib/inviteClient.js).
+  const qs = invite ? `?invite=${encodeURIComponent(invite)}` : "";
+  redirect(`/${tripSlug}/${firstSection.slug}${qs}`);
 }
