@@ -63,7 +63,9 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
           addPlaceholder: template.previous.addPlaceholder,
           emptyMessage: template.previous.emptyMessage,
           supportsPairing: true,
-          hasMap: true,
+          // A "previous" list is a record of what's already decided —
+          // no ranking or driving-times/map to help pick a winner needed.
+          hasMap: false,
           navGroupId: possibleData.section.nav_group_id,
           fieldDefs: template.fieldDefs,
         }),

@@ -43,6 +43,12 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
   const fieldDefs = section.field_defs || [];
   const mapConfig = trip.map_config;
+  // `has_map` doubles as "this is a still-deciding-among-options list" —
+  // ranking and driving times exist to help pick a winner, which a
+  // "previous"/already-done section (nothing left to decide) has no use
+  // for either. Off by default for those in the Section Designer/starter
+  // templates; still a per-section admin toggle either way.
+  const comparisonMode = !!section.has_map;
 
   // An admin's own session cookie already carries full access — an
   // invite link only matters for everyone else, so it's ignored here if
@@ -179,7 +185,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           key={unit.listings.map((e) => e.id).join("-")}
           id={`group-${unit.listings[0].id}`}
           title={unit.listings[0].groupLabel}
-          rank={canManage ? unit.listings[0].rank ?? undefined : undefined}
+          rank={canManage && comparisonMode ? unit.listings[0].rank ?? undefined : undefined}
           onRankChange={(newRank) =>
             unit.listings.forEach((e) => handlePatch(e.id, { rank: newRank }))
           }
@@ -202,7 +208,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
               </div>
             ))}
           </div>
-          <GroupMap listings={unit.listings} mapConfig={mapConfig} />
+          {comparisonMode && <GroupMap listings={unit.listings} mapConfig={mapConfig} />}
         </ListingSection>
       );
     }
@@ -219,6 +225,8 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           canContribute={canContribute}
           bare
           showTitle={false}
+          showRank={comparisonMode}
+          showMap={comparisonMode}
         />
       </ListingSection>
     );
@@ -269,7 +277,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
         <p className="text-zinc-500 text-sm">Loading...</p>
       ) : (
         <>
-          {!loading && active.length > 0 && <OverviewMap pins={pins} />}
+          {!loading && comparisonMode && active.length > 0 && <OverviewMap pins={pins} />}
 
           <div className="flex flex-col gap-4">
             {active.length === 0 && (

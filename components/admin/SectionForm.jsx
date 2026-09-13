@@ -130,9 +130,10 @@ export default function SectionForm({ trip, navGroups, section }) {
       // Create the "already visited/done" counterpart in the SAME nav
       // group the primary section just landed in (reusing its
       // nav_group_id rather than resolving newNavGroupLabel a second
-      // time, which would create a duplicate group) — same fields, same
-      // pairing/map settings, matching how Houses/Previous Stays,
-      // Food & Drink/Previously Visited, etc. are already set up.
+      // time, which would create a duplicate group) — same fields and
+      // pairing setting, but never the map/ranking one: a "previous"
+      // list is a record of what's already decided, regardless of
+      // whatever the primary section's own toggle is set to.
       if (!isEdit && addCounterpart) {
         const counterpartPayload = {
           slug: `${slug}-visited`,
@@ -141,7 +142,7 @@ export default function SectionForm({ trip, navGroups, section }) {
           addPlaceholder: `Paste a link for a ${label.toLowerCase()} you've already been to...`,
           emptyMessage: `No previous ${label.toLowerCase()} yet — paste a link above.`,
           supportsPairing,
-          hasMap,
+          hasMap: false,
           navGroupId: data.section.nav_group_id,
           fieldDefs: fields.map(rowToFieldDef),
         };
@@ -273,7 +274,8 @@ export default function SectionForm({ trip, navGroups, section }) {
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={hasMap} onChange={(e) => setHasMap(e.target.checked)} className="h-4 w-4" />
-          Show a map when lat/lng are set
+          Still deciding among these — show ranking and a map/driving times. Turn off for a
+          &quot;previous&quot;/already-done list, which has nothing left to rank or compare.
         </label>
       </div>
 
