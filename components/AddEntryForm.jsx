@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import {
@@ -24,7 +24,7 @@ const CORE_INITIAL = {
   groupLabel: "",
 };
 
-export default function AddEntryForm({ trip, section, onAdded, authToken = null, initialUrl = null }) {
+export default function AddEntryForm({ trip, section, onAdded, authToken = null }) {
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState("idle"); // idle | loading | editing | duplicate | picking | saving | error
   const [fields, setFields] = useState(CORE_INITIAL);
@@ -40,19 +40,6 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null,
   const fieldDefs = section.field_defs || [];
   const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
   const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {};
-
-  // A "share this specific listing" link (see lib/inviteClient.js's
-  // captureAddUrl) pre-fills and immediately previews this exact URL, so
-  // whoever followed it just has to review the result and hit Save
-  // instead of pasting the link themselves. Runs once on mount only —
-  // initialUrl is a one-shot value, not something that changes later.
-  useEffect(() => {
-    if (initialUrl) {
-      setUrl(initialUrl);
-      handlePreview(null, initialUrl);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   function initialData() {
     const d = {};
@@ -90,9 +77,9 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null,
     setErrorMsg("");
   }
 
-  async function handlePreview(e, overrideUrl) {
-    if (e) e.preventDefault();
-    const raw = (overrideUrl ?? url).trim();
+  async function handlePreview(e) {
+    e.preventDefault();
+    const raw = url.trim();
     if (!raw) return;
     setPhase("loading");
     setErrorMsg("");

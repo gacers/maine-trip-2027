@@ -18,10 +18,6 @@ export default function InviteLinksManager({ trip }) {
   const [rotating, setRotating] = useState(false);
   const [rotateMsg, setRotateMsg] = useState("");
   const [revealed, setRevealed] = useState({}); // { [keyId]: link }
-  const [builderInviteLink, setBuilderInviteLink] = useState("");
-  const [builderListingUrl, setBuilderListingUrl] = useState("");
-  const [builtLink, setBuiltLink] = useState("");
-  const [builderCopied, setBuilderCopied] = useState(false);
   const apiBase = `/api/trips/${trip.slug}/api-keys`;
 
   async function load() {
@@ -97,34 +93,6 @@ export default function InviteLinksManager({ trip }) {
     }
   }
 
-  function buildListingLink(e) {
-    e.preventDefault();
-    setError("");
-    setBuilderCopied(false);
-    let base;
-    try {
-      base = new URL(builderInviteLink.trim());
-    } catch {
-      setError("That doesn't look like a valid invite link.");
-      return;
-    }
-    if (!builderListingUrl.trim()) {
-      setError("Paste the listing link to include.");
-      return;
-    }
-    base.searchParams.set("add", builderListingUrl.trim());
-    setBuiltLink(base.toString());
-  }
-
-  async function copyBuiltLink() {
-    try {
-      await navigator.clipboard.writeText(builtLink);
-      setBuilderCopied(true);
-    } catch {
-      // clipboard API can be unavailable — the link is still selectable below.
-    }
-  }
-
   async function handleRotateSheetInvite() {
     setRotating(true);
     setRotateMsg("");
@@ -170,48 +138,6 @@ export default function InviteLinksManager({ trip }) {
           </div>
         )}
         {rotateMsg && <p className="text-xs text-green-700">{rotateMsg}</p>}
-      </div>
-
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 flex flex-col gap-2">
-        <p className="text-sm font-medium text-zinc-700">Share a specific listing</p>
-        <p className="text-xs text-zinc-500">
-          Take any invite link above (new or already shared) and a listing link (Airbnb, a restaurant, etc.) —
-          the combined link pre-fills and previews that listing the moment it&apos;s opened, so all your friend
-          has to do is check it over and hit Save.
-        </p>
-        <form onSubmit={buildListingLink} className="flex flex-col gap-2">
-          <input
-            value={builderInviteLink}
-            onChange={(e) => setBuilderInviteLink(e.target.value)}
-            placeholder="Paste an invite link"
-            className="rounded border border-zinc-300 px-3 py-2 text-sm"
-          />
-          <input
-            value={builderListingUrl}
-            onChange={(e) => setBuilderListingUrl(e.target.value)}
-            placeholder="Paste a listing link (e.g. an Airbnb URL)"
-            className="rounded border border-zinc-300 px-3 py-2 text-sm"
-          />
-          <button
-            type="submit"
-            className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium self-start"
-          >
-            Build link
-          </button>
-        </form>
-        {builtLink && (
-          <div className="flex gap-2">
-            <code className="flex-1 text-xs bg-white border border-zinc-200 rounded p-2 break-all select-all">
-              {builtLink}
-            </code>
-            <button
-              onClick={copyBuiltLink}
-              className="shrink-0 rounded bg-zinc-900 text-white px-3 py-1 text-xs font-medium"
-            >
-              {builderCopied ? "Copied!" : "Copy"}
-            </button>
-          </div>
-        )}
       </div>
 
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>}

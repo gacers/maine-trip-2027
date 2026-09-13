@@ -9,7 +9,7 @@ import GroupMap from "@/components/GroupMap";
 import SimpleGroupMap from "@/components/SimpleGroupMap";
 import OverviewMap from "@/components/OverviewMap";
 import { groupUnits } from "@/lib/groupUnits";
-import { captureInviteToken, captureAddUrl } from "@/lib/inviteClient";
+import { captureInviteToken } from "@/lib/inviteClient";
 import { buildAgentInstructions, downloadTextFile } from "@/lib/agentInstructions";
 
 function pinFor(unit) {
@@ -32,7 +32,6 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [contributorToken, setContributorToken] = useState(null);
-  const [pendingAddUrl, setPendingAddUrl] = useState(null);
   // Whether the localStorage/invite-param check below has actually run
   // yet. An admin's access is already known synchronously from the
   // server (the isAdmin prop), so there's nothing to wait for; everyone
@@ -77,7 +76,6 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
 
   useEffect(() => {
     setContributorToken(captureInviteToken(trip.slug));
-    setPendingAddUrl(captureAddUrl());
     setAccessChecked(true);
   }, [trip.slug]);
 
@@ -282,13 +280,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
 
       {canContribute && (
         <div className="flex flex-col gap-2">
-          <AddEntryForm
-            trip={trip}
-            section={section}
-            onAdded={handleAdded}
-            authToken={authToken}
-            initialUrl={pendingAddUrl}
-          />
+          <AddEntryForm trip={trip} section={section} onAdded={handleAdded} authToken={authToken} />
           <button
             onClick={handleDownloadInstructions}
             className="text-sm text-zinc-500 hover:underline self-start"
