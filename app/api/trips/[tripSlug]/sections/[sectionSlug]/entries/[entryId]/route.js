@@ -3,6 +3,7 @@ import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { getAllEntries, updateEntry, deleteEntry, toClientEntry } from "@/lib/entries";
 import { requireWriteAccess } from "@/lib/auth";
 import { extractCount } from "@/lib/fieldTypes/count";
+import { exportSection } from "@/lib/sheetsExport";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -78,6 +79,7 @@ export async function PATCH(request, { params }) {
     }
 
     const entry = await updateEntry(supabase, entryId, patch);
+    await exportSection(supabase, trip, section);
     return NextResponse.json({ entry: toClientEntry(entry) });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -86,7 +88,7 @@ export async function PATCH(request, { params }) {
 
 export async function DELETE(request, { params }) {
   const { tripSlug, sectionSlug, entryId } = await params;
-  const { trip, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
+  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
   if (notFound) return notFound;
 
   const { error: authError, supabase } = await requireWriteAccess(request, trip.id);
@@ -94,6 +96,7 @@ export async function DELETE(request, { params }) {
 
   try {
     await deleteEntry(supabase, entryId);
+    await exportSection(supabase, trip, section);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

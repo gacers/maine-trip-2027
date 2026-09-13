@@ -6,6 +6,7 @@ import { requireWriteAccess } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { normalizeListingUrl } from "@/lib/scrape";
 import { extractCount } from "@/lib/fieldTypes/count";
+import { exportSection } from "@/lib/sheetsExport";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -98,6 +99,7 @@ export async function POST(request, { params }) {
       group_label: groupLabel || null,
       data: filledData,
     });
+    await exportSection(supabase, trip, section);
     return NextResponse.json({ entry: toClientEntry(entry) }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

@@ -41,12 +41,17 @@ export default async function TripsIndexPage() {
         </ul>
       )}
 
-      <Link
-        href="/trips/new"
-        className="self-center rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-      >
-        + New trip
-      </Link>
+      <div className="flex justify-center gap-4">
+        <Link
+          href="/trips/new"
+          className="rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          + New trip
+        </Link>
+        <Link href="/settings" className="text-sm text-zinc-500 hover:underline self-center">
+          Settings
+        </Link>
+      </div>
     </main>
   );
 }
