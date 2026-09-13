@@ -9,7 +9,7 @@ import GroupMap from "@/components/GroupMap";
 import OverviewMap from "@/components/OverviewMap";
 import { groupUnits } from "@/lib/groupUnits";
 import { captureInviteToken } from "@/lib/inviteClient";
-import { buildContributorInstructions, downloadTextFile } from "@/lib/agentInstructions";
+import { buildAgentInstructions, downloadTextFile } from "@/lib/agentInstructions";
 
 function pinFor(unit) {
   const primary = unit.listings[0];
@@ -126,14 +126,42 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
     setEntries((prev) => [...prev, entry]);
   }
 
-  function handleDownloadInstructions() {
-    const text = buildContributorInstructions({
-      trip,
-      section,
-      siteUrl: window.location.origin,
-      token: contributorToken,
-    });
-    downloadTextFile(`${trip.slug}-agent-instructions.md`, text);
+  async function handleDownloadInstructions() {
+    // A contributor already has their own (add/append-only) token —
+    // reuse it. An admin has no bearer token at all (their access is
+    // the session cookie), so mint a fresh full-access owner key on the
+    // spot rather than sending them to the API Keys admin page first.
+    if (contributorToken) {
+      const text = buildAgentInstructions({
+        trip,
+        section,
+        siteUrl: window.location.origin,
+        token: contributorToken,
+        role: "contributor",
+      });
+      downloadTextFile(`${trip.slug}-agent-instructions.md`, text);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/trips/${trip.slug}/api-keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: "Downloaded agent instructions", role: "owner" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't create a key");
+      const text = buildAgentInstructions({
+        trip,
+        section,
+        siteUrl: window.location.origin,
+        token: data.token,
+        role: "owner",
+      });
+      downloadTextFile(`${trip.slug}-agent-instructions.md`, text);
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   const active = entries
@@ -222,14 +250,12 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       {canContribute && (
         <div className="flex flex-col gap-2">
           <AddEntryForm trip={trip} section={section} onAdded={handleAdded} authToken={authToken} />
-          {contributorToken && (
-            <button
-              onClick={handleDownloadInstructions}
-              className="text-sm text-zinc-500 hover:underline self-start"
-            >
-              Download agent instructions (add via your own AI agent instead)
-            </button>
-          )}
+          <button
+            onClick={handleDownloadInstructions}
+            className="text-sm text-zinc-500 hover:underline self-start"
+          >
+            Download agent instructions (add via your own AI agent instead)
+          </button>
         </div>
       )}
 
