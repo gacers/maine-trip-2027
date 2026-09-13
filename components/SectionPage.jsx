@@ -31,6 +31,14 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [contributorToken, setContributorToken] = useState(null);
+  // Whether the localStorage/invite-param check below has actually run
+  // yet. An admin's access is already known synchronously from the
+  // server (the isAdmin prop), so there's nothing to wait for; everyone
+  // else's real status depends on reading localStorage client-side,
+  // which can't happen before mount. Gating "Request access" on this
+  // (rather than just `!canContribute`) stops it from flashing on for a
+  // returning contributor whose token just hasn't been read back yet.
+  const [accessChecked, setAccessChecked] = useState(isAdmin);
 
   const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
   const fieldDefs = section.field_defs || [];
@@ -39,13 +47,20 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // An admin's own session cookie already carries full access — an
   // invite link only matters for everyone else, so it's ignored here if
   // both happen to be present (e.g. the trip owner clicking their own
-  // invite link while signed in).
+  // invite link while signed in). Defaulting to false until proven
+  // otherwise (rather than assuming access) is deliberate: a visitor
+  // gets the Add form, the notes/concerns add button, and the live
+  // Google Sheet link only once one of the three real grants — an
+  // admin session, an invite param, or a cached invite token — is
+  // actually confirmed.
   const canManage = isAdmin;
   const canContribute = isAdmin || !!contributorToken;
   const authToken = isAdmin ? null : contributorToken;
+  const showRequestAccess = accessChecked && !canContribute;
 
   useEffect(() => {
     setContributorToken(captureInviteToken(trip.slug));
+    setAccessChecked(true);
   }, [trip.slug]);
 
   function authHeaders() {
@@ -184,16 +199,24 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   return (
     <main className="max-w-4xl mx-auto px-4 pb-16 flex flex-col gap-6 w-full">
       <div className="flex justify-center">
-        {trip.google_sheet_url && (
-          <a
-            href={trip.google_sheet_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            Google Sheet
-          </a>
-        )}
+        {trip.google_sheet_url &&
+          (canContribute ? (
+            <a
+              href={trip.google_sheet_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Google Sheet
+            </a>
+          ) : (
+            <span
+              title="Request access first to view the Google Sheet"
+              className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-1.5 text-sm font-medium text-zinc-400 cursor-not-allowed select-none"
+            >
+              Google Sheet
+            </span>
+          ))}
       </div>
 
       {canContribute && (
@@ -210,7 +233,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
         </div>
       )}
 
-      {!canContribute && <RequestAccess trip={trip} section={section} contactEmail={contactEmail} />}
+      {showRequestAccess && <RequestAccess trip={trip} section={section} contactEmail={contactEmail} />}
 
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>
