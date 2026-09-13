@@ -313,49 +313,55 @@ export default function EntryCard({
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          {showTitle && (
-            <a
-              href={entry.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-lg font-semibold text-zinc-900 hover:text-blue-600 underline decoration-blue-400 break-words"
-            >
-              {entry.title}
-            </a>
-          )}
-          {activeBooleanFields.map((f) => (
-            <span
-              key={f.key}
-              className="ml-2 inline-block rounded-full bg-amber-100 text-amber-800 text-xs font-medium px-2 py-0.5 align-middle"
-            >
-              {f.label}
-            </span>
-          ))}
-          {priceFields.map((f) => {
-            const value = entry[f.key];
-            const badge = computePriceBadge(value);
-            return value ? (
-              <div key={f.key} className="text-sm text-zinc-600 mt-0.5">
-                {value}
-                {badge && <span className="text-zinc-500"> ({badge})</span>}
-              </div>
-            ) : (
-              <div key={f.key} className="text-sm text-zinc-400 mt-0.5 italic">
-                No {f.label.toLowerCase()} yet
-              </div>
-            );
-          })}
-          {countsSummary && <div className="text-xs text-zinc-500 mt-0.5">{countsSummary}</div>}
-          {!showTitle && (
-            <a
-              href={entry.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:underline"
-            >
-              Original listing &#8599;
-            </a>
+        <div className="min-w-0 flex-1 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            {showTitle && (
+              <a
+                href={entry.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-lg font-semibold text-zinc-900 hover:text-blue-600 underline decoration-blue-400 break-words"
+              >
+                {entry.title}
+              </a>
+            )}
+            {priceFields.map((f) => {
+              const value = entry[f.key];
+              const badge = computePriceBadge(value);
+              return value ? (
+                <div key={f.key} className="text-sm text-zinc-600 mt-0.5">
+                  {value}
+                  {badge && <span className="text-zinc-500"> ({badge})</span>}
+                </div>
+              ) : (
+                <div key={f.key} className="text-sm text-zinc-400 mt-0.5 italic">
+                  No {f.label.toLowerCase()} yet
+                </div>
+              );
+            })}
+            {countsSummary && <div className="text-xs text-zinc-500 mt-0.5">{countsSummary}</div>}
+            {!showTitle && (
+              <a
+                href={entry.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:underline"
+              >
+                Original listing &#8599;
+              </a>
+            )}
+          </div>
+          {activeBooleanFields.length > 0 && (
+            <div className="flex flex-wrap justify-end gap-1 shrink-0">
+              {activeBooleanFields.map((f) => (
+                <span
+                  key={f.key}
+                  className="inline-block rounded-full bg-amber-100 text-amber-800 text-xs font-medium px-2 py-0.5"
+                >
+                  {f.label}
+                </span>
+              ))}
+            </div>
           )}
         </div>
         {showRank && canManage && (

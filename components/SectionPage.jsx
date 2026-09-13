@@ -55,6 +55,11 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // sections in the Section Designer/starter templates; still a
   // per-section admin toggle either way.
   const comparisonMode = !!section.has_map;
+  // Houses get one full-width card per row; lighter entries (food &
+  // drink, activities) read better two to a row — a plain per-section
+  // layout toggle, unrelated to comparisonMode.
+  const compactCards = !!section.compact_cards;
+  const listClassName = compactCards ? "grid grid-cols-1 sm:grid-cols-2 gap-4" : "flex flex-col gap-4";
 
   // An admin's own session cookie already carries full access — an
   // invite link only matters for everyone else, so it's ignored here if
@@ -294,14 +299,17 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
         <p className="text-zinc-500 text-sm">Loading...</p>
       ) : (
         <>
-          {!loading && comparisonMode && active.length > 0 && <OverviewMap pins={pins} />}
+          {/* Independent of comparisonMode on purpose — OverviewMap is a
+              plain "everything on one map, click a pin to jump to it"
+              index, not the driving-times/Closest Town comparison
+              tooling that flag actually governs. Every section with
+              located entries gets one, "previous" included. */}
+          {!loading && active.length > 0 && <OverviewMap pins={pins} />}
 
-          <div className="flex flex-col gap-4">
-            {active.length === 0 && (
-              <p className="text-zinc-500 text-sm">{section.empty_message}</p>
-            )}
-            {activeUnits.map(renderUnit)}
-          </div>
+          {active.length === 0 && (
+            <p className="text-zinc-500 text-sm">{section.empty_message}</p>
+          )}
+          <div className={listClassName}>{activeUnits.map(renderUnit)}</div>
 
           {archived.length > 0 && (
             <div className="mt-4">
@@ -312,9 +320,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
                 {showArchived ? "Hide" : "Show"} archived ({archived.length})
               </button>
               {showArchived && (
-                <div className="flex flex-col gap-4 mt-3">
-                  {groupUnits(archived).map(renderUnit)}
-                </div>
+                <div className={`${listClassName} mt-3`}>{groupUnits(archived).map(renderUnit)}</div>
               )}
             </div>
           )}

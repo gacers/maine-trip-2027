@@ -43,6 +43,7 @@ export async function POST(request, { params }) {
     emptyMessage,
     supportsPairing,
     hasMap,
+    compactCards,
     navGroupId,
     newNavGroupLabel,
     fieldDefs,
@@ -95,6 +96,7 @@ export async function POST(request, { params }) {
         empty_message: emptyMessage || "Nothing here yet — paste a link above.",
         supports_pairing: !!supportsPairing,
         has_map: !!hasMap,
+        compact_cards: !!compactCards,
         sort_order: 999,
       })
       .select()

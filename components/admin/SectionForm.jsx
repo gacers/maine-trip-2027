@@ -61,6 +61,7 @@ export default function SectionForm({ trip, navGroups, section }) {
   const [emptyMessage, setEmptyMessage] = useState(section?.empty_message || "");
   const [supportsPairing, setSupportsPairing] = useState(section?.supports_pairing ?? true);
   const [hasMap, setHasMap] = useState(section?.has_map ?? true);
+  const [compactCards, setCompactCards] = useState(section?.compact_cards ?? false);
   const [navGroupId, setNavGroupId] = useState(section?.nav_group_id || navGroups[0]?.id || "");
   const [newGroupLabel, setNewGroupLabel] = useState("");
   const [fields, setFields] = useState((section?.field_defs || []).map(fieldDefToRow));
@@ -105,6 +106,7 @@ export default function SectionForm({ trip, navGroups, section }) {
       emptyMessage,
       supportsPairing,
       hasMap,
+      compactCards,
       fieldDefs: fields.map(rowToFieldDef),
     };
     if (!isEdit) {
@@ -143,6 +145,7 @@ export default function SectionForm({ trip, navGroups, section }) {
           emptyMessage: `No previous ${label.toLowerCase()} yet — paste a link above.`,
           supportsPairing,
           hasMap: false,
+          compactCards,
           navGroupId: data.section.nav_group_id,
           fieldDefs: fields.map(rowToFieldDef),
         };
@@ -276,6 +279,16 @@ export default function SectionForm({ trip, navGroups, section }) {
           <input type="checkbox" checked={hasMap} onChange={(e) => setHasMap(e.target.checked)} className="h-4 w-4" />
           Still deciding among these — show ranking and a map/driving times. Turn off for a
           &quot;previous&quot;/already-done list, which has nothing left to rank or compare.
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={compactCards}
+            onChange={(e) => setCompactCards(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Compact cards, two per row — for lighter entries (food & drink, activities). Leave off
+          for houses, which need the full width.
         </label>
       </div>
 

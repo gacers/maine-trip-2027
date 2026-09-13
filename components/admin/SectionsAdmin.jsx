@@ -36,6 +36,11 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
   async function addTemplate(template) {
     setError("");
     setAddingTemplate(template.key);
+    // Houses get one full-width card per row (a lot to show: photos,
+    // price, bed/bath counts, a map); Food & Drink and Activities read
+    // better two to a row — both tiers of a category share this, unlike
+    // hasMap which differs between them.
+    const compactCards = template.key !== "houses";
     try {
       const possibleRes = await fetch(apiBase, {
         method: "POST",
@@ -47,6 +52,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
           emptyMessage: template.possible.emptyMessage,
           supportsPairing: true,
           hasMap: true,
+          compactCards,
           newNavGroupLabel: template.navGroupLabel,
           fieldDefs: template.fieldDefs,
         }),
@@ -66,6 +72,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
           // A "previous" list is a record of what's already decided —
           // no ranking or driving-times/map to help pick a winner needed.
           hasMap: false,
+          compactCards,
           navGroupId: possibleData.section.nav_group_id,
           fieldDefs: template.fieldDefs,
         }),
