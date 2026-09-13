@@ -229,8 +229,15 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       );
     }
     const entry = unit.listings[0];
+    // This is the one render path where ListingSection (not EntryCard,
+    // which has showTitle={false} here) owns the visible title — so any
+    // "Closed"-style badge has to be handed to it directly instead of
+    // EntryCard, or it'd render detached from the title entirely.
+    const entryBadges = fieldDefs
+      .filter((f) => f.field_type === "boolean" && entry[f.key])
+      .map((f) => ({ key: f.key, label: f.label }));
     return (
-      <ListingSection key={entry.id} title={entry.title} href={entry.url}>
+      <ListingSection key={entry.id} title={entry.title} href={entry.url} badges={entryBadges}>
         <EntryCard
           entry={entry}
           fieldDefs={fieldDefs}

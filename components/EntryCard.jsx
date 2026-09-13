@@ -351,7 +351,7 @@ export default function EntryCard({
               </a>
             )}
           </div>
-          {activeBooleanFields.length > 0 && (
+          {showTitle && activeBooleanFields.length > 0 && (
             <div className="flex flex-wrap justify-end gap-1 shrink-0">
               {activeBooleanFields.map((f) => (
                 <span
