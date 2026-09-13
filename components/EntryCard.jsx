@@ -18,24 +18,28 @@ function toBullets(text) {
 
 const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#616161"];
 
-function BulletList({ items }) {
+// The one bulleted-list structure every list on a card builds on —
+// Description (plain) and Notes/Concerns (editable, via `renderItem`
+// below) always render with this exact same <ul>/<li> markup so they
+// look and space identically everywhere.
+function BulletList({ items, renderItem }) {
   if (!items.length) return null;
   return (
     <ul className="list-disc pl-5 text-sm text-zinc-700 flex flex-col gap-0.5">
-      {items.map((line, i) => (
-        <li key={i}>{line}</li>
+      {items.map((item, i) => (
+        <li key={i}>{renderItem ? renderItem(item, i) : item}</li>
       ))}
     </ul>
   );
 }
 
-// A bulleted list (each item removable on hover) plus a "+ Add ..."
-// affordance that appends a new one via onAdd — used for Notes/Concerns.
-// Appending goes through the entries PATCH route's appendNote/
-// appendConcern (see that route), the same operation whether it's
-// triggered by this button or by asking Claude Desktop to add one to
-// an existing entry.
-function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder, itemClassName }) {
+// A BulletList whose items are removable on hover, plus a "+ Add ..."
+// affordance that appends a new one via onAdd — used for Notes/
+// Concerns. Appending goes through the entries PATCH route's
+// appendNote/appendConcern (see that route), the same operation
+// whether it's triggered by this button or by asking Claude Desktop to
+// add one to an existing entry.
+function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -48,22 +52,21 @@ function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder, itemC
 
   return (
     <div className="flex flex-col gap-1.5">
-      {items.length > 0 && (
-        <ul className={`list-disc pl-5 text-sm flex flex-col gap-1 ${itemClassName || "text-zinc-700"}`}>
-          {items.map((item, i) => (
-            <li key={i} className="group flex items-start justify-between gap-2">
-              <span>{item}</span>
-              <button
-                type="button"
-                onClick={() => onRemove(i)}
-                className="text-xs text-zinc-400 hover:text-red-600 opacity-0 group-hover:opacity-100 shrink-0"
-              >
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <BulletList
+        items={items}
+        renderItem={(item, i) => (
+          <span className="group flex items-start justify-between gap-2">
+            <span>{item}</span>
+            <button
+              type="button"
+              onClick={() => onRemove(i)}
+              className="text-xs text-zinc-400 hover:text-red-600 opacity-0 group-hover:opacity-100 shrink-0"
+            >
+              Remove
+            </button>
+          </span>
+        )}
+      />
       {adding ? (
         <form onSubmit={submit} className="flex gap-2">
           <input
@@ -517,7 +520,6 @@ export default function EntryCard({
           onRemove={removeConcernAt}
           addLabel="Add concern"
           placeholder="Anything that gives you pause..."
-          itemClassName="text-zinc-700"
         />
       </div>
 
