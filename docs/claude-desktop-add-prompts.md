@@ -39,7 +39,7 @@ future trip's Claude Desktop Project.
 
 ## Category → section → API mapping (Maine Trip 2027)
 
-Site base URL: `https://maine-trip-2027.vercel.app`. Trip slug: `maine-2027`.
+Site base URL: `https://www.countrygothtravel.com`. Trip slug: `maine-2027`.
 
 | Trigger | Section | section slug |
 |---|---|---|
@@ -132,7 +132,7 @@ redeploy. For a new trip's Claude Desktop Project:
 ## Paste-in Project instructions (Maine Trip 2027, ready to use)
 
 ```
-This project manages the Maine Trip 2027 site at https://maine-trip-2027.vercel.app,
+This project manages the Maine Trip 2027 site at https://www.countrygothtravel.com,
 trip slug "maine-2027". Writes need Authorization: Bearer <API_KEY> — replace
 <API_KEY> below with the real key before using this.
 
@@ -149,7 +149,7 @@ word, then a colon), add the URL(s) that follow to the matching section:
 For each URL given, in this order:
 
 1. POST {"url": "<url>"} to
-   https://maine-trip-2027.vercel.app/api/trips/maine-2027/sections/<slug>/preview
+   https://www.countrygothtravel.com/api/trips/maine-2027/sections/<slug>/preview
    (no auth needed). If it comes back duplicate: true, stop — don't re-add
    it, just tell me it's already on the list (name it). Otherwise, keep
    `posterImage`, `lat`, and `lng` from the response if present — but ignore
@@ -173,7 +173,7 @@ For each URL given, in this order:
      counts, location, standout features) — bedroom/bed/bathroom counts
      auto-fill from this text, don't send them separately.
 
-3. POST to https://maine-trip-2027.vercel.app/api/trips/maine-2027/sections/<slug>/entries
+3. POST to https://www.countrygothtravel.com/api/trips/maine-2027/sections/<slug>/entries
    with header "Authorization: Bearer <API_KEY>" and JSON body:
    {"url": "...", "title": "...", "posterImage": "...", "description": "...",
     "lat": ..., "lng": ..., "notes": "...", "groupLabel": "...",
