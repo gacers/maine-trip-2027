@@ -18,6 +18,44 @@ function toBullets(text) {
 
 const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#616161"];
 
+// Renders plain text with any http(s) URL inside it turned into a real
+// clickable link — used for Notes/Concerns, where someone jotting down
+// "check availability: https://..." expects that to be clickable rather
+// than sitting there as dead text. Trailing punctuation (a period
+// ending the sentence, a closing paren, ...) is kept out of the link
+// itself so "see https://example.com." doesn't swallow the period.
+function Linkified({ text }) {
+  const re = /https?:\/\/[^\s]+/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  while ((match = re.exec(text)) !== null) {
+    let url = match[0];
+    let end = match.index + url.length;
+    const trailingPunct = url.match(/[.,;:!?)\]}'"]+$/);
+    if (trailingPunct) {
+      url = url.slice(0, -trailingPunct[0].length);
+      end -= trailingPunct[0].length;
+    }
+    if (!url) continue;
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    parts.push(
+      <a
+        key={match.index}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 underline decoration-blue-400 hover:text-blue-700 break-words"
+      >
+        {url}
+      </a>
+    );
+    lastIndex = end;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return <>{parts}</>;
+}
+
 // The one bulleted-list structure every list on a card builds on —
 // Description (plain) and Notes/Concerns (editable, via `renderItem`
 // below) always render with this exact same <ul>/<li> markup so they
@@ -57,21 +95,23 @@ function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }) {
     <div className="flex flex-col gap-1.5">
       <BulletList
         items={items}
-        renderItem={
-          onRemove
-            ? (item, i) => (
-                <span className="group flex items-start justify-between gap-2">
-                  <span>{item}</span>
-                  <button
-                    type="button"
-                    onClick={() => onRemove(i)}
-                    className="text-xs text-zinc-400 hover:text-red-600 opacity-0 group-hover:opacity-100 shrink-0"
-                  >
-                    Remove
-                  </button>
-                </span>
-              )
-            : undefined
+        renderItem={(item, i) =>
+          onRemove ? (
+            <span className="group flex items-start justify-between gap-2">
+              <span>
+                <Linkified text={item} />
+              </span>
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                className="text-xs text-zinc-400 hover:text-red-600 opacity-0 group-hover:opacity-100 shrink-0"
+              >
+                Remove
+              </button>
+            </span>
+          ) : (
+            <Linkified text={item} />
+          )
         }
       />
       {onAdd &&
