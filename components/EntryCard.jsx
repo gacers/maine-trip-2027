@@ -29,6 +29,77 @@ function BulletList({ items }) {
   );
 }
 
+// A bulleted list (each item removable on hover) plus a "+ Add ..."
+// affordance that appends a new one via onAdd — used for Notes/Concerns.
+// Appending goes through the entries PATCH route's appendNote/
+// appendConcern (see that route), the same operation whether it's
+// triggered by this button or by asking Claude Desktop to add one to
+// an existing entry.
+function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder, itemClassName }) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  function submit(e) {
+    e.preventDefault();
+    if (!draft.trim()) return;
+    onAdd(draft.trim());
+    setDraft("");
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {items.length > 0 && (
+        <ul className={`list-disc pl-5 text-sm flex flex-col gap-1 ${itemClassName || "text-zinc-700"}`}>
+          {items.map((item, i) => (
+            <li key={i} className="group flex items-start justify-between gap-2">
+              <span>{item}</span>
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                className="text-xs text-zinc-400 hover:text-red-600 opacity-0 group-hover:opacity-100 shrink-0"
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {adding ? (
+        <form onSubmit={submit} className="flex gap-2">
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={placeholder}
+            className="flex-1 rounded border border-zinc-300 px-2 py-1 text-sm"
+          />
+          <button type="submit" className="text-sm font-medium text-blue-600 hover:underline">
+            Add
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAdding(false);
+              setDraft("");
+            }}
+            className="text-sm text-zinc-500 hover:underline"
+          >
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="text-sm text-blue-600 hover:underline self-start"
+        >
+          + {addLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function EntryCard({
   entry,
   fieldDefs = [],
@@ -48,8 +119,6 @@ export default function EntryCard({
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
-  const [notesDraft, setNotesDraft] = useState(entry.notes || "");
-  const [concernsDraft, setConcernsDraft] = useState(entry.concerns || "");
   const isArchived = entry.status === "archived";
   const extraMarkers = parseExtraMarkers(entry.extraMarkers);
 
@@ -73,16 +142,22 @@ export default function EntryCard({
     }
   }
 
-  function commitNotes() {
-    if (notesDraft !== (entry.notes || "")) {
-      onPatch(entry.id, { notes: notesDraft });
-    }
+  function addNote(text) {
+    onPatch(entry.id, { appendNote: text });
   }
 
-  function commitConcerns() {
-    if (concernsDraft !== (entry.concerns || "")) {
-      onPatch(entry.id, { concerns: concernsDraft });
-    }
+  function removeNoteAt(i) {
+    const remaining = toBullets(entry.notes).filter((_, idx) => idx !== i);
+    onPatch(entry.id, { notes: remaining.join("\n") });
+  }
+
+  function addConcern(text) {
+    onPatch(entry.id, { appendConcern: text });
+  }
+
+  function removeConcernAt(i) {
+    const remaining = toBullets(entry.concerns).filter((_, idx) => idx !== i);
+    onPatch(entry.id, { concerns: remaining.join("\n") });
   }
 
   function startEdit() {
@@ -425,25 +500,24 @@ export default function EntryCard({
 
       <div className="flex flex-col gap-1">
         <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium">Notes</h3>
-        <textarea
-          value={notesDraft}
-          onChange={(e) => setNotesDraft(e.target.value)}
-          onBlur={commitNotes}
-          rows={2}
+        <EditableNoteList
+          items={toBullets(entry.notes)}
+          onAdd={addNote}
+          onRemove={removeNoteAt}
+          addLabel="Add note"
           placeholder="Add a note..."
-          className="w-full rounded border border-zinc-200 px-2 py-1.5 text-sm text-zinc-700 bg-zinc-50 focus:bg-white focus:border-zinc-400"
         />
       </div>
 
       <div className="flex flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
         <h3 className="text-sm uppercase tracking-wide text-amber-700 font-medium">Concerns</h3>
-        <textarea
-          value={concernsDraft}
-          onChange={(e) => setConcernsDraft(e.target.value)}
-          onBlur={commitConcerns}
-          rows={2}
+        <EditableNoteList
+          items={toBullets(entry.concerns)}
+          onAdd={addConcern}
+          onRemove={removeConcernAt}
+          addLabel="Add concern"
           placeholder="Anything that gives you pause..."
-          className="w-full rounded border border-amber-200 px-2 py-1.5 text-sm text-zinc-700 bg-white focus:border-amber-400"
+          itemClassName="text-zinc-700"
         />
       </div>
 

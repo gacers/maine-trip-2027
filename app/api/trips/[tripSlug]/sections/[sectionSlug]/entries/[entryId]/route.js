@@ -52,30 +52,48 @@ export async function PATCH(request, { params }) {
   }
 
   const dataPatch = body.data && typeof body.data === "object" ? body.data : null;
+  // appendNote/appendConcern add one more bullet to the existing list
+  // (each is a "\n"-joined string under the hood, same convention as
+  // description) instead of replacing the whole thing — the same
+  // operation whether it comes from the site's "+ Add note" button or
+  // from a Claude Desktop message asking to add one to an existing
+  // entry, since both just PATCH this same field.
+  const appendNote = typeof body.appendNote === "string" ? body.appendNote.trim() : null;
+  const appendConcern = typeof body.appendConcern === "string" ? body.appendConcern.trim() : null;
 
-  if (Object.keys(patch).length === 0 && !dataPatch) {
+  if (Object.keys(patch).length === 0 && !dataPatch && !appendNote && !appendConcern) {
     return NextResponse.json({ error: "No editable fields provided" }, { status: 400 });
   }
 
   try {
-    if (dataPatch) {
+    if (dataPatch || appendNote || appendConcern) {
       const all = await getAllEntries(supabase, section.id);
       const existing = all.find((e) => e.id === entryId);
       if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-      const mergedData = { ...existing.data, ...dataPatch };
 
-      // If the description changed but a count field wasn't explicitly
-      // patched alongside it, re-extract it — same as today's PATCH
-      // route's bedroom/bed/bathroom re-parse behavior.
-      if ("description" in patch) {
-        for (const fieldDef of section.field_defs) {
-          if (fieldDef.field_type === "count" && !(fieldDef.key in dataPatch)) {
-            const extracted = extractCount(patch.description, fieldDef);
-            if (extracted !== "") mergedData[fieldDef.key] = extracted;
+      if (dataPatch) {
+        const mergedData = { ...existing.data, ...dataPatch };
+
+        // If the description changed but a count field wasn't explicitly
+        // patched alongside it, re-extract it — same as today's PATCH
+        // route's bedroom/bed/bathroom re-parse behavior.
+        if ("description" in patch) {
+          for (const fieldDef of section.field_defs) {
+            if (fieldDef.field_type === "count" && !(fieldDef.key in dataPatch)) {
+              const extracted = extractCount(patch.description, fieldDef);
+              if (extracted !== "") mergedData[fieldDef.key] = extracted;
+            }
           }
         }
+        patch.data = mergedData;
       }
-      patch.data = mergedData;
+
+      if (appendNote) {
+        patch.notes = existing.notes ? `${existing.notes}\n${appendNote}` : appendNote;
+      }
+      if (appendConcern) {
+        patch.concerns = existing.concerns ? `${existing.concerns}\n${appendConcern}` : appendConcern;
+      }
     }
 
     const entry = await updateEntry(supabase, entryId, patch);

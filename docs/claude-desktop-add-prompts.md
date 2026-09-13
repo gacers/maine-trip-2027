@@ -116,6 +116,26 @@ non-empty `groupLabel`. You're not told a label explicitly, so derive one:
   before adding (better to ask once than to silently mis-group).
 - Set the exact same `groupLabel` string on both items' POST bodies.
 
+## Adding a note or concern to an existing entry
+
+Notes and Concerns are each a bulleted list on the site (and export as a
+multi-line list in the Sheet too), not a single block of text — the same
+"+ Add note" button on the site appends one more bullet rather than
+replacing the whole thing. If asked in chat to add a note or concern to
+something already on the list (e.g. "add a note to Jonesport that the host
+confirmed early check-in"), find the entry (GET the section's `/entries` and
+match by title), then:
+
+```
+PATCH https://www.countrygothtravel.com/api/trips/maine-2027/sections/<slug>/entries/<id>
+Authorization: Bearer <API_KEY>
+{"appendNote": "Host confirmed early check-in is fine."}
+```
+
+Use `"appendConcern"` the same way for a concern. Don't try to build the
+combined multi-line string yourself — the server appends it correctly to
+whatever's already there.
+
 ## Generalizing to a future trip
 
 Every trip on this site works identically — creating one (`/trips/new`) and
