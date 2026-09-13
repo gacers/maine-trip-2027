@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
+import { searchPlacesByText } from "@/lib/googlePlaces";
+import {
+  isPlainUrl,
+  isGoogleMapsShareUrl,
+  isGoogleSearchUrl,
+  isGoogleMapsUrl,
+  extractGoogleSearchQuery,
+  parseGoogleMapsUrl,
+} from "@/lib/googleUrlHelpers";
 import FieldInput from "./FieldInput";
 
 const CORE_INITIAL = {
@@ -17,11 +26,12 @@ const CORE_INITIAL = {
 
 export default function AddEntryForm({ trip, section, onAdded, authToken = null }) {
   const [url, setUrl] = useState("");
-  const [phase, setPhase] = useState("idle"); // idle | loading | editing | duplicate | saving | error
+  const [phase, setPhase] = useState("idle"); // idle | loading | editing | duplicate | picking | saving | error
   const [fields, setFields] = useState(CORE_INITIAL);
   const [data, setData] = useState({});
   const [warnings, setWarnings] = useState([]);
   const [duplicate, setDuplicate] = useState(null);
+  const [placeResults, setPlaceResults] = useState([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
@@ -61,6 +71,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
     setData({});
     setWarnings([]);
     setDuplicate(null);
+    setPlaceResults([]);
     setAddress("");
     setGeocodeMsg("");
     setErrorMsg("");
@@ -68,41 +79,99 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
 
   async function handlePreview(e) {
     e.preventDefault();
-    if (!url.trim()) return;
+    const raw = url.trim();
+    if (!raw) return;
     setPhase("loading");
     setErrorMsg("");
+
+    const isGoogleUrl = isGoogleMapsShareUrl(raw) || isGoogleSearchUrl(raw) || isGoogleMapsUrl(raw);
+
+    // A real listing link (Airbnb/VRBO/generic OG tags) — unchanged.
+    if (isPlainUrl(raw) && !isGoogleUrl) {
+      try {
+        const res = await fetch(`${apiBase}/preview`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ url: raw }),
+        });
+        const resData = await res.json();
+        if (!res.ok) {
+          setErrorMsg(resData.error || "Something went wrong.");
+          setPhase("idle");
+          return;
+        }
+        if (resData.duplicate) {
+          setDuplicate(resData.existing);
+          setPhase("duplicate");
+          return;
+        }
+        const s = resData.scraped;
+        setFields({
+          ...CORE_INITIAL,
+          title: s.title || "",
+          posterImage: s.posterImage || "",
+          lat: s.lat ?? "",
+          lng: s.lng ?? "",
+        });
+        setData(initialData());
+        setWarnings(s.warnings || []);
+        setPhase("editing");
+      } catch (err) {
+        setErrorMsg(err.message);
+        setPhase("idle");
+      }
+      return;
+    }
+
+    // A Google Maps/share/search link, or just typed text (e.g. "Eventide
+    // Oyster Co.") — location links like these carry no OpenGraph data for
+    // the scraper above to find, so search Places instead and let the
+    // visitor pick the right result.
     try {
-      const res = await fetch(`${apiBase}/preview`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ url }),
-      });
-      const resData = await res.json();
-      if (!res.ok) {
-        setErrorMsg(resData.error || "Something went wrong.");
+      let query = raw;
+      if (isGoogleSearchUrl(raw)) {
+        query = extractGoogleSearchQuery(raw) || raw;
+      } else if (isGoogleMapsShareUrl(raw)) {
+        const res = await fetch("/api/resolve-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: raw }),
+        });
+        const resolveData = await res.json();
+        if (!res.ok) throw new Error(resolveData.error || "Couldn't resolve that link");
+        query = parseGoogleMapsUrl(resolveData.resolvedUrl).name || resolveData.resolvedUrl;
+      } else if (isGoogleMapsUrl(raw)) {
+        query = parseGoogleMapsUrl(raw).name || raw;
+      }
+
+      const results = await searchPlacesByText(query);
+      if (results.length === 0) {
+        setErrorMsg("No matching places found — try a more specific search, or paste the listing's direct link.");
         setPhase("idle");
         return;
       }
-      if (resData.duplicate) {
-        setDuplicate(resData.existing);
-        setPhase("duplicate");
-        return;
-      }
-      const s = resData.scraped;
-      setFields({
-        ...CORE_INITIAL,
-        title: s.title || "",
-        posterImage: s.posterImage || "",
-        lat: s.lat ?? "",
-        lng: s.lng ?? "",
-      });
-      setData(initialData());
-      setWarnings(s.warnings || []);
-      setPhase("editing");
+      setPlaceResults(results);
+      setPhase("picking");
     } catch (err) {
       setErrorMsg(err.message);
       setPhase("idle");
     }
+  }
+
+  function choosePlace(place) {
+    setFields({
+      ...CORE_INITIAL,
+      title: place.title || "",
+      posterImage: place.photoUrl || "",
+      description: place.address || "",
+      lat: place.lat ?? "",
+      lng: place.lng ?? "",
+    });
+    setUrl(place.website || place.mapsUrl || url);
+    setData(initialData());
+    setWarnings([]);
+    setPlaceResults([]);
+    setPhase("editing");
   }
 
   async function handleSave(e) {
@@ -141,26 +210,64 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 shadow-sm">
       {phase === "idle" || phase === "loading" ? (
-        <form onSubmit={handlePreview} className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="url"
-            required
-            placeholder={section.add_placeholder}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
-          />
-          <button
-            type="submit"
-            disabled={phase === "loading"}
-            className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-          >
-            {phase === "loading" ? "Fetching..." : "Add"}
-          </button>
+        <form onSubmit={handlePreview} className="flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              required
+              placeholder={section.add_placeholder}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
+            />
+            <button
+              type="submit"
+              disabled={phase === "loading"}
+              className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+            >
+              {phase === "loading" ? "Fetching..." : "Add"}
+            </button>
+          </div>
+          <p className="text-xs text-zinc-500">
+            A listing link, a full Google Maps link, or just type a name (e.g. &quot;Eventide Oyster
+            Co.&quot;) all work. A share.google link usually can&apos;t be read automatically — type
+            the name instead if it doesn&apos;t work.
+          </p>
         </form>
       ) : null}
 
       {errorMsg && <p className="text-sm text-red-600 mt-2">{errorMsg}</p>}
+
+      {phase === "picking" && placeResults.length > 0 && (
+        <div className="mt-2 flex flex-col gap-2">
+          <p className="text-sm text-zinc-600">Select the right place:</p>
+          {placeResults.map((place) => (
+            <button
+              key={place.id}
+              type="button"
+              onClick={() => choosePlace(place)}
+              className="text-left rounded-lg border border-zinc-200 hover:border-blue-400 hover:bg-blue-50/40 p-2 flex gap-3 items-center"
+            >
+              {place.photoUrl ? (
+                <img
+                  src={place.photoUrl}
+                  alt=""
+                  className="w-12 h-12 object-cover rounded shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded bg-zinc-100 shrink-0" />
+              )}
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-zinc-900 truncate">{place.title}</div>
+                <div className="text-xs text-zinc-500 truncate">{place.address}</div>
+              </div>
+            </button>
+          ))}
+          <button type="button" onClick={reset} className="text-sm text-zinc-500 hover:underline self-start">
+            None of these — cancel
+          </button>
+        </div>
+      )}
 
       {phase === "duplicate" && duplicate && (
         <div className="mt-2 text-sm text-zinc-700">
