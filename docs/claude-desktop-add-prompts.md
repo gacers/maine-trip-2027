@@ -3,6 +3,15 @@
 Reference for the Claude Desktop Project custom instructions that let you type
 a one-line message to add an item to this site, instead of using the web UI.
 
+**Requires an agent that can make live web requests, not just chat.**
+Confirmed with a friend's plain claude.ai conversation: it correctly
+recognized these as instructions to POST/PATCH, but had no live internet
+access to actually do it — it could only draft the request. This needs
+Claude Desktop (or another agent) with a fetch-capable tool/MCP connector
+actually enabled, not the bare chat interface. If you're setting this up
+for someone and aren't sure their setup has that, the site's own Add form
+works fine on its own — this is strictly an optional shortcut.
+
 **Updated for the multi-trip/Supabase rewrite** — the URL shape, auth
 requirement, and request body all changed from the original single-trip
 version of this doc. If you're re-pasting instructions into an existing
