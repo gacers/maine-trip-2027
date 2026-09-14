@@ -511,10 +511,10 @@ export default function EntryCard({
           <div className={styles.section}>
             {comparisonMode ? (
               <ListingMap
-                houses={[{ lat: entry.lat as number, lng: entry.lng as number, label: "House (approximate location)" }]}
+                houses={[{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }]}
                 extraMarkers={extraMarkers}
                 mapConfig={mapConfig}
-                showDrivingTimes={showRank}
+                showReferencePoints={showRank}
               />
             ) : (
               <SimplePlaceMap places={[{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }]} />

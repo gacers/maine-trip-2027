@@ -76,21 +76,26 @@ export interface ListingMapProps {
   houses: LatLngLabel[];
   extraMarkers?: MapReferencePoint[];
   mapConfig?: MapConfig;
-  /** Driving Times (and the Directions API calls behind it) only make
-   * sense for a still-deciding-among-options list — Possible Houses.
-   * Everywhere else (Stayed, Food & Drink, ...) the pins/legend/Closest
-   * Town still show, this section and its extra API calls just don't. */
-  showDrivingTimes?: boolean;
+  /** trip.map_config's reference points (Acadia, closest town, ...),
+   * their driving times, and the Directions/Geocoding API calls behind
+   * them only make sense for a still-deciding-among-house-options list
+   * — Possible Houses. `mapConfig` is trip-wide, not per-section, so
+   * without this a Food & Drink or Activities entry would otherwise
+   * inherit the same house-hunting reference points, which have
+   * nothing to do with picking a restaurant. Everywhere else, the map
+   * still shows the entry's own pin plus any of its own extraMarkers —
+   * just none of trip.map_config's content. */
+  showReferencePoints?: boolean;
 }
 
-export default function ListingMap({ houses, extraMarkers, mapConfig, showDrivingTimes = true }: ListingMapProps) {
+export default function ListingMap({ houses, extraMarkers, mapConfig, showReferencePoints = true }: ListingMapProps) {
   const mapDivRef = useRef<HTMLDivElement>(null);
   const { google, status, errorMsg } = useGoogleMaps();
   const [routeInfo, setRouteInfo] = useState<Record<string, RouteInfo>>({});
   const [originInfo, setOriginInfo] = useState<RouteInfo | null>(null);
   const [closestTown, setClosestTown] = useState<TownResult | null>(null);
 
-  const config = mapConfig || {};
+  const config = showReferencePoints ? mapConfig || {} : {};
   const houseColor = config.houseColor || DEFAULT_HOUSE_COLOR;
   const townColor = config.townColor || DEFAULT_TOWN_COLOR;
 
@@ -120,6 +125,7 @@ export default function ListingMap({ houses, extraMarkers, mapConfig, showDrivin
   // points — once it resolves, closestTown feeds back into `destinations`
   // above and the main effect re-runs to add its pin + driving time.
   useEffect(() => {
+    if (!showReferencePoints) return;
     let cancelled = false;
     reverseGeocodeTown(referenceHouse.lat, referenceHouse.lng)
       .then((town) => {
@@ -133,7 +139,7 @@ export default function ListingMap({ houses, extraMarkers, mapConfig, showDrivin
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [housesKey]);
+  }, [housesKey, showReferencePoints]);
 
   useEffect(() => {
     if (!google || !mapDivRef.current) return;
@@ -150,7 +156,7 @@ export default function ListingMap({ houses, extraMarkers, mapConfig, showDrivin
       new google.maps.Marker({
         position: h,
         map,
-        title: h.label || "House",
+        title: h.label || "Location",
         zIndex: 999,
         icon: starIcon(google, houseColor),
       });
@@ -177,7 +183,7 @@ export default function ListingMap({ houses, extraMarkers, mapConfig, showDrivin
       });
       bounds.extend({ lat: dest.lat, lng: dest.lng });
 
-      if (!showDrivingTimes) return;
+      if (!showReferencePoints) return;
 
       // Just compute duration/distance for the Driving Times list below —
       // no route polyline drawn on the map itself, just the pins.
@@ -218,7 +224,7 @@ export default function ListingMap({ houses, extraMarkers, mapConfig, showDrivin
 
     // Origin -> house: real duration/distance, not drawn on this
     // zoomed-in local map. Only if this trip defines one.
-    if (showDrivingTimes && config.originLabel) {
+    if (showReferencePoints && config.originLabel) {
       directionsService.route(
         {
           origin: config.originLabel,
@@ -304,7 +310,7 @@ export default function ListingMap({ houses, extraMarkers, mapConfig, showDrivin
         </div>
       )}
 
-      {showDrivingTimes && (
+      {showReferencePoints && (
         <div>
           <h3 className={styles.headingSpaced}>Driving Times</h3>
           <ul className={styles.drivingTimesList}>
