@@ -1,10 +1,38 @@
+import type { FieldType } from "@/lib/types";
+
 // Starter section templates offered when setting up a trip — the same
 // "possible / previous" pair shape every one of Maine 2027's built-in
 // categories uses. Picking one creates both sections in one new nav
 // group (same two-call flow as the Section Designer's own "Previously
 // Visited" counterpart button), fully editable/deletable afterward —
 // this is just a fast starting point, not a locked-in structure.
-const HOUSE_FIELD_DEFS = [
+
+// A template field def, before the section POST route fills in the rest
+// (id, section_id, sort_order, storage, core_column, required).
+export interface TemplateFieldDef {
+  key: string;
+  label: string;
+  field_type: FieldType;
+  show_on_overview: boolean;
+  options?: { aliases?: string[] };
+}
+
+export interface SectionTemplateHalf {
+  slug: string;
+  label: string;
+  addPlaceholder: string;
+  emptyMessage: string;
+}
+
+export interface SectionTemplate {
+  key: string;
+  navGroupLabel: string;
+  fieldDefs: TemplateFieldDef[];
+  possible: SectionTemplateHalf;
+  previous: SectionTemplateHalf;
+}
+
+const HOUSE_FIELD_DEFS: TemplateFieldDef[] = [
   { key: "price", label: "Price", field_type: "price", show_on_overview: true },
   { key: "bedrooms", label: "Bedrooms", field_type: "count", show_on_overview: true },
   { key: "beds", label: "Beds", field_type: "count", show_on_overview: true },
@@ -17,7 +45,7 @@ const HOUSE_FIELD_DEFS = [
   },
 ];
 
-export const SECTION_TEMPLATES = [
+export const SECTION_TEMPLATES: SectionTemplate[] = [
   {
     key: "houses",
     navGroupLabel: "Houses",
@@ -76,7 +104,12 @@ export const SECTION_TEMPLATES = [
 // Houses, which doesn't have the same "wait, is this even open still"
 // concern). Shows as a small badge on the entry and, since
 // show_on_overview is set, in the Sheet too.
-const CLOSED_FIELD_DEF = { key: "closed", label: "Closed", field_type: "boolean", show_on_overview: true };
+const CLOSED_FIELD_DEF: TemplateFieldDef = {
+  key: "closed",
+  label: "Closed",
+  field_type: "boolean",
+  show_on_overview: true,
+};
 for (const template of SECTION_TEMPLATES) {
   if (template.key === "foodDrink" || template.key === "activities") {
     template.fieldDefs = [...template.fieldDefs, CLOSED_FIELD_DEF];

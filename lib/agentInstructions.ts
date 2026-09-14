@@ -1,3 +1,13 @@
+import type { PublicTrip, Section } from "@/lib/types";
+
+export interface BuildAgentInstructionsArgs {
+  trip: PublicTrip;
+  section: Section;
+  siteUrl: string;
+  token: string;
+  role: "owner" | "contributor";
+}
+
 // Generates a personal, ready-to-paste instructions file for whoever's
 // looking at the Add form and would rather describe a link to their own
 // AI agent than fill it in by hand — a friend on an invite link
@@ -8,7 +18,7 @@
 // token kept as a placeholder on purpose), this file is generated
 // client-side at download time and safe to embed a real token in —
 // it's never written to disk or committed anywhere.
-export function buildAgentInstructions({ trip, section, siteUrl, token, role }) {
+export function buildAgentInstructions({ trip, section, siteUrl, token, role }: BuildAgentInstructionsArgs): string {
   const base = `${siteUrl}/api/trips/${trip.slug}/sections/${section.slug}/entries`;
   const isOwner = role === "owner";
 
@@ -140,7 +150,7 @@ like added, and paste these instructions in alongside it.
 // Triggers a browser download of the given text as a .md file — no
 // server round-trip, the file only ever exists in the viewer's own
 // browser and download folder.
-export function downloadTextFile(filename, text) {
+export function downloadTextFile(filename: string, text: string): void {
   const blob = new Blob([text], { type: "text/markdown" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

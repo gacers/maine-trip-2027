@@ -6,11 +6,11 @@
 // without the param, and different trips' invites never collide.
 // localStorage is a per-viewer convenience here, not shared state:
 // each friend's own browser remembers their own invite.
-function storageKey(tripSlug) {
+function storageKey(tripSlug: string): string {
   return `invite:${tripSlug}`;
 }
 
-export function readInviteToken(tripSlug) {
+export function readInviteToken(tripSlug: string): string | null {
   try {
     return window.localStorage.getItem(storageKey(tripSlug)) || null;
   } catch {
@@ -18,7 +18,7 @@ export function readInviteToken(tripSlug) {
   }
 }
 
-function writeInviteToken(tripSlug, token) {
+function writeInviteToken(tripSlug: string, token: string): void {
   try {
     window.localStorage.setItem(storageKey(tripSlug), token);
   } catch {
@@ -32,7 +32,7 @@ function writeInviteToken(tripSlug, token) {
 // bar or get shared onward by accident) via history.replaceState — no
 // navigation, no re-render loop. Returns the effective token: the
 // freshly-captured one, or whatever was already stored for this trip.
-export function captureInviteToken(tripSlug) {
+export function captureInviteToken(tripSlug: string): string | null {
   const url = new URL(window.location.href);
   const fromUrl = url.searchParams.get("invite");
   if (fromUrl) {
@@ -49,12 +49,12 @@ export function captureInviteToken(tripSlug) {
 // would otherwise be counted as the same rater, since the token is
 // their only credential. This is a separate, randomly-generated id, not
 // tied to any trip or invite link, persisted once per browser — see
-// lib/ratings.js's resolveRaterKey, which uses it (not the token) as a
+// lib/ratings.ts's resolveRaterKey, which uses it (not the token) as a
 // contributor's actual identity for scoring. An admin's real login
 // already has a stable identity of its own and never needs this.
 const DEVICE_ID_KEY = "rater-device-id";
 
-export function getOrCreateDeviceId() {
+export function getOrCreateDeviceId(): string {
   try {
     let id = window.localStorage.getItem(DEVICE_ID_KEY);
     if (!id) {
