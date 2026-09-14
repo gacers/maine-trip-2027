@@ -1,12 +1,20 @@
 "use client";
 
+import styles from "./StarRating.module.css";
+
 // A 5-star control with half-star granularity. Read-only mode (no
 // onChange) just renders the fill; editable mode overlays two invisible
 // half-width buttons per star so clicking the left/right half of a star
 // sets it to X.5/X.
 const STAR_COUNT = 5;
 
-function StarIcon({ size, filled, className }) {
+interface StarIconProps {
+  size: number;
+  filled: boolean;
+  className?: string;
+}
+
+function StarIcon({ size, filled, className }: StarIconProps) {
   return (
     <svg
       width={size}
@@ -22,34 +30,38 @@ function StarIcon({ size, filled, className }) {
   );
 }
 
-export default function StarRating({ value, onChange, size = 20 }) {
+export interface StarRatingProps {
+  value: number | null | undefined;
+  onChange?: (value: number) => void;
+  size?: number;
+}
+
+export default function StarRating({ value, onChange, size = 20 }: StarRatingProps) {
   const stars = Array.from({ length: STAR_COUNT }, (_, i) => i);
   const editable = typeof onChange === "function";
 
   return (
-    <span className="inline-flex items-center gap-0.5">
+    <span className={styles.wrapper}>
       {stars.map((i) => {
         const fillPercent = Math.max(0, Math.min(1, (value ?? 0) - i)) * 100;
         return (
-          <span key={i} className="relative inline-block" style={{ width: size, height: size }}>
-            <StarIcon size={size} filled={false} className="absolute inset-0 text-zinc-300" />
-            <span className="absolute inset-0 overflow-hidden pointer-events-none" style={{ width: `${fillPercent}%` }}>
-              <StarIcon size={size} filled className="text-amber-400" />
+          <span key={i} className={styles.starBox} style={{ width: size, height: size }}>
+            <StarIcon size={size} filled={false} className={styles.outline} />
+            <span className={styles.fillClip} style={{ width: `${fillPercent}%` }}>
+              <StarIcon size={size} filled className={styles.fill} />
             </span>
             {editable && (
               <>
                 <button
                   type="button"
                   aria-label={`Rate ${i + 0.5} out of 5`}
-                  className="absolute inset-y-0 left-0 cursor-pointer"
-                  style={{ width: "50%" }}
+                  className={styles.halfButton}
                   onClick={() => onChange(i + 0.5)}
                 />
                 <button
                   type="button"
                   aria-label={`Rate ${i + 1} out of 5`}
-                  className="absolute inset-y-0 right-0 cursor-pointer"
-                  style={{ width: "50%" }}
+                  className={styles.wholeButton}
                   onClick={() => onChange(i + 1)}
                 />
               </>
