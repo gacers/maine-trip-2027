@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AddEntryForm from "@/components/AddEntryForm";
 import RequestAccess from "@/components/RequestAccess";
 import EntryCard from "@/components/EntryCard";
+import EntryMedia from "@/components/EntryMedia";
 import ListingSection from "@/components/ListingSection";
 import GroupMap from "@/components/GroupMap";
 import SimpleGroupMap from "@/components/SimpleGroupMap";
@@ -25,6 +26,16 @@ import type { PublicTrip, Section, ClientEntry, EntryUnit, OverviewPin } from "@
 import styles from "./SectionPage.module.css";
 
 type SortBy = "rank" | "myScore" | "averageScore";
+
+// Admins just name the pair itself ("Gouldsboro") — this appends the
+// "- 2 House Option" suffix so it's never on them to type/remember it
+// consistently. Guards against double-appending for any group whose
+// stored label already has it from before this was automatic.
+const GROUP_SUFFIX = "2 House Option";
+function groupTitle(label: string | null | undefined): string {
+  const base = (label || "").trim();
+  return base.toLowerCase().endsWith(GROUP_SUFFIX.toLowerCase()) ? base : `${base} - ${GROUP_SUFFIX}`;
+}
 
 function pinFor(unit: EntryUnit): OverviewPin {
   const primary = unit.listings[0];
@@ -325,7 +336,16 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
         <ListingSection
           key={unit.listings.map((e) => e.id).join("-")}
           id={`group-${unit.listings[0].id}`}
-          title={unit.listings[0].groupLabel}
+          title={groupTitle(unit.listings[0].groupLabel)}
+          media={
+            <div className={styles.groupMediaRow}>
+              {unit.listings.map((entry) => (
+                <div key={entry.id} className={styles.groupMediaHalf}>
+                  <EntryMedia entry={entry} compact={compactCards} showRatings={showRatings} />
+                </div>
+              ))}
+            </div>
+          }
           rank={canManage && showRanking ? unit.listings[0].rank ?? undefined : undefined}
           onRankChange={(newRank) => unit.listings.forEach((e) => handlePatch(e.id, { rank: newRank }))}
           canManage={canManage}
@@ -348,6 +368,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
                   canManage={canManage}
                   canContribute={canContribute}
                   bare
+                  hideMedia
                   showRank={false}
                   showRatings={showRatings}
                   showMap={false}

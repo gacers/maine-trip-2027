@@ -1,37 +1,39 @@
 .root {
   position: relative;
-  z-index: 1;
   display: flex;
   justify-content: center;
-  width: 100%;
 }
 
 .list {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   align-items: center;
-  gap: 0.5rem;
+  gap: 1.5rem;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.link {
+/* Shared "flat text nav item" look for both a plain Link and a
+   dropdown Trigger — no pill background, no underline, just a color
+   change on hover/open. */
+.link,
+.trigger {
   display: inline-flex;
   align-items: center;
-  border-radius: var(--radius-full);
-  border: 1px solid transparent;
+  gap: 0.25rem;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
+  color: var(--color-zinc-700);
   text-decoration: none;
   cursor: pointer;
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
-  background: var(--color-white);
-  color: var(--color-zinc-700);
-  border-color: var(--color-zinc-300);
 
   &:hover {
-    background: var(--color-zinc-50);
+    color: var(--color-zinc-900);
   }
 
   &:focus-visible {
@@ -40,22 +42,73 @@
   }
 
   &[data-active] {
-    background: var(--color-zinc-900);
-    color: var(--color-white);
-    border-color: var(--color-zinc-900);
+    color: var(--color-zinc-900);
   }
-
-  &[data-active]:hover {
-    background: var(--color-zinc-900);
-  }
-}
-
-.md {
-  font-size: var(--text-sm);
-  padding: 0.375rem 1rem;
 }
 
 .sm {
-  font-size: var(--text-xs);
-  padding: 0.25rem 0.75rem;
+  font-size: var(--text-sm);
+}
+
+/* A Link used as a row inside an open dropdown Content, instead of a
+   top-level flat nav item — block, full width, its own padding/hover
+   background rather than the top row's plain color-change treatment. */
+.menuItem {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius);
+  padding: 0.5rem 0.625rem;
+  color: var(--color-zinc-700);
+
+  &:hover {
+    background: var(--color-zinc-100);
+    color: var(--color-zinc-900);
+  }
+
+  &[data-active] {
+    color: var(--color-zinc-900);
+    background: var(--color-zinc-100);
+  }
+}
+
+.chevron {
+  transition: transform 0.15s;
+
+  .trigger[data-state="open"] & {
+    transform: rotate(180deg);
+  }
+}
+
+.content {
+  min-width: 12rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-zinc-200);
+  background: var(--color-white);
+  box-shadow: var(--shadow-lg);
+  padding: 0.375rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.viewportWrapper {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  perspective: 2000px;
+  z-index: 20;
+}
+
+.viewport {
+  position: relative;
+  margin-top: 0.5rem;
+  transform-origin: top center;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  width: var(--radix-navigation-menu-viewport-width);
+  height: var(--radix-navigation-menu-viewport-height);
+  transition: width 0.2s ease, height 0.2s ease;
 }

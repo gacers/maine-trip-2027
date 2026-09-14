@@ -7,6 +7,7 @@ import ArchiveDialog from "@/components/ArchiveDialog";
 import StarRating from "@/components/StarRating";
 import Button from "@/components/Button";
 import Badge, { pickBadgeVariant } from "@/components/Badge";
+import EntryMedia from "@/components/EntryMedia";
 import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
@@ -42,6 +43,19 @@ function PinIcon() {
     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={styles.pinIcon}>
       <path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z" />
       <circle cx="12" cy="9.5" r="2.25" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+// Appended after the title/address text instead of the old underline —
+// signals "this opens somewhere else" (the original listing, a Google
+// Maps search) without dressing plain text up as a link.
+function ExternalLinkIcon() {
+  return (
+    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={styles.externalIcon}>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
     </svg>
   );
 }
@@ -212,6 +226,11 @@ export interface EntryCardProps {
   showMap?: boolean;
   comparisonMode?: boolean;
   compact?: boolean;
+  /** Skip rendering this card's own photo — used for a 2-house-option
+   * group, where SectionPage lays both houses' photos out as their own
+   * row (via EntryMedia directly) above the group's shared title
+   * section, ahead of each house's own remaining content. */
+  hideMedia?: boolean;
 }
 
 export default function EntryCard({
@@ -229,6 +248,7 @@ export default function EntryCard({
   showMap = true,
   comparisonMode = true,
   compact = false,
+  hideMedia = false,
 }: EntryCardProps) {
   const [rankDraft, setRankDraft] = useState<string | number>(entry.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -401,22 +421,7 @@ export default function EntryCard({
 
   return (
     <article id={`listing-${entry.id}`} className={rootClassName}>
-      {entry.posterImage && (
-        // Compact (2-up) cards get a shorter fixed-height header — a
-        // tall/portrait photo used to make its own card noticeably
-        // taller than its neighbor sitting right next to it in that
-        // grid. Full-width house cards get a tall, edge-to-edge header
-        // instead (no side padding — that starts below, in .sections).
-        <div className={compact ? styles.mediaHeaderCompact : styles.mediaHeader}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={entry.posterImage} alt={entry.title ?? ""} className={styles.mediaImg} loading="lazy" />
-          {showRatings && !!entry.ratingCount && entry.averageScore != null && (
-            <div className={styles.scoreBadge} title={`${entry.averageScore.toFixed(1)} avg (${entry.ratingCount})`}>
-              {entry.averageScore.toFixed(1)}
-            </div>
-          )}
-        </div>
-      )}
+      {!hideMedia && <EntryMedia entry={entry} compact={compact} showRatings={showRatings} />}
 
       <div className={styles.sections}>
         <div className={styles.section}>
@@ -449,6 +454,7 @@ export default function EntryCard({
           <div className={styles.titleRow}>
             <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
               {entry.title}
+              <ExternalLinkIcon />
             </a>
             {(priceFields.length > 0 || countsSummary) && (
               <div className={styles.priceStack}>
@@ -475,6 +481,7 @@ export default function EntryCard({
             <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles.addressLink}>
               <PinIcon />
               {addressLabel || "View on map"}
+              <ExternalLinkIcon />
             </a>
           )}
 

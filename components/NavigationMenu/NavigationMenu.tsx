@@ -4,15 +4,15 @@ import { type ComponentPropsWithoutRef, forwardRef } from "react";
 import * as RadixNavigationMenu from "@radix-ui/react-navigation-menu";
 import styles from "./NavigationMenu.module.css";
 
-// A styled wrapper around Radix's NavigationMenu primitive, used as a
-// plain (no hover-flyout) horizontal link list: Root > List > Item >
-// Link, which is enough on its own to get Radix's roving-tabindex
-// keyboard navigation (arrow keys move focus along the row) and
-// aria-current semantics via Link's `active` prop — real behavior this
-// project's own plain <a> pills didn't have, on top of this project's
-// own look via CSS Modules/tokens rather than Radix Themes. Trigger/
-// Content/Viewport (Radix's actual hover-flyout mega-menu pieces)
-// aren't used here; add them if a future nav item needs a real flyout.
+// A styled wrapper around Radix's NavigationMenu primitive — Radix owns
+// the real behavior (hover/click to open, roving-tabindex keyboard nav,
+// outside-click/Escape to close, positioning the open panel under its
+// trigger), this file owns 100% of the look via this project's own CSS
+// Modules/tokens rather than Radix Themes. A plain top-level item is
+// just Item > Link (e.g. a group with only one section); a top-level
+// item with a real dropdown is Item > Trigger + Content, with Viewport
+// (once, in Root) as where Radix actually portals whichever Content is
+// currently open.
 
 type RootProps = ComponentPropsWithoutRef<typeof RadixNavigationMenu.Root>;
 
@@ -42,7 +42,7 @@ export const NavigationMenuList = forwardRef<HTMLUListElement, ListProps>(functi
 
 export const NavigationMenuItem = RadixNavigationMenu.Item;
 
-export type NavigationMenuLinkSize = "md" | "sm";
+export type NavigationMenuLinkSize = "md" | "sm" | "menuItem";
 
 type LinkProps = ComponentPropsWithoutRef<typeof RadixNavigationMenu.Link> & { size?: NavigationMenuLinkSize };
 
@@ -58,3 +58,49 @@ export const NavigationMenuLink = forwardRef<HTMLAnchorElement, LinkProps>(funct
     />
   );
 });
+
+function ChevronIcon() {
+  return (
+    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={styles.chevron}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+type TriggerProps = ComponentPropsWithoutRef<typeof RadixNavigationMenu.Trigger> & { active?: boolean };
+
+export const NavigationMenuTrigger = forwardRef<HTMLButtonElement, TriggerProps>(function NavigationMenuTrigger(
+  { className, children, active, ...props },
+  ref
+) {
+  return (
+    <RadixNavigationMenu.Trigger
+      ref={ref}
+      data-active={active ? "" : undefined}
+      className={[styles.trigger, className].filter(Boolean).join(" ")}
+      {...props}
+    >
+      {children}
+      <ChevronIcon />
+    </RadixNavigationMenu.Trigger>
+  );
+});
+
+type ContentProps = ComponentPropsWithoutRef<typeof RadixNavigationMenu.Content>;
+
+export const NavigationMenuContent = forwardRef<HTMLDivElement, ContentProps>(function NavigationMenuContent(
+  { className, ...props },
+  ref
+) {
+  return (
+    <RadixNavigationMenu.Content ref={ref} className={[styles.content, className].filter(Boolean).join(" ")} {...props} />
+  );
+});
+
+export function NavigationMenuViewportWrapper() {
+  return (
+    <div className={styles.viewportWrapper}>
+      <RadixNavigationMenu.Viewport className={styles.viewport} />
+    </div>
+  );
+}

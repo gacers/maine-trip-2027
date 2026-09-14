@@ -2,13 +2,18 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import ArchiveDialog from "@/components/ArchiveDialog";
+import Button from "@/components/Button";
 import styles from "./ListingSection.module.css";
 
 export interface ListingSectionProps {
   title: ReactNode;
   children: ReactNode;
   id?: string;
-  href?: string;
+  /** Both houses' own photos, laid out as their own row ahead of this
+   * group's title section — see SectionPage, which builds this from
+   * EntryMedia directly so each EntryCard below can skip its own copy
+   * (hideMedia). Edge-to-edge, no padding, same as a solo card's photo. */
+  media?: ReactNode;
   /** Only passed for a 2-house-option group, where the pair shares a
    * single rank instead of each card having its own. */
   rank?: number;
@@ -17,10 +22,11 @@ export interface ListingSectionProps {
   onDeleteGroup?: ((reason: string) => void) | null;
 }
 
-// The shared frame/header around a 2-house-option group — two otherwise-
-// bare EntryCards sit in its body, each with its own title/eyebrows/
-// price, while this header just carries what the pair shares: the group
-// label, one rank for both, and a "Delete group" shortcut.
+// The shared frame around a 2-house-option group: both houses' photos
+// first (edge-to-edge, like a solo card), then this group's own title
+// section (label, shared rank, "Delete group"), then two otherwise-bare
+// EntryCards in its body, each with its own title/eyebrows/price below
+// that — matching a solo card's own image-then-title order exactly.
 // `onDeleteGroup` archives both listings in the pair at once with one
 // shared reason, via the same ArchiveDialog each individual EntryCard
 // already uses for its own per-listing Delete — that per-listing control
@@ -29,6 +35,7 @@ export default function ListingSection({
   title,
   children,
   id,
+  media,
   rank,
   onRankChange,
   canManage,
@@ -59,6 +66,7 @@ export default function ListingSection({
 
   return (
     <section id={id} className={styles.section}>
+      {media}
       <div className={styles.header}>
         <div className={styles.titleArea}>
           <h2 className={styles.title}>{title}</h2>
@@ -78,13 +86,9 @@ export default function ListingSection({
           )}
           {canManage && onDeleteGroup && (
             <div className={styles.deleteGroupWrapper}>
-              <button
-                type="button"
-                onClick={() => setShowArchiveDialog((v) => !v)}
-                className={styles.deleteGroupButton}
-              >
+              <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog((v) => !v)}>
                 Delete group
-              </button>
+              </Button>
               {showArchiveDialog && (
                 <ArchiveDialog onConfirm={archiveGroup} onCancel={() => setShowArchiveDialog(false)} />
               )}

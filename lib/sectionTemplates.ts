@@ -131,3 +131,18 @@ for (const template of SECTION_TEMPLATES) {
     template.fieldDefs = [...template.fieldDefs, ...FOOD_DRINK_TYPE_FIELD_DEFS];
   }
 }
+
+// Same idea, for Activities' own type tags.
+const ACTIVITIES_TYPE_FIELD_DEFS: TemplateFieldDef[] = [
+  { key: "hike", label: "Hike", field_type: "boolean", show_on_overview: true },
+  { key: "kayak", label: "Kayak", field_type: "boolean", show_on_overview: true },
+  { key: "boatTour", label: "Boat Tour", field_type: "boolean", show_on_overview: true },
+  { key: "sightSeeing", label: "Sight Seeing", field_type: "boolean", show_on_overview: true },
+  { key: "beach", label: "Beach", field_type: "boolean", show_on_overview: true },
+  { key: "island", label: "Island", field_type: "boolean", show_on_overview: true },
+];
+for (const template of SECTION_TEMPLATES) {
+  if (template.key === "activities") {
+    template.fieldDefs = [...template.fieldDefs, ...ACTIVITIES_TYPE_FIELD_DEFS];
+  }
+}

@@ -126,6 +126,29 @@
   margin-top: 0.75rem;
 }
 
+/* Both houses' photos, side by side, ahead of the group's own title
+   section — no divider here (unlike .groupListingHalf below); a photo
+   already has its own hard edge, and the vertical line is meant to
+   start under the title section, not run through the images too. */
+.groupMediaRow {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 640px) {
+  .groupMediaRow {
+    flex-direction: row;
+  }
+}
+
+.groupMediaHalf {
+  min-width: 0;
+}
+@media (min-width: 640px) {
+  .groupMediaHalf {
+    width: 50%;
+  }
+}
+
 .groupListings {
   display: flex;
   flex-direction: column;

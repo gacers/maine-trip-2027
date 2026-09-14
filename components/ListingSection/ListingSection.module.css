@@ -72,18 +72,6 @@
   position: relative;
 }
 
-.deleteGroupButton {
-  font-size: var(--text-sm);
-  color: var(--color-red-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
 
 /* No padding here — each child EntryCard (and the map section below,
    via SectionPage's .groupMapSection) owns its own inset the exact same
