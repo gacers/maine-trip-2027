@@ -1,0 +1,6 @@
+/* Wider than Dialog's own default 26rem — AddEntryForm's field grids
+   (paired-option fields, extra map points) need real room, unlike a
+   short confirmation dialog like RequestAccess. */
+.content {
+  max-width: 34rem;
+}

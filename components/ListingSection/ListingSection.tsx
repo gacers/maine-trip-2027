@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import Button from "@/components/Button";
+import StarRating from "@/components/StarRating";
 import styles from "./ListingSection.module.css";
 
 export interface ListingSectionProps {
@@ -20,17 +21,26 @@ export interface ListingSectionProps {
   onRankChange?: (rank: number) => void;
   canManage?: boolean;
   onDeleteGroup?: ((reason: string) => void) | null;
+  /** A 2-house-option group is rated as one option, not twice — one
+   * shared "Your score" control here (mirroring the shared rank above)
+   * instead of each half's own EntryCard rendering its own (see
+   * EntryCard's showRatingControl, off for a group's own members). */
+  showRatings?: boolean;
+  canContribute?: boolean;
+  myScore?: number | null;
+  onRate?: (score: number | null) => void;
 }
 
 // The shared frame around a 2-house-option group: both houses' photos
 // first (edge-to-edge, like a solo card), then this group's own title
-// section (label, shared rank, "Delete group"), then two otherwise-bare
-// EntryCards in its body, each with its own title/eyebrows/price below
-// that — matching a solo card's own image-then-title order exactly.
-// `onDeleteGroup` archives both listings in the pair at once with one
-// shared reason, via the same ArchiveDialog each individual EntryCard
-// already uses for its own per-listing Delete — that per-listing control
-// still works too, this is just a faster path when the whole pair is out.
+// section (label, shared rank, shared score, "Delete group"), then two
+// otherwise-bare EntryCards in its body, each with its own title/
+// eyebrows/price below that — matching a solo card's own image-then-
+// title order exactly. `onDeleteGroup` archives both listings in the
+// pair at once with one shared reason, via the same ArchiveDialog each
+// individual EntryCard already uses for its own per-listing Delete —
+// that per-listing control still works too, this is just a faster path
+// when the whole pair is out.
 export default function ListingSection({
   title,
   children,
@@ -40,6 +50,10 @@ export default function ListingSection({
   onRankChange,
   canManage,
   onDeleteGroup,
+  showRatings,
+  canContribute,
+  myScore,
+  onRate,
 }: ListingSectionProps) {
   const [rankDraft, setRankDraft] = useState(rank ?? "");
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
@@ -84,14 +98,23 @@ export default function ListingSection({
               />
             </div>
           )}
+          {showRatings && canContribute && onRate && (
+            <div className={styles.userRatingRow}>
+              <span className={styles.ratingCaption}>Your score</span>
+              <StarRating value={myScore ?? 0} size={18} onChange={(v) => onRate(v)} />
+              {myScore != null && (
+                <Button variant="ghost" size="sm" onClick={() => onRate(null)} className={styles.clearScoreButton}>
+                  Clear
+                </Button>
+              )}
+            </div>
+          )}
           {canManage && onDeleteGroup && (
             <div className={styles.deleteGroupWrapper}>
-              <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog((v) => !v)}>
+              <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog(true)}>
                 Delete group
               </Button>
-              {showArchiveDialog && (
-                <ArchiveDialog onConfirm={archiveGroup} onCancel={() => setShowArchiveDialog(false)} />
-              )}
+              <ArchiveDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog} onConfirm={archiveGroup} />
             </div>
           )}
         </div>

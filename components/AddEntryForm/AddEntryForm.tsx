@@ -65,12 +65,39 @@ export interface AddEntryFormProps {
   navGroupSlug: string;
   onAdded: (entry: ClientEntry) => void;
   authToken?: string | null;
+  /** Skip this form's own card framing (border/shadow/padding) — used
+   * when it's already inside its own container, e.g. AddEntryDialog's
+   * modal, where a card-in-a-card would just double up the chrome. */
+  bare?: boolean;
+  /** Seeds (and re-seeds, across every fields reset below) the Group
+   * label field — used by PairEntryDialog to pair a brand-new listing
+   * with an already-saved entry: whatever gets added here shares that
+   * entry's own groupLabel, so the two pair up automatically the same
+   * way any two entries sharing a groupLabel do (lib/groupUnits.ts).
+   * Still just a plain editable field, not locked. */
+  presetGroupLabel?: string;
 }
 
-export default function AddEntryForm({ trip, section, navGroupSlug, onAdded, authToken = null }: AddEntryFormProps) {
+export default function AddEntryForm({
+  trip,
+  section,
+  navGroupSlug,
+  onAdded,
+  authToken = null,
+  bare = false,
+  presetGroupLabel = "",
+}: AddEntryFormProps) {
+  // A fresh CORE_INITIAL, except carrying presetGroupLabel forward —
+  // every place below that resets `fields` back to a blank slate
+  // (initial mount, a successful preview fetch, Cancel) uses this
+  // instead of the bare constant, so pairing survives all of them.
+  function initialCoreFields(): CoreFields {
+    return { ...CORE_INITIAL, groupLabel: presetGroupLabel };
+  }
+
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
-  const [fields, setFields] = useState<CoreFields>(CORE_INITIAL);
+  const [fields, setFields] = useState<CoreFields>(initialCoreFields);
   const [data, setData] = useState<Record<string, unknown>>({});
   const [warnings, setWarnings] = useState<string[]>([]);
   const [cookieWarning, setCookieWarning] = useState<string | null>(null);
@@ -123,7 +150,7 @@ export default function AddEntryForm({ trip, section, navGroupSlug, onAdded, aut
   function reset() {
     setUrl("");
     setPhase("idle");
-    setFields(CORE_INITIAL);
+    setFields(initialCoreFields());
     setData({});
     setWarnings([]);
     setCookieWarning(null);
@@ -219,7 +246,7 @@ export default function AddEntryForm({ trip, section, navGroupSlug, onAdded, aut
         }
         const s = resData.scraped;
         setFields({
-          ...CORE_INITIAL,
+          ...initialCoreFields(),
           title: s.title || "",
           posterImage: s.posterImage || "",
           description: s.description || "",
@@ -274,7 +301,7 @@ export default function AddEntryForm({ trip, section, navGroupSlug, onAdded, aut
 
   function choosePlace(place: PlaceResult) {
     setFields({
-      ...CORE_INITIAL,
+      ...initialCoreFields(),
       title: place.title || "",
       posterImage: place.photoUrl || "",
       // Prefer Google's own editorial blurb, then fall back to a short
@@ -374,7 +401,7 @@ export default function AddEntryForm({ trip, section, navGroupSlug, onAdded, aut
   }
 
   return (
-    <div className={styles.card}>
+    <div className={bare ? undefined : styles.card}>
       {phase === "idle" || phase === "loading" ? (
         <form onSubmit={handlePreview} className={styles.urlForm}>
           <div className={styles.urlRow}>
@@ -636,7 +663,8 @@ export default function AddEntryForm({ trip, section, navGroupSlug, onAdded, aut
                 )}
 
                 <label className={styles.field}>
-                  Group label{pairPhase === "ready" ? "" : " (optional — only if this is a 2-item option)"}
+                  Group label
+                  {pairPhase === "ready" || presetGroupLabel ? "" : " (optional — only if this is a 2-item option)"}
                   <input
                     value={fields.groupLabel}
                     onChange={(e) => setFields({ ...fields, groupLabel: e.target.value })}

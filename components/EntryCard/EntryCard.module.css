@@ -412,12 +412,6 @@ ul.countsRow {
   border: none;
 }
 
-.editActions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-}
-
 .footer {
   position: relative;
   display: flex;

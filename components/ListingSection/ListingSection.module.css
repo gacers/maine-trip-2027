@@ -71,6 +71,21 @@
   text-align: center;
 }
 
+.userRatingRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ratingCaption {
+  font-size: var(--text-xs);
+  color: var(--color-zinc-500);
+}
+
+.clearScoreButton {
+  color: var(--color-zinc-400);
+}
+
 .deleteGroupWrapper {
   position: relative;
 }

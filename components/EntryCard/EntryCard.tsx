@@ -220,6 +220,19 @@ export interface EntryCardProps {
    * row (via EntryMedia directly) above the group's shared title
    * section, ahead of each house's own remaining content. */
   hideMedia?: boolean;
+  /** Skip this card's own "Your score" input — used for a 2-house-
+   * option group, which gets one shared rating control on ListingSection's
+   * own title bar instead of one per half (a pair is rated as one
+   * option, not twice). showRatings still governs the average-score
+   * badge on this card's own photo either way. */
+  showRatingControl?: boolean;
+  /** Whether this section supports 2-item pairing at all (section.
+   * supports_pairing) — gates the "+ Add paired option" button below,
+   * only ever shown on a solo card (hideMedia is only ever true for an
+   * already-paired card, which doesn't need this). */
+  supportsPairing?: boolean;
+  /** Opens SectionPage's PairEntryDialog for this entry specifically. */
+  onAddPaired?: () => void;
 }
 
 export default function EntryCard({
@@ -239,6 +252,9 @@ export default function EntryCard({
   compact = false,
   largeMedia = false,
   hideMedia = false,
+  showRatingControl = true,
+  supportsPairing = false,
+  onAddPaired,
 }: EntryCardProps) {
   const [rankDraft, setRankDraft] = useState<string | number>(entry.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -516,7 +532,7 @@ export default function EntryCard({
             )}
           </div>
 
-          {showRatings && canContribute && onRate && (
+          {showRatingControl && showRatings && canContribute && onRate && (
             <div className={styles.userRatingRow}>
               <span className={styles.ratingCaption}>Your score</span>
               <StarRating value={entry.myScore ?? 0} size={18} onChange={(v) => onRate(entry.id, v)} />
@@ -709,22 +725,6 @@ export default function EntryCard({
                 ))}
               </div>
             </div>
-
-            <div className={styles.editActions}>
-              <Button variant="primary" size="sm" onClick={saveEdit}>
-                Save
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setIsEditing(false);
-                  setDraft(null);
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
           </div>
         )}
 
@@ -763,16 +763,38 @@ export default function EntryCard({
             <div className={styles.footer}>
               {!isArchived && (
                 <div className={styles.deleteWrapper}>
-                  <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog((v) => !v)}>
+                  <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog(true)}>
                     Delete
                   </Button>
-                  {showArchiveDialog && <ArchiveDialog onConfirm={archive} onCancel={() => setShowArchiveDialog(false)} />}
+                  <ArchiveDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog} onConfirm={archive} />
                 </div>
               )}
 
-              {!isEditing && (
+              {!isEditing ? (
                 <Button variant="ghost" size="sm" onClick={startEdit}>
                   Edit details
+                </Button>
+              ) : (
+                <>
+                  <Button variant="primary" size="sm" onClick={saveEdit}>
+                    Save
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditing(false);
+                      setDraft(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              )}
+
+              {!hideMedia && !isArchived && !isEditing && supportsPairing && onAddPaired && (
+                <Button variant="ghost" size="sm" onClick={onAddPaired}>
+                  + Add paired option
                 </Button>
               )}
 

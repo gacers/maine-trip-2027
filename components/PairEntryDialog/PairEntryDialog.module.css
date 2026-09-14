@@ -1,0 +1,5 @@
+/* Wider than Dialog's own default 26rem — same reasoning as
+   AddEntryDialog's own override, AddEntryForm's field grids need room. */
+.content {
+  max-width: 34rem;
+}

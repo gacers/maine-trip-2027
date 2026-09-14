@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import AddEntryForm from "@/components/AddEntryForm";
+import AddEntryDialog from "@/components/AddEntryDialog";
+import PairEntryDialog from "@/components/PairEntryDialog";
 import EntryCard from "@/components/EntryCard";
 import EntryMedia from "@/components/EntryMedia";
 import ListingSection from "@/components/ListingSection";
@@ -25,7 +26,6 @@ import {
 } from "@/components/DropdownMenu";
 import { groupUnits } from "@/lib/groupUnits";
 import { captureInviteToken, getOrCreateDeviceId } from "@/lib/inviteClient";
-import { buildAgentInstructions, downloadTextFile } from "@/lib/agentInstructions";
 import type { PublicTrip, Section, ClientEntry, EntryUnit, OverviewPin } from "@/lib/types";
 import styles from "./SectionPage.module.css";
 
@@ -89,6 +89,9 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // is confirmed — see /api/trips/[tripSlug]/sheet-url and
   // sanitizeTripForClient for why this can't just be trip.google_sheet_url.
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+  // Which solo entry (if any) is currently mid-"+ Add paired option" —
+  // see requestPair below and PairEntryDialog.
+  const [pairingEntry, setPairingEntry] = useState<ClientEntry | null>(null);
 
   const apiBase = `/api/trips/${trip.slug}/sections/${navGroupSlug}/${section.slug}/entries`;
   const fieldDefs = section.field_defs || [];
@@ -285,44 +288,19 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     setEntries((prev) => [...prev, entry]);
   }
 
-  async function handleDownloadInstructions() {
-    // A contributor already has their own (add/append-only) token —
-    // reuse it. An admin has no bearer token at all (their access is
-    // the session cookie), so mint a fresh full-access owner key on the
-    // spot rather than sending them to the API Keys admin page first.
-    if (contributorToken) {
-      const text = buildAgentInstructions({
-        trip,
-        section,
-        navGroupSlug,
-        siteUrl: window.location.origin,
-        token: contributorToken,
-        role: "contributor",
-      });
-      downloadTextFile(`${trip.slug}-agent-instructions.md`, text);
-      return;
+  // Opens PairEntryDialog for this solo entry — if it doesn't already
+  // have a groupLabel (the common case, since a plain solo add never
+  // sets one), assign it one on the spot from its own title so there's
+  // something for the new paired listing to actually match against
+  // (lib/groupUnits.ts pairs purely by two active entries sharing a
+  // groupLabel). If it already has one (e.g. its old partner was
+  // archived — see groupUnits' comment on that), reuse it as-is.
+  function requestPair(entry: ClientEntry) {
+    const label = entry.groupLabel?.trim() || entry.title?.trim() || "Option";
+    if (!entry.groupLabel?.trim()) {
+      handlePatch(entry.id, { groupLabel: label });
     }
-
-    try {
-      const res = await fetch(`/api/trips/${trip.slug}/api-keys`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: "Downloaded agent instructions", role: "owner" }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't create a key");
-      const text = buildAgentInstructions({
-        trip,
-        section,
-        navGroupSlug,
-        siteUrl: window.location.origin,
-        token: data.token,
-        role: "owner",
-      });
-      downloadTextFile(`${trip.slug}-agent-instructions.md`, text);
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    setPairingEntry({ ...entry, groupLabel: label });
   }
 
   const active = entries.filter((e) => e.status !== "archived").sort((a, b) => (a.rank ?? 999999) - (b.rank ?? 999999));
@@ -375,6 +353,10 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
           rank={canManage && showRanking ? unit.listings[0].rank ?? undefined : undefined}
           onRankChange={(newRank) => unit.listings.forEach((e) => handlePatch(e.id, { rank: newRank }))}
           canManage={canManage}
+          showRatings={showRatings}
+          canContribute={canContribute}
+          myScore={unit.listings[0].myScore ?? null}
+          onRate={(score) => unit.listings.forEach((e) => handleRate(e.id, score))}
           onDeleteGroup={
             unit.listings[0].status === "archived"
               ? null
@@ -397,6 +379,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
                   hideMedia
                   showRank={false}
                   showRatings={showRatings}
+                  showRatingControl={false}
                   showMap={false}
                   compact={compactCards}
                 />
@@ -434,6 +417,8 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         comparisonMode={comparisonMode}
         compact={compactCards}
         largeMedia={isHouses}
+        supportsPairing={!!section.supports_pairing}
+        onAddPaired={canContribute ? () => requestPair(entry) : undefined}
       />
     );
   }
@@ -442,8 +427,18 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // as part of that sticky bar instead of its own separate row further
   // down the page — falls back to rendering right here (still sticky,
   // still right-aligned) if that slot isn't available for some reason.
-  const utilityControls = (filterFieldDefs.length > 0 || showRatings) && (
+  // The Google Sheet link lives here too now, alongside Filter/Sort,
+  // instead of its own centered row further down the page.
+  const utilityControls = ((canContribute && !!sheetUrl) || filterFieldDefs.length > 0 || showRatings) && (
     <>
+      {canContribute && sheetUrl && (
+        <Button variant="secondary" size="sm" asChild>
+          <a href={sheetUrl} target="_blank" rel="noopener noreferrer">
+            Google Sheet
+          </a>
+        </Button>
+      )}
+
       {filterFieldDefs.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -496,22 +491,32 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   return (
     <main className={[styles.main, isHouses && styles.mainHouses].filter(Boolean).join(" ")}>
       {/* No hint that a Sheet even exists for a non-contributor — Request
-          Access itself now lives once, globally, in TripNavHeader. */}
-      {canContribute && sheetUrl && (
-        <div className={styles.sheetRow}>
-          <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={styles.sheetLink}>
-            Google Sheet
-          </a>
+          Access itself now lives once, globally, in TripNavHeader.
+          The Sheet link itself is up in utilityControls now, alongside
+          Filter/Sort. The Add form used to sit here always-expanded —
+          now it's a button that opens it in a modal (AddEntryDialog),
+          so browsing the section isn't stuck below a paste-a-URL form
+          whether or not anyone's about to use it. */}
+      {canContribute && (
+        <div className={styles.addSection}>
+          <AddEntryDialog trip={trip} section={section} navGroupSlug={navGroupSlug} authToken={authToken} onAdded={handleAdded} />
         </div>
       )}
 
-      {canContribute && (
-        <div className={styles.addSection}>
-          <AddEntryForm trip={trip} section={section} navGroupSlug={navGroupSlug} onAdded={handleAdded} authToken={authToken} />
-          <Button variant="ghost" size="sm" className={styles.downloadInstructionsButton} onClick={handleDownloadInstructions}>
-            Download agent instructions (add via your own AI agent instead)
-          </Button>
-        </div>
+      {pairingEntry && (
+        <PairEntryDialog
+          trip={trip}
+          section={section}
+          navGroupSlug={navGroupSlug}
+          authToken={authToken}
+          presetGroupLabel={pairingEntry.groupLabel || ""}
+          open={!!pairingEntry}
+          onOpenChange={(o) => !o && setPairingEntry(null)}
+          onAdded={(entry) => {
+            handleAdded(entry);
+            setPairingEntry(null);
+          }}
+        />
       )}
 
       {utilityControls && (navSlot?.slot ? createPortal(utilityControls, navSlot.slot) : <div className={styles.utilityRow}>{utilityControls}</div>)}
