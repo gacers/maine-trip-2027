@@ -40,6 +40,10 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // (rather than just `!canContribute`) stops it from flashing on for a
   // returning contributor whose token just hasn't been read back yet.
   const [accessChecked, setAccessChecked] = useState(isAdmin);
+  // Fetched separately (not handed down in trip's own props) once access
+  // is confirmed — see /api/trips/[tripSlug]/sheet-url and
+  // sanitizeTripForClient for why this can't just be trip.google_sheet_url.
+  const [sheetUrl, setSheetUrl] = useState(null);
 
   const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
   const fieldDefs = section.field_defs || [];
@@ -83,6 +87,26 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
     setContributorToken(captureInviteToken(trip.slug));
     setAccessChecked(true);
   }, [trip.slug]);
+
+  useEffect(() => {
+    if (!canContribute) {
+      setSheetUrl(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/trips/${trip.slug}/sheet-url`, { headers: authHeaders() })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled) setSheetUrl(data?.googleSheetUrl || null);
+      })
+      .catch(() => {
+        // Non-fatal — worst case the Google Sheet pill just doesn't show.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canContribute, trip.slug, authToken]);
 
   function authHeaders() {
     return authToken ? { Authorization: `Bearer ${authToken}` } : {};
@@ -270,24 +294,23 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   return (
     <main className="max-w-4xl mx-auto px-4 pb-16 flex flex-col gap-6 w-full">
       <div className="flex justify-center">
-        {trip.google_sheet_url &&
-          (canContribute ? (
+        {canContribute ? (
+          sheetUrl && (
             <a
-              href={trip.google_sheet_url}
+              href={sheetUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
             >
               Google Sheet
             </a>
-          ) : (
-            <span
-              title="Request access first to view the Google Sheet"
-              className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-1.5 text-sm font-medium text-zinc-400 cursor-not-allowed select-none"
-            >
-              Google Sheet
-            </span>
-          ))}
+          )
+        ) : (
+          // No hint that a Sheet even exists for a non-contributor — same
+          // "ask the owner" flow as the Add form below uses, not a
+          // disabled placeholder for something they can't get to anyway.
+          showRequestAccess && <RequestAccess trip={trip} section={section} contactEmail={contactEmail} />
+        )}
       </div>
 
       {canContribute && (
@@ -301,8 +324,6 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           </button>
         </div>
       )}
-
-      {showRequestAccess && <RequestAccess trip={trip} section={section} contactEmail={contactEmail} />}
 
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>
