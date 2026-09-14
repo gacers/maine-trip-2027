@@ -24,6 +24,22 @@ const CORE_INITIAL = {
   groupLabel: "",
 };
 
+// Mirrors the guidance Claude Desktop already follows for a paired 2-URL
+// add (docs/claude-desktop-add-prompts.md): prefer the two titles' shared
+// lead-in before a separator (e.g. "Gouldsboro - Schoodic East" /
+// "Gouldsboro - Harbor House" share "Gouldsboro"), otherwise just combine
+// both titles — always just a starting suggestion, the field stays editable.
+function deriveGroupLabel(titleA, titleB) {
+  const a = (titleA || "").trim();
+  const b = (titleB || "").trim();
+  if (!a || !b) return a || b || "";
+  const lead = (t) => t.split(/\s*[-:|]\s*/)[0].trim();
+  const aLead = lead(a);
+  const bLead = lead(b);
+  if (aLead && aLead.toLowerCase() === bLead.toLowerCase()) return aLead;
+  return `${a} / ${b}`;
+}
+
 export default function AddEntryForm({ trip, section, onAdded, authToken = null }) {
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState("idle"); // idle | loading | editing | duplicate | picking | saving | error
@@ -37,6 +53,18 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
+
+  // Pairing a second link into this same "2-item option" — the manual-input
+  // equivalent of the AI agent's paired-URL add (both entries get the same
+  // groupLabel; groupUnits.js renders any two entries sharing one as a
+  // single card/map/rank).
+  const [pairUrl, setPairUrl] = useState("");
+  const [pairPhase, setPairPhase] = useState("none"); // none | input | loading | ready
+  const [pairFields, setPairFields] = useState(CORE_INITIAL);
+  const [pairData, setPairData] = useState({});
+  const [pairWarnings, setPairWarnings] = useState([]);
+  const [pairCookieWarning, setPairCookieWarning] = useState(null);
+  const [pairError, setPairError] = useState("");
 
   const fieldDefs = section.field_defs || [];
   const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
@@ -77,6 +105,61 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
     setAddress("");
     setGeocodeMsg("");
     setErrorMsg("");
+    cancelPair();
+  }
+
+  function cancelPair() {
+    setPairUrl("");
+    setPairPhase("none");
+    setPairFields(CORE_INITIAL);
+    setPairData({});
+    setPairWarnings([]);
+    setPairCookieWarning(null);
+    setPairError("");
+  }
+
+  async function handlePairPreview(e) {
+    e.preventDefault();
+    const raw = pairUrl.trim();
+    if (!raw) return;
+    setPairPhase("loading");
+    setPairError("");
+    try {
+      const res = await fetch(`${apiBase}/preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ url: raw }),
+      });
+      const resData = await res.json();
+      if (!res.ok) {
+        setPairError(resData.error || "Something went wrong.");
+        setPairPhase("input");
+        return;
+      }
+      if (resData.duplicate) {
+        setPairError(`Already on the list as "${resData.existing.title}" — pick a different second link.`);
+        setPairPhase("input");
+        return;
+      }
+      const s = resData.scraped;
+      setPairFields({
+        ...CORE_INITIAL,
+        title: s.title || "",
+        posterImage: s.posterImage || "",
+        lat: s.lat ?? "",
+        lng: s.lng ?? "",
+      });
+      setPairData(initialData());
+      setPairWarnings(s.warnings || []);
+      setPairCookieWarning(s.cookieWarning || null);
+      setPairPhase("ready");
+      // Suggest a shared label now that both titles are known — leaves it
+      // alone if the admin already typed one in themselves.
+      setFields((f) => (f.groupLabel.trim() ? f : { ...f, groupLabel: deriveGroupLabel(f.title, s.title || "") }));
+    } catch (err) {
+      setPairError(err.message);
+      setPairPhase("input");
+    }
   }
 
   async function handlePreview(e) {
@@ -183,33 +266,78 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
     setPhase("editing");
   }
 
+  async function postEntry(entryUrl, entryFields, entryData, groupLabel) {
+    const res = await fetch(apiBase, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({ url: entryUrl, ...entryFields, groupLabel, data: entryData }),
+    });
+    const resData = await res.json();
+    return { ok: res.ok, status: res.status, data: resData };
+  }
+
   async function handleSave(e) {
     e.preventDefault();
     if (!fields.title.trim()) {
       setErrorMsg("Title is required.");
       return;
     }
+    const paired = pairPhase === "ready";
+    if (paired && !pairFields.title.trim()) {
+      setErrorMsg("The second link's title is required.");
+      return;
+    }
     setPhase("saving");
     setErrorMsg("");
+    const groupLabel =
+      fields.groupLabel.trim() || (paired ? deriveGroupLabel(fields.title, pairFields.title) : "") || null;
     try {
-      const res = await fetch(apiBase, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ url, ...fields, data }),
-      });
-      const resData = await res.json();
-      if (!res.ok) {
-        if (resData.error === "duplicate") {
-          setDuplicate(resData.existing);
+      const r1 = await postEntry(url, fields, data, groupLabel);
+      let entry1 = null;
+      if (r1.ok) {
+        entry1 = r1.data.entry;
+        onAdded(entry1);
+      } else if (r1.data.error === "duplicate") {
+        if (paired) {
+          // Already saved from an earlier attempt at this same pairing
+          // (e.g. the second link failed last time) — treat as done, not
+          // an error, so retrying doesn't add the first link twice.
+          entry1 = r1.data.existing;
+        } else {
+          setDuplicate(r1.data.existing);
           setPhase("duplicate");
           return;
         }
-        setErrorMsg(resData.error || "Something went wrong.");
+      } else {
+        setErrorMsg(r1.data.error || "Something went wrong.");
         setPhase("editing");
         return;
       }
-      onAdded(resData.entry);
-      reset();
+
+      if (!paired) {
+        reset();
+        return;
+      }
+
+      const r2 = await postEntry(pairUrl, pairFields, pairData, groupLabel);
+      if (r2.ok) {
+        onAdded(r2.data.entry);
+        reset();
+      } else if (r2.status === 409 && r2.data.error === "duplicate") {
+        onAdded(r2.data.existing);
+        reset();
+      } else {
+        // The first link is already saved (or was already saved) — keep the
+        // pair sub-form open with what was entered so fixing and re-saving
+        // doesn't add the first link twice.
+        setFields((f) => ({ ...f, groupLabel }));
+        setErrorMsg(
+          `Saved "${entry1.title}" — but the second link failed: ${
+            r2.data.error || "Something went wrong."
+          } Fix it below and save again.`
+        );
+        setPhase("editing");
+      }
     } catch (err) {
       setErrorMsg(err.message);
       setPhase("editing");
@@ -406,15 +534,129 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-              Group label (optional — only if this is a 2-item option)
-              <input
-                value={fields.groupLabel}
-                onChange={(e) => setFields({ ...fields, groupLabel: e.target.value })}
-                placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
-                className="rounded border border-zinc-300 px-2 py-1.5"
-              />
-            </label>
+            <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-3 sm:col-span-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-medium text-zinc-700">
+                  Pair with a second link (2-item option)
+                </h3>
+                {pairPhase === "none" ? (
+                  <button
+                    type="button"
+                    onClick={() => setPairPhase("input")}
+                    className="text-sm text-blue-600 hover:underline shrink-0"
+                  >
+                    + Add another
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={cancelPair}
+                    className="text-sm text-zinc-500 hover:underline shrink-0"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+
+              {pairPhase === "input" || pairPhase === "loading" ? (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    placeholder="Paste the second link..."
+                    value={pairUrl}
+                    onChange={(e) => setPairUrl(e.target.value)}
+                    className="flex-1 rounded border border-zinc-300 px-2 py-1.5 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handlePairPreview}
+                    disabled={pairPhase === "loading" || !pairUrl.trim()}
+                    className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+                  >
+                    {pairPhase === "loading" ? "Fetching..." : "Fetch"}
+                  </button>
+                </div>
+              ) : null}
+              {pairError && <p className="text-xs text-red-600">{pairError}</p>}
+
+              {pairPhase === "ready" && (
+                <div className="flex flex-col gap-2">
+                  {pairCookieWarning && (
+                    <p className="text-xs font-medium text-red-800 bg-red-50 border border-red-200 rounded p-2">
+                      {pairCookieWarning}
+                    </p>
+                  )}
+                  {pairWarnings.length > 0 && (
+                    <ul className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 list-disc pl-5">
+                      {pairWarnings.map((w, i) => (
+                        <li key={i}>{w}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    <label className="flex flex-col gap-1 text-sm">
+                      Title
+                      <input
+                        required
+                        value={pairFields.title}
+                        onChange={(e) => setPairFields({ ...pairFields, title: e.target.value })}
+                        className="rounded border border-zinc-300 px-2 py-1.5"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                      Photo URL
+                      <input
+                        value={pairFields.posterImage}
+                        onChange={(e) => setPairFields({ ...pairFields, posterImage: e.target.value })}
+                        className="rounded border border-zinc-300 px-2 py-1.5"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                      Latitude
+                      <input
+                        value={pairFields.lat}
+                        onChange={(e) => setPairFields({ ...pairFields, lat: e.target.value })}
+                        className="rounded border border-zinc-300 px-2 py-1.5"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                      Longitude
+                      <input
+                        value={pairFields.lng}
+                        onChange={(e) => setPairFields({ ...pairFields, lng: e.target.value })}
+                        className="rounded border border-zinc-300 px-2 py-1.5"
+                      />
+                    </label>
+                    {fieldDefs.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 sm:col-span-2">
+                        {fieldDefs.map((f) => (
+                          <FieldInput
+                            key={f.key}
+                            fieldDef={f}
+                            value={pairData[f.key]}
+                            onChange={(v) => setPairData({ ...pairData, [f.key]: v })}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    Notes, concerns, and description can be added to this one afterward via its own
+                    &quot;Edit details.&quot;
+                  </p>
+                </div>
+              )}
+
+              <label className="flex flex-col gap-1 text-sm">
+                Group label{pairPhase === "ready" ? "" : " (optional — only if this is a 2-item option)"}
+                <input
+                  value={fields.groupLabel}
+                  onChange={(e) => setFields({ ...fields, groupLabel: e.target.value })}
+                  placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
+                  className="rounded border border-zinc-300 px-2 py-1.5"
+                />
+              </label>
+            </div>
           </div>
 
           <div className="flex gap-3">
