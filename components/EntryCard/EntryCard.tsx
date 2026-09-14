@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
-import { BedDouble, BedSingle, Bath, Hash, MapPin, ExternalLink } from "lucide-react";
+import { BedDouble, BedSingle, Bath, Hash, MapPin } from "lucide-react";
 import { ListingMapView, useListingMap } from "@/components/ListingMap";
 import ListingMapDetails from "@/components/ListingMapDetails";
 import SimplePlaceMap from "@/components/SimplePlaceMap";
@@ -53,13 +53,6 @@ function countFieldIcon(label: string) {
 
 function PinIcon() {
   return <MapPin size={14} className={styles.pinIcon} />;
-}
-
-// Appended after the title/address text instead of the old underline —
-// signals "this opens somewhere else" (the original listing, a Google
-// Maps search) without dressing plain text up as a link.
-function ExternalLinkIcon() {
-  return <ExternalLink size={12} className={styles.externalIcon} />;
 }
 
 // Renders plain text with any http(s) URL inside it turned into a real
@@ -465,13 +458,11 @@ export default function EntryCard({
             <div className={styles.titleColumn}>
               <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
                 {entry.title}
-                <ExternalLinkIcon />
               </a>
               {hasHouse && (
                 <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles.addressLink}>
                   <PinIcon />
                   {addressLabel || "View on map"}
-                  <ExternalLinkIcon />
                 </a>
               )}
             </div>
@@ -518,7 +509,7 @@ export default function EntryCard({
             section has no count-type fields defined or none are filled in. */}
         {countRows.length > 0 && (
           <div className={styles.section}>
-            <ul className={styles.countsRow}>
+            <BulletList bulleted={false} className={styles.countsRow}>
               {countRows.map(({ fieldDef, value }) => (
                 <li key={fieldDef.key} className={styles.countItem}>
                   {countFieldIcon(fieldDef.label)}
@@ -527,7 +518,7 @@ export default function EntryCard({
                   </span>
                 </li>
               ))}
-            </ul>
+            </BulletList>
           </div>
         )}
 
