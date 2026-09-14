@@ -204,6 +204,13 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           onRankChange={(newRank) =>
             unit.listings.forEach((e) => handlePatch(e.id, { rank: newRank }))
           }
+          canManage={canManage}
+          onDeleteGroup={
+            unit.listings[0].status === "archived"
+              ? null
+              : (reason) =>
+                  unit.listings.forEach((e) => handlePatch(e.id, { archiveReason: reason, status: "archived" }))
+          }
         >
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
             {unit.listings.map((entry) => (
