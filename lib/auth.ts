@@ -1,9 +1,29 @@
 import { createHash } from "crypto";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { supabaseServer, supabaseServiceRole } from "@/lib/supabaseServer";
 
-export function hashApiKey(token) {
+export function hashApiKey(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
+
+export interface WriteAccessError {
+  status: number;
+  message: string;
+}
+
+export interface WriteAccessSuccess {
+  supabase: SupabaseClient;
+  raterKey: string;
+  error?: undefined;
+}
+
+export interface WriteAccessFailure {
+  error: WriteAccessError;
+  supabase?: undefined;
+  raterKey?: undefined;
+}
+
+export type WriteAccessResult = WriteAccessSuccess | WriteAccessFailure;
 
 // Authorizes a write. Two paths:
 // 1. `Authorization: Bearer <token>` — for Claude Desktop/automation, or
@@ -26,7 +46,11 @@ export function hashApiKey(token) {
 // *who* just authenticated ("key:<api_keys.id>" for a bearer token,
 // "admin:<user.id>" for a session) — used by entry_ratings to tell one
 // rater's own score apart from another's; every other caller ignores it.
-export async function requireWriteAccess(request, tripId = null, { allowContributor = false } = {}) {
+export async function requireWriteAccess(
+  request: Request,
+  tripId: string | null = null,
+  { allowContributor = false }: { allowContributor?: boolean } = {}
+): Promise<WriteAccessResult> {
   const authHeader = request.headers.get("authorization") || "";
   const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
 
@@ -70,7 +94,7 @@ export async function requireWriteAccess(request, tripId = null, { allowContribu
 // object, or null if not signed in / not an admin (relies on the
 // app_admins_self_read RLS policy so a user's own session client can
 // check their own membership row).
-export async function getAdminUser() {
+export async function getAdminUser(): Promise<User | null> {
   const supabase = await supabaseServer();
   const {
     data: { user },

@@ -151,6 +151,37 @@ export type EntryUnit =
   | { type: "solo"; listings: [ClientEntry] }
   | { type: "group"; listings: [ClientEntry, ClientEntry] };
 
+// The raw `entries` row shape (snake_case), before lib/entries.ts's
+// toClientEntry flattens it into a ClientEntry.
+export interface EntryRow {
+  id: string;
+  section_id: string;
+  trip_id: string;
+  rank: number | null;
+  status: EntryStatus;
+  archive_reason: string | null;
+  notes: string | null;
+  concerns: string | null;
+  title: string | null;
+  url: string | null;
+  poster_image: string | null;
+  description: string | null;
+  lat: number | null;
+  lng: number | null;
+  extra_markers: MapReferencePoint[] | null;
+  group_label: string | null;
+  data: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AppSettings {
+  id: true;
+  google_drive_folder_id: string | null;
+  site_url: string | null;
+  contact_email: string | null;
+}
+
 export interface PlaceResult {
   id: string;
   title: string;
