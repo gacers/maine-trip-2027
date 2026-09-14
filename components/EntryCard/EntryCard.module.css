@@ -1,21 +1,16 @@
 .article {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  height: 100%;
+  overflow: hidden;
 }
 
-.articleFramed {
+.framed {
   composes: article;
   border-radius: var(--radius-xl);
   border: 1px solid var(--color-zinc-200);
-  padding: 1rem;
   box-shadow: var(--shadow-sm);
   background: var(--color-white);
-}
-@media (min-width: 640px) {
-  .articleFramed {
-    padding: 1.25rem;
-  }
 }
 
 .archived {
@@ -130,120 +125,96 @@
   }
 }
 
-.topRow {
+/* Edge-to-edge header image — no side padding, so it bleeds to the
+   card's own edges (clipped to its rounded corners via .article's
+   overflow:hidden). Sized to read as roughly half the card's visual
+   weight; a literal 50/50 split of the *whole* card isn't practical
+   since the content below (map, notes, ...) varies a lot in length. */
+.mediaHeader {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--color-zinc-100);
+  flex-shrink: 0;
+}
+
+.mediaHeaderCompact {
+  composes: mediaHeader;
+  aspect-ratio: 16 / 10;
+}
+
+.mediaImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.scoreBadge {
+  position: absolute;
+  z-index: 1;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-zinc-900);
+}
+
+/* Every content block below the image is a .section with a divider —
+   .sections' own top border plus each .section's bottom border means
+   every section gets a full-width line above and below it, including
+   the first (right under the image) and last (the card's own bottom
+   edge), without doubling up the lines in between. */
+.sections {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--color-zinc-200);
+}
+
+.section {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--color-zinc-200);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+@media (min-width: 640px) {
+  .section {
+    padding-inline: 1.25rem;
+  }
+}
+
+.utilityRow {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
-.titleArea {
-  min-width: 0;
-  flex: 1 1 auto;
+.eyebrows {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
-}
-
-.titleColumn {
-  min-width: 0;
-}
-
-.titleLink {
-  font-size: var(--text-lg);
+  font-size: var(--text-xs);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-zinc-900);
-  text-decoration: underline;
-  text-decoration-color: var(--color-blue-400);
-  overflow-wrap: break-word;
-
-  &:hover {
-    color: var(--color-blue-600);
-  }
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-amber-700);
 }
 
-.priceLine {
-  font-size: var(--text-sm);
-  color: var(--color-zinc-600);
-  margin-top: 0.125rem;
-}
-
-.priceBadge {
-  color: var(--color-zinc-500);
-}
-
-.noPriceLine {
-  font-size: var(--text-sm);
-  color: var(--color-zinc-400);
-  font-style: italic;
-  margin-top: 0.125rem;
-}
-
-.countsSummary {
-  font-size: var(--text-xs);
-  color: var(--color-zinc-500);
-  margin-top: 0.125rem;
-}
-
-.ratingsRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: 1rem;
-  row-gap: 0.25rem;
-  margin-top: 0.375rem;
-}
-
-.ratingGroup {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.ratingCaption {
-  font-size: var(--text-xs);
-  color: var(--color-zinc-500);
-}
-
-.clearScoreButton {
-  font-size: var(--text-xs);
-  color: var(--color-zinc-400);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.originalListingLink {
-  font-size: var(--text-xs);
-  color: var(--color-blue-600);
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.badgeGroup {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.25rem;
-  flex-shrink: 0;
-}
-
-.badge {
-  display: inline-block;
-  border-radius: var(--radius-full);
-  background: var(--color-amber-100);
-  color: var(--color-amber-800);
-  font-size: var(--text-xs);
-  font-weight: var(--font-weight-medium);
-  padding: 0.125rem 0.5rem;
+.eyebrow + .eyebrow::before {
+  content: "\00B7";
+  margin-right: 0.5rem;
+  color: var(--color-zinc-300);
 }
 
 .rankControl {
@@ -268,37 +239,107 @@
   text-align: center;
 }
 
-.photoBox {
-  width: 100%;
+.titleRow {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-zinc-100);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  max-height: 480px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
-.photoBoxCompact {
-  composes: photoBox;
-  height: 14rem;
-}
-@media (min-width: 640px) {
-  .photoBoxCompact {
-    height: 16rem;
+.titleLink {
+  min-width: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-zinc-900);
+  text-decoration: underline;
+  text-decoration-color: var(--color-blue-400);
+  overflow-wrap: break-word;
+
+  &:hover {
+    color: var(--color-blue-600);
   }
 }
 
-.photoImg {
-  width: 100%;
-  height: auto;
-  max-height: 480px;
-  object-fit: contain;
+.priceStack {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.375rem;
 }
 
-.photoImgCompact {
-  composes: photoImg;
-  height: 100%;
+.priceGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.priceAvg {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-zinc-900);
+  white-space: nowrap;
+}
+
+.priceTotal {
+  font-size: var(--text-xs);
+  color: var(--color-zinc-500);
+  white-space: nowrap;
+}
+
+.noPriceLine {
+  font-size: var(--text-sm);
+  color: var(--color-zinc-400);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.addressLink {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--text-sm);
+  color: var(--color-zinc-600);
+
+  &:hover {
+    color: var(--color-blue-600);
+    text-decoration: underline;
+  }
+}
+
+.pinIcon {
+  flex-shrink: 0;
+  color: var(--color-zinc-400);
+}
+
+.userRatingRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ratingCaption {
+  font-size: var(--text-xs);
+  color: var(--color-zinc-500);
+}
+
+.clearScoreButton {
+  font-size: var(--text-xs);
+  color: var(--color-zinc-400);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.countsSummary {
+  font-size: var(--text-xs);
+  color: var(--color-zinc-500);
 }
 
 .sectionHeading {
@@ -307,38 +348,19 @@
   letter-spacing: 0.05em;
   color: var(--color-zinc-500);
   font-weight: var(--font-weight-medium);
-  margin-bottom: 0.25rem;
-}
-
-.notesSection {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.concernsSection {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-amber-200);
-  background: var(--color-amber-50);
-  padding: 0.625rem;
 }
 
 .concernsHeading {
   composes: sectionHeading;
   color: var(--color-amber-700);
+  margin-top: 0.375rem;
 }
 
-.editBox {
+.concernsBox {
   border-radius: var(--radius-lg);
-  border: 1px solid var(--color-zinc-200);
-  background: var(--color-zinc-50);
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  border: 1px solid var(--color-amber-200);
+  background: var(--color-amber-50);
+  padding: 0.625rem;
 }
 
 .editGrid {
@@ -494,6 +516,7 @@
 .editActions {
   display: flex;
   gap: 0.75rem;
+  margin-top: 0.75rem;
 }
 
 .saveButton {
@@ -527,9 +550,6 @@
   align-items: center;
   column-gap: 1rem;
   row-gap: 0.5rem;
-  padding-top: 0.25rem;
-  border-top: 1px solid var(--color-zinc-100);
-  margin-top: 0.25rem;
 }
 
 .deleteWrapper {

@@ -57,6 +57,28 @@ export async function geocodeAddress(address: string): Promise<GeocodedAddress> 
   });
 }
 
+// Reverse-geocodes a point to its full street address (Google's own best
+// top result), for the address line on an EntryCard — a plain string
+// display, unlike reverseGeocodeTown below which digs for a specific
+// locality-level result to feed the map's "Closest Town" pin.
+export async function reverseGeocodeAddress(lat: number, lng: number): Promise<string> {
+  const google = await loadGoogleMaps();
+  return new Promise((resolve, reject) => {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode(
+      { location: { lat, lng } },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (results: any[] | null, status: string) => {
+        if (status === "OK" && results && results[0]) {
+          resolve(results[0].formatted_address);
+        } else {
+          reject(new Error(`Couldn't find an address for this location (${status})`));
+        }
+      }
+    );
+  });
+}
+
 export interface TownResult {
   name: string;
   searchQuery: string;

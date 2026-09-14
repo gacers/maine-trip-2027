@@ -4,11 +4,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import styles from "./ListingSection.module.css";
 
-export interface ListingSectionBadge {
-  key: string;
-  label: string;
-}
-
 export interface ListingSectionProps {
   title: ReactNode;
   children: ReactNode;
@@ -18,29 +13,24 @@ export interface ListingSectionProps {
    * single rank instead of each card having its own. */
   rank?: number;
   onRankChange?: (rank: number) => void;
-  badges?: ListingSectionBadge[];
   canManage?: boolean;
   onDeleteGroup?: ((reason: string) => void) | null;
 }
 
-// `onDeleteGroup` (group-only) archives both listings in the pair at
-// once with one shared reason, via the same ArchiveDialog each individual
-// EntryCard already uses for its own per-listing Delete — that per-listing
-// control still works too, this is just a faster path when the whole pair
-// is out.
-// `badges` (an entry's true boolean fields, e.g. "Closed") render next
-// to the title here rather than inside EntryCard's own body whenever
-// this component — not EntryCard — is the one actually showing the
-// title (a solo, non-grouped entry passes its title/href here and hides
-// its own via showTitle={false}; see SectionPage).
+// The shared frame/header around a 2-house-option group — two otherwise-
+// bare EntryCards sit in its body, each with its own title/eyebrows/
+// price, while this header just carries what the pair shares: the group
+// label, one rank for both, and a "Delete group" shortcut.
+// `onDeleteGroup` archives both listings in the pair at once with one
+// shared reason, via the same ArchiveDialog each individual EntryCard
+// already uses for its own per-listing Delete — that per-listing control
+// still works too, this is just a faster path when the whole pair is out.
 export default function ListingSection({
   title,
   children,
   id,
-  href,
   rank,
   onRankChange,
-  badges,
   canManage,
   onDeleteGroup,
 }: ListingSectionProps) {
@@ -71,24 +61,7 @@ export default function ListingSection({
     <section id={id} className={styles.section}>
       <div className={styles.header}>
         <div className={styles.titleArea}>
-          <h2 className={styles.title}>
-            {href ? (
-              <a href={href} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
-                {title}
-              </a>
-            ) : (
-              title
-            )}
-          </h2>
-          {badges && badges.length > 0 && (
-            <div className={styles.badges}>
-              {badges.map((b) => (
-                <span key={b.key} className={styles.badge}>
-                  {b.label}
-                </span>
-              ))}
-            </div>
-          )}
+          <h2 className={styles.title}>{title}</h2>
         </div>
         <div className={styles.controls}>
           {rank !== undefined && (

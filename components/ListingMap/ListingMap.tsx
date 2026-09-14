@@ -76,9 +76,14 @@ export interface ListingMapProps {
   houses: LatLngLabel[];
   extraMarkers?: MapReferencePoint[];
   mapConfig?: MapConfig;
+  /** Driving Times (and the Directions API calls behind it) only make
+   * sense for a still-deciding-among-options list — Possible Houses.
+   * Everywhere else (Stayed, Food & Drink, ...) the pins/legend/Closest
+   * Town still show, this section and its extra API calls just don't. */
+  showDrivingTimes?: boolean;
 }
 
-export default function ListingMap({ houses, extraMarkers, mapConfig }: ListingMapProps) {
+export default function ListingMap({ houses, extraMarkers, mapConfig, showDrivingTimes = true }: ListingMapProps) {
   const mapDivRef = useRef<HTMLDivElement>(null);
   const { google, status, errorMsg } = useGoogleMaps();
   const [routeInfo, setRouteInfo] = useState<Record<string, RouteInfo>>({});
@@ -172,6 +177,8 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }: ListingM
       });
       bounds.extend({ lat: dest.lat, lng: dest.lng });
 
+      if (!showDrivingTimes) return;
+
       // Just compute duration/distance for the Driving Times list below —
       // no route polyline drawn on the map itself, just the pins.
       directionsService.route(
@@ -211,7 +218,7 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }: ListingM
 
     // Origin -> house: real duration/distance, not drawn on this
     // zoomed-in local map. Only if this trip defines one.
-    if (config.originLabel) {
+    if (showDrivingTimes && config.originLabel) {
       directionsService.route(
         {
           origin: config.originLabel,
@@ -297,32 +304,34 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }: ListingM
         </div>
       )}
 
-      <div>
-        <h3 className={styles.headingSpaced}>Driving Times</h3>
-        <ul className={styles.drivingTimesList}>
-          {originInfo && (
-            <li>
-              <a href={originInfo.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
-                {config.originLabel} &rarr; house: {originInfo.text}
-              </a>
-            </li>
-          )}
-          {destinations.map((dest) => {
-            const info = routeInfo[dest.label];
-            return (
-              <li key={dest.label}>
-                {info ? (
-                  <a href={info.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
-                    House &rarr; {dest.label}: {info.text}
-                  </a>
-                ) : (
-                  <span className={styles.loadingRow}>House &rarr; {dest.label}: loading...</span>
-                )}
+      {showDrivingTimes && (
+        <div>
+          <h3 className={styles.headingSpaced}>Driving Times</h3>
+          <ul className={styles.drivingTimesList}>
+            {originInfo && (
+              <li>
+                <a href={originInfo.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                  {config.originLabel} &rarr; house: {originInfo.text}
+                </a>
               </li>
-            );
-          })}
-        </ul>
-      </div>
+            )}
+            {destinations.map((dest) => {
+              const info = routeInfo[dest.label];
+              return (
+                <li key={dest.label}>
+                  {info ? (
+                    <a href={info.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                      House &rarr; {dest.label}: {info.text}
+                    </a>
+                  ) : (
+                    <span className={styles.loadingRow}>House &rarr; {dest.label}: loading...</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

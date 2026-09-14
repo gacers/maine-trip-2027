@@ -5,7 +5,7 @@ import ListingMap from "@/components/ListingMap";
 import SimplePlaceMap from "@/components/SimplePlaceMap";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import StarRating from "@/components/StarRating";
-import { geocodeAddress } from "@/lib/loadGoogleMaps";
+import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
 import { formatCounts } from "@/lib/fieldTypes/count";
@@ -21,6 +21,15 @@ function toBullets(text: string | null | undefined): string[] {
 }
 
 const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#616161"];
+
+function PinIcon() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={styles.pinIcon}>
+      <path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z" />
+      <circle cx="12" cy="9.5" r="2.25" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
 
 // Renders plain text with any http(s) URL inside it turned into a real
 // clickable link — used for Notes/Concerns, where someone jotting down
@@ -183,7 +192,6 @@ export interface EntryCardProps {
   canManage?: boolean;
   canContribute?: boolean;
   bare?: boolean;
-  showTitle?: boolean;
   showRank?: boolean;
   showRatings?: boolean;
   showMap?: boolean;
@@ -201,7 +209,6 @@ export default function EntryCard({
   canManage = true,
   canContribute = true,
   bare = false,
-  showTitle = true,
   showRank = true,
   showRatings = false,
   showMap = true,
@@ -216,8 +223,10 @@ export default function EntryCard({
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
+  const [addressLabel, setAddressLabel] = useState<string | null>(null);
   const isArchived = entry.status === "archived";
   const extraMarkers = parseExtraMarkers(entry.extraMarkers);
+  const hasHouse = hasCoords(entry);
 
   // entry.rank can change for reasons other than this exact input's own
   // edit (another card's edit, a re-fetch after sorting, etc.) — without
@@ -227,13 +236,33 @@ export default function EntryCard({
     setRankDraft(entry.rank ?? "");
   }, [entry.rank]);
 
+  // Reverse-geocoded once per location for the address line below the
+  // title — falls back to a plain "View on map" link (rather than
+  // blocking the rest of the card) if it can't resolve.
+  useEffect(() => {
+    if (!hasHouse) {
+      setAddressLabel(null);
+      return;
+    }
+    let cancelled = false;
+    reverseGeocodeAddress(entry.lat as number, entry.lng as number)
+      .then((addr) => {
+        if (!cancelled) setAddressLabel(addr);
+      })
+      .catch(() => {
+        // Non-fatal — the map-pin link below still works via lat/lng.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHouse, entry.lat, entry.lng]);
+
   const priceFields = fieldDefs.filter((f) => f.field_type === "price");
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
   const countsSummary = formatCounts(countFields.map((f) => ({ fieldDef: f, value: entry[f.key] })));
-  // Any boolean field flips on a small badge when true (e.g. "Closed") —
-  // generic by field *type*, not by name, so any boolean field an admin
-  // adds to any section gets this for free. False just shows nothing,
-  // which reads naturally for exception-style flags like this.
+  // Any boolean field flips on an eyebrow tag when true (e.g. "Closed",
+  // "Bar", "Restaurant") — generic by field *type*, not by name, so any
+  // boolean field an admin adds to any section gets this for free.
   const activeBooleanFields = fieldDefs.filter((f) => f.field_type === "boolean" && entry[f.key]);
 
   function archive(reason: string) {
@@ -351,334 +380,336 @@ export default function EntryCard({
     setDraft(null);
   }
 
-  const hasHouse = hasCoords(entry);
+  const rootClassName = [styles.article, !bare && styles.framed, isArchived && styles.archived].filter(Boolean).join(" ");
+  const mapsSearchUrl = hasHouse ? `https://www.google.com/maps/search/?api=1&query=${entry.lat},${entry.lng}` : undefined;
 
   return (
-    <article id={`listing-${entry.id}`} className={bare ? (isArchived ? styles.archived : "") : styles.articleFramed}>
-      <div className={styles.topRow}>
-        <div className={styles.titleArea}>
-          <div className={styles.titleColumn}>
-            {showTitle && (
-              <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
-                {entry.title}
-              </a>
-            )}
-            {priceFields.map((f) => {
-              const value = entry[f.key] as string;
-              const badge = computePriceBadge(value);
-              return value ? (
-                <div key={f.key} className={styles.priceLine}>
-                  {value}
-                  {badge && <span className={styles.priceBadge}> ({badge})</span>}
-                </div>
-              ) : (
-                <div key={f.key} className={styles.noPriceLine}>
-                  No {f.label.toLowerCase()} yet
-                </div>
-              );
-            })}
-            {countsSummary && <div className={styles.countsSummary}>{countsSummary}</div>}
-            {showRatings && (
-              <div className={styles.ratingsRow}>
-                <div className={styles.ratingGroup}>
-                  <StarRating value={entry.averageScore ?? 0} size={16} />
-                  <span className={styles.ratingCaption}>
-                    {entry.averageScore != null
-                      ? `${entry.averageScore.toFixed(1)} avg (${entry.ratingCount})`
-                      : "No ratings yet"}
-                  </span>
-                </div>
-                {canContribute && onRate && (
-                  <div className={styles.ratingGroup}>
-                    <span className={styles.ratingCaption}>You:</span>
-                    <StarRating value={entry.myScore ?? 0} size={16} onChange={(v) => onRate(entry.id, v)} />
-                    {entry.myScore != null && (
-                      <button type="button" onClick={() => onRate(entry.id, null)} className={styles.clearScoreButton}>
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-            {!showTitle && (
-              <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.originalListingLink}>
-                Original listing &#8599;
-              </a>
-            )}
-          </div>
-          {showTitle && activeBooleanFields.length > 0 && (
-            <div className={styles.badgeGroup}>
-              {activeBooleanFields.map((f) => (
-                <span key={f.key} className={styles.badge}>
-                  {f.label}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-        {showRank && canManage && (
-          <div className={styles.rankControl}>
-            <label className={styles.rankLabel}>Rank</label>
-            <input
-              type="number"
-              value={rankDraft}
-              onChange={(e) => setRankDraft(e.target.value)}
-              onBlur={commitRank}
-              className={styles.rankInput}
-            />
-          </div>
-        )}
-      </div>
-
+    <article id={`listing-${entry.id}`} className={rootClassName}>
       {entry.posterImage && (
-        // Compact (2-up) cards get a fixed height — a tall/portrait photo
-        // used to make its own card noticeably taller than its neighbor
-        // sitting right next to it in that grid. Full-width house cards
-        // keep the old auto-height-up-to-a-cap behavior, unaffected.
-        // object-contain either way: the whole photo stays uncropped,
-        // just letterboxed and centered within whatever box it gets.
-        <div className={compact ? styles.photoBoxCompact : styles.photoBox}>
+        // Compact (2-up) cards get a shorter fixed-height header — a
+        // tall/portrait photo used to make its own card noticeably
+        // taller than its neighbor sitting right next to it in that
+        // grid. Full-width house cards get a tall, edge-to-edge header
+        // instead (no side padding — that starts below, in .sections).
+        <div className={compact ? styles.mediaHeaderCompact : styles.mediaHeader}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={entry.posterImage}
-            alt={entry.title ?? ""}
-            className={compact ? styles.photoImgCompact : styles.photoImg}
-            loading="lazy"
-          />
+          <img src={entry.posterImage} alt={entry.title ?? ""} className={styles.mediaImg} loading="lazy" />
+          {showRatings && !!entry.ratingCount && entry.averageScore != null && (
+            <div className={styles.scoreBadge} title={`${entry.averageScore.toFixed(1)} avg (${entry.ratingCount})`}>
+              {entry.averageScore.toFixed(1)}
+            </div>
+          )}
         </div>
       )}
 
-      {!isEditing && toBullets(entry.description).length > 0 && (
-        <div>
-          <h3 className={styles.sectionHeading}>Description</h3>
-          <BulletList items={toBullets(entry.description)} />
-        </div>
-      )}
-
-      {!isEditing &&
-        showMap &&
-        hasHouse &&
-        (comparisonMode ? (
-          <ListingMap
-            houses={[{ lat: entry.lat as number, lng: entry.lng as number, label: "House (approximate location)" }]}
-            extraMarkers={extraMarkers}
-            mapConfig={mapConfig}
-          />
-        ) : (
-          <SimplePlaceMap places={[{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }]} />
-        ))}
-
-      {isEditing && draft && (
-        <div className={styles.editBox}>
-          <div className={styles.editGrid}>
-            <label className={styles.field}>
-              Title
-              <input
-                value={draft.title}
-                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                className={styles.input}
-              />
-            </label>
-            <label className={styles.field}>
-              Photo URL
-              <input
-                value={draft.posterImage}
-                onChange={(e) => setDraft({ ...draft, posterImage: e.target.value })}
-                className={styles.input}
-              />
-            </label>
-            <label className={styles.wideField}>
-              Description (one bullet per line)
-              <textarea
-                value={draft.description}
-                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                rows={4}
-                className={styles.input}
-              />
-            </label>
-
-            {fieldDefs.length > 0 && (
-              <div className={styles.fieldDefsGrid}>
-                {fieldDefs.map((f) => (
-                  <FieldInput
-                    key={f.key}
-                    fieldDef={f}
-                    value={draft.data[f.key]}
-                    onChange={(v) => setDraft({ ...draft, data: { ...draft.data, [f.key]: String(v) } })}
-                  />
+      <div className={styles.sections}>
+        <div className={styles.section}>
+          <div className={styles.utilityRow}>
+            {activeBooleanFields.length > 0 ? (
+              <div className={styles.eyebrows}>
+                {activeBooleanFields.map((f) => (
+                  <span key={f.key} className={styles.eyebrow}>
+                    {f.label}
+                  </span>
                 ))}
-                {countFields.length > 0 && (
-                  <p className={styles.countHint}>Count fields auto-fill from the description when left blank.</p>
-                )}
+              </div>
+            ) : (
+              <span />
+            )}
+            {showRank && canManage && (
+              <div className={styles.rankControl}>
+                <label className={styles.rankLabel}>Rank</label>
+                <input
+                  type="number"
+                  value={rankDraft}
+                  onChange={(e) => setRankDraft(e.target.value)}
+                  onBlur={commitRank}
+                  className={styles.rankInput}
+                />
               </div>
             )}
+          </div>
 
-            <label className={styles.field}>
-              House latitude
-              <input
-                value={draft.lat}
-                onChange={(e) => setDraft({ ...draft, lat: e.target.value })}
-                className={styles.input}
-              />
-            </label>
-            <label className={styles.field}>
-              House longitude
-              <input
-                value={draft.lng}
-                onChange={(e) => setDraft({ ...draft, lng: e.target.value })}
-                className={styles.input}
-              />
-            </label>
-            <div className={styles.wideField}>
-              <label>Or find lat/lng from an address</label>
-              <div className={styles.geocodeRow}>
-                <input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. 45 Ocean Ave, Jonesport, ME"
-                  className={styles.geocodeInput}
-                />
-                <button type="button" onClick={handleFindCoords} disabled={geocoding || !address.trim()} className={styles.findButton}>
-                  {geocoding ? "Finding..." : "Find"}
-                </button>
+          <div className={styles.titleRow}>
+            <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
+              {entry.title}
+            </a>
+            {priceFields.length > 0 && (
+              <div className={styles.priceStack}>
+                {priceFields.map((f) => {
+                  const value = entry[f.key] as string;
+                  const badge = computePriceBadge(value);
+                  return value ? (
+                    <div key={f.key} className={styles.priceGroup}>
+                      <span className={styles.priceAvg}>{badge || value}</span>
+                      {badge && <span className={styles.priceTotal}>{value}</span>}
+                    </div>
+                  ) : (
+                    <div key={f.key} className={styles.noPriceLine}>
+                      No {f.label.toLowerCase()} yet
+                    </div>
+                  );
+                })}
               </div>
-              {geocodeMsg && <p className={styles.geocodeMsg}>{geocodeMsg}</p>}
-            </div>
-            <label className={styles.wideField}>
-              Group label (optional — only if this is a 2-item option)
-              <input
-                value={draft.groupLabel}
-                onChange={(e) => setDraft({ ...draft, groupLabel: e.target.value })}
-                placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
-                className={styles.input}
-              />
-            </label>
+            )}
           </div>
 
-          <div>
-            <div className={styles.markersHeader}>
-              <h4 className={styles.markersTitle}>Extra map points (restaurants, hikes, puffin tour, nearest town, etc.)</h4>
-              <button type="button" onClick={addDraftMarker} className={styles.addPointButton}>
-                + Add point
-              </button>
-            </div>
-            <div className={styles.markerRowList}>
-              {draft.extraMarkers.map((m, i) => (
-                <div key={i} className={styles.markerRow}>
-                  <input
-                    placeholder="Label"
-                    value={m.label}
-                    onChange={(e) => updateDraftMarker(i, "label", e.target.value)}
-                    className={styles.markerInput}
-                  />
-                  <input
-                    placeholder="Latitude"
-                    value={m.lat}
-                    onChange={(e) => updateDraftMarker(i, "lat", e.target.value)}
-                    className={styles.markerInput}
-                  />
-                  <input
-                    placeholder="Longitude"
-                    value={m.lng}
-                    onChange={(e) => updateDraftMarker(i, "lng", e.target.value)}
-                    className={styles.markerInput}
-                  />
-                  <input
-                    type="color"
-                    value={m.color}
-                    onChange={(e) => updateDraftMarker(i, "color", e.target.value)}
-                    className={styles.markerColorInput}
-                  />
-                  <button type="button" onClick={() => removeDraftMarker(i)} className={styles.markerRemoveButton}>
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.editActions}>
-            <button onClick={saveEdit} className={styles.saveButton}>
-              Save
-            </button>
-            <button
-              onClick={() => {
-                setIsEditing(false);
-                setDraft(null);
-              }}
-              className={styles.cancelButton}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className={styles.notesSection}>
-        <h3 className={styles.sectionHeading}>Notes</h3>
-        <EditableNoteList
-          items={toBullets(entry.notes)}
-          onAdd={canContribute ? addNote : null}
-          onRemove={canManage ? removeNoteAt : null}
-          addLabel="Add note"
-          placeholder="Add a note..."
-        />
-      </div>
-
-      <div className={styles.concernsSection}>
-        <h3 className={styles.concernsHeading}>Concerns</h3>
-        <EditableNoteList
-          items={toBullets(entry.concerns)}
-          onAdd={canContribute ? addConcern : null}
-          onRemove={canManage ? removeConcernAt : null}
-          addLabel="Add concern"
-          placeholder="Anything that gives you pause..."
-        />
-      </div>
-
-      {canManage && (
-        <div className={styles.footer}>
-          {!isArchived && (
-            <div className={styles.deleteWrapper}>
-              <button onClick={() => setShowArchiveDialog((v) => !v)} className={styles.deleteButton}>
-                Delete
-              </button>
-              {showArchiveDialog && <ArchiveDialog onConfirm={archive} onCancel={() => setShowArchiveDialog(false)} />}
-            </div>
+          {hasHouse && (
+            <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles.addressLink}>
+              <PinIcon />
+              {addressLabel || "View on map"}
+            </a>
           )}
 
-          {!isEditing && (
-            <button onClick={startEdit} className={styles.editDetailsButton}>
-              Edit details
-            </button>
-          )}
-
-          {isArchived && (
-            <div className={styles.archivedActions}>
-              {entry.archiveReason && <span className={styles.archiveReason}>{entry.archiveReason}</span>}
-              <button onClick={restore} className={styles.restoreButton}>
-                Restore
-              </button>
-              {confirmingDelete ? (
-                <span className={styles.confirmDeleteRow}>
-                  Delete for good?
-                  <button onClick={() => onDelete(entry.id)} className={styles.confirmYes}>
-                    Yes
-                  </button>
-                  <button onClick={() => setConfirmingDelete(false)} className={styles.confirmNo}>
-                    No
-                  </button>
-                </span>
-              ) : (
-                <button onClick={() => setConfirmingDelete(true)} className={styles.deleteButton}>
-                  Delete
+          {showRatings && canContribute && onRate && (
+            <div className={styles.userRatingRow}>
+              <span className={styles.ratingCaption}>Your score</span>
+              <StarRating value={entry.myScore ?? 0} size={18} onChange={(v) => onRate(entry.id, v)} />
+              {entry.myScore != null && (
+                <button type="button" onClick={() => onRate(entry.id, null)} className={styles.clearScoreButton}>
+                  Clear
                 </button>
               )}
             </div>
           )}
+
+          {countsSummary && <div className={styles.countsSummary}>{countsSummary}</div>}
         </div>
-      )}
+
+        {!isEditing && toBullets(entry.description).length > 0 && (
+          <div className={styles.section}>
+            <h3 className={styles.sectionHeading}>Description</h3>
+            <BulletList items={toBullets(entry.description)} />
+          </div>
+        )}
+
+        {!isEditing && showMap && hasHouse && (
+          <div className={styles.section}>
+            {comparisonMode ? (
+              <ListingMap
+                houses={[{ lat: entry.lat as number, lng: entry.lng as number, label: "House (approximate location)" }]}
+                extraMarkers={extraMarkers}
+                mapConfig={mapConfig}
+                showDrivingTimes={showRank}
+              />
+            ) : (
+              <SimplePlaceMap places={[{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }]} />
+            )}
+          </div>
+        )}
+
+        {isEditing && draft && (
+          <div className={styles.section}>
+            <div className={styles.editGrid}>
+              <label className={styles.field}>
+                Title
+                <input
+                  value={draft.title}
+                  onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                  className={styles.input}
+                />
+              </label>
+              <label className={styles.field}>
+                Photo URL
+                <input
+                  value={draft.posterImage}
+                  onChange={(e) => setDraft({ ...draft, posterImage: e.target.value })}
+                  className={styles.input}
+                />
+              </label>
+              <label className={styles.wideField}>
+                Description (one bullet per line)
+                <textarea
+                  value={draft.description}
+                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                  rows={4}
+                  className={styles.input}
+                />
+              </label>
+
+              {fieldDefs.length > 0 && (
+                <div className={styles.fieldDefsGrid}>
+                  {fieldDefs.map((f) => (
+                    <FieldInput
+                      key={f.key}
+                      fieldDef={f}
+                      value={draft.data[f.key]}
+                      onChange={(v) => setDraft({ ...draft, data: { ...draft.data, [f.key]: String(v) } })}
+                    />
+                  ))}
+                  {countFields.length > 0 && (
+                    <p className={styles.countHint}>Count fields auto-fill from the description when left blank.</p>
+                  )}
+                </div>
+              )}
+
+              <label className={styles.field}>
+                House latitude
+                <input
+                  value={draft.lat}
+                  onChange={(e) => setDraft({ ...draft, lat: e.target.value })}
+                  className={styles.input}
+                />
+              </label>
+              <label className={styles.field}>
+                House longitude
+                <input
+                  value={draft.lng}
+                  onChange={(e) => setDraft({ ...draft, lng: e.target.value })}
+                  className={styles.input}
+                />
+              </label>
+              <div className={styles.wideField}>
+                <label>Or find lat/lng from an address</label>
+                <div className={styles.geocodeRow}>
+                  <input
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="e.g. 45 Ocean Ave, Jonesport, ME"
+                    className={styles.geocodeInput}
+                  />
+                  <button type="button" onClick={handleFindCoords} disabled={geocoding || !address.trim()} className={styles.findButton}>
+                    {geocoding ? "Finding..." : "Find"}
+                  </button>
+                </div>
+                {geocodeMsg && <p className={styles.geocodeMsg}>{geocodeMsg}</p>}
+              </div>
+              <label className={styles.wideField}>
+                Group label (optional — only if this is a 2-item option)
+                <input
+                  value={draft.groupLabel}
+                  onChange={(e) => setDraft({ ...draft, groupLabel: e.target.value })}
+                  placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
+                  className={styles.input}
+                />
+              </label>
+            </div>
+
+            <div>
+              <div className={styles.markersHeader}>
+                <h4 className={styles.markersTitle}>Extra map points (restaurants, hikes, puffin tour, nearest town, etc.)</h4>
+                <button type="button" onClick={addDraftMarker} className={styles.addPointButton}>
+                  + Add point
+                </button>
+              </div>
+              <div className={styles.markerRowList}>
+                {draft.extraMarkers.map((m, i) => (
+                  <div key={i} className={styles.markerRow}>
+                    <input
+                      placeholder="Label"
+                      value={m.label}
+                      onChange={(e) => updateDraftMarker(i, "label", e.target.value)}
+                      className={styles.markerInput}
+                    />
+                    <input
+                      placeholder="Latitude"
+                      value={m.lat}
+                      onChange={(e) => updateDraftMarker(i, "lat", e.target.value)}
+                      className={styles.markerInput}
+                    />
+                    <input
+                      placeholder="Longitude"
+                      value={m.lng}
+                      onChange={(e) => updateDraftMarker(i, "lng", e.target.value)}
+                      className={styles.markerInput}
+                    />
+                    <input
+                      type="color"
+                      value={m.color}
+                      onChange={(e) => updateDraftMarker(i, "color", e.target.value)}
+                      className={styles.markerColorInput}
+                    />
+                    <button type="button" onClick={() => removeDraftMarker(i)} className={styles.markerRemoveButton}>
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.editActions}>
+              <button onClick={saveEdit} className={styles.saveButton}>
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setDraft(null);
+                }}
+                className={styles.cancelButton}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className={styles.section}>
+          <h3 className={styles.sectionHeading}>Notes</h3>
+          <EditableNoteList
+            items={toBullets(entry.notes)}
+            onAdd={canContribute ? addNote : null}
+            onRemove={canManage ? removeNoteAt : null}
+            addLabel="Add note"
+            placeholder="Add a note..."
+          />
+          <h3 className={styles.concernsHeading}>Concerns</h3>
+          <div className={styles.concernsBox}>
+            <EditableNoteList
+              items={toBullets(entry.concerns)}
+              onAdd={canContribute ? addConcern : null}
+              onRemove={canManage ? removeConcernAt : null}
+              addLabel="Add concern"
+              placeholder="Anything that gives you pause..."
+            />
+          </div>
+        </div>
+
+        {canManage && (
+          <div className={styles.section}>
+            <div className={styles.footer}>
+              {!isArchived && (
+                <div className={styles.deleteWrapper}>
+                  <button onClick={() => setShowArchiveDialog((v) => !v)} className={styles.deleteButton}>
+                    Delete
+                  </button>
+                  {showArchiveDialog && <ArchiveDialog onConfirm={archive} onCancel={() => setShowArchiveDialog(false)} />}
+                </div>
+              )}
+
+              {!isEditing && (
+                <button onClick={startEdit} className={styles.editDetailsButton}>
+                  Edit details
+                </button>
+              )}
+
+              {isArchived && (
+                <div className={styles.archivedActions}>
+                  {entry.archiveReason && <span className={styles.archiveReason}>{entry.archiveReason}</span>}
+                  <button onClick={restore} className={styles.restoreButton}>
+                    Restore
+                  </button>
+                  {confirmingDelete ? (
+                    <span className={styles.confirmDeleteRow}>
+                      Delete for good?
+                      <button onClick={() => onDelete(entry.id)} className={styles.confirmYes}>
+                        Yes
+                      </button>
+                      <button onClick={() => setConfirmingDelete(false)} className={styles.confirmNo}>
+                        No
+                      </button>
+                    </span>
+                  ) : (
+                    <button onClick={() => setConfirmingDelete(true)} className={styles.deleteButton}>
+                      Delete
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </article>
   );
 }

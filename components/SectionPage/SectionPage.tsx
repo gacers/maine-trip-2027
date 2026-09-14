@@ -355,32 +355,26 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       );
     }
     const entry = unit.listings[0];
-    // This is the one render path where ListingSection (not EntryCard,
-    // which has showTitle={false} here) owns the visible title — so any
-    // "Closed"-style badge has to be handed to it directly instead of
-    // EntryCard, or it'd render detached from the title entirely.
-    const entryBadges = fieldDefs
-      .filter((f) => f.field_type === "boolean" && entry[f.key])
-      .map((f) => ({ key: f.key, label: f.label }));
+    // A solo entry is a full, self-framed card on its own — EntryCard
+    // owns its own title/eyebrows/border here, no ListingSection wrapper
+    // needed (that's reserved for a 2-house-option group below, which
+    // needs one shared frame/header around two otherwise-bare cards).
     return (
-      <ListingSection key={entry.id} title={entry.title} href={entry.url ?? undefined} badges={entryBadges}>
-        <EntryCard
-          entry={entry}
-          fieldDefs={fieldDefs}
-          mapConfig={mapConfig}
-          onPatch={handlePatch}
-          onDelete={handleDelete}
-          onRate={handleRate}
-          canManage={canManage}
-          canContribute={canContribute}
-          bare
-          showTitle={false}
-          showRank={showRanking}
-          showRatings={showRatings}
-          comparisonMode={comparisonMode}
-          compact={compactCards}
-        />
-      </ListingSection>
+      <EntryCard
+        key={entry.id}
+        entry={entry}
+        fieldDefs={fieldDefs}
+        mapConfig={mapConfig}
+        onPatch={handlePatch}
+        onDelete={handleDelete}
+        onRate={handleRate}
+        canManage={canManage}
+        canContribute={canContribute}
+        showRank={showRanking}
+        showRatings={showRatings}
+        comparisonMode={comparisonMode}
+        compact={compactCards}
+      />
     );
   }
 
