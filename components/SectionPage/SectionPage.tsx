@@ -429,8 +429,12 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // still right-aligned) if that slot isn't available for some reason.
   // The Google Sheet link lives here too now, alongside Filter/Sort,
   // instead of its own centered row further down the page.
-  const utilityControls = ((canContribute && !!sheetUrl) || filterFieldDefs.length > 0 || showRatings) && (
+  const utilityControls = (canContribute || filterFieldDefs.length > 0 || showRatings) && (
     <>
+      {canContribute && (
+        <AddEntryDialog trip={trip} section={section} navGroupSlug={navGroupSlug} authToken={authToken} onAdded={handleAdded} />
+      )}
+
       {canContribute && sheetUrl && (
         <Button variant="secondary" size="sm" asChild>
           <a href={sheetUrl} target="_blank" rel="noopener noreferrer">
@@ -491,18 +495,10 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   return (
     <main className={[styles.main, isHouses && styles.mainHouses].filter(Boolean).join(" ")}>
       {/* No hint that a Sheet even exists for a non-contributor — Request
-          Access itself now lives once, globally, in TripNavHeader.
-          The Sheet link itself is up in utilityControls now, alongside
-          Filter/Sort. The Add form used to sit here always-expanded —
-          now it's a button that opens it in a modal (AddEntryDialog),
-          so browsing the section isn't stuck below a paste-a-URL form
-          whether or not anyone's about to use it. */}
-      {canContribute && (
-        <div className={styles.addSection}>
-          <AddEntryDialog trip={trip} section={section} navGroupSlug={navGroupSlug} authToken={authToken} onAdded={handleAdded} />
-        </div>
-      )}
-
+          Access itself now lives once, globally, in TripNavHeader. Add/
+          Sheet/Filter/Sort all live together in utilityControls now,
+          instead of the Add form always sitting open at the top of the
+          page whether or not anyone's about to use it. */}
       {pairingEntry && (
         <PairEntryDialog
           trip={trip}
