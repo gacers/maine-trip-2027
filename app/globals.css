@@ -1,7 +1,3 @@
-/* TODO(css-modules-migration): remove this Tailwind import once every
-   component/page has its own CSS Module — kept active in the meantime
-   so not-yet-converted files keep rendering correctly mid-migration. */
-@import "tailwindcss";
 @import "./tokens.css";
 
 * {
