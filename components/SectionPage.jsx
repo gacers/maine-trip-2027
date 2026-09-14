@@ -31,6 +31,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [activeFilters, setActiveFilters] = useState(() => new Set());
   const [contributorToken, setContributorToken] = useState(null);
   // Whether the localStorage/invite-param check below has actually run
   // yet. An admin's access is already known synchronously from the
@@ -132,6 +133,22 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBase]);
 
+  // Filters are per-section, not global — clear them when navigating to a
+  // different section rather than silently carrying a stale selection
+  // (e.g. "Bar" checked) into one that doesn't even have that field.
+  useEffect(() => {
+    setActiveFilters(new Set());
+  }, [section.id]);
+
+  function toggleFilter(key) {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
   function applyLocalPatch(id, patch) {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   }
@@ -214,7 +231,17 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
     .sort((a, b) => (a.rank ?? 999999) - (b.rank ?? 999999));
   const archived = entries.filter((e) => e.status === "archived");
 
-  const activeUnits = groupUnits(active);
+  // Any boolean field (e.g. Food & Drink's Restaurant/Bar/Cafe/Breakfast/
+  // Lunch/Dinner) doubles as a filter, not just a card badge — generic to
+  // whatever a section's own field_defs define, no section-specific code.
+  const filterFieldDefs = fieldDefs.filter((f) => f.field_type === "boolean");
+
+  function unitMatchesFilters(unit) {
+    if (activeFilters.size === 0) return true;
+    return unit.listings.some((entry) => [...activeFilters].some((key) => !!entry[key]));
+  }
+
+  const activeUnits = groupUnits(active).filter(unitMatchesFilters);
   const pins = activeUnits.map(pinFor);
 
   function renderUnit(unit) {
@@ -325,6 +352,31 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
         </div>
       )}
 
+      {filterFieldDefs.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span className="text-xs uppercase tracking-wide text-zinc-500 font-medium">Filter</span>
+          {filterFieldDefs.map((f) => (
+            <label key={f.key} className="flex items-center gap-1.5 text-sm text-zinc-700">
+              <input
+                type="checkbox"
+                checked={activeFilters.has(f.key)}
+                onChange={() => toggleFilter(f.key)}
+                className="h-4 w-4"
+              />
+              {f.label}
+            </label>
+          ))}
+          {activeFilters.size > 0 && (
+            <button
+              onClick={() => setActiveFilters(new Set())}
+              className="text-xs text-zinc-500 hover:underline"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>
       )}
@@ -338,10 +390,14 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
               index, not the driving-times/Closest Town comparison
               tooling that flag actually governs. Every section with
               located entries gets one, "previous" included. */}
-          {!loading && active.length > 0 && <OverviewMap pins={pins} />}
+          {!loading && activeUnits.length > 0 && <OverviewMap pins={pins} />}
 
-          {active.length === 0 && (
-            <p className="text-zinc-500 text-sm">{section.empty_message}</p>
+          {activeUnits.length === 0 && (
+            <p className="text-zinc-500 text-sm">
+              {active.length === 0
+                ? section.empty_message
+                : "Nothing matches the selected filters."}
+            </p>
           )}
           <div className={listClassName}>{activeUnits.map(renderUnit)}</div>
 
@@ -354,7 +410,9 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
                 {showArchived ? "Hide" : "Show"} archived ({archived.length})
               </button>
               {showArchived && (
-                <div className={`${listClassName} mt-3`}>{groupUnits(archived).map(renderUnit)}</div>
+                <div className={`${listClassName} mt-3`}>
+                  {groupUnits(archived).filter(unitMatchesFilters).map(renderUnit)}
+                </div>
               )}
             </div>
           )}

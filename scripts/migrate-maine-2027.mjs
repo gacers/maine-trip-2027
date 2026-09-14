@@ -79,6 +79,18 @@ const HOUSE_FIELD_DEFS = [
   },
 ];
 
+// Boolean fields double as both a Sheet column (show_on_overview) and a
+// site-side filter (any boolean field_def gets a checkbox in
+// SectionPage's Filter row automatically — no section-specific code).
+const FOOD_DRINK_FIELD_DEFS = [
+  { key: "restaurant", label: "Restaurant", field_type: "boolean", storage: "jsonb", show_on_overview: true, sort_order: 0 },
+  { key: "bar", label: "Bar", field_type: "boolean", storage: "jsonb", show_on_overview: true, sort_order: 1 },
+  { key: "cafe", label: "Cafe", field_type: "boolean", storage: "jsonb", show_on_overview: true, sort_order: 2 },
+  { key: "breakfast", label: "Breakfast", field_type: "boolean", storage: "jsonb", show_on_overview: true, sort_order: 3 },
+  { key: "lunch", label: "Lunch", field_type: "boolean", storage: "jsonb", show_on_overview: true, sort_order: 4 },
+  { key: "dinner", label: "Dinner", field_type: "boolean", storage: "jsonb", show_on_overview: true, sort_order: 5 },
+];
+
 async function upsertTrip() {
   const existing = await sb("trips?slug=eq.maine-2027&select=*");
   if (existing.length > 0) {
@@ -203,9 +215,9 @@ async function main() {
     sort_order: 1,
   });
   // The other 4 sections have no field defs or data to seed yet — create
-  // them for nav/URL completeness, but there's nothing further to do
-  // with the returned rows.
-  await upsertSection(trip.id, foodDrinkGroup.id, {
+  // Field defs still get set below — only the map/ranking/pairing toggles
+  // and 4 remaining sections have nothing further to do with their rows.
+  const foodDrink = await upsertSection(trip.id, foodDrinkGroup.id, {
     slug: "food-drink",
     label: "Possible Food & Drink",
     sub_nav_label: "Possible Food & Drink",
@@ -216,7 +228,7 @@ async function main() {
     supports_ranking: false,
     sort_order: 0,
   });
-  await upsertSection(trip.id, foodDrinkGroup.id, {
+  const previouslyVisited = await upsertSection(trip.id, foodDrinkGroup.id, {
     slug: "previously-visited",
     label: "Previously Visited Food & Drink",
     sub_nav_label: "Previously Visited",
@@ -250,10 +262,13 @@ async function main() {
     sort_order: 1,
   });
 
-  // Only Houses/Previous Stays get field defs, matching today's
-  // showBedBath: true — the other 4 sections start with none.
+  // Houses/Previous Stays get bed/bath fields; both Food & Drink
+  // sections get the same Restaurant/Bar/Cafe/Breakfast/Lunch/Dinner
+  // checkboxes — Activities' 2 sections start with none.
   await upsertFieldDefs(houses.id, HOUSE_FIELD_DEFS);
   await upsertFieldDefs(previousStays.id, HOUSE_FIELD_DEFS);
+  await upsertFieldDefs(foodDrink.id, FOOD_DRINK_FIELD_DEFS);
+  await upsertFieldDefs(previouslyVisited.id, FOOD_DRINK_FIELD_DEFS);
 
   // Only "houses" (today's `listings` collection) has real data to
   // migrate — the other 5 collections are currently empty.
