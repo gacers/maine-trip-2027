@@ -2,12 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { SECTION_TEMPLATES } from "@/lib/sectionTemplates";
+import { SECTION_TEMPLATES, type SectionTemplate } from "@/lib/sectionTemplates";
+import type { PublicTrip, NavGroup, Section } from "@/lib/types";
+import styles from "./SectionsAdmin.module.css";
 
-export default function SectionsAdmin({ trip, nav: initialNav }) {
+export interface SectionsAdminProps {
+  trip: PublicTrip;
+  nav: NavGroup[];
+}
+
+export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminProps) {
   const [nav, setNav] = useState(initialNav);
   const [error, setError] = useState("");
-  const [addingTemplate, setAddingTemplate] = useState(null);
+  const [addingTemplate, setAddingTemplate] = useState<string | null>(null);
 
   const apiBase = `/api/trips/${trip.slug}/sections`;
   const existingGroupLabels = new Set(nav.map((g) => g.label));
@@ -18,7 +25,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
     if (res.ok) setNav(data.nav);
   }
 
-  async function toggleEnabled(section, enabled) {
+  async function toggleEnabled(section: Section, enabled: boolean) {
     setError("");
     try {
       const res = await fetch(`${apiBase}/${section.slug}`, {
@@ -29,11 +36,11 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
       if (!res.ok) throw new Error((await res.json()).error || "Update failed");
       refresh();
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     }
   }
 
-  async function addTemplate(template) {
+  async function addTemplate(template: SectionTemplate) {
     setError("");
     setAddingTemplate(template.key);
     // Houses get one full-width card per row (a lot to show: photos,
@@ -95,35 +102,30 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
 
       refresh();
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setAddingTemplate(null);
     }
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-zinc-900">Sections</h1>
-        <Link
-          href={`/${trip.slug}/admin/sections/new`}
-          className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium"
-        >
+    <div className={styles.wrapper}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Sections</h1>
+        <Link href={`/${trip.slug}/admin/sections/new`} className={styles.newSectionButton}>
           + New section
         </Link>
       </div>
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>}
+      {error && <p className={styles.error}>{error}</p>}
 
-      <div className="flex flex-col gap-2">
-        <h2 className="text-sm uppercase tracking-wide text-zinc-500 font-medium">
-          Add from a template
-        </h2>
-        <p className="text-xs text-zinc-500">
-          Each creates a ready-made &quot;Possible&quot; / &quot;Previous&quot; pair — fully editable or
-          deletable afterward, this is just a fast starting point.
+      <div className={styles.templatesSection}>
+        <h2 className={styles.sectionHeading}>Add from a template</h2>
+        <p className={styles.templatesHint}>
+          Each creates a ready-made &quot;Possible&quot; / &quot;Previous&quot; pair — fully editable or deletable
+          afterward, this is just a fast starting point.
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className={styles.templateList}>
           {SECTION_TEMPLATES.map((t) => {
             const exists = existingGroupLabels.has(t.navGroupLabel);
             return (
@@ -132,7 +134,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
                 type="button"
                 disabled={exists || addingTemplate === t.key}
                 onClick={() => addTemplate(t)}
-                className="rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:hover:bg-white"
+                className={styles.templateButton}
                 title={exists ? `${t.navGroupLabel} already exists` : undefined}
               >
                 {addingTemplate === t.key ? "Adding..." : exists ? `${t.navGroupLabel} ✓` : `+ ${t.navGroupLabel}`}
@@ -143,47 +145,35 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
       </div>
 
       {nav.every((g) => g.sections.length === 0) && (
-        <p className="text-zinc-500 text-sm">
-          No sections yet — add one from a template above, or create a custom one.
-        </p>
+        <p className={styles.emptyHint}>No sections yet — add one from a template above, or create a custom one.</p>
       )}
 
       {nav.map(
         (group) =>
           group.sections.length > 0 && (
-            <div key={group.id} className="flex flex-col gap-2">
-              <h2 className="text-sm uppercase tracking-wide text-zinc-500 font-medium">
-                {group.label}
-              </h2>
-              <div className="flex flex-col gap-2">
+            <div key={group.id} className={styles.groupSection}>
+              <h2 className={styles.sectionHeading}>{group.label}</h2>
+              <div className={styles.sectionList}>
                 {group.sections.map((section) => (
-                  <div
-                    key={section.id}
-                    className={`rounded-lg border p-3 flex items-center justify-between ${
-                      section.enabled ? "border-zinc-200 bg-white" : "border-zinc-200 bg-zinc-50 opacity-60"
-                    }`}
-                  >
+                  <div key={section.id} className={section.enabled ? styles.sectionCard : styles.sectionCardDisabled}>
                     <div>
-                      <div className="font-medium text-zinc-900">{section.label}</div>
-                      <div className="text-xs text-zinc-500">
+                      <div className={styles.sectionLabel}>{section.label}</div>
+                      <div className={styles.sectionMeta}>
                         /{trip.slug}/{section.slug}
                         {!section.enabled && " · disabled"}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-1.5 text-xs text-zinc-600">
+                    <div className={styles.sectionActions}>
+                      <label className={styles.enabledCheckboxLabel}>
                         <input
                           type="checkbox"
                           checked={section.enabled}
                           onChange={(e) => toggleEnabled(section, e.target.checked)}
-                          className="h-3.5 w-3.5"
+                          className={styles.enabledCheckbox}
                         />
                         Enabled
                       </label>
-                      <Link
-                        href={`/${trip.slug}/admin/sections/${section.slug}/edit`}
-                        className="text-sm text-blue-600 hover:underline"
-                      >
+                      <Link href={`/${trip.slug}/admin/sections/${section.slug}/edit`} className={styles.editLink}>
                         Edit
                       </Link>
                     </div>
