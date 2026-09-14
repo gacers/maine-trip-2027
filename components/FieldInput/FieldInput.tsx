@@ -1,33 +1,40 @@
 "use client";
 
+import type { FieldDef } from "@/lib/types";
+import styles from "./FieldInput.module.css";
+
+export interface FieldInputProps {
+  fieldDef: FieldDef;
+  value: unknown;
+  onChange: (value: string | boolean) => void;
+}
+
 // One labeled input for a section's dynamic field, its control chosen
 // by the field's own type — shared by EntryCard's edit form and
 // AddEntryForm, so a section's fields render identically wherever
 // they're edited without any per-field-name code.
-export default function FieldInput({ fieldDef, value, onChange }) {
-  const inputClass = "rounded border border-zinc-300 px-2 py-1.5";
-
+export default function FieldInput({ fieldDef, value, onChange }: FieldInputProps) {
   if (fieldDef.field_type === "textarea") {
     return (
-      <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+      <label className={styles.wide}>
         {fieldDef.label}
         <textarea
-          value={value ?? ""}
+          value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
           rows={4}
-          className={inputClass}
+          className={styles.input}
         />
       </label>
     );
   }
   if (fieldDef.field_type === "boolean") {
     return (
-      <label className="flex items-center gap-2 text-sm">
+      <label className={styles.checkboxField}>
         <input
           type="checkbox"
           checked={!!value}
           onChange={(e) => onChange(e.target.checked)}
-          className="h-4 w-4"
+          className={styles.checkbox}
         />
         {fieldDef.label}
       </label>
@@ -36,9 +43,13 @@ export default function FieldInput({ fieldDef, value, onChange }) {
   if (fieldDef.field_type === "select") {
     const choices = fieldDef.options?.choices || [];
     return (
-      <label className="flex flex-col gap-1 text-sm">
+      <label className={styles.field}>
         {fieldDef.label}
-        <select value={value ?? ""} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+        <select
+          value={(value as string) ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={styles.input}
+        >
           <option value="">--</option>
           {choices.map((c) => (
             <option key={c} value={c}>
@@ -56,13 +67,13 @@ export default function FieldInput({ fieldDef, value, onChange }) {
         ? "date"
         : "text";
   return (
-    <label className="flex flex-col gap-1 text-sm">
+    <label className={styles.field}>
       {fieldDef.label}
       <input
         type={inputType}
-        value={value ?? ""}
+        value={(value as string) ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        className={inputClass}
+        className={styles.input}
       />
     </label>
   );
