@@ -30,6 +30,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
   const [fields, setFields] = useState(CORE_INITIAL);
   const [data, setData] = useState({});
   const [warnings, setWarnings] = useState([]);
+  const [cookieWarning, setCookieWarning] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
   const [placeResults, setPlaceResults] = useState([]);
   const [errorMsg, setErrorMsg] = useState("");
@@ -70,6 +71,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
     setFields(CORE_INITIAL);
     setData({});
     setWarnings([]);
+    setCookieWarning(null);
     setDuplicate(null);
     setPlaceResults([]);
     setAddress("");
@@ -116,6 +118,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
         });
         setData(initialData());
         setWarnings(s.warnings || []);
+        setCookieWarning(s.cookieWarning || null);
         setPhase("editing");
       } catch (err) {
         setErrorMsg(err.message);
@@ -175,6 +178,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
     setUrl(place.website || place.mapsUrl || url);
     setData(initialData());
     setWarnings([]);
+    setCookieWarning(null);
     setPlaceResults([]);
     setPhase("editing");
   }
@@ -289,6 +293,11 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
 
       {phase === "editing" || phase === "saving" ? (
         <form onSubmit={handleSave} className="mt-3 flex flex-col gap-3">
+          {cookieWarning && (
+            <p className="text-xs font-medium text-red-800 bg-red-50 border border-red-200 rounded p-2">
+              {cookieWarning}
+            </p>
+          )}
           {warnings.length > 0 && (
             <ul className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 list-disc pl-5">
               {warnings.map((w, i) => (
