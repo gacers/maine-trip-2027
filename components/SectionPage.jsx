@@ -54,6 +54,11 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // sections in the Section Designer/starter templates; still a
   // per-section admin toggle either way.
   const comparisonMode = !!section.has_map;
+  // Whether to show the manual Rank input/reordering at all — its own
+  // toggle, decoupled from comparisonMode/has_map (which is about map
+  // complexity, not ranking). Only a still-deciding-among-options list
+  // like Possible Houses needs it; per-section admin toggle either way.
+  const showRanking = !!section.supports_ranking;
   // Houses get one full-width card per row; lighter entries (food &
   // drink, activities) read better two to a row — a plain per-section
   // layout toggle, unrelated to comparisonMode.
@@ -195,7 +200,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           key={unit.listings.map((e) => e.id).join("-")}
           id={`group-${unit.listings[0].id}`}
           title={unit.listings[0].groupLabel}
-          rank={canManage && comparisonMode ? unit.listings[0].rank ?? undefined : undefined}
+          rank={canManage && showRanking ? unit.listings[0].rank ?? undefined : undefined}
           onRankChange={(newRank) =>
             unit.listings.forEach((e) => handlePatch(e.id, { rank: newRank }))
           }
@@ -247,7 +252,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           canContribute={canContribute}
           bare
           showTitle={false}
-          showRank={comparisonMode}
+          showRank={showRanking}
           comparisonMode={comparisonMode}
           compact={compactCards}
         />
