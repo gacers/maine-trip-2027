@@ -43,13 +43,13 @@ body {
 @keyframes pin-jump-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 var(--color-blue-400);
+    box-shadow: 0 0 0 0 rgb(37 99 235 / 0.3);
   }
   50% {
-    box-shadow: 0 0 0 10px rgb(96 165 250 / 0);
+    box-shadow: 0 0 0 6px rgb(37 99 235 / 0);
   }
 }
 
 .pin-jump-highlight {
-  animation: pin-jump-pulse 1s ease-in-out 5;
+  animation: pin-jump-pulse 1.2s ease-in-out 4;
 }

@@ -267,12 +267,6 @@ export default function ListingMap({ houses, extraMarkers, mapConfig, showRefere
 
   return (
     <div className={styles.wrapper}>
-      <h3 className={styles.heading}>
-        <a href={liveMapUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
-          Map
-        </a>
-      </h3>
-
       {status === "error" ? (
         <p className={styles.errorBox}>
           Couldn&apos;t load the map ({errorMsg}). Check that NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set.
@@ -295,6 +289,10 @@ export default function ListingMap({ houses, extraMarkers, mapConfig, showRefere
           </li>
         ))}
       </ul>
+
+      <a href={liveMapUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
+        Open in Google Maps
+      </a>
 
       {closestTown && (
         <div>
