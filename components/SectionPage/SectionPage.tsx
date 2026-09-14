@@ -11,8 +11,12 @@ import OverviewMap from "@/components/OverviewMap";
 import { groupUnits } from "@/lib/groupUnits";
 import { captureInviteToken, getOrCreateDeviceId } from "@/lib/inviteClient";
 import { buildAgentInstructions, downloadTextFile } from "@/lib/agentInstructions";
+import type { PublicTrip, Section, ClientEntry, EntryUnit, OverviewPin } from "@/lib/types";
+import styles from "./SectionPage.module.css";
 
-function pinFor(unit) {
+type SortBy = "rank" | "myScore" | "averageScore";
+
+function pinFor(unit: EntryUnit): OverviewPin {
   const primary = unit.listings[0];
   return {
     anchor: unit.type === "group" ? `group-${primary.id}` : `listing-${primary.id}`,
@@ -22,21 +26,28 @@ function pinFor(unit) {
   };
 }
 
+export interface SectionPageProps {
+  trip: PublicTrip;
+  section: Section;
+  isAdmin?: boolean;
+  contactEmail?: string | null;
+}
+
 // Replaces CollectionPage.jsx — same fetch/patch/delete/add logic and
 // grouping, now against /api/trips/[tripSlug]/sections/[sectionSlug]/
 // entries instead of /api/[collection], and rendering whichever fields
 // `section.field_defs` defines instead of a hardcoded showBedBath flag.
-export default function SectionPage({ trip, section, isAdmin = false, contactEmail = null }) {
-  const [entries, setEntries] = useState([]);
+export default function SectionPage({ trip, section, isAdmin = false, contactEmail = null }: SectionPageProps) {
+  const [entries, setEntries] = useState<ClientEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [activeFilters, setActiveFilters] = useState(() => new Set());
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(() => new Set());
   // rank | myScore | averageScore — defaults to whichever concept this
   // section actually has; Rank only exists as an option at all once
   // supports_ranking is on.
-  const [sortBy, setSortBy] = useState(section.supports_ranking ? "rank" : "averageScore");
-  const [contributorToken, setContributorToken] = useState(null);
+  const [sortBy, setSortBy] = useState<SortBy>(section.supports_ranking ? "rank" : "averageScore");
+  const [contributorToken, setContributorToken] = useState<string | null>(null);
   // Whether the localStorage/invite-param check below has actually run
   // yet. An admin's access is already known synchronously from the
   // server (the isAdmin prop), so there's nothing to wait for; everyone
@@ -48,7 +59,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // Fetched separately (not handed down in trip's own props) once access
   // is confirmed — see /api/trips/[tripSlug]/sheet-url and
   // sanitizeTripForClient for why this can't just be trip.google_sheet_url.
-  const [sheetUrl, setSheetUrl] = useState(null);
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
 
   const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
   const fieldDefs = section.field_defs || [];
@@ -75,7 +86,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // drink, activities) read better two to a row — a plain per-section
   // layout toggle, unrelated to comparisonMode.
   const compactCards = !!section.compact_cards;
-  const listClassName = compactCards ? "grid grid-cols-1 sm:grid-cols-2 gap-4" : "flex flex-col gap-4";
+  const listClassName = compactCards ? styles.entryGrid : styles.entryList;
 
   // An admin's own session cookie already carries full access — an
   // invite link only matters for everyone else, so it's ignored here if
@@ -116,13 +127,13 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canContribute, trip.slug, authToken]);
 
-  function authHeaders() {
+  function authHeaders(): Record<string, string> {
     // X-Rater-Device always goes along for the ride — harmless for any
     // route that ignores it, and it's what lets a contributor's own
     // score be told apart from another person sharing the same invite
-    // link (see lib/ratings.js's resolveRaterKey). Ignored for an admin,
+    // link (see lib/ratings.ts's resolveRaterKey). Ignored for an admin,
     // whose real login is already a stable identity of its own.
-    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+    const headers: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
     headers["X-Rater-Device"] = getOrCreateDeviceId();
     return headers;
   }
@@ -139,7 +150,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       if (!res.ok) throw new Error(data.error || "Failed to load entries");
       setEntries(data.entries);
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -161,7 +172,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
     setSortBy(section.supports_ranking ? "rank" : "averageScore");
   }, [section.id, section.supports_ranking]);
 
-  function toggleFilter(key) {
+  function toggleFilter(key: string) {
     setActiveFilters((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -170,12 +181,12 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
     });
   }
 
-  function applyLocalPatch(id, patch) {
+  function applyLocalPatch(id: string, patch: Partial<ClientEntry>) {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   }
 
-  async function handlePatch(id, patch) {
-    applyLocalPatch(id, patch); // optimistic
+  async function handlePatch(id: string, patch: Record<string, unknown>) {
+    applyLocalPatch(id, patch as Partial<ClientEntry>); // optimistic
     try {
       const res = await fetch(`${apiBase}/${id}`, {
         method: "PATCH",
@@ -186,12 +197,12 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       const data = await res.json();
       applyLocalPatch(id, data.entry);
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
       load(); // re-sync on failure
     }
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(id: string) {
     setEntries((prev) => prev.filter((e) => e.id !== id));
     try {
       const res = await fetch(`${apiBase}/${id}`, {
@@ -200,12 +211,12 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       });
       if (!res.ok) throw new Error("Delete failed");
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
       load();
     }
   }
 
-  async function handleRate(id, score) {
+  async function handleRate(id: string, score: number | null) {
     applyLocalPatch(id, { myScore: score }); // optimistic
     try {
       const res =
@@ -220,12 +231,12 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       if (!res.ok) throw new Error(data.error || "Rating failed");
       applyLocalPatch(id, data);
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
       load(); // re-sync on failure
     }
   }
 
-  function handleAdded(entry) {
+  function handleAdded(entry: ClientEntry) {
     setEntries((prev) => [...prev, entry]);
   }
 
@@ -263,13 +274,11 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       });
       downloadTextFile(`${trip.slug}-agent-instructions.md`, text);
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     }
   }
 
-  const active = entries
-    .filter((e) => e.status !== "archived")
-    .sort((a, b) => (a.rank ?? 999999) - (b.rank ?? 999999));
+  const active = entries.filter((e) => e.status !== "archived").sort((a, b) => (a.rank ?? 999999) - (b.rank ?? 999999));
   const archived = entries.filter((e) => e.status === "archived");
 
   // Any boolean field (e.g. Food & Drink's Restaurant/Bar/Cafe/Breakfast/
@@ -277,7 +286,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // whatever a section's own field_defs define, no section-specific code.
   const filterFieldDefs = fieldDefs.filter((f) => f.field_type === "boolean");
 
-  function unitMatchesFilters(unit) {
+  function unitMatchesFilters(unit: EntryUnit): boolean {
     if (activeFilters.size === 0) return true;
     return unit.listings.some((entry) => [...activeFilters].some((key) => !!entry[key]));
   }
@@ -285,9 +294,9 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // A 2-item group has two separate scores (one per listing) — sorting by
   // either takes the better of the two, same "at least this good" idea
   // as picking a representative rank for the pair.
-  function unitSortValue(unit, key) {
+  function unitSortValue(unit: EntryUnit, key: SortBy): number {
     if (key === "rank") return unit.listings[0]?.rank ?? 999999;
-    const values = unit.listings.map((l) => l[key]).filter((v) => v != null);
+    const values = unit.listings.map((l) => l[key] as number | null | undefined).filter((v): v is number => v != null);
     return values.length > 0 ? Math.max(...values) : -Infinity;
   }
 
@@ -300,7 +309,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
     );
   const pins = activeUnits.map(pinFor);
 
-  function renderUnit(unit) {
+  function renderUnit(unit: EntryUnit) {
     if (unit.type === "group") {
       return (
         <ListingSection
@@ -308,20 +317,17 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           id={`group-${unit.listings[0].id}`}
           title={unit.listings[0].groupLabel}
           rank={canManage && showRanking ? unit.listings[0].rank ?? undefined : undefined}
-          onRankChange={(newRank) =>
-            unit.listings.forEach((e) => handlePatch(e.id, { rank: newRank }))
-          }
+          onRankChange={(newRank) => unit.listings.forEach((e) => handlePatch(e.id, { rank: newRank }))}
           canManage={canManage}
           onDeleteGroup={
             unit.listings[0].status === "archived"
               ? null
-              : (reason) =>
-                  unit.listings.forEach((e) => handlePatch(e.id, { archiveReason: reason, status: "archived" }))
+              : (reason) => unit.listings.forEach((e) => handlePatch(e.id, { archiveReason: reason, status: "archived" }))
           }
         >
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
+          <div className={styles.groupListings}>
             {unit.listings.map((entry) => (
-              <div key={entry.id} className="sm:w-1/2 min-w-0">
+              <div key={entry.id} className={styles.groupListingHalf}>
                 <EntryCard
                   entry={entry}
                   fieldDefs={fieldDefs}
@@ -357,7 +363,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       .filter((f) => f.field_type === "boolean" && entry[f.key])
       .map((f) => ({ key: f.key, label: f.label }));
     return (
-      <ListingSection key={entry.id} title={entry.title} href={entry.url} badges={entryBadges}>
+      <ListingSection key={entry.id} title={entry.title} href={entry.url ?? undefined} badges={entryBadges}>
         <EntryCard
           entry={entry}
           fieldDefs={fieldDefs}
@@ -379,16 +385,11 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   }
 
   return (
-    <main className="max-w-4xl mx-auto px-4 pb-16 flex flex-col gap-6 w-full">
-      <div className="flex justify-center">
+    <main className={styles.main}>
+      <div className={styles.sheetRow}>
         {canContribute ? (
           sheetUrl && (
-            <a
-              href={sheetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-            >
+            <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={styles.sheetLink}>
               Google Sheet
             </a>
           )
@@ -401,36 +402,30 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       </div>
 
       {canContribute && (
-        <div className="flex flex-col gap-2">
+        <div className={styles.addSection}>
           <AddEntryForm trip={trip} section={section} onAdded={handleAdded} authToken={authToken} />
-          <button
-            onClick={handleDownloadInstructions}
-            className="text-sm text-zinc-500 hover:underline self-start"
-          >
+          <button onClick={handleDownloadInstructions} className={styles.downloadInstructionsButton}>
             Download agent instructions (add via your own AI agent instead)
           </button>
         </div>
       )}
 
       {filterFieldDefs.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="text-xs uppercase tracking-wide text-zinc-500 font-medium">Filter</span>
+        <div className={styles.filterRow}>
+          <span className={styles.filterCaption}>Filter</span>
           {filterFieldDefs.map((f) => (
-            <label key={f.key} className="flex items-center gap-1.5 text-sm text-zinc-700">
+            <label key={f.key} className={styles.filterCheckboxLabel}>
               <input
                 type="checkbox"
                 checked={activeFilters.has(f.key)}
                 onChange={() => toggleFilter(f.key)}
-                className="h-4 w-4"
+                className={styles.filterCheckbox}
               />
               {f.label}
             </label>
           ))}
           {activeFilters.size > 0 && (
-            <button
-              onClick={() => setActiveFilters(new Set())}
-              className="text-xs text-zinc-500 hover:underline"
-            >
+            <button onClick={() => setActiveFilters(new Set())} className={styles.filterClearButton}>
               Clear
             </button>
           )}
@@ -438,13 +433,9 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       )}
 
       {showRatings && (
-        <label className="flex items-center gap-2 text-sm text-zinc-700 self-start">
-          <span className="text-xs uppercase tracking-wide text-zinc-500 font-medium">Sort by</span>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="rounded border border-zinc-300 px-2 py-1 text-sm"
-          >
+        <label className={styles.sortByLabel}>
+          <span className={styles.sortByCaption}>Sort by</span>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className={styles.sortBySelect}>
             {showRanking && <option value="rank">Rank</option>}
             <option value="myScore">My Score</option>
             <option value="averageScore">Average Score</option>
@@ -452,12 +443,10 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
         </label>
       )}
 
-      {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>
-      )}
+      {error && <p className={styles.errorBanner}>{error}</p>}
 
       {loading ? (
-        <p className="text-zinc-500 text-sm">Loading...</p>
+        <p className={styles.loadingText}>Loading...</p>
       ) : (
         <>
           {/* Independent of comparisonMode on purpose — OverviewMap is a
@@ -468,24 +457,17 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           {!loading && activeUnits.length > 0 && <OverviewMap pins={pins} />}
 
           {activeUnits.length === 0 && (
-            <p className="text-zinc-500 text-sm">
-              {active.length === 0
-                ? section.empty_message
-                : "Nothing matches the selected filters."}
-            </p>
+            <p className={styles.emptyText}>{active.length === 0 ? section.empty_message : "Nothing matches the selected filters."}</p>
           )}
           <div className={listClassName}>{activeUnits.map(renderUnit)}</div>
 
           {archived.length > 0 && (
-            <div className="mt-4">
-              <button
-                onClick={() => setShowArchived((v) => !v)}
-                className="text-sm font-medium text-zinc-600 hover:underline"
-              >
+            <div className={styles.archivedSection}>
+              <button onClick={() => setShowArchived((v) => !v)} className={styles.archivedToggle}>
                 {showArchived ? "Hide" : "Show"} archived ({archived.length})
               </button>
               {showArchived && (
-                <div className={`${listClassName} mt-3`}>
+                <div className={`${listClassName} ${styles.archivedList}`}>
                   {groupUnits(archived).filter(unitMatchesFilters).map(renderUnit)}
                 </div>
               )}
