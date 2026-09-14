@@ -9,7 +9,7 @@ import GroupMap from "@/components/GroupMap";
 import SimpleGroupMap from "@/components/SimpleGroupMap";
 import OverviewMap from "@/components/OverviewMap";
 import { groupUnits } from "@/lib/groupUnits";
-import { captureInviteToken } from "@/lib/inviteClient";
+import { captureInviteToken, getOrCreateDeviceId } from "@/lib/inviteClient";
 import { buildAgentInstructions, downloadTextFile } from "@/lib/agentInstructions";
 
 function pinFor(unit) {
@@ -114,14 +114,24 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   }, [canContribute, trip.slug, authToken]);
 
   function authHeaders() {
-    return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+    // X-Rater-Device always goes along for the ride — harmless for any
+    // route that ignores it, and it's what lets a contributor's own
+    // score be told apart from another person sharing the same invite
+    // link (see lib/ratings.js's resolveRaterKey). Ignored for an admin,
+    // whose real login is already a stable identity of its own.
+    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+    headers["X-Rater-Device"] = getOrCreateDeviceId();
+    return headers;
   }
 
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(apiBase, { cache: "no-store" });
+      // Needs authHeaders() (not just a plain fetch) so a section with
+      // ratings on can resolve *this caller's* myScore, not just the
+      // public average.
+      const res = await fetch(apiBase, { cache: "no-store", headers: authHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load entries");
       setEntries(data.entries);
@@ -134,8 +144,11 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
 
   useEffect(() => {
     load();
+    // Reruns once contributorToken resolves (it's still null on the very
+    // first render) so a contributor's myScore shows up without needing
+    // a manual refresh — not just apiBase.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiBase]);
+  }, [apiBase, authToken]);
 
   // Filters are per-section, not global — clear them when navigating to a
   // different section rather than silently carrying a stale selection

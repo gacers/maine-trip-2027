@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { getAllEntries, findEntryByUrl, createEntry, toClientEntry } from "@/lib/entries";
-import { getRatingsForEntries, summarizeRatings } from "@/lib/ratings";
+import { getRatingsForEntries, summarizeRatings, resolveRaterKey } from "@/lib/ratings";
 import { requireWriteAccess } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { normalizeListingUrl } from "@/lib/scrape";
@@ -37,7 +37,8 @@ export async function GET(request, { params }) {
       );
       // Best-effort — a visitor with no access at all just gets averages,
       // myScore stays null rather than the request failing.
-      const { raterKey } = await requireWriteAccess(request, trip.id, { allowContributor: true });
+      const { raterKey: accessKey } = await requireWriteAccess(request, trip.id, { allowContributor: true });
+      const raterKey = resolveRaterKey(accessKey, request);
       clientEntries = clientEntries.map((e) => ({
         ...e,
         ...summarizeRatings(ratingsByEntry[e.id], raterKey),

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
-import { summarizeRatings } from "@/lib/ratings";
+import { summarizeRatings, resolveRaterKey } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -31,8 +31,11 @@ export async function PUT(request, { params }) {
     return NextResponse.json({ error: "Ratings aren't enabled for this section" }, { status: 400 });
   }
 
-  const { error: authError, raterKey } = await requireWriteAccess(request, trip.id, { allowContributor: true });
+  const { error: authError, raterKey: accessKey } = await requireWriteAccess(request, trip.id, {
+    allowContributor: true,
+  });
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
+  const raterKey = resolveRaterKey(accessKey, request);
 
   let body;
   try {
@@ -75,8 +78,11 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: "Ratings aren't enabled for this section" }, { status: 400 });
   }
 
-  const { error: authError, raterKey } = await requireWriteAccess(request, trip.id, { allowContributor: true });
+  const { error: authError, raterKey: accessKey } = await requireWriteAccess(request, trip.id, {
+    allowContributor: true,
+  });
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
+  const raterKey = resolveRaterKey(accessKey, request);
 
   const service = supabaseServiceRole();
   const { error: delError } = await service
