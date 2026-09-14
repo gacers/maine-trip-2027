@@ -175,6 +175,17 @@ export interface EntryRow {
   updated_at: string;
 }
 
+export interface ApiKey {
+  id: string;
+  trip_id: string | null;
+  label: string;
+  role: "owner" | "contributor";
+  revoked: boolean;
+  created_at: string;
+  last_used_at: string | null;
+  hasStoredToken?: boolean;
+}
+
 export interface AppSettings {
   id: true;
   google_drive_folder_id: string | null;

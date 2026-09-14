@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import type { Trip, ApiKey } from "@/lib/types";
+import styles from "./InviteLinksManager.module.css";
+
+export interface InviteLinksManagerProps {
+  trip: Trip;
+}
 
 // Same shape as ApiKeysManager, but for `role: "contributor"` keys —
 // each one backs one shareable invite link
@@ -8,16 +14,16 @@ import { useEffect, useState } from "react";
 // add new entries and append notes/concerns from the site itself (see
 // SectionPage's invite-capture effect) without ever signing in, and
 // without you generating and handing them a raw API key.
-export default function InviteLinksManager({ trip }) {
-  const [keys, setKeys] = useState([]);
+export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
+  const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [label, setLabel] = useState("");
-  const [newInvite, setNewInvite] = useState(null); // { link, token }
+  const [newInvite, setNewInvite] = useState<{ link: string; token: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [rotateMsg, setRotateMsg] = useState("");
-  const [revealed, setRevealed] = useState({}); // { [keyId]: link }
+  const [revealed, setRevealed] = useState<Record<string, string>>({});
   const apiBase = `/api/trips/${trip.slug}/api-keys`;
 
   async function load() {
@@ -26,9 +32,9 @@ export default function InviteLinksManager({ trip }) {
       const res = await fetch(apiBase, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setKeys(data.apiKeys.filter((k) => k.role === "contributor"));
+      setKeys(data.apiKeys.filter((k: ApiKey) => k.role === "contributor"));
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -39,7 +45,7 @@ export default function InviteLinksManager({ trip }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBase]);
 
-  async function handleCreate(e) {
+  async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setError("");
     try {
@@ -56,21 +62,21 @@ export default function InviteLinksManager({ trip }) {
       setCopied(false);
       load();
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     }
   }
 
-  async function handleRevoke(id) {
+  async function handleRevoke(id: string) {
     try {
       const res = await fetch(`${apiBase}/${id}`, { method: "PATCH" });
       if (!res.ok) throw new Error("Revoke failed");
       load();
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     }
   }
 
-  async function handleReveal(id) {
+  async function handleReveal(id: string) {
     setError("");
     try {
       const res = await fetch(`${apiBase}/${id}/reveal`);
@@ -79,11 +85,12 @@ export default function InviteLinksManager({ trip }) {
       const link = `${window.location.origin}/${trip.slug}?invite=${data.token}`;
       setRevealed((prev) => ({ ...prev, [id]: link }));
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     }
   }
 
   async function copyLink() {
+    if (!newInvite) return;
     try {
       await navigator.clipboard.writeText(newInvite.link);
       setCopied(true);
@@ -103,119 +110,101 @@ export default function InviteLinksManager({ trip }) {
       if (!res.ok) throw new Error(data.error || "Rotate failed");
       setRotateMsg("Done — old links in the Sheet no longer work; every tab now links out with a fresh one.");
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setRotating(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-zinc-500">
+    <div className={styles.wrapper}>
+      <p className={styles.intro}>
         Share a link with a friend so they can add houses/food/activities and leave notes or concerns without
         signing in. They can&apos;t edit or delete anything you&apos;ve already added.
       </p>
 
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 flex flex-col gap-2">
-        <p className="text-sm text-zinc-700">
-          <span className="font-medium">Google Sheet access:</span>{" "}
+      <div className={styles.sheetAccessBox}>
+        <p className={styles.sheetAccessText}>
+          <span className={styles.sheetAccessLabel}>Google Sheet access:</span>{" "}
           {trip.sheet_invite_token ? (
-            <>every link inside the Sheet already carries its own standing invite — anyone you share the Sheet
-              with can click through and add things, no separate invite link needed.</>
+            <>
+              every link inside the Sheet already carries its own standing invite — anyone you share the Sheet with
+              can click through and add things, no separate invite link needed.
+            </>
           ) : (
             <>set up automatically the first time this trip&apos;s Sheet exports.</>
           )}
         </p>
         {trip.sheet_invite_token && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleRotateSheetInvite}
-              disabled={rotating}
-              className="text-sm text-red-600 hover:underline disabled:opacity-50 self-start"
-            >
+          <div className={styles.rotateRow}>
+            <button onClick={handleRotateSheetInvite} disabled={rotating} className={styles.rotateButton}>
               {rotating ? "Rotating..." : "Rotate (invalidate the Sheet's current links)"}
             </button>
           </div>
         )}
-        {rotateMsg && <p className="text-xs text-green-700">{rotateMsg}</p>}
+        {rotateMsg && <p className={styles.rotateMsg}>{rotateMsg}</p>}
       </div>
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>}
+      {error && <p className={styles.error}>{error}</p>}
 
       {newInvite && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 flex flex-col gap-2">
-          <p className="text-sm font-medium text-amber-800">
-            Save this now, or come back and click &quot;Show&quot; on it later.
-          </p>
-          <div className="flex gap-2">
-            <code className="flex-1 text-xs bg-white border border-amber-200 rounded p-2 break-all select-all">
-              {newInvite.link}
-            </code>
-            <button
-              onClick={copyLink}
-              className="shrink-0 rounded bg-zinc-900 text-white px-3 py-1 text-xs font-medium"
-            >
+        <div className={styles.newInviteBox}>
+          <p className={styles.newInviteNote}>Save this now, or come back and click &quot;Show&quot; on it later.</p>
+          <div className={styles.newInviteRow}>
+            <code className={styles.linkCode}>{newInvite.link}</code>
+            <button onClick={copyLink} className={styles.copyButton}>
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>
-          <button onClick={() => setNewInvite(null)} className="text-xs text-zinc-500 hover:underline self-start">
+          <button onClick={() => setNewInvite(null)} className={styles.dismissButton}>
             Dismiss
           </button>
         </div>
       )}
 
-      <form onSubmit={handleCreate} className="flex gap-2">
+      <form onSubmit={handleCreate} className={styles.createForm}>
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Label (e.g. Alex & Sam)"
-          className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
+          className={styles.labelInput}
         />
-        <button type="submit" className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium">
+        <button type="submit" className={styles.createButton}>
           Create invite link
         </button>
       </form>
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading...</p>
+        <p className={styles.mutedText}>Loading...</p>
       ) : keys.length === 0 ? (
-        <p className="text-sm text-zinc-500">No invite links yet.</p>
+        <p className={styles.mutedText}>No invite links yet.</p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className={styles.keyList}>
           {keys.map((k) => (
-            <div
-              key={k.id}
-              className={`rounded-lg border p-3 flex flex-col gap-2 ${
-                k.revoked ? "border-zinc-200 bg-zinc-50 opacity-60" : "border-zinc-200 bg-white"
-              }`}
-            >
-              <div className="flex items-center justify-between">
+            <div key={k.id} className={k.revoked ? styles.keyCardRevoked : styles.keyCard}>
+              <div className={styles.keyCardTop}>
                 <div>
-                  <div className="font-medium text-zinc-900 text-sm">{k.label}</div>
-                  <div className="text-xs text-zinc-500">
+                  <div className={styles.keyLabel}>{k.label}</div>
+                  <div className={styles.keyMeta}>
                     Created {new Date(k.created_at).toLocaleDateString()}
                     {k.last_used_at && ` · last used ${new Date(k.last_used_at).toLocaleDateString()}`}
                     {k.revoked && " · revoked"}
                   </div>
                 </div>
                 {!k.revoked && (
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className={styles.keyActions}>
                     {k.hasStoredToken && !revealed[k.id] && (
-                      <button onClick={() => handleReveal(k.id)} className="text-sm text-blue-600 hover:underline">
+                      <button onClick={() => handleReveal(k.id)} className={styles.showButton}>
                         Show
                       </button>
                     )}
-                    <button onClick={() => handleRevoke(k.id)} className="text-sm text-red-600 hover:underline">
+                    <button onClick={() => handleRevoke(k.id)} className={styles.revokeButton}>
                       Revoke
                     </button>
                   </div>
                 )}
               </div>
-              {revealed[k.id] && (
-                <code className="text-xs bg-zinc-50 border border-zinc-200 rounded p-2 break-all select-all">
-                  {revealed[k.id]}
-                </code>
-              )}
+              {revealed[k.id] && <code className={styles.linkCode}>{revealed[k.id]}</code>}
             </div>
           ))}
         </div>
