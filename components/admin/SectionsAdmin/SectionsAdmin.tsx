@@ -45,12 +45,13 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     setAddingTemplate(template.key);
     // Houses get one full-width card per row (a lot to show: photos,
     // price, bed/bath counts, a map); Food & Drink and Activities read
-    // better two to a row — both tiers of a category share this, unlike
-    // hasMap which differs between them.
+    // better two to a row — both tiers of a category share this.
     const compactCards = template.key !== "houses";
-    // Pairing (2-item options) and manual ranking only make sense for a
-    // still-deciding house-options list — Food & Drink/Activities never
-    // want either, and a "previous" list has nothing left to rank.
+    // Pairing (2-item options), manual ranking, and the full comparison
+    // map (pins/legend/reference points, vs. just a plain marker) only
+    // make sense for a still-deciding house-options list — Food & Drink/
+    // Activities never want any of them, and a "previous" list has
+    // nothing left to decide either way.
     const isHouses = template.key === "houses";
     try {
       const possibleRes = await fetch(apiBase, {
@@ -62,7 +63,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           addPlaceholder: template.possible.addPlaceholder,
           emptyMessage: template.possible.emptyMessage,
           supportsPairing: isHouses,
-          hasMap: true,
+          hasMap: isHouses,
           supportsRanking: isHouses,
           supportsRatings: isHouses,
           compactCards,
