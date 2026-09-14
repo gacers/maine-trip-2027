@@ -1,0 +1,65 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  padding: 0.125rem 0.5rem;
+  white-space: nowrap;
+}
+
+.orange {
+  background: var(--badge-orange-bg);
+  color: var(--badge-orange-text);
+}
+
+.amber {
+  background: var(--badge-amber-bg);
+  color: var(--badge-amber-text);
+}
+
+.teal {
+  background: var(--badge-teal-bg);
+  color: var(--badge-teal-text);
+}
+
+.blue {
+  background: var(--badge-blue-bg);
+  color: var(--badge-blue-text);
+}
+
+.indigo {
+  background: var(--badge-indigo-bg);
+  color: var(--badge-indigo-text);
+}
+
+.plum {
+  background: var(--badge-plum-bg);
+  color: var(--badge-plum-text);
+}
+
+.pink {
+  background: var(--badge-pink-bg);
+  color: var(--badge-pink-text);
+}
+
+.brown {
+  background: var(--badge-brown-bg);
+  color: var(--badge-brown-text);
+}
+
+.neutral {
+  background: var(--color-zinc-100);
+  color: var(--color-zinc-700);
+}
+
+/* Reserved for a real negative status (Closed) — solid + white text,
+   deliberately never in the arbitrary per-type rotation above, so it
+   always reads as "pay attention" rather than blending in as just
+   another type tag (and never lands on a color that could be misread
+   as "open"/fine, which green did before this existed). */
+.closed {
+  background: var(--color-red-600);
+  color: var(--color-white);
+  font-weight: var(--font-weight-semibold);
+}

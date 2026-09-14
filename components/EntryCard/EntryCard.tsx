@@ -1,14 +1,19 @@
 "use client";
 
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
-import ListingMap from "@/components/ListingMap";
+import { BedDouble, BedSingle, Bath, Hash } from "lucide-react";
+import { ListingMapView, useListingMap } from "@/components/ListingMap";
+import ListingMapDetails from "@/components/ListingMapDetails";
 import SimplePlaceMap from "@/components/SimplePlaceMap";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import StarRating from "@/components/StarRating";
+import Button from "@/components/Button";
+import Badge, { assignBadgeVariants } from "@/components/Badge";
+import EntryMedia from "@/components/EntryMedia";
+import BulletList from "@/components/BulletList";
 import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
-import { formatCounts } from "@/lib/fieldTypes/count";
 import FieldInput from "@/components/FieldInput";
 import type { ClientEntry, FieldDef, MapConfig, MapReferencePoint } from "@/lib/types";
 import styles from "./EntryCard.module.css";
@@ -20,15 +25,43 @@ function toBullets(text: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
+// A raw street address ("9 Thurston Rd, Bernard, ME 04612, USA") ending
+// up as the whole description — the Google Places fallback used to do
+// exactly this whenever a place had no editorial summary (see
+// AddEntryForm's choosePlace) — isn't real descriptive content; the
+// address is already covered by the address line below the title, so a
+// line that's just that reads as a broken/duplicated field, not a
+// description. Filtered out here (rather than at save time) so it also
+// catches entries added before that fallback was fixed.
+const US_ADDRESS_RE = /,\s*[A-Z]{2}\s*\d{5}(-\d{4})?(,\s*(USA|United States))?\s*$/;
+function isAddressLike(line: string): boolean {
+  return US_ADDRESS_RE.test(line.trim());
+}
+
 const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#616161"];
 
-function PinIcon() {
-  return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={styles.pinIcon}>
-      <path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z" />
-      <circle cx="12" cy="9.5" r="2.25" fill="currentColor" stroke="none" />
-    </svg>
-  );
+// A count field's label is stored plural ("Bedrooms", "Beds",
+// "Bathrooms") since that's how it reads in the field-defs admin UI and
+// in the count summary for the common >1 case — singularized here only
+// for display when the actual value is exactly 1 ("1 Bedroom", not
+// "1 Bedrooms"). Simple heuristic covers every count field in use today;
+// good enough for whatever an admin invents later too.
+function singularizeCountLabel(label: string, value: unknown): string {
+  if (Number(value) !== 1) return label;
+  if (/ies$/i.test(label)) return label.replace(/ies$/i, "y");
+  if (/s$/i.test(label)) return label.replace(/s$/i, "");
+  return label;
+}
+
+// Picks a purpose-built icon by matching words in the field's own label —
+// generic count fields with an unrecognized label (anything an admin
+// might invent later) still get a sensible fallback rather than nothing.
+function countFieldIcon(label: string) {
+  const l = label.toLowerCase();
+  if (l.includes("bath")) return <Bath size={17} className={styles.countIcon} />;
+  if (l.includes("bedroom")) return <BedDouble size={17} className={styles.countIcon} />;
+  if (l.includes("bed")) return <BedSingle size={17} className={styles.countIcon} />;
+  return <Hash size={17} className={styles.countIcon} />;
 }
 
 // Renders plain text with any http(s) URL inside it turned into a real
@@ -63,27 +96,6 @@ function Linkified({ text }: { text: string }) {
   return <>{parts}</>;
 }
 
-// The one bulleted-list structure every list on a card builds on —
-// Description (plain) and Notes/Concerns (editable, via `renderItem`
-// below) always render with this exact same <ul>/<li> markup so they
-// look and space identically everywhere.
-function BulletList({
-  items,
-  renderItem,
-}: {
-  items: string[];
-  renderItem?: (item: string, i: number) => ReactNode;
-}) {
-  if (!items.length) return null;
-  return (
-    <ul className={styles.bulletList}>
-      {items.map((item, i) => (
-        <li key={i}>{renderItem ? renderItem(item, i) : item}</li>
-      ))}
-    </ul>
-  );
-}
-
 interface EditableNoteListProps {
   items: string[];
   onAdd: ((text: string) => void) | null;
@@ -114,23 +126,26 @@ function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }: Edi
 
   return (
     <div className={styles.noteListWrapper}>
-      <BulletList
-        items={items}
-        renderItem={(item, i) =>
-          onRemove ? (
-            <span className={styles.removableNoteRow}>
-              <span>
+      {items.length > 0 && (
+        <BulletList>
+          {items.map((item, i) => (
+            <li key={i}>
+              {onRemove ? (
+                <span className={styles.removableNoteRow}>
+                  <span>
+                    <Linkified text={item} />
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => onRemove(i)} className={styles.removeNoteButton}>
+                    Remove
+                  </Button>
+                </span>
+              ) : (
                 <Linkified text={item} />
-              </span>
-              <button type="button" onClick={() => onRemove(i)} className={styles.removeNoteButton}>
-                Remove
-              </button>
-            </span>
-          ) : (
-            <Linkified text={item} />
-          )
-        }
-      />
+              )}
+            </li>
+          ))}
+        </BulletList>
+      )}
       {onAdd &&
         (adding ? (
           <form onSubmit={submit} className={styles.addNoteForm}>
@@ -141,24 +156,24 @@ function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }: Edi
               placeholder={placeholder}
               className={styles.addNoteInput}
             />
-            <button type="submit" className={styles.addNoteSubmit}>
+            <Button type="submit" variant="link" size="sm">
               Add
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setAdding(false);
                 setDraft("");
               }}
-              className={styles.addNoteCancel}
             >
               Cancel
-            </button>
+            </Button>
           </form>
         ) : (
-          <button type="button" onClick={() => setAdding(true)} className={styles.addNoteTrigger}>
+          <Button variant="link" size="sm" className={styles.addNoteTrigger} onClick={() => setAdding(true)}>
             + {addLabel}
-          </button>
+          </Button>
         ))}
     </div>
   );
@@ -197,6 +212,14 @@ export interface EntryCardProps {
   showMap?: boolean;
   comparisonMode?: boolean;
   compact?: boolean;
+  /** Houses' own cards get a taller photo — see EntryMedia's own
+   * `large` prop, which this just forwards to. */
+  largeMedia?: boolean;
+  /** Skip rendering this card's own photo — used for a 2-house-option
+   * group, where SectionPage lays both houses' photos out as their own
+   * row (via EntryMedia directly) above the group's shared title
+   * section, ahead of each house's own remaining content. */
+  hideMedia?: boolean;
 }
 
 export default function EntryCard({
@@ -214,6 +237,8 @@ export default function EntryCard({
   showMap = true,
   comparisonMode = true,
   compact = false,
+  largeMedia = false,
+  hideMedia = false,
 }: EntryCardProps) {
   const [rankDraft, setRankDraft] = useState<string | number>(entry.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -227,6 +252,28 @@ export default function EntryCard({
   const isArchived = entry.status === "archived";
   const extraMarkers = parseExtraMarkers(entry.extraMarkers);
   const hasHouse = hasCoords(entry);
+  // Reference points/Closest Town/Driving Times are for a still-
+  // deciding-among-house-options list — today that's identified by
+  // *either* scoring mechanism being on (showRank for a manual-rank
+  // section, showRatings for Possible Houses' now-retired-ranking/
+  // ratings-driven one), not showRank alone: that went stale the
+  // moment manual ranking got retired here in favor of ratings, which
+  // silently turned this whole section off for House Options.
+  const showHouseDetails = showRank || showRatings;
+  // Called unconditionally (Rules of Hooks) — `enabled` lets it no-op
+  // entirely (skip loading Google Maps, skip every effect) for a card
+  // that won't actually show a comparison map (editing, no coords, or a
+  // section that just wants the plain SimplePlaceMap instead). Feeds
+  // both ListingMapView and ListingMapDetails below so there's still
+  // only one Google Maps instance/Directions calls behind both of this
+  // card's map sections.
+  const listingMapData = useListingMap({
+    houses: hasHouse ? [{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }] : [],
+    extraMarkers,
+    mapConfig,
+    showReferencePoints: showHouseDetails,
+    enabled: comparisonMode && hasHouse && showMap && !isEditing,
+  });
 
   // entry.rank can change for reasons other than this exact input's own
   // edit (another card's edit, a re-fetch after sorting, etc.) — without
@@ -259,11 +306,26 @@ export default function EntryCard({
 
   const priceFields = fieldDefs.filter((f) => f.field_type === "price");
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
-  const countsSummary = formatCounts(countFields.map((f) => ({ fieldDef: f, value: entry[f.key] })));
+  const countRows = countFields
+    .map((f) => ({ fieldDef: f, value: entry[f.key] }))
+    .filter(({ value }) => value !== "" && value !== null && value !== undefined);
+  const descriptionBullets = toBullets(entry.description).filter((line) => !isAddressLike(line));
+  const hasNotes = toBullets(entry.notes).length > 0;
+  const hasConcerns = toBullets(entry.concerns).length > 0;
   // Any boolean field flips on an eyebrow tag when true (e.g. "Closed",
   // "Bar", "Restaurant") — generic by field *type*, not by name, so any
   // boolean field an admin adds to any section gets this for free.
   const activeBooleanFields = fieldDefs.filter((f) => f.field_type === "boolean" && entry[f.key]);
+  // Colors are assigned from the section's full boolean field list (not
+  // just this entry's active ones), in that list's own defined order —
+  // so a given type always lands on the same color everywhere it shows
+  // up, and two different types in the same section never collide the
+  // way an independent per-key hash could. "closed" is excluded here
+  // since it always gets its own dedicated variant below, never one of
+  // the arbitrary rotation colors.
+  const badgeVariants = assignBadgeVariants(
+    fieldDefs.filter((f) => f.field_type === "boolean" && f.key !== "closed").map((f) => f.key)
+  );
 
   function archive(reason: string) {
     onPatch(entry.id, { archiveReason: reason, status: "archived" });
@@ -381,59 +443,56 @@ export default function EntryCard({
   }
 
   const rootClassName = [styles.article, !bare && styles.framed, isArchived && styles.archived].filter(Boolean).join(" ");
+  // On a split/paired card (bare + hideMedia, inside GroupMap's own
+  // ListingSection), this top border would just double up whatever
+  // divider that wrapping context already draws above it.
+  const sectionsClassName = [styles.sections, bare && styles.sectionsBare].filter(Boolean).join(" ");
   const mapsSearchUrl = hasHouse ? `https://www.google.com/maps/search/?api=1&query=${entry.lat},${entry.lng}` : undefined;
 
   return (
     <article id={`listing-${entry.id}`} className={rootClassName}>
-      {entry.posterImage && (
-        // Compact (2-up) cards get a shorter fixed-height header — a
-        // tall/portrait photo used to make its own card noticeably
-        // taller than its neighbor sitting right next to it in that
-        // grid. Full-width house cards get a tall, edge-to-edge header
-        // instead (no side padding — that starts below, in .sections).
-        <div className={compact ? styles.mediaHeaderCompact : styles.mediaHeader}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={entry.posterImage} alt={entry.title ?? ""} className={styles.mediaImg} loading="lazy" />
-          {showRatings && !!entry.ratingCount && entry.averageScore != null && (
-            <div className={styles.scoreBadge} title={`${entry.averageScore.toFixed(1)} avg (${entry.ratingCount})`}>
-              {entry.averageScore.toFixed(1)}
+      {!hideMedia && <EntryMedia entry={entry} compact={compact} large={largeMedia} showRatings={showRatings} />}
+
+      <div className={sectionsClassName}>
+        <div className={styles.section}>
+          {(activeBooleanFields.length > 0 || (showRank && canManage)) && (
+            <div className={styles.utilityRow}>
+              {activeBooleanFields.length > 0 && (
+                <div className={styles.eyebrows}>
+                  {activeBooleanFields.map((f) => (
+                    <Badge key={f.key} variant={f.key === "closed" ? "closed" : badgeVariants[f.key]}>
+                      {f.label}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              {showRank && canManage && (
+                <div className={styles.rankControl}>
+                  <label className={styles.rankLabel}>Rank</label>
+                  <input
+                    type="number"
+                    value={rankDraft}
+                    onChange={(e) => setRankDraft(e.target.value)}
+                    onBlur={commitRank}
+                    className={styles.rankInput}
+                  />
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      <div className={styles.sections}>
-        <div className={styles.section}>
-          <div className={styles.utilityRow}>
-            {activeBooleanFields.length > 0 ? (
-              <div className={styles.eyebrows}>
-                {activeBooleanFields.map((f) => (
-                  <span key={f.key} className={styles.eyebrow}>
-                    {f.label}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <span />
-            )}
-            {showRank && canManage && (
-              <div className={styles.rankControl}>
-                <label className={styles.rankLabel}>Rank</label>
-                <input
-                  type="number"
-                  value={rankDraft}
-                  onChange={(e) => setRankDraft(e.target.value)}
-                  onBlur={commitRank}
-                  className={styles.rankInput}
-                />
-              </div>
-            )}
-          </div>
+          <div className={styles.headerGrid}>
+            <div className={styles.titleColumn}>
+              <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
+                {entry.title}
+              </a>
+              {hasHouse && (
+                <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles.addressLink}>
+                  {addressLabel || "View on map"}
+                </a>
+              )}
+            </div>
 
-          <div className={styles.titleRow}>
-            <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
-              {entry.title}
-            </a>
             {priceFields.length > 0 && (
               <div className={styles.priceStack}>
                 {priceFields.map((f) => {
@@ -441,8 +500,11 @@ export default function EntryCard({
                   const badge = computePriceBadge(value);
                   return value ? (
                     <div key={f.key} className={styles.priceGroup}>
-                      <span className={styles.priceAvg}>{badge || value}</span>
-                      {badge && <span className={styles.priceTotal}>{value}</span>}
+                      {/* The total is what actually matters when
+                          comparing options — the per-night average is
+                          useful context, not the headline number. */}
+                      <span className={styles.priceTotal}>{value}</span>
+                      {badge && <span className={styles.priceAvg}>{badge}</span>}
                     </div>
                   ) : (
                     <div key={f.key} className={styles.noPriceLine}>
@@ -454,48 +516,69 @@ export default function EntryCard({
             )}
           </div>
 
-          {hasHouse && (
-            <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles.addressLink}>
-              <PinIcon />
-              {addressLabel || "View on map"}
-            </a>
-          )}
-
           {showRatings && canContribute && onRate && (
             <div className={styles.userRatingRow}>
               <span className={styles.ratingCaption}>Your score</span>
               <StarRating value={entry.myScore ?? 0} size={18} onChange={(v) => onRate(entry.id, v)} />
               {entry.myScore != null && (
-                <button type="button" onClick={() => onRate(entry.id, null)} className={styles.clearScoreButton}>
+                <Button variant="ghost" size="sm" onClick={() => onRate(entry.id, null)} className={styles.clearScoreButton}>
                   Clear
-                </button>
+                </Button>
               )}
             </div>
           )}
-
-          {countsSummary && <div className={styles.countsSummary}>{countsSummary}</div>}
         </div>
 
-        {!isEditing && toBullets(entry.description).length > 0 && (
+        {/* Its own section, horizontal — bedrooms/beds/bathrooms read as
+            a quick-scan strip rather than being crammed into the price
+            column or a slash-joined sentence. Skipped entirely when the
+            section has no count-type fields defined or none are filled in. */}
+        {countRows.length > 0 && (
+          <div className={styles.section}>
+            <BulletList bulleted={false} className={styles.countsRow}>
+              {countRows.map(({ fieldDef, value }) => (
+                <li key={fieldDef.key} className={styles.countItem}>
+                  {countFieldIcon(fieldDef.label)}
+                  <span>
+                    {value as ReactNode} {singularizeCountLabel(fieldDef.options?.shortLabel || fieldDef.label, value)}
+                  </span>
+                </li>
+              ))}
+            </BulletList>
+          </div>
+        )}
+
+        {!isEditing && descriptionBullets.length > 0 && (
           <div className={styles.section}>
             <h3 className={styles.sectionHeading}>Description</h3>
-            <BulletList items={toBullets(entry.description)} />
+            <BulletList>
+              {descriptionBullets.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </BulletList>
           </div>
         )}
 
         {!isEditing && showMap && hasHouse && (
-          <div className={styles.section}>
-            {comparisonMode ? (
-              <ListingMap
-                houses={[{ lat: entry.lat as number, lng: entry.lng as number, label: "House (approximate location)" }]}
-                extraMarkers={extraMarkers}
-                mapConfig={mapConfig}
-                showDrivingTimes={showRank}
-              />
-            ) : (
-              <SimplePlaceMap places={[{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }]} />
+          <>
+            <div className={styles.section}>
+              {comparisonMode ? (
+                <ListingMapView {...listingMapData} />
+              ) : (
+                <SimplePlaceMap places={[{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }]} />
+              )}
+            </div>
+            {/* Its own section, not bundled into the map's — Closest
+                Town/Driving Times are a distinct concern from "here's
+                the map". Skipped entirely (not just left empty) when
+                there's genuinely nothing to show, e.g. a non-ranking
+                section with no resolved closest town yet either. */}
+            {comparisonMode && (listingMapData.closestTown || listingMapData.showReferencePoints) && (
+              <div className={styles.section}>
+                <ListingMapDetails {...listingMapData} />
+              </div>
             )}
-          </div>
+          </>
         )}
 
         {isEditing && draft && (
@@ -568,9 +651,9 @@ export default function EntryCard({
                     placeholder="e.g. 45 Ocean Ave, Jonesport, ME"
                     className={styles.geocodeInput}
                   />
-                  <button type="button" onClick={handleFindCoords} disabled={geocoding || !address.trim()} className={styles.findButton}>
+                  <Button variant="secondary" size="sm" onClick={handleFindCoords} disabled={geocoding || !address.trim()}>
                     {geocoding ? "Finding..." : "Find"}
-                  </button>
+                  </Button>
                 </div>
                 {geocodeMsg && <p className={styles.geocodeMsg}>{geocodeMsg}</p>}
               </div>
@@ -588,9 +671,9 @@ export default function EntryCard({
             <div>
               <div className={styles.markersHeader}>
                 <h4 className={styles.markersTitle}>Extra map points (restaurants, hikes, puffin tour, nearest town, etc.)</h4>
-                <button type="button" onClick={addDraftMarker} className={styles.addPointButton}>
+                <Button variant="link" size="sm" onClick={addDraftMarker}>
                   + Add point
-                </button>
+                </Button>
               </div>
               <div className={styles.markerRowList}>
                 {draft.extraMarkers.map((m, i) => (
@@ -619,42 +702,52 @@ export default function EntryCard({
                       onChange={(e) => updateDraftMarker(i, "color", e.target.value)}
                       className={styles.markerColorInput}
                     />
-                    <button type="button" onClick={() => removeDraftMarker(i)} className={styles.markerRemoveButton}>
+                    <Button variant="danger" size="sm" onClick={() => removeDraftMarker(i)}>
                       Remove
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className={styles.editActions}>
-              <button onClick={saveEdit} className={styles.saveButton}>
+              <Button variant="primary" size="sm" onClick={saveEdit}>
                 Save
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   setIsEditing(false);
                   setDraft(null);
                 }}
-                className={styles.cancelButton}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
-        <div className={styles.section}>
-          <h3 className={styles.sectionHeading}>Notes</h3>
-          <EditableNoteList
-            items={toBullets(entry.notes)}
-            onAdd={canContribute ? addNote : null}
-            onRemove={canManage ? removeNoteAt : null}
-            addLabel="Add note"
-            placeholder="Add a note..."
-          />
-          <h3 className={styles.concernsHeading}>Concerns</h3>
-          <div className={styles.concernsBox}>
+        {/* Its own section, same as every other content block — not
+            bundled with Concerns under one shared heading-pair anymore. */}
+        {(hasNotes || canContribute) && (
+          <div className={styles.section}>
+            <h3 className={styles.sectionHeading}>Notes</h3>
+            <EditableNoteList
+              items={toBullets(entry.notes)}
+              onAdd={canContribute ? addNote : null}
+              onRemove={canManage ? removeNoteAt : null}
+              addLabel="Add note"
+              placeholder="Add a note..."
+            />
+          </div>
+        )}
+
+        {/* The whole section gets the amber tint now, not just a box
+            wrapped around the list inside a plain section. */}
+        {(hasConcerns || canContribute) && (
+          <div className={styles.concernsSection}>
+            <h3 className={styles.concernsHeading}>Concerns</h3>
             <EditableNoteList
               items={toBullets(entry.concerns)}
               onAdd={canContribute ? addConcern : null}
@@ -663,46 +756,46 @@ export default function EntryCard({
               placeholder="Anything that gives you pause..."
             />
           </div>
-        </div>
+        )}
 
         {canManage && (
           <div className={styles.section}>
             <div className={styles.footer}>
               {!isArchived && (
                 <div className={styles.deleteWrapper}>
-                  <button onClick={() => setShowArchiveDialog((v) => !v)} className={styles.deleteButton}>
+                  <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog((v) => !v)}>
                     Delete
-                  </button>
+                  </Button>
                   {showArchiveDialog && <ArchiveDialog onConfirm={archive} onCancel={() => setShowArchiveDialog(false)} />}
                 </div>
               )}
 
               {!isEditing && (
-                <button onClick={startEdit} className={styles.editDetailsButton}>
+                <Button variant="ghost" size="sm" onClick={startEdit}>
                   Edit details
-                </button>
+                </Button>
               )}
 
               {isArchived && (
                 <div className={styles.archivedActions}>
                   {entry.archiveReason && <span className={styles.archiveReason}>{entry.archiveReason}</span>}
-                  <button onClick={restore} className={styles.restoreButton}>
+                  <Button variant="link" size="sm" onClick={restore}>
                     Restore
-                  </button>
+                  </Button>
                   {confirmingDelete ? (
                     <span className={styles.confirmDeleteRow}>
                       Delete for good?
-                      <button onClick={() => onDelete(entry.id)} className={styles.confirmYes}>
+                      <Button variant="danger" size="sm" onClick={() => onDelete(entry.id)}>
                         Yes
-                      </button>
-                      <button onClick={() => setConfirmingDelete(false)} className={styles.confirmNo}>
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(false)}>
                         No
-                      </button>
+                      </Button>
                     </span>
                   ) : (
-                    <button onClick={() => setConfirmingDelete(true)} className={styles.deleteButton}>
+                    <Button variant="danger" size="sm" onClick={() => setConfirmingDelete(true)}>
                       Delete
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}

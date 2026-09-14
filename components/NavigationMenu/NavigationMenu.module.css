@@ -1,0 +1,126 @@
+.root {
+  position: relative;
+  display: flex;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Shared "flat text nav item" look for both a plain Link and a
+   dropdown Trigger — no pill background, just a color/weight change on
+   hover/open, and a bottom border (not just a subtle color shift, which
+   read as barely-there) for the active one. */
+.link,
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  padding: 0.125rem 0;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-zinc-500);
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-zinc-900);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-blue-400);
+    outline-offset: 2px;
+  }
+
+  &[data-active] {
+    color: var(--color-zinc-900);
+    border-bottom-color: var(--color-zinc-900);
+  }
+}
+
+/* The sub-nav row's own items (Possible/Previous, ...) — deliberately
+   smaller/lighter than the main category row above so the two read as
+   a clear hierarchy instead of two identical-looking rows. */
+.sm {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-zinc-500);
+
+  &[data-active] {
+    color: var(--color-zinc-900);
+    font-weight: var(--font-weight-semibold);
+  }
+}
+
+/* A Link used as a row inside an open dropdown Content, instead of a
+   top-level flat nav item — block, full width, its own padding/hover
+   background rather than the top row's plain color-change treatment. */
+.menuItem {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius);
+  padding: 0.5rem 0.625rem;
+  color: var(--color-zinc-700);
+
+  &:hover {
+    background: var(--color-zinc-100);
+    color: var(--color-zinc-900);
+  }
+
+  &[data-active] {
+    color: var(--color-zinc-900);
+    background: var(--color-zinc-100);
+  }
+}
+
+.chevron {
+  transition: transform 0.15s;
+
+  .trigger[data-state="open"] & {
+    transform: rotate(180deg);
+  }
+}
+
+.content {
+  min-width: 12rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-zinc-200);
+  background: var(--color-white);
+  box-shadow: var(--shadow-lg);
+  padding: 0.375rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.viewportWrapper {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  perspective: 2000px;
+  z-index: 20;
+}
+
+.viewport {
+  position: relative;
+  margin-top: 0.5rem;
+  transform-origin: top center;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  width: var(--radix-navigation-menu-viewport-width);
+  height: var(--radix-navigation-menu-viewport-height);
+  transition: width 0.2s ease, height 0.2s ease;
+}

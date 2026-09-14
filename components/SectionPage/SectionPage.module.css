@@ -1,11 +1,28 @@
 .main {
-  max-width: 56rem;
+  max-width: 88rem;
   margin-inline: auto;
-  padding: 0 1rem 4rem;
+  padding: 1.5rem 1rem 4rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   width: 100%;
+}
+@media (min-width: 640px) {
+  .main {
+    padding-inline: 1.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  .main {
+    padding-inline: 2rem;
+  }
+}
+
+/* Houses' own single-column cards are already rich/full-width — they
+   don't want the wide 3-across grid's own max-width, which would just
+   stretch each card further than it should go. */
+.mainHouses {
+  max-width: 75rem;
 }
 
 .sheetRow {
@@ -38,78 +55,27 @@
 
 .downloadInstructionsButton {
   align-self: flex-start;
-  font-size: var(--text-sm);
-  color: var(--color-zinc-500);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
+  text-align: left;
+  white-space: normal;
 }
 
-.filterRow {
+/* The filter dropdown + sort-by select, combined into one row that
+   sticks right below TripNavHeader's own sticky bar — see that
+   component for where --sticky-nav-height comes from. Falls back to 0
+   (stick to the very top) if that variable hasn't been set yet, e.g.
+   a trip with no nav at all. */
+.utilityRow {
+  position: sticky;
+  top: var(--sticky-nav-height, 0px);
+  z-index: 9;
+  background: var(--background);
+  padding-block: 0.5rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   column-gap: 1rem;
   row-gap: 0.5rem;
-}
-
-.filterCaption {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-zinc-500);
-  font-weight: var(--font-weight-medium);
-}
-
-.filterCheckboxLabel {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: var(--text-sm);
-  color: var(--color-zinc-700);
-}
-
-.filterCheckbox {
-  height: 1rem;
-  width: 1rem;
-}
-
-.filterClearButton {
-  font-size: var(--text-xs);
-  color: var(--color-zinc-500);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.sortByLabel {
-  align-self: flex-start;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: var(--text-sm);
-  color: var(--color-zinc-700);
-}
-
-.sortByCaption {
-  composes: filterCaption;
-}
-
-.sortBySelect {
-  border-radius: var(--radius);
-  border: 1px solid var(--color-zinc-300);
-  padding: 0.25rem 0.5rem;
-  font-size: var(--text-sm);
 }
 
 .errorBanner {
@@ -130,10 +96,23 @@
   composes: loadingText;
 }
 
+.loadingWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
 .entryList {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* Houses' cards are bigger/richer than a typical entry — more room
+   between them reads better than the default list gap. */
+.entryListHouses {
+  gap: 2rem;
 }
 
 .entryGrid {
@@ -146,38 +125,54 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+@media (min-width: 1024px) {
+  .entryGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 
 .archivedSection {
   margin-top: 1rem;
-}
-
-.archivedToggle {
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-zinc-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 .archivedList {
   margin-top: 0.75rem;
 }
 
+/* Both houses' photos, side by side, ahead of the group's own title
+   section. A thin white seam (not the usual zinc divider — the images
+   already have plenty of their own contrast) separates the two once
+   they're actually side by side; stacked on mobile, there's no shared
+   edge to seam. */
+.groupMediaRow {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 640px) {
+  .groupMediaRow {
+    flex-direction: row;
+  }
+}
+
+.groupMediaHalf {
+  min-width: 0;
+}
+@media (min-width: 640px) {
+  .groupMediaHalf {
+    width: 50%;
+  }
+  .groupMediaHalf:last-child {
+    border-left: 1px solid #fff;
+  }
+}
+
 .groupListings {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
 }
 @media (min-width: 640px) {
   .groupListings {
     flex-direction: row;
-    gap: 1.25rem;
   }
 }
 
@@ -187,5 +182,25 @@
 @media (min-width: 640px) {
   .groupListingHalf {
     width: 50%;
+  }
+  /* The vertical line between the two options — runs the full height of
+     the row (both cards stretch to match each other already) and stops
+     exactly where the shared map section begins, since that sits below
+     this row rather than inside it. */
+  .groupListingHalf:first-child {
+    border-right: 1px solid var(--color-zinc-200);
+  }
+}
+
+/* The shared map (GroupMap/SimpleGroupMap) gets the exact same section
+   treatment as every other section — a divider above it, padding of its
+   own — instead of relying on .body's old blanket padding. */
+.groupMapSection {
+  padding: 0.875rem 1rem;
+  border-top: 1px solid var(--color-zinc-200);
+}
+@media (min-width: 640px) {
+  .groupMapSection {
+    padding-inline: 1.25rem;
   }
 }

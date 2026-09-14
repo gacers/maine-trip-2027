@@ -3,12 +3,19 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  /* So a jump to #listing-<id> (from OverviewMap's pins, or a shared
+     link) doesn't land the card half-hidden under TripNavHeader's own
+     sticky bar — scroll-margin-top is honored by scrollIntoView() too,
+     not just native anchor jumps. --sticky-nav-height is measured live
+     by that bar itself (see TripNavHeader.tsx), so this stays correct
+     whether it's one row or wraps to several. */
+  scroll-margin-top: calc(var(--sticky-nav-height, 0px) + 1rem);
 }
 
 .framed {
   composes: article;
   border-radius: var(--radius-xl);
-  border: 1px solid var(--color-zinc-200);
+  border: 1px solid var(--color-zinc-300);
   box-shadow: var(--shadow-sm);
   background: var(--color-white);
 }
@@ -28,16 +35,6 @@
   }
 }
 
-.bulletList {
-  list-style-type: disc;
-  padding-left: 1.25rem;
-  font-size: var(--text-sm);
-  color: var(--color-zinc-700);
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
 .noteListWrapper {
   display: flex;
   flex-direction: column;
@@ -52,22 +49,12 @@
 }
 
 .removeNoteButton {
-  font-size: var(--text-xs);
-  color: var(--color-zinc-400);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
   flex-shrink: 0;
   opacity: 0;
   transition: opacity 0.1s;
 
   .removableNoteRow:hover & {
     opacity: 1;
-  }
-
-  &:hover {
-    color: var(--color-red-600);
   }
 }
 
@@ -84,88 +71,8 @@
   font-size: var(--text-sm);
 }
 
-.addNoteSubmit {
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-blue-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.addNoteCancel {
-  font-size: var(--text-sm);
-  color: var(--color-zinc-500);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
 .addNoteTrigger {
   align-self: flex-start;
-  font-size: var(--text-sm);
-  color: var(--color-blue-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-/* Edge-to-edge header image — no side padding, so it bleeds to the
-   card's own edges (clipped to its rounded corners via .article's
-   overflow:hidden). Sized to read as roughly half the card's visual
-   weight; a literal 50/50 split of the *whole* card isn't practical
-   since the content below (map, notes, ...) varies a lot in length. */
-.mediaHeader {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  background: var(--color-zinc-100);
-  flex-shrink: 0;
-}
-
-.mediaHeaderCompact {
-  composes: mediaHeader;
-  aspect-ratio: 16 / 10;
-}
-
-.mediaImg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-}
-
-.scoreBadge {
-  position: absolute;
-  z-index: 1;
-  top: 0.75rem;
-  right: 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: var(--radius-full);
-  background: var(--color-white);
-  box-shadow: var(--shadow-lg);
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-zinc-900);
 }
 
 /* Every content block below the image is a .section with a divider —
@@ -179,12 +86,26 @@
   border-top: 1px solid var(--color-zinc-200);
 }
 
+/* bare cards (a split/paired house option, rendered inside GroupMap's
+   own ListingSection) sit right under a divider that section already
+   draws — this top border would just double it up. */
+.sectionsBare {
+  border-top: none;
+}
+
 .section {
-  padding: 0.875rem 1rem;
+  padding: 1rem 1.125rem;
   border-bottom: 1px solid var(--color-zinc-200);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.625rem;
+
+  /* The card's own outer edge already draws a line here (the framed
+     border, or the group divider) — whichever section actually ends up
+     last doesn't need its own redundant one on top of it. */
+  &:last-child {
+    border-bottom: none;
+  }
 }
 @media (min-width: 640px) {
   .section {
@@ -203,18 +124,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  font-size: var(--text-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-amber-700);
-}
-
-.eyebrow + .eyebrow::before {
-  content: "\00B7";
-  margin-right: 0.5rem;
-  color: var(--color-zinc-300);
+  gap: 0.375rem;
 }
 
 .rankControl {
@@ -223,6 +133,10 @@
   align-items: flex-end;
   gap: 0.25rem;
   flex-shrink: 0;
+  /* Stays pinned to the row's right edge whether or not the eyebrows
+     div is there to pair against via justify-content: space-between —
+     that div no longer renders a placeholder when there are no badges. */
+  margin-left: auto;
 }
 
 .rankLabel {
@@ -239,20 +153,34 @@
   text-align: center;
 }
 
-.titleRow {
+/* Title+address on the left, price+counts on the right — a real grid
+   (not a flex row with the address shoved in underneath separately) so
+   the address sits right under the title instead of bottom-aligning
+   itself against whichever column happens to be taller. */
+.headerGrid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  column-gap: 1rem;
+  row-gap: 0.5rem;
+}
+
+.titleColumn {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
 }
 
 .titleLink {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
   min-width: 0;
   font-size: var(--text-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--color-zinc-900);
-  text-decoration: underline;
-  text-decoration-color: var(--color-blue-400);
+  text-decoration: none;
   overflow-wrap: break-word;
 
   &:hover {
@@ -265,23 +193,30 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.375rem;
+  gap: 0.5rem;
 }
 
 .priceGroup {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  /* Matches .titleColumn's gap — the total/avg pairing on the right
+     should read with the same rhythm as the title/address pairing on
+     the left. */
+  gap: 0.375rem;
 }
 
-.priceAvg {
-  font-size: var(--text-sm);
+/* The total is the headline number — that's the one you actually pay
+   and the one worth comparing at a glance; the per-night average is
+   secondary context underneath it. */
+.priceTotal {
+  font-size: var(--text-base);
   font-weight: var(--font-weight-semibold);
   color: var(--color-zinc-900);
   white-space: nowrap;
 }
 
-.priceTotal {
+.priceAvg {
   font-size: var(--text-xs);
   color: var(--color-zinc-500);
   white-space: nowrap;
@@ -296,21 +231,13 @@
 
 .addressLink {
   align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
   font-size: var(--text-sm);
   color: var(--color-zinc-600);
+  text-decoration: none;
 
   &:hover {
     color: var(--color-blue-600);
-    text-decoration: underline;
   }
-}
-
-.pinIcon {
-  flex-shrink: 0;
-  color: var(--color-zinc-400);
 }
 
 .userRatingRow {
@@ -325,20 +252,33 @@
 }
 
 .clearScoreButton {
-  font-size: var(--text-xs);
   color: var(--color-zinc-400);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
-.countsSummary {
-  font-size: var(--text-xs);
+/* Bedrooms/Beds/Bathrooms etc. as their own horizontal, icon-led strip
+   in its own section — rather than crammed into the price column or
+   flattened into one "3 Bedrooms / 6 Beds / 2 Bathrooms" sentence.
+   Qualified with the element type (not just the class) so this reliably
+   beats .bulletList's own flex-direction: column at equal specificity,
+   regardless of which CSS Module's rules happen to load first. */
+ul.countsRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.countItem {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: var(--text-sm);
+  color: var(--color-zinc-700);
+  white-space: nowrap;
+}
+
+.countIcon {
+  flex-shrink: 0;
   color: var(--color-zinc-500);
 }
 
@@ -353,14 +293,14 @@
 .concernsHeading {
   composes: sectionHeading;
   color: var(--color-amber-700);
-  margin-top: 0.375rem;
 }
 
-.concernsBox {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-amber-200);
+/* Same shape as every other .section — the whole strip is tinted amber
+   instead of a plain section with an amber box wrapped around the list. */
+.concernsSection {
+  composes: section;
+  border-color: var(--color-amber-200);
   background: var(--color-amber-50);
-  padding: 0.625rem;
 }
 
 .editGrid {
@@ -427,21 +367,6 @@
   padding: 0.375rem 0.5rem;
 }
 
-.findButton {
-  border-radius: var(--radius);
-  border: 1px solid var(--color-zinc-300);
-  padding: 0.375rem 0.75rem;
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  background: var(--color-white);
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-}
-
 .geocodeMsg {
   font-size: var(--text-xs);
   color: var(--color-zinc-500);
@@ -458,19 +383,6 @@
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-zinc-700);
-}
-
-.addPointButton {
-  font-size: var(--text-sm);
-  color: var(--color-blue-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 .markerRowList {
@@ -500,47 +412,10 @@
   border: none;
 }
 
-.markerRemoveButton {
-  font-size: var(--text-sm);
-  color: var(--color-red-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
 .editActions {
   display: flex;
   gap: 0.75rem;
   margin-top: 0.75rem;
-}
-
-.saveButton {
-  border-radius: var(--radius);
-  background: var(--color-zinc-900);
-  color: var(--color-white);
-  border: none;
-  padding: 0.5rem 1rem;
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-}
-
-.cancelButton {
-  font-size: var(--text-sm);
-  color: var(--color-zinc-500);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 .footer {
@@ -556,32 +431,6 @@
   position: relative;
 }
 
-.deleteButton {
-  font-size: var(--text-sm);
-  color: var(--color-red-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.editDetailsButton {
-  font-size: var(--text-sm);
-  color: var(--color-zinc-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
 .archivedActions {
   margin-left: auto;
   display: flex;
@@ -595,47 +444,9 @@
   font-style: italic;
 }
 
-.restoreButton {
-  font-size: var(--text-sm);
-  color: var(--color-blue-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
 .confirmDeleteRow {
   font-size: var(--text-sm);
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.confirmYes {
-  color: var(--color-red-600);
-  font-weight: var(--font-weight-medium);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.confirmNo {
-  color: var(--color-zinc-500);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }

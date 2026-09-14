@@ -34,30 +34,36 @@ export default function SimplePlaceMap({ places }: SimplePlaceMapProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [google, key]);
 
+  function mapsUrl(p: LatLngLabel): string {
+    return `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
+  }
+
   return (
     <div className={styles.wrapper}>
-      <h3 className={styles.heading}>Map</h3>
-
       {status === "error" ? (
         <p className={styles.errorBox}>Couldn&apos;t load the map ({errorMsg}).</p>
       ) : (
         <div ref={mapDivRef} className={styles.mapCanvas} />
       )}
 
-      <ul className={styles.placeList}>
-        {places.map((p) => (
-          <li key={p.label}>
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.placeLink}
-            >
-              {p.label} — Open in Google Maps
-            </a>
-          </li>
-        ))}
-      </ul>
+      {/* A solo place just needs the one link — a list (and repeating
+          its own label, already shown as this card's title) is only
+          worth it once there's more than one to tell apart. */}
+      {places.length === 1 ? (
+        <a href={mapsUrl(places[0])} target="_blank" rel="noopener noreferrer" className={styles.placeLink}>
+          Open in Google Maps
+        </a>
+      ) : (
+        <ul className={styles.placeList}>
+          {places.map((p) => (
+            <li key={p.label}>
+              <a href={mapsUrl(p)} target="_blank" rel="noopener noreferrer" className={styles.placeLink}>
+                {p.label} — Open in Google Maps
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

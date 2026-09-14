@@ -25,10 +25,10 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     if (res.ok) setNav(data.nav);
   }
 
-  async function toggleEnabled(section: Section, enabled: boolean) {
+  async function toggleEnabled(section: Section, navGroupSlug: string, enabled: boolean) {
     setError("");
     try {
-      const res = await fetch(`${apiBase}/${section.slug}`, {
+      const res = await fetch(`${apiBase}/${navGroupSlug}/${section.slug}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled }),
@@ -45,12 +45,13 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     setAddingTemplate(template.key);
     // Houses get one full-width card per row (a lot to show: photos,
     // price, bed/bath counts, a map); Food & Drink and Activities read
-    // better two to a row — both tiers of a category share this, unlike
-    // hasMap which differs between them.
+    // better two to a row — both tiers of a category share this.
     const compactCards = template.key !== "houses";
-    // Pairing (2-item options) and manual ranking only make sense for a
-    // still-deciding house-options list — Food & Drink/Activities never
-    // want either, and a "previous" list has nothing left to rank.
+    // Pairing (2-item options), manual ranking, and the full comparison
+    // map (pins/legend/reference points, vs. just a plain marker) only
+    // make sense for a still-deciding house-options list — Food & Drink/
+    // Activities never want any of them, and a "previous" list has
+    // nothing left to decide either way.
     const isHouses = template.key === "houses";
     try {
       const possibleRes = await fetch(apiBase, {
@@ -62,7 +63,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           addPlaceholder: template.possible.addPlaceholder,
           emptyMessage: template.possible.emptyMessage,
           supportsPairing: isHouses,
-          hasMap: true,
+          hasMap: isHouses,
           supportsRanking: isHouses,
           supportsRatings: isHouses,
           compactCards,
@@ -122,8 +123,8 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       <div className={styles.templatesSection}>
         <h2 className={styles.sectionHeading}>Add from a template</h2>
         <p className={styles.templatesHint}>
-          Each creates a ready-made &quot;Possible&quot; / &quot;Previous&quot; pair — fully editable or deletable
-          afterward, this is just a fast starting point.
+          Each creates a ready-made &quot;Options&quot; / &quot;Before&quot; pair (e.g. House Options / Stayed
+          Before) — fully editable or deletable afterward, this is just a fast starting point.
         </p>
         <div className={styles.templateList}>
           {SECTION_TEMPLATES.map((t) => {
@@ -159,7 +160,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                     <div>
                       <div className={styles.sectionLabel}>{section.label}</div>
                       <div className={styles.sectionMeta}>
-                        /{trip.slug}/{section.slug}
+                        /{trip.slug}/{group.slug}/{section.slug}
                         {!section.enabled && " · disabled"}
                       </div>
                     </div>
@@ -168,12 +169,15 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                         <input
                           type="checkbox"
                           checked={section.enabled}
-                          onChange={(e) => toggleEnabled(section, e.target.checked)}
+                          onChange={(e) => toggleEnabled(section, group.slug, e.target.checked)}
                           className={styles.enabledCheckbox}
                         />
                         Enabled
                       </label>
-                      <Link href={`/${trip.slug}/admin/sections/${section.slug}/edit`} className={styles.editLink}>
+                      <Link
+                        href={`/${trip.slug}/admin/sections/${group.slug}/${section.slug}/edit`}
+                        className={styles.editLink}
+                      >
                         Edit
                       </Link>
                     </div>

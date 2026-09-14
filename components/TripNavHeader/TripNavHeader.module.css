@@ -1,77 +1,136 @@
-.header {
-  max-width: 56rem;
-  margin-inline: auto;
-  width: 100%;
-  padding: 2rem 1rem 1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.topLinks {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.topLink {
-  font-size: var(--text-xs);
-  color: var(--color-zinc-500);
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.tripName {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-zinc-900);
-  text-align: center;
-}
-@media (min-width: 640px) {
-  .tripName {
-    font-size: var(--text-3xl);
-  }
+/* One sticky bar, stacked rows (title+actions, categories, and — only
+   once you're on a section — that category's own sub-nav) — full width
+   on purpose (no max-width cap): the bar always spans the viewport,
+   just with its own side padding. */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-zinc-200);
 }
 
 .navRow {
+  width: 100%;
+  padding: 0.625rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* Visually distinct from .navRow above it — a tinted background reads
+   as "secondary/nested" rather than a same-weight repeat of it. */
+.subNavRow {
+  width: 100%;
+  padding: 0.5rem 1.25rem;
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  background: var(--color-zinc-50);
+  border-top: 1px solid var(--color-zinc-200);
 }
 
-.pill {
-  border-radius: var(--radius-full);
-  border: 1px solid transparent;
-  font-weight: var(--font-weight-medium);
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+/* Hidden below 1024px — the hamburger menu already lists these nested
+   under their group, so showing them again here would be redundant on
+   a screen with little room to spare. */
+.subNavMenu {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .subNavMenu {
+    display: flex;
+  }
 }
 
-.pillLarge {
-  composes: pill;
+.navSlotTarget {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.topRow {
+  width: 100%;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  border-bottom: 1px solid var(--color-zinc-200);
+}
+
+.brand {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-zinc-900);
+  text-decoration: none;
+}
+
+/* Long by design ("Want to add something here? Request access") — lets
+   it wrap onto a second line within a bounded width instead of forcing
+   one long line that pushes past the bar's edge. */
+.requestAccessTrigger {
+  white-space: normal;
+  text-align: right;
+  max-width: 16rem;
+}
+
+/* Below 1024px there's rarely room for every group's flat text item
+   plus its dropdown chevron without wrapping onto a second line, so
+   the whole row collapses into a single hamburger menu instead. */
+.menuDesktop {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .menuDesktop {
+    display: flex;
+  }
+}
+
+.menuMobile {
+  display: block;
+}
+@media (min-width: 1024px) {
+  .menuMobile {
+    display: none;
+  }
+}
+
+.hamburgerButton {
+  padding: 0.375rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.actionLink {
   font-size: var(--text-sm);
-  padding: 0.375rem 1rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-zinc-600);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-zinc-900);
+  }
 }
 
-.pillSmall {
-  composes: pill;
-  font-size: var(--text-xs);
-  padding: 0.25rem 0.75rem;
-}
-
-.pillActive {
-  background: var(--color-zinc-900);
-  color: var(--color-white);
-  border-color: var(--color-zinc-900);
-}
-
-.pillInactive {
-  background: var(--color-white);
+.manageLink {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
   color: var(--color-zinc-700);
-  border-color: var(--color-zinc-300);
+  text-decoration: none;
+  border: 1px solid var(--color-zinc-300);
+  border-radius: var(--radius-full);
+  padding: 0.375rem 1rem;
 
   &:hover {
     background: var(--color-zinc-50);

@@ -1,0 +1,84 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  font-family: inherit;
+  font-weight: var(--font-weight-medium);
+  border: none;
+  cursor: pointer;
+  background: none;
+  padding: 0;
+  border-radius: var(--radius);
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.sm {
+  font-size: var(--text-xs);
+}
+
+.md {
+  font-size: var(--text-sm);
+}
+
+/* Solid, filled actions — Save, Add, submit. */
+.primary {
+  background: var(--color-zinc-900);
+  color: var(--color-white);
+  padding: 0.5rem 1rem;
+
+  &:hover:not(:disabled) {
+    background: var(--color-zinc-700);
+  }
+}
+.primary.sm {
+  padding: 0.375rem 0.75rem;
+}
+
+/* Outlined, secondary actions alongside a primary one. */
+.secondary {
+  background: var(--color-white);
+  color: var(--color-zinc-700);
+  border: 1px solid var(--color-zinc-300);
+  padding: 0.5rem 1rem;
+
+  &:hover:not(:disabled) {
+    background: var(--color-zinc-50);
+  }
+}
+.secondary.sm {
+  padding: 0.375rem 0.75rem;
+}
+
+/* Plain-text actions with no visual weight of their own — Cancel, Edit
+   details, a toggle. */
+.ghost {
+  color: var(--color-zinc-600);
+
+  &:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+}
+
+/* Plain-text actions that read as a link — Save/Add-a-note, Restore. */
+.link {
+  color: var(--color-blue-600);
+
+  &:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+}
+
+/* Plain-text destructive actions — Delete, Remove. */
+.danger {
+  color: var(--color-red-600);
+
+  &:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+}

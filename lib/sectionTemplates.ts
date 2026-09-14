@@ -51,14 +51,14 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
     navGroupLabel: "Houses",
     fieldDefs: HOUSE_FIELD_DEFS,
     possible: {
-      slug: "possible-houses",
-      label: "Possible Houses",
+      slug: "options",
+      label: "House Options",
       addPlaceholder: "Paste an Airbnb, VRBO, or other listing URL...",
       emptyMessage: "No listings yet — paste a URL above.",
     },
     previous: {
-      slug: "previous-houses",
-      label: "Previous Houses",
+      slug: "previously-visited",
+      label: "Stayed Before",
       addPlaceholder: "Paste a link for a place you've stayed before...",
       emptyMessage: "No past stays yet — paste a link above.",
     },
@@ -68,14 +68,14 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
     navGroupLabel: "Food & Drink",
     fieldDefs: [],
     possible: {
-      slug: "possible-food-drink",
-      label: "Possible Food & Drink",
+      slug: "options",
+      label: "Food & Drink Options",
       addPlaceholder: "Paste a link for a bar or restaurant you want to try...",
       emptyMessage: "No spots yet — paste a link above.",
     },
     previous: {
-      slug: "previous-food-drink",
-      label: "Previous Food & Drink",
+      slug: "previously-visited",
+      label: "Past Food & Drink",
       addPlaceholder: "Paste a link for a bar or restaurant you've already been to...",
       emptyMessage: "No visited spots yet — paste a link above.",
     },
@@ -85,14 +85,14 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
     navGroupLabel: "Activities",
     fieldDefs: [],
     possible: {
-      slug: "possible-activities",
-      label: "Possible Activities",
+      slug: "options",
+      label: "Activity Options",
       addPlaceholder: "Paste a link for a hike, tour, or activity...",
       emptyMessage: "No activities yet — paste a link above.",
     },
     previous: {
-      slug: "previous-activities",
-      label: "Previous Activities",
+      slug: "previously-visited",
+      label: "Past Activities",
       addPlaceholder: "Paste a link for a hike, tour, or activity you've already done...",
       emptyMessage: "No previous activities yet — paste a link above.",
     },
@@ -113,5 +113,36 @@ const CLOSED_FIELD_DEF: TemplateFieldDef = {
 for (const template of SECTION_TEMPLATES) {
   if (template.key === "foodDrink" || template.key === "activities") {
     template.fieldDefs = [...template.fieldDefs, CLOSED_FIELD_DEF];
+  }
+}
+
+// Extra Food & Drink type tags, alongside whatever an admin already
+// added by hand via the Section Designer (e.g. Restaurant/Bar/Cafe) —
+// same generic boolean-field-as-filter/eyebrow mechanism as Closed
+// above, just specific to places that make their own alcohol.
+const FOOD_DRINK_TYPE_FIELD_DEFS: TemplateFieldDef[] = [
+  { key: "winery", label: "Winery", field_type: "boolean", show_on_overview: true },
+  { key: "distillery", label: "Distillery", field_type: "boolean", show_on_overview: true },
+  { key: "brewery", label: "Brewery", field_type: "boolean", show_on_overview: true },
+  { key: "market", label: "Market", field_type: "boolean", show_on_overview: true },
+];
+for (const template of SECTION_TEMPLATES) {
+  if (template.key === "foodDrink") {
+    template.fieldDefs = [...template.fieldDefs, ...FOOD_DRINK_TYPE_FIELD_DEFS];
+  }
+}
+
+// Same idea, for Activities' own type tags.
+const ACTIVITIES_TYPE_FIELD_DEFS: TemplateFieldDef[] = [
+  { key: "hike", label: "Hike", field_type: "boolean", show_on_overview: true },
+  { key: "kayak", label: "Kayak", field_type: "boolean", show_on_overview: true },
+  { key: "boatTour", label: "Boat Tour", field_type: "boolean", show_on_overview: true },
+  { key: "sightSeeing", label: "Sight Seeing", field_type: "boolean", show_on_overview: true },
+  { key: "beach", label: "Beach", field_type: "boolean", show_on_overview: true },
+  { key: "island", label: "Island", field_type: "boolean", show_on_overview: true },
+];
+for (const template of SECTION_TEMPLATES) {
+  if (template.key === "activities") {
+    template.fieldDefs = [...template.fieldDefs, ...ACTIVITIES_TYPE_FIELD_DEFS];
   }
 }

@@ -9,12 +9,12 @@ export const revalidate = 0;
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string }> }
+  { params }: { params: Promise<{ tripSlug: string; navGroupSlug: string; sectionSlug: string }> }
 ) {
-  const { tripSlug, sectionSlug } = await params;
+  const { tripSlug, navGroupSlug, sectionSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
-  const section = await getSectionBySlug(trip.id, sectionSlug);
+  const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) return NextResponse.json({ error: "Unknown section" }, { status: 404 });
 
   let body: Record<string, unknown>;

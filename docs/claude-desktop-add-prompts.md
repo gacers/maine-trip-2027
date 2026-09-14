@@ -52,14 +52,16 @@ Site base URL: `https://www.countrygothtravel.com`. Trip slug: `maine-2027`.
 
 | Trigger | Section | section slug |
 |---|---|---|
-| `Add Maine:` (no category) | Possible Houses | `houses` |
-| `Add Maine Stay:` | Previous Stays | `previous-stays` |
-| `Add Maine Food:` | Food & Drink | `food-drink` |
-| `Add Maine Visited:` | Previously Visited | `previously-visited` |
-| `Add Maine Activity:` | Activities | `activities` |
-| `Add Maine Previous Activity:` | Previous Activities | `previous-activities` |
+| `Add Maine:` (no category) | House Options | `houses/options` |
+| `Add Maine Stay:` | Stayed Before | `houses/previously-visited` |
+| `Add Maine Food:` | Food & Drink Options | `food-drink/options` |
+| `Add Maine Visited:` | Past Food & Drink | `food-drink/previously-visited` |
+| `Add Maine Activity:` | Activity Options | `activities/options` |
+| `Add Maine Previous Activity:` | Past Activities | `activities/previously-visited` |
 
-Every section's URL is `/api/trips/maine-2027/sections/<section-slug>/entries`
+Every section's URL is `/api/trips/maine-2027/sections/<nav-group-slug>/<section-slug>/entries`
+(a section's slug is only unique within its own nav group, e.g. `houses`,
+`food-drink`, `activities` — not trip-wide)
 (plus `/preview` for the scrape-assist endpoint, `/<id>` for a single entry).
 
 ## What Claude should actually do, per URL
@@ -78,7 +80,7 @@ either way, an empty/failed preview result says nothing about whether the
 listing itself still exists. Don't take it as a signal to give up — always
 fall back to reading the real page.
 
-1. `POST {site}/api/trips/maine-2027/sections/<slug>/preview` with body
+1. `POST {site}/api/trips/maine-2027/sections/<group-slug>/<slug>/preview` with body
    `{"url": "<url>"}` — no auth needed, this endpoint is read-only.
    - If the response is `{"duplicate": true, "existing": {...}}`, stop here
      — don't add it again, just tell the user it's already on the list
@@ -105,7 +107,7 @@ fall back to reading the real page.
      standout features — matching the style of existing entries on the site,
      not a copy-pasted paragraph. (Bedroom/bed/bathroom counts don't need to
      be typed separately — the site auto-extracts them from this text.)
-3. `POST {site}/api/trips/maine-2027/sections/<slug>/entries` **with
+3. `POST {site}/api/trips/maine-2027/sections/<group-slug>/<slug>/entries` **with
    `Authorization: Bearer <API_KEY>`** and a JSON body shaped like:
    ```json
    {
@@ -144,7 +146,7 @@ confirmed early check-in"), find the entry (GET the section's `/entries` and
 match by title), then:
 
 ```
-PATCH https://www.countrygothtravel.com/api/trips/maine-2027/sections/<slug>/entries/<id>
+PATCH https://www.countrygothtravel.com/api/trips/maine-2027/sections/<group-slug>/<slug>/entries/<id>
 Authorization: Bearer <API_KEY>
 {"appendNote": "Host confirmed early check-in is fine."}
 ```
@@ -176,17 +178,17 @@ trip slug "maine-2027". Writes need Authorization: Bearer <API_KEY> — replace
 When my message starts with "Add Maine" (optionally followed by a category
 word, then a colon), add the URL(s) that follow to the matching section:
 
-- "Add Maine:" (no category)      -> section slug "houses"               (Possible Houses)
-- "Add Maine Stay:"                -> section slug "previous-stays"       (Previous Stays)
-- "Add Maine Food:"                -> section slug "food-drink"           (Food & Drink)
-- "Add Maine Visited:"             -> section slug "previously-visited"   (Previously Visited)
-- "Add Maine Activity:"            -> section slug "activities"           (Activities)
-- "Add Maine Previous Activity:"   -> section slug "previous-activities"  (Previous Activities)
+- "Add Maine:" (no category)      -> houses/options               (House Options)
+- "Add Maine Stay:"                -> houses/previously-visited    (Stayed Before)
+- "Add Maine Food:"                -> food-drink/options            (Food & Drink Options)
+- "Add Maine Visited:"             -> food-drink/previously-visited (Past Food & Drink)
+- "Add Maine Activity:"            -> activities/options            (Activity Options)
+- "Add Maine Previous Activity:"   -> activities/previously-visited (Past Activities)
 
 For each URL given, in this order:
 
 1. POST {"url": "<url>"} to
-   https://www.countrygothtravel.com/api/trips/maine-2027/sections/<slug>/preview
+   https://www.countrygothtravel.com/api/trips/maine-2027/sections/<group-slug>/<slug>/preview
    (no auth needed). If it comes back duplicate: true, stop — don't re-add
    it, just tell me it's already on the list (name it). Otherwise, keep
    `posterImage`, `lat`, and `lng` from the response if present — but ignore
@@ -210,7 +212,7 @@ For each URL given, in this order:
      counts, location, standout features) — bedroom/bed/bathroom counts
      auto-fill from this text, don't send them separately.
 
-3. POST to https://www.countrygothtravel.com/api/trips/maine-2027/sections/<slug>/entries
+3. POST to https://www.countrygothtravel.com/api/trips/maine-2027/sections/<group-slug>/<slug>/entries
    with header "Authorization: Bearer <API_KEY>" and JSON body:
    {"url": "...", "title": "...", "posterImage": "...", "description": "...",
     "lat": ..., "lng": ..., "notes": "...", "groupLabel": "...",

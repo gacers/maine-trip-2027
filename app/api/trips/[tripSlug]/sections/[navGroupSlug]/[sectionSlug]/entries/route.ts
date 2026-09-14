@@ -15,21 +15,22 @@ export const revalidate = 0;
 
 async function resolveTripAndSection(
   tripSlug: string,
+  navGroupSlug: string,
   sectionSlug: string
 ): Promise<{ trip: Trip; section: Section; notFound?: undefined } | { notFound: NextResponse; trip?: undefined; section?: undefined }> {
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return { notFound: NextResponse.json({ error: "Unknown trip" }, { status: 404 }) };
-  const section = await getSectionBySlug(trip.id, sectionSlug);
+  const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) return { notFound: NextResponse.json({ error: "Unknown section" }, { status: 404 }) };
   return { trip, section };
 }
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string }> }
+  { params }: { params: Promise<{ tripSlug: string; navGroupSlug: string; sectionSlug: string }> }
 ) {
-  const { tripSlug, sectionSlug } = await params;
-  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
+  const { tripSlug, navGroupSlug, sectionSlug } = await params;
+  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, navGroupSlug, sectionSlug);
   if (notFound) return notFound;
 
   try {
@@ -60,10 +61,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string }> }
+  { params }: { params: Promise<{ tripSlug: string; navGroupSlug: string; sectionSlug: string }> }
 ) {
-  const { tripSlug, sectionSlug } = await params;
-  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
+  const { tripSlug, navGroupSlug, sectionSlug } = await params;
+  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, navGroupSlug, sectionSlug);
   if (notFound) return notFound;
 
   const { error: authError, supabase } = await requireWriteAccess(request, trip.id, {

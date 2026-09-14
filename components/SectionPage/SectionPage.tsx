@@ -1,13 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import AddEntryForm from "@/components/AddEntryForm";
-import RequestAccess from "@/components/RequestAccess";
 import EntryCard from "@/components/EntryCard";
+import EntryMedia from "@/components/EntryMedia";
 import ListingSection from "@/components/ListingSection";
+import { useNavSlot } from "@/components/TripNavHeader/NavSlot";
 import GroupMap from "@/components/GroupMap";
 import SimpleGroupMap from "@/components/SimpleGroupMap";
 import OverviewMap from "@/components/OverviewMap";
+import Button from "@/components/Button";
+import Spinner from "@/components/Spinner";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/DropdownMenu";
 import { groupUnits } from "@/lib/groupUnits";
 import { captureInviteToken, getOrCreateDeviceId } from "@/lib/inviteClient";
 import { buildAgentInstructions, downloadTextFile } from "@/lib/agentInstructions";
@@ -15,6 +30,22 @@ import type { PublicTrip, Section, ClientEntry, EntryUnit, OverviewPin } from "@
 import styles from "./SectionPage.module.css";
 
 type SortBy = "rank" | "myScore" | "averageScore";
+
+const SORT_BY_LABELS: Record<SortBy, string> = {
+  rank: "Rank",
+  myScore: "My Score",
+  averageScore: "Average Score",
+};
+
+// Admins just name the pair itself ("Gouldsboro") — this appends the
+// "- 2 House Option" suffix so it's never on them to type/remember it
+// consistently. Guards against double-appending for any group whose
+// stored label already has it from before this was automatic.
+const GROUP_SUFFIX = "2 House Option";
+function groupTitle(label: string | null | undefined): string {
+  const base = (label || "").trim();
+  return base.toLowerCase().endsWith(GROUP_SUFFIX.toLowerCase()) ? base : `${base} - ${GROUP_SUFFIX}`;
+}
 
 function pinFor(unit: EntryUnit): OverviewPin {
   const primary = unit.listings[0];
@@ -29,15 +60,21 @@ function pinFor(unit: EntryUnit): OverviewPin {
 export interface SectionPageProps {
   trip: PublicTrip;
   section: Section;
+  /** This section's own nav group slug — a section's slug is only
+   * unique within its group (see migration 0014), so the entries API
+   * path needs both: /api/trips/{tripSlug}/sections/{navGroupSlug}/
+   * {sectionSlug}/entries. */
+  navGroupSlug: string;
   isAdmin?: boolean;
-  contactEmail?: string | null;
 }
 
 // Replaces CollectionPage.jsx — same fetch/patch/delete/add logic and
-// grouping, now against /api/trips/[tripSlug]/sections/[sectionSlug]/
-// entries instead of /api/[collection], and rendering whichever fields
-// `section.field_defs` defines instead of a hardcoded showBedBath flag.
-export default function SectionPage({ trip, section, isAdmin = false, contactEmail = null }: SectionPageProps) {
+// grouping, now against /api/trips/[tripSlug]/sections/[navGroupSlug]/
+// [sectionSlug]/entries instead of /api/[collection], and rendering
+// whichever fields `section.field_defs` defines instead of a
+// hardcoded showBedBath flag.
+export default function SectionPage({ trip, section, navGroupSlug, isAdmin = false }: SectionPageProps) {
+  const navSlot = useNavSlot();
   const [entries, setEntries] = useState<ClientEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,20 +85,12 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // supports_ranking is on.
   const [sortBy, setSortBy] = useState<SortBy>(section.supports_ranking ? "rank" : "averageScore");
   const [contributorToken, setContributorToken] = useState<string | null>(null);
-  // Whether the localStorage/invite-param check below has actually run
-  // yet. An admin's access is already known synchronously from the
-  // server (the isAdmin prop), so there's nothing to wait for; everyone
-  // else's real status depends on reading localStorage client-side,
-  // which can't happen before mount. Gating "Request access" on this
-  // (rather than just `!canContribute`) stops it from flashing on for a
-  // returning contributor whose token just hasn't been read back yet.
-  const [accessChecked, setAccessChecked] = useState(isAdmin);
   // Fetched separately (not handed down in trip's own props) once access
   // is confirmed — see /api/trips/[tripSlug]/sheet-url and
   // sanitizeTripForClient for why this can't just be trip.google_sheet_url.
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
 
-  const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
+  const apiBase = `/api/trips/${trip.slug}/sections/${navGroupSlug}/${section.slug}/entries`;
   const fieldDefs = section.field_defs || [];
   const mapConfig = trip.map_config;
   // `has_map` doubles as "this is a still-deciding-among-options list" —
@@ -86,7 +115,14 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // drink, activities) read better two to a row — a plain per-section
   // layout toggle, unrelated to comparisonMode.
   const compactCards = !!section.compact_cards;
-  const listClassName = compactCards ? styles.entryGrid : styles.entryList;
+  // Houses specifically (identified by nav group, not compactCards —
+  // Houses always uses the single-column .entryList) get a larger
+  // photo, more breathing room between cards, and a narrower page
+  // overall than the wide 3-across grid other sections use.
+  const isHouses = navGroupSlug === "houses";
+  const listClassName = [compactCards ? styles.entryGrid : styles.entryList, isHouses && styles.entryListHouses]
+    .filter(Boolean)
+    .join(" ");
 
   // An admin's own session cookie already carries full access — an
   // invite link only matters for everyone else, so it's ignored here if
@@ -100,12 +136,21 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   const canManage = isAdmin;
   const canContribute = isAdmin || !!contributorToken;
   const authToken = isAdmin ? null : contributorToken;
-  const showRequestAccess = accessChecked && !canContribute;
 
   useEffect(() => {
     setContributorToken(captureInviteToken(trip.slug));
-    setAccessChecked(true);
   }, [trip.slug]);
+
+  // Houses pages get a slightly darker page background behind the
+  // cards (see globals.css's body.houses-page) — toggled on <body>
+  // directly since the root layout that actually renders it has no way
+  // to know which nested route is active.
+  useEffect(() => {
+    document.body.classList.toggle("houses-page", isHouses);
+    return () => {
+      document.body.classList.remove("houses-page");
+    };
+  }, [isHouses]);
 
   useEffect(() => {
     if (!canContribute) {
@@ -249,6 +294,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       const text = buildAgentInstructions({
         trip,
         section,
+        navGroupSlug,
         siteUrl: window.location.origin,
         token: contributorToken,
         role: "contributor",
@@ -268,6 +314,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       const text = buildAgentInstructions({
         trip,
         section,
+        navGroupSlug,
         siteUrl: window.location.origin,
         token: data.token,
         role: "owner",
@@ -315,7 +362,16 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
         <ListingSection
           key={unit.listings.map((e) => e.id).join("-")}
           id={`group-${unit.listings[0].id}`}
-          title={unit.listings[0].groupLabel}
+          title={groupTitle(unit.listings[0].groupLabel)}
+          media={
+            <div className={styles.groupMediaRow}>
+              {unit.listings.map((entry) => (
+                <div key={entry.id} className={styles.groupMediaHalf}>
+                  <EntryMedia entry={entry} compact={compactCards} large={isHouses} showRatings={showRatings} />
+                </div>
+              ))}
+            </div>
+          }
           rank={canManage && showRanking ? unit.listings[0].rank ?? undefined : undefined}
           onRankChange={(newRank) => unit.listings.forEach((e) => handlePatch(e.id, { rank: newRank }))}
           canManage={canManage}
@@ -338,6 +394,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
                   canManage={canManage}
                   canContribute={canContribute}
                   bare
+                  hideMedia
                   showRank={false}
                   showRatings={showRatings}
                   showMap={false}
@@ -349,7 +406,9 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           {comparisonMode ? (
             <GroupMap listings={unit.listings} mapConfig={mapConfig} />
           ) : (
-            <SimpleGroupMap listings={unit.listings} />
+            <div className={styles.groupMapSection}>
+              <SimpleGroupMap listings={unit.listings} />
+            </div>
           )}
         </ListingSection>
       );
@@ -374,73 +433,95 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
         showRatings={showRatings}
         comparisonMode={comparisonMode}
         compact={compactCards}
+        largeMedia={isHouses}
       />
     );
   }
 
-  return (
-    <main className={styles.main}>
-      <div className={styles.sheetRow}>
-        {canContribute ? (
-          sheetUrl && (
-            <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={styles.sheetLink}>
-              Google Sheet
-            </a>
-          )
-        ) : (
-          // No hint that a Sheet even exists for a non-contributor — same
-          // "ask the owner" flow as the Add form below uses, not a
-          // disabled placeholder for something they can't get to anyway.
-          showRequestAccess && <RequestAccess trip={trip} section={section} contactEmail={contactEmail} />
-        )}
-      </div>
-
-      {canContribute && (
-        <div className={styles.addSection}>
-          <AddEntryForm trip={trip} section={section} onAdded={handleAdded} authToken={authToken} />
-          <button onClick={handleDownloadInstructions} className={styles.downloadInstructionsButton}>
-            Download agent instructions (add via your own AI agent instead)
-          </button>
-        </div>
-      )}
-
+  // Portaled into TripNavHeader's sub-nav row (see NavSlot) so it reads
+  // as part of that sticky bar instead of its own separate row further
+  // down the page — falls back to rendering right here (still sticky,
+  // still right-aligned) if that slot isn't available for some reason.
+  const utilityControls = (filterFieldDefs.length > 0 || showRatings) && (
+    <>
       {filterFieldDefs.length > 0 && (
-        <div className={styles.filterRow}>
-          <span className={styles.filterCaption}>Filter</span>
-          {filterFieldDefs.map((f) => (
-            <label key={f.key} className={styles.filterCheckboxLabel}>
-              <input
-                type="checkbox"
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm">
+              Filter{activeFilters.size > 0 ? ` (${activeFilters.size})` : ""}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>Filter</DropdownMenuLabel>
+            {filterFieldDefs.map((f) => (
+              <DropdownMenuCheckboxItem
+                key={f.key}
                 checked={activeFilters.has(f.key)}
-                onChange={() => toggleFilter(f.key)}
-                className={styles.filterCheckbox}
-              />
-              {f.label}
-            </label>
-          ))}
-          {activeFilters.size > 0 && (
-            <button onClick={() => setActiveFilters(new Set())} className={styles.filterClearButton}>
-              Clear
-            </button>
-          )}
-        </div>
+                onCheckedChange={() => toggleFilter(f.key)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {f.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+            {activeFilters.size > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setActiveFilters(new Set())}>Clear all</DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
 
       {showRatings && (
-        <label className={styles.sortByLabel}>
-          <span className={styles.sortByCaption}>Sort by</span>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className={styles.sortBySelect}>
-            {showRanking && <option value="rank">Rank</option>}
-            <option value="myScore">My Score</option>
-            <option value="averageScore">Average Score</option>
-          </select>
-        </label>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm">
+              Sort: {SORT_BY_LABELS[sortBy]}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
+              {showRanking && <DropdownMenuRadioItem value="rank">Rank</DropdownMenuRadioItem>}
+              <DropdownMenuRadioItem value="myScore">My Score</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="averageScore">Average Score</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
+    </>
+  );
+
+  return (
+    <main className={[styles.main, isHouses && styles.mainHouses].filter(Boolean).join(" ")}>
+      {/* No hint that a Sheet even exists for a non-contributor — Request
+          Access itself now lives once, globally, in TripNavHeader. */}
+      {canContribute && sheetUrl && (
+        <div className={styles.sheetRow}>
+          <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={styles.sheetLink}>
+            Google Sheet
+          </a>
+        </div>
+      )}
+
+      {canContribute && (
+        <div className={styles.addSection}>
+          <AddEntryForm trip={trip} section={section} navGroupSlug={navGroupSlug} onAdded={handleAdded} authToken={authToken} />
+          <Button variant="ghost" size="sm" className={styles.downloadInstructionsButton} onClick={handleDownloadInstructions}>
+            Download agent instructions (add via your own AI agent instead)
+          </Button>
+        </div>
+      )}
+
+      {utilityControls && (navSlot?.slot ? createPortal(utilityControls, navSlot.slot) : <div className={styles.utilityRow}>{utilityControls}</div>)}
 
       {error && <p className={styles.errorBanner}>{error}</p>}
 
       {loading ? (
-        <p className={styles.loadingText}>Loading...</p>
+        <div className={styles.loadingWrap}>
+          <Spinner size={48} />
+        </div>
       ) : (
         <>
           {/* Independent of comparisonMode on purpose — OverviewMap is a
@@ -457,9 +538,9 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
 
           {archived.length > 0 && (
             <div className={styles.archivedSection}>
-              <button onClick={() => setShowArchived((v) => !v)} className={styles.archivedToggle}>
+              <Button variant="ghost" size="sm" onClick={() => setShowArchived((v) => !v)}>
                 {showArchived ? "Hide" : "Show"} archived ({archived.length})
-              </button>
+              </Button>
               {showArchived && (
                 <div className={`${listClassName} ${styles.archivedList}`}>
                   {groupUnits(archived).filter(unitMatchesFilters).map(renderUnit)}

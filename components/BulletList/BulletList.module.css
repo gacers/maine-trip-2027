@@ -1,0 +1,18 @@
+.bulletList {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  font-size: var(--text-sm);
+  color: var(--color-zinc-700);
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  /* Description/Notes/Concerns text shouldn't stretch edge-to-edge on a
+     wide card (Houses' single-column cards especially) — long lines get
+     hard to track back to their start past a certain width. */
+  max-width: 800px;
+}
+
+.plain {
+  list-style: none;
+  padding-left: 0;
+}

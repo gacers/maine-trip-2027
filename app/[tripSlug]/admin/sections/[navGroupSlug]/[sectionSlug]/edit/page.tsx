@@ -8,12 +8,12 @@ export const dynamic = "force-dynamic";
 export default async function EditSectionPage({
   params,
 }: {
-  params: Promise<{ tripSlug: string; sectionSlug: string }>;
+  params: Promise<{ tripSlug: string; navGroupSlug: string; sectionSlug: string }>;
 }) {
-  const { tripSlug, sectionSlug } = await params;
+  const { tripSlug, navGroupSlug, sectionSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) notFound();
-  const section = await getSectionBySlug(trip.id, sectionSlug);
+  const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) notFound();
   const nav = await getTripNav(trip.id);
   const navGroups = nav.map(({ sections, ...g }) => g);

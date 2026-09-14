@@ -160,7 +160,13 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
     }
 
     try {
-      const url = isEdit ? `/api/trips/${trip.slug}/sections/${section!.slug}` : `/api/trips/${trip.slug}/sections`;
+      // The section's *current* nav group slug (not whatever the picker
+      // above might be pending-moving it to) — that's what identifies
+      // where the record already lives for the PATCH's own URL.
+      const currentNavGroupSlug = navGroups.find((g) => g.id === section?.nav_group_id)?.slug;
+      const url = isEdit
+        ? `/api/trips/${trip.slug}/sections/${currentNavGroupSlug}/${section!.slug}`
+        : `/api/trips/${trip.slug}/sections`;
       const res = await fetch(url, {
         method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },

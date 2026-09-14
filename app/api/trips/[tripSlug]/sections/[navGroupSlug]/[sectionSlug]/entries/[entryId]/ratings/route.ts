@@ -10,11 +10,12 @@ export const revalidate = 0;
 
 async function resolveTripAndSection(
   tripSlug: string,
+  navGroupSlug: string,
   sectionSlug: string
 ): Promise<{ trip: Trip; section: Section; notFound?: undefined } | { notFound: NextResponse; trip?: undefined; section?: undefined }> {
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return { notFound: NextResponse.json({ error: "Unknown trip" }, { status: 404 }) };
-  const section = await getSectionBySlug(trip.id, sectionSlug);
+  const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) return { notFound: NextResponse.json({ error: "Unknown section" }, { status: 404 }) };
   return { trip, section };
 }
@@ -29,10 +30,10 @@ async function resolveTripAndSection(
 // bearer-token path.
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string; entryId: string }> }
+  { params }: { params: Promise<{ tripSlug: string; navGroupSlug: string; sectionSlug: string; entryId: string }> }
 ) {
-  const { tripSlug, sectionSlug, entryId } = await params;
-  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
+  const { tripSlug, navGroupSlug, sectionSlug, entryId } = await params;
+  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, navGroupSlug, sectionSlug);
   if (notFound) return notFound;
   if (!section.supports_ratings) {
     return NextResponse.json({ error: "Ratings aren't enabled for this section" }, { status: 400 });
@@ -79,10 +80,10 @@ export async function PUT(
 // leaves everyone else's ratings and the average untouched.
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string; entryId: string }> }
+  { params }: { params: Promise<{ tripSlug: string; navGroupSlug: string; sectionSlug: string; entryId: string }> }
 ) {
-  const { tripSlug, sectionSlug, entryId } = await params;
-  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
+  const { tripSlug, navGroupSlug, sectionSlug, entryId } = await params;
+  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, navGroupSlug, sectionSlug);
   if (notFound) return notFound;
   if (!section.supports_ratings) {
     return NextResponse.json({ error: "Ratings aren't enabled for this section" }, { status: 400 });

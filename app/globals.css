@@ -4,9 +4,70 @@
   box-sizing: border-box;
 }
 
+/* Every layout in this app spaces things with flex/grid `gap`, not
+   margin — but headings/paragraphs/lists all carry their own default
+   UA margin, which stacks on TOP of a parent's `gap` (gap doesn't
+   collapse into margin) rather than being replaced by it. Left alone,
+   that shows up as inconsistent, larger-than-intended space wherever
+   one of these sits next to a sibling in a gapped container. Zeroed
+   here, once, so `gap` is the only thing controlling spacing anywhere. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+ul,
+ol,
+figure,
+blockquote {
+  margin: 0;
+}
+
 body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+/* Houses pages only — toggled via plain DOM classList from SectionPage
+   (same cross-component-styling mechanism as .pin-jump-highlight
+   below), since the root layout that actually renders <body> has no
+   way to know which nested route is active. Qualified as body.houses-
+   page (element + class) so it reliably beats app/layout.module.css's
+   own .body class (a single class alone) regardless of which
+   stylesheet happens to load first. */
+body.houses-page {
+  background: var(--color-zinc-200);
+}
+
+/* Applied for a few seconds (via plain DOM classList, not a CSS Module
+   — this targets whatever element a map pin's anchor id happens to be
+   on, in a totally different component than the map itself, e.g.
+   OverviewMap) after jumping to a card from a map pin, so it's obvious
+   which one you actually landed on. A gentle light-blue wash over the
+   card's own background (rather than a box-shadow ring alone), plus a
+   slight pulsating drop-shadow around the card at the same time — works
+   whether the card's actual background is white (a framed solo card)
+   or transparent (a bare split-card half), fading back to nothing
+   between pulses. Four 1.2s pulses, then the element settles back to
+   normal — the class is removed by the same timeout that's already
+   waiting for the pulses to finish, so nothing lingers even if the
+   animation's own fill got interrupted. */
+@keyframes pin-jump-pulse {
+  0%,
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgb(37 99 235 / 0);
+  }
+  50% {
+    background-color: rgb(37 99 235 / 0.12);
+    box-shadow: 0 0 16px 2px rgb(37 99 235 / 0.25);
+  }
+}
+
+.pin-jump-highlight {
+  animation: pin-jump-pulse 1.2s ease-in-out 4;
 }
