@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useGoogleMaps } from "@/lib/useGoogleMaps";
-import { reverseGeocodeTown } from "@/lib/loadGoogleMaps";
+import { useGoogleMaps, type GoogleMapsApi } from "@/lib/useGoogleMaps";
+import { reverseGeocodeTown, type TownResult } from "@/lib/loadGoogleMaps";
+import type { LatLngLabel, MapReferencePoint, MapConfig } from "@/lib/types";
+import styles from "./ListingMap.module.css";
 
 const DEFAULT_TOWN_COLOR = "#1976D2";
 const DEFAULT_HOUSE_COLOR = "#CC0000";
 
-function starIcon(google, color) {
+function starIcon(google: GoogleMapsApi, color: string) {
   const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24">' +
     '<path d="M12 2l2.9 6.26L21.5 9.27l-4.75 4.63L17.9 21 12 17.77 6.1 21l1.15-7.1L2.5 9.27l6.6-1.01z" ' +
@@ -23,9 +25,9 @@ function starIcon(google, color) {
 // just picking the nearest option out of a trip's mapConfig.closestOf
 // list; the Directions API still computes the real driving time/distance
 // shown to the user.
-function distance(a, b) {
+function distance(a: LatLngLabel, b: LatLngLabel): number {
   const R = 3958.8;
-  const toRad = (d) => (d * Math.PI) / 180;
+  const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);
   const dLng = toRad(b.lng - a.lng);
   const lat1 = toRad(a.lat);
@@ -34,7 +36,7 @@ function distance(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-function closestOf(house, options) {
+function closestOf(house: LatLngLabel, options: MapReferencePoint[]): MapReferencePoint | null {
   if (!options || options.length === 0) return null;
   return options.reduce((best, opt) => (distance(house, opt) < distance(house, best) ? opt : best));
 }
@@ -59,16 +61,29 @@ function closestOf(house, options) {
 // (e.g. Stonington's ferry to Isle Au Haut also runs a puffin tour — it
 // should always show a pin, but only claim "& puffin tour" in its label
 // when it's genuinely the closest one, via its own `closestLabel`).
-function computeClosestOfWinner(house, config) {
+function computeClosestOfWinner(house: LatLngLabel, config: MapConfig): MapReferencePoint | null {
   const candidates = [...(config.closestOf || []), ...(config.alwaysShown || []).filter((p) => p.joinClosestOf)];
   return closestOf(house, candidates);
 }
-export default function ListingMap({ houses, extraMarkers, mapConfig }) {
-  const mapDivRef = useRef(null);
+
+interface RouteInfo {
+  text: string;
+  url: string;
+  color?: string;
+}
+
+export interface ListingMapProps {
+  houses: LatLngLabel[];
+  extraMarkers?: MapReferencePoint[];
+  mapConfig?: MapConfig;
+}
+
+export default function ListingMap({ houses, extraMarkers, mapConfig }: ListingMapProps) {
+  const mapDivRef = useRef<HTMLDivElement>(null);
   const { google, status, errorMsg } = useGoogleMaps();
-  const [routeInfo, setRouteInfo] = useState({}); // label -> { text, url }
-  const [originInfo, setOriginInfo] = useState(null);
-  const [closestTown, setClosestTown] = useState(null); // { name, searchQuery, lat, lng }
+  const [routeInfo, setRouteInfo] = useState<Record<string, RouteInfo>>({});
+  const [originInfo, setOriginInfo] = useState<RouteInfo | null>(null);
+  const [closestTown, setClosestTown] = useState<TownResult | null>(null);
 
   const config = mapConfig || {};
   const houseColor = config.houseColor || DEFAULT_HOUSE_COLOR;
@@ -85,11 +100,13 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }) {
   // Only add a separate closestOf pin when the winner isn't already one of
   // the alwaysShown points above (which is already on the map either way).
   const closestOfPin = closestOfWinner && !closestOfWinner.joinClosestOf ? closestOfWinner : null;
-  const destinations = [
+  const destinations: MapReferencePoint[] = [
     ...alwaysShownResolved,
     ...(closestOfPin ? [closestOfPin] : []),
     ...(extraMarkers || []),
-    ...(closestTown ? [{ lat: closestTown.lat, lng: closestTown.lng, label: closestTown.name, color: townColor }] : []),
+    ...(closestTown
+      ? [{ lat: closestTown.lat, lng: closestTown.lng, label: closestTown.name, color: townColor }]
+      : []),
   ];
   const housesKey = houses.map((h) => `${h.lat},${h.lng}`).join("|");
 
@@ -136,7 +153,7 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }) {
     });
 
     const directionsService = new google.maps.DirectionsService();
-    const newRouteInfo = {};
+    const newRouteInfo: Record<string, RouteInfo> = {};
 
     destinations.forEach((dest, i) => {
       new google.maps.Marker({
@@ -163,7 +180,10 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }) {
           destination: { lat: dest.lat, lng: dest.lng },
           travelMode: google.maps.TravelMode.DRIVING,
         },
-        (result, routeStatus) => {
+        (
+          result: { routes: { legs: { duration: { text: string }; distance: { text: string } }[] }[] },
+          routeStatus: string
+        ) => {
           if (cancelled) return;
           if (routeStatus === "OK") {
             const leg = result.routes[0].legs[0];
@@ -198,21 +218,24 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }) {
           destination: referenceHouse,
           travelMode: google.maps.TravelMode.DRIVING,
         },
-        (result, routeStatus) => {
+        (
+          result: { routes: { legs: { duration: { text: string }; distance: { text: string } }[] }[] },
+          routeStatus: string
+        ) => {
           if (cancelled) return;
           if (routeStatus === "OK") {
             const leg = result.routes[0].legs[0];
             setOriginInfo({
               text: `${leg.duration.text} (${leg.distance.text})`,
               url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-                config.originLabel
+                config.originLabel!
               )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
             });
           } else {
             setOriginInfo({
               text: "Couldn't get directions",
               url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-                config.originLabel
+                config.originLabel!
               )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
             });
           }
@@ -227,42 +250,34 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }) {
   }, [google, housesKey, closestTown]);
 
   const liveMapUrl =
-    "https://www.google.com/maps/dir/" +
-    [...houses, ...destinations].map((p) => `${p.lat},${p.lng}`).join("/");
+    "https://www.google.com/maps/dir/" + [...houses, ...destinations].map((p) => `${p.lat},${p.lng}`).join("/");
 
   return (
-    <div className="flex flex-col gap-2">
-      <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium">
-        <a href={liveMapUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+    <div className={styles.wrapper}>
+      <h3 className={styles.heading}>
+        <a href={liveMapUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
           Map
         </a>
       </h3>
 
       {status === "error" ? (
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-          Couldn&apos;t load the map ({errorMsg}). Check that
-          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set.
+        <p className={styles.errorBox}>
+          Couldn&apos;t load the map ({errorMsg}). Check that NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set.
         </p>
       ) : (
-        <div ref={mapDivRef} className="w-full h-64 sm:h-72 rounded-lg bg-zinc-100" />
+        <div ref={mapDivRef} className={styles.mapCanvas} />
       )}
 
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+      <ul className={styles.legend}>
         {houses.map((h) => (
-          <li key={h.label} className="flex items-center gap-1.5">
-            <span
-              className="inline-block w-3 h-3 rounded-full shrink-0"
-              style={{ background: houseColor }}
-            />
+          <li key={h.label} className={styles.legendItem}>
+            <span className={styles.legendDot} style={{ background: houseColor }} />
             {h.label}
           </li>
         ))}
         {destinations.map((dest) => (
-          <li key={dest.label} className="flex items-center gap-1.5">
-            <span
-              className="inline-block w-3 h-3 rounded-full shrink-0"
-              style={{ background: dest.color }}
-            />
+          <li key={dest.label} className={styles.legendItem}>
+            <span className={styles.legendDot} style={{ background: dest.color }} />
             {dest.label}
           </li>
         ))}
@@ -270,14 +285,12 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }) {
 
       {closestTown && (
         <div>
-          <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium mt-2 mb-1">
-            Closest Town
-          </h3>
+          <h3 className={styles.headingSpaced}>Closest Town</h3>
           <a
             href={`https://www.google.com/search?q=${encodeURIComponent(closestTown.searchQuery)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-blue-600 hover:underline"
+            className={styles.link}
           >
             {closestTown.name}
           </a>
@@ -285,13 +298,11 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }) {
       )}
 
       <div>
-        <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium mt-2 mb-1">
-          Driving Times
-        </h3>
-        <ul className="text-sm flex flex-col gap-1">
+        <h3 className={styles.headingSpaced}>Driving Times</h3>
+        <ul className={styles.drivingTimesList}>
           {originInfo && (
             <li>
-              <a href={originInfo.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href={originInfo.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
                 {config.originLabel} &rarr; house: {originInfo.text}
               </a>
             </li>
@@ -301,11 +312,11 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }) {
             return (
               <li key={dest.label}>
                 {info ? (
-                  <a href={info.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                  <a href={info.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
                     House &rarr; {dest.label}: {info.text}
                   </a>
                 ) : (
-                  <span className="text-zinc-400">House &rarr; {dest.label}: loading...</span>
+                  <span className={styles.loadingRow}>House &rarr; {dest.label}: loading...</span>
                 )}
               </li>
             );

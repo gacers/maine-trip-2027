@@ -64,6 +64,15 @@ export interface LatLngLabel {
   label: string;
 }
 
+// One render unit's pin for OverviewMap — a paired 2-item group
+// collapses to a single pin (see SectionPage's pinFor).
+export interface OverviewPin {
+  anchor: string;
+  label: string | null | undefined;
+  lat: number | null;
+  lng: number | null;
+}
+
 export interface MapReferencePoint {
   lat: number;
   lng: number;
