@@ -38,16 +38,8 @@
 
 .downloadInstructionsButton {
   align-self: flex-start;
-  font-size: var(--text-sm);
-  color: var(--color-zinc-500);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
+  text-align: left;
+  white-space: normal;
 }
 
 .filterRow {
@@ -56,40 +48,6 @@
   align-items: center;
   column-gap: 1rem;
   row-gap: 0.5rem;
-}
-
-.filterCaption {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-zinc-500);
-  font-weight: var(--font-weight-medium);
-}
-
-.filterCheckboxLabel {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: var(--text-sm);
-  color: var(--color-zinc-700);
-}
-
-.filterCheckbox {
-  height: 1rem;
-  width: 1rem;
-}
-
-.filterClearButton {
-  font-size: var(--text-xs);
-  color: var(--color-zinc-500);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 .sortByLabel {
@@ -102,7 +60,11 @@
 }
 
 .sortByCaption {
-  composes: filterCaption;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-zinc-500);
+  font-weight: var(--font-weight-medium);
 }
 
 .sortBySelect {
@@ -149,20 +111,6 @@
 
 .archivedSection {
   margin-top: 1rem;
-}
-
-.archivedToggle {
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-zinc-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 .archivedList {

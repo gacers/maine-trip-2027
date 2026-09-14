@@ -5,6 +5,7 @@ import ListingMap from "@/components/ListingMap";
 import SimplePlaceMap from "@/components/SimplePlaceMap";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import StarRating from "@/components/StarRating";
+import Button from "@/components/Button";
 import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
@@ -135,9 +136,9 @@ function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }: Edi
               <span>
                 <Linkified text={item} />
               </span>
-              <button type="button" onClick={() => onRemove(i)} className={styles.removeNoteButton}>
+              <Button variant="ghost" size="sm" onClick={() => onRemove(i)} className={styles.removeNoteButton}>
                 Remove
-              </button>
+              </Button>
             </span>
           ) : (
             <Linkified text={item} />
@@ -154,24 +155,24 @@ function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }: Edi
               placeholder={placeholder}
               className={styles.addNoteInput}
             />
-            <button type="submit" className={styles.addNoteSubmit}>
+            <Button type="submit" variant="link" size="sm">
               Add
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setAdding(false);
                 setDraft("");
               }}
-              className={styles.addNoteCancel}
             >
               Cancel
-            </button>
+            </Button>
           </form>
         ) : (
-          <button type="button" onClick={() => setAdding(true)} className={styles.addNoteTrigger}>
+          <Button variant="link" size="sm" className={styles.addNoteTrigger} onClick={() => setAdding(true)}>
             + {addLabel}
-          </button>
+          </Button>
         ))}
     </div>
   );
@@ -481,9 +482,9 @@ export default function EntryCard({
               <span className={styles.ratingCaption}>Your score</span>
               <StarRating value={entry.myScore ?? 0} size={18} onChange={(v) => onRate(entry.id, v)} />
               {entry.myScore != null && (
-                <button type="button" onClick={() => onRate(entry.id, null)} className={styles.clearScoreButton}>
+                <Button variant="ghost" size="sm" onClick={() => onRate(entry.id, null)} className={styles.clearScoreButton}>
                   Clear
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -581,9 +582,9 @@ export default function EntryCard({
                     placeholder="e.g. 45 Ocean Ave, Jonesport, ME"
                     className={styles.geocodeInput}
                   />
-                  <button type="button" onClick={handleFindCoords} disabled={geocoding || !address.trim()} className={styles.findButton}>
+                  <Button variant="secondary" size="sm" onClick={handleFindCoords} disabled={geocoding || !address.trim()}>
                     {geocoding ? "Finding..." : "Find"}
-                  </button>
+                  </Button>
                 </div>
                 {geocodeMsg && <p className={styles.geocodeMsg}>{geocodeMsg}</p>}
               </div>
@@ -601,9 +602,9 @@ export default function EntryCard({
             <div>
               <div className={styles.markersHeader}>
                 <h4 className={styles.markersTitle}>Extra map points (restaurants, hikes, puffin tour, nearest town, etc.)</h4>
-                <button type="button" onClick={addDraftMarker} className={styles.addPointButton}>
+                <Button variant="link" size="sm" onClick={addDraftMarker}>
                   + Add point
-                </button>
+                </Button>
               </div>
               <div className={styles.markerRowList}>
                 {draft.extraMarkers.map((m, i) => (
@@ -632,27 +633,28 @@ export default function EntryCard({
                       onChange={(e) => updateDraftMarker(i, "color", e.target.value)}
                       className={styles.markerColorInput}
                     />
-                    <button type="button" onClick={() => removeDraftMarker(i)} className={styles.markerRemoveButton}>
+                    <Button variant="danger" size="sm" onClick={() => removeDraftMarker(i)}>
                       Remove
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className={styles.editActions}>
-              <button onClick={saveEdit} className={styles.saveButton}>
+              <Button variant="primary" size="sm" onClick={saveEdit}>
                 Save
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   setIsEditing(false);
                   setDraft(null);
                 }}
-                className={styles.cancelButton}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -683,39 +685,39 @@ export default function EntryCard({
             <div className={styles.footer}>
               {!isArchived && (
                 <div className={styles.deleteWrapper}>
-                  <button onClick={() => setShowArchiveDialog((v) => !v)} className={styles.deleteButton}>
+                  <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog((v) => !v)}>
                     Delete
-                  </button>
+                  </Button>
                   {showArchiveDialog && <ArchiveDialog onConfirm={archive} onCancel={() => setShowArchiveDialog(false)} />}
                 </div>
               )}
 
               {!isEditing && (
-                <button onClick={startEdit} className={styles.editDetailsButton}>
+                <Button variant="ghost" size="sm" onClick={startEdit}>
                   Edit details
-                </button>
+                </Button>
               )}
 
               {isArchived && (
                 <div className={styles.archivedActions}>
                   {entry.archiveReason && <span className={styles.archiveReason}>{entry.archiveReason}</span>}
-                  <button onClick={restore} className={styles.restoreButton}>
+                  <Button variant="link" size="sm" onClick={restore}>
                     Restore
-                  </button>
+                  </Button>
                   {confirmingDelete ? (
                     <span className={styles.confirmDeleteRow}>
                       Delete for good?
-                      <button onClick={() => onDelete(entry.id)} className={styles.confirmYes}>
+                      <Button variant="danger" size="sm" onClick={() => onDelete(entry.id)}>
                         Yes
-                      </button>
-                      <button onClick={() => setConfirmingDelete(false)} className={styles.confirmNo}>
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(false)}>
                         No
-                      </button>
+                      </Button>
                     </span>
                   ) : (
-                    <button onClick={() => setConfirmingDelete(true)} className={styles.deleteButton}>
+                    <Button variant="danger" size="sm" onClick={() => setConfirmingDelete(true)}>
                       Delete
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}

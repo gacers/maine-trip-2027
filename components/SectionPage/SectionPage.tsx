@@ -8,6 +8,16 @@ import ListingSection from "@/components/ListingSection";
 import GroupMap from "@/components/GroupMap";
 import SimpleGroupMap from "@/components/SimpleGroupMap";
 import OverviewMap from "@/components/OverviewMap";
+import Button from "@/components/Button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/DropdownMenu";
 import { groupUnits } from "@/lib/groupUnits";
 import { captureInviteToken, getOrCreateDeviceId } from "@/lib/inviteClient";
 import { buildAgentInstructions, downloadTextFile } from "@/lib/agentInstructions";
@@ -400,31 +410,40 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
       {canContribute && (
         <div className={styles.addSection}>
           <AddEntryForm trip={trip} section={section} onAdded={handleAdded} authToken={authToken} />
-          <button onClick={handleDownloadInstructions} className={styles.downloadInstructionsButton}>
+          <Button variant="ghost" size="sm" className={styles.downloadInstructionsButton} onClick={handleDownloadInstructions}>
             Download agent instructions (add via your own AI agent instead)
-          </button>
+          </Button>
         </div>
       )}
 
       {filterFieldDefs.length > 0 && (
         <div className={styles.filterRow}>
-          <span className={styles.filterCaption}>Filter</span>
-          {filterFieldDefs.map((f) => (
-            <label key={f.key} className={styles.filterCheckboxLabel}>
-              <input
-                type="checkbox"
-                checked={activeFilters.has(f.key)}
-                onChange={() => toggleFilter(f.key)}
-                className={styles.filterCheckbox}
-              />
-              {f.label}
-            </label>
-          ))}
-          {activeFilters.size > 0 && (
-            <button onClick={() => setActiveFilters(new Set())} className={styles.filterClearButton}>
-              Clear
-            </button>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="sm">
+                Filter{activeFilters.size > 0 ? ` (${activeFilters.size})` : ""}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Filter</DropdownMenuLabel>
+              {filterFieldDefs.map((f) => (
+                <DropdownMenuCheckboxItem
+                  key={f.key}
+                  checked={activeFilters.has(f.key)}
+                  onCheckedChange={() => toggleFilter(f.key)}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {f.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+              {activeFilters.size > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setActiveFilters(new Set())}>Clear all</DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
 
@@ -459,9 +478,9 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
 
           {archived.length > 0 && (
             <div className={styles.archivedSection}>
-              <button onClick={() => setShowArchived((v) => !v)} className={styles.archivedToggle}>
+              <Button variant="ghost" size="sm" onClick={() => setShowArchived((v) => !v)}>
                 {showArchived ? "Hide" : "Show"} archived ({archived.length})
-              </button>
+              </Button>
               {showArchived && (
                 <div className={`${listClassName} ${styles.archivedList}`}>
                   {groupUnits(archived).filter(unitMatchesFilters).map(renderUnit)}

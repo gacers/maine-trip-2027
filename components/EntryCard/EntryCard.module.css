@@ -52,22 +52,12 @@
 }
 
 .removeNoteButton {
-  font-size: var(--text-xs);
-  color: var(--color-zinc-400);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
   flex-shrink: 0;
   opacity: 0;
   transition: opacity 0.1s;
 
   .removableNoteRow:hover & {
     opacity: 1;
-  }
-
-  &:hover {
-    color: var(--color-red-600);
   }
 }
 
@@ -84,45 +74,8 @@
   font-size: var(--text-sm);
 }
 
-.addNoteSubmit {
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-blue-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.addNoteCancel {
-  font-size: var(--text-sm);
-  color: var(--color-zinc-500);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
 .addNoteTrigger {
   align-self: flex-start;
-  font-size: var(--text-sm);
-  color: var(--color-blue-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 /* Edge-to-edge header image — no side padding, so it bleeds to the
@@ -327,16 +280,7 @@
 }
 
 .clearScoreButton {
-  font-size: var(--text-xs);
   color: var(--color-zinc-400);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 .countsSummary {
@@ -431,21 +375,6 @@
   padding: 0.375rem 0.5rem;
 }
 
-.findButton {
-  border-radius: var(--radius);
-  border: 1px solid var(--color-zinc-300);
-  padding: 0.375rem 0.75rem;
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  background: var(--color-white);
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-}
-
 .geocodeMsg {
   font-size: var(--text-xs);
   color: var(--color-zinc-500);
@@ -462,19 +391,6 @@
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-zinc-700);
-}
-
-.addPointButton {
-  font-size: var(--text-sm);
-  color: var(--color-blue-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 .markerRowList {
@@ -504,47 +420,10 @@
   border: none;
 }
 
-.markerRemoveButton {
-  font-size: var(--text-sm);
-  color: var(--color-red-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
 .editActions {
   display: flex;
   gap: 0.75rem;
   margin-top: 0.75rem;
-}
-
-.saveButton {
-  border-radius: var(--radius);
-  background: var(--color-zinc-900);
-  color: var(--color-white);
-  border: none;
-  padding: 0.5rem 1rem;
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-}
-
-.cancelButton {
-  font-size: var(--text-sm);
-  color: var(--color-zinc-500);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 .footer {
@@ -560,32 +439,6 @@
   position: relative;
 }
 
-.deleteButton {
-  font-size: var(--text-sm);
-  color: var(--color-red-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.editDetailsButton {
-  font-size: var(--text-sm);
-  color: var(--color-zinc-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
 .archivedActions {
   margin-left: auto;
   display: flex;
@@ -599,47 +452,9 @@
   font-style: italic;
 }
 
-.restoreButton {
-  font-size: var(--text-sm);
-  color: var(--color-blue-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
 .confirmDeleteRow {
   font-size: var(--text-sm);
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.confirmYes {
-  color: var(--color-red-600);
-  font-weight: var(--font-weight-medium);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.confirmNo {
-  color: var(--color-zinc-500);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }

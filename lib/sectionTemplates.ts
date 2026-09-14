@@ -115,3 +115,19 @@ for (const template of SECTION_TEMPLATES) {
     template.fieldDefs = [...template.fieldDefs, CLOSED_FIELD_DEF];
   }
 }
+
+// Extra Food & Drink type tags, alongside whatever an admin already
+// added by hand via the Section Designer (e.g. Restaurant/Bar/Cafe) —
+// same generic boolean-field-as-filter/eyebrow mechanism as Closed
+// above, just specific to places that make their own alcohol.
+const FOOD_DRINK_TYPE_FIELD_DEFS: TemplateFieldDef[] = [
+  { key: "winery", label: "Winery", field_type: "boolean", show_on_overview: true },
+  { key: "distillery", label: "Distillery", field_type: "boolean", show_on_overview: true },
+  { key: "brewery", label: "Brewery", field_type: "boolean", show_on_overview: true },
+  { key: "market", label: "Market", field_type: "boolean", show_on_overview: true },
+];
+for (const template of SECTION_TEMPLATES) {
+  if (template.key === "foodDrink") {
+    template.fieldDefs = [...template.fieldDefs, ...FOOD_DRINK_TYPE_FIELD_DEFS];
+  }
+}
