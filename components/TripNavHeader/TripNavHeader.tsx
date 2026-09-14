@@ -3,7 +3,15 @@
 import { useLayoutEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/NavigationMenu";
+import {
+  NavigationMenu,
+  NavigationMenuList,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuTrigger,
+  NavigationMenuContent,
+  NavigationMenuViewportWrapper,
+} from "@/components/NavigationMenu";
 import type { PublicTrip, NavGroup } from "@/lib/types";
 import styles from "./TripNavHeader.module.css";
 
@@ -15,20 +23,22 @@ export interface TripNavHeaderProps {
 // `nav` is this trip's nav_groups, each with its member `sections`
 // already attached and sorted (see lib/sections.js's getTripNav) —
 // entirely data-driven per trip, replacing the old hardcoded
-// GROUPS/COLLECTIONS constants.
+// GROUPS/COLLECTIONS constants. One single sticky bar: trip name on
+// the left, each nav group as a dropdown menu (its sections underneath,
+// via Radix's real Trigger/Content/Viewport), utility links on the
+// right — no separate title banner above it.
 export default function TripNavHeader({ trip, nav: allNav }: TripNavHeaderProps) {
   const pathname = usePathname();
-  const navBarRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLElement>(null);
   const sectionPath = (slug: string) => `/${trip.slug}/${slug}`;
 
-  // The sticky nav bar's own rendered height, published as a CSS
-  // variable on the document root so anything sticky further down the
-  // tree (SectionPage's filter dropdown, which isn't a DOM sibling of
-  // this component) can stick right below it instead of guessing a
-  // fixed offset — recalculated on resize since the bar wraps to more
-  // rows at narrow widths/long labels.
+  // This bar's own rendered height, published as a CSS variable on the
+  // document root so anything sticky further down the tree (SectionPage's
+  // filter dropdown, which isn't a DOM sibling of this component) can
+  // stick right below it instead of guessing a fixed offset —
+  // recalculated on resize since it can wrap taller at narrow widths.
   useLayoutEffect(() => {
-    const el = navBarRef.current;
+    const el = barRef.current;
     if (!el) return;
     const setHeight = () => document.documentElement.style.setProperty("--sticky-nav-height", `${el.offsetHeight}px`);
     setHeight();
@@ -49,50 +59,54 @@ export default function TripNavHeader({ trip, nav: allNav }: TripNavHeaderProps)
     nav.find((g) => g.sections.some((s) => sectionPath(s.slug) === pathname)) || nav[0];
 
   return (
-    <header>
-      <div className={styles.topArea}>
-        <div className={styles.topLinks}>
-          <Link href="/" className={styles.topLink}>
-            &larr; All trips
+    <header ref={barRef} className={styles.bar}>
+      <div className={styles.barInner}>
+        <Link href={sectionPath(nav[0]?.sections[0]?.slug || "")} className={styles.brand}>
+          {trip.name}
+        </Link>
+
+        {nav.length > 0 && (
+          <NavigationMenu className={styles.menu} aria-label="Trip sections">
+            <NavigationMenuList>
+              {nav.map((g) =>
+                g.sections.length > 1 ? (
+                  <NavigationMenuItem key={g.id}>
+                    <NavigationMenuTrigger active={g.id === activeGroup?.id}>{g.label}</NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      {g.sections.map((s) => (
+                        <NavigationMenuLink
+                          key={s.id}
+                          asChild
+                          size="menuItem"
+                          active={pathname === sectionPath(s.slug)}
+                        >
+                          <Link href={sectionPath(s.slug)}>{s.sub_nav_label || s.label}</Link>
+                        </NavigationMenuLink>
+                      ))}
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
+                ) : (
+                  <NavigationMenuItem key={g.id}>
+                    <NavigationMenuLink asChild active={g.id === activeGroup?.id}>
+                      <Link href={sectionPath(g.sections[0].slug)}>{g.label}</Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                )
+              )}
+            </NavigationMenuList>
+            <NavigationMenuViewportWrapper />
+          </NavigationMenu>
+        )}
+
+        <div className={styles.actions}>
+          <Link href="/" className={styles.actionLink}>
+            All trips
           </Link>
-          <Link href={`/${trip.slug}/admin/sections`} className={styles.topLink}>
+          <Link href={`/${trip.slug}/admin/sections`} className={styles.manageLink}>
             Manage
           </Link>
         </div>
-        <h1 className={styles.tripName}>{trip.name}</h1>
       </div>
-
-      {nav.length > 0 && (
-        <div ref={navBarRef} className={styles.navBar}>
-          <NavigationMenu aria-label="Trip sections">
-            <NavigationMenuList>
-              {nav.map((g) => (
-                <NavigationMenuItem key={g.id}>
-                  <NavigationMenuLink asChild active={g.id === activeGroup?.id}>
-                    <Link href={sectionPath(g.sections[0]?.slug)}>{g.label}</Link>
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-              ))}
-            </NavigationMenuList>
-          </NavigationMenu>
-
-          {/* The active group's own sections — reads as a sub-menu
-              appearing underneath the top-level row above. */}
-          {activeGroup && activeGroup.sections.length > 0 && (
-            <NavigationMenu aria-label={`${activeGroup.label} sections`} className={styles.subNav}>
-              <NavigationMenuList>
-                {activeGroup.sections.map((s) => (
-                  <NavigationMenuItem key={s.id}>
-                    <NavigationMenuLink asChild size="sm" active={pathname === sectionPath(s.slug)}>
-                      <Link href={sectionPath(s.slug)}>{s.sub_nav_label || s.label}</Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                ))}
-              </NavigationMenuList>
-            </NavigationMenu>
-          )}
-        </div>
-      )}
     </header>
   );
 }
