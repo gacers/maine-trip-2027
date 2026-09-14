@@ -437,46 +437,48 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
         </div>
       )}
 
-      {filterFieldDefs.length > 0 && (
-        <div className={styles.filterRow}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="sm">
-                Filter{activeFilters.size > 0 ? ` (${activeFilters.size})` : ""}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuLabel>Filter</DropdownMenuLabel>
-              {filterFieldDefs.map((f) => (
-                <DropdownMenuCheckboxItem
-                  key={f.key}
-                  checked={activeFilters.has(f.key)}
-                  onCheckedChange={() => toggleFilter(f.key)}
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  {f.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-              {activeFilters.size > 0 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => setActiveFilters(new Set())}>Clear all</DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
+      {(filterFieldDefs.length > 0 || showRatings) && (
+        <div className={styles.utilityRow}>
+          {filterFieldDefs.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="sm">
+                  Filter{activeFilters.size > 0 ? ` (${activeFilters.size})` : ""}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>Filter</DropdownMenuLabel>
+                {filterFieldDefs.map((f) => (
+                  <DropdownMenuCheckboxItem
+                    key={f.key}
+                    checked={activeFilters.has(f.key)}
+                    onCheckedChange={() => toggleFilter(f.key)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {f.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                {activeFilters.size > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => setActiveFilters(new Set())}>Clear all</DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
-      {showRatings && (
-        <label className={styles.sortByLabel}>
-          <span className={styles.sortByCaption}>Sort by</span>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className={styles.sortBySelect}>
-            {showRanking && <option value="rank">Rank</option>}
-            <option value="myScore">My Score</option>
-            <option value="averageScore">Average Score</option>
-          </select>
-        </label>
+          {showRatings && (
+            <label className={styles.sortByLabel}>
+              <span className={styles.sortByCaption}>Sort by</span>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className={styles.sortBySelect}>
+                {showRanking && <option value="rank">Rank</option>}
+                <option value="myScore">My Score</option>
+                <option value="averageScore">Average Score</option>
+              </select>
+            </label>
+          )}
+        </div>
       )}
 
       {error && <p className={styles.errorBanner}>{error}</p>}

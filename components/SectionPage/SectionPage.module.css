@@ -42,11 +42,12 @@
   white-space: normal;
 }
 
-/* Sticks right below TripNavHeader's own sticky nav bar — see that
+/* The filter dropdown + sort-by select, combined into one row that
+   sticks right below TripNavHeader's own sticky bar — see that
    component for where --sticky-nav-height comes from. Falls back to 0
    (stick to the very top) if that variable hasn't been set yet, e.g.
    a trip with no nav at all. */
-.filterRow {
+.utilityRow {
   position: sticky;
   top: var(--sticky-nav-height, 0px);
   z-index: 9;
@@ -60,7 +61,6 @@
 }
 
 .sortByLabel {
-  align-self: flex-start;
   display: flex;
   align-items: center;
   gap: 0.5rem;
