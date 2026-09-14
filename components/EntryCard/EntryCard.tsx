@@ -431,7 +431,7 @@ export default function EntryCard({
             {activeBooleanFields.length > 0 ? (
               <div className={styles.eyebrows}>
                 {activeBooleanFields.map((f) => (
-                  <Badge key={f.key} variant={pickBadgeVariant(f.key)}>
+                  <Badge key={f.key} variant={f.key === "closed" ? "closed" : pickBadgeVariant(f.key)}>
                     {f.label}
                   </Badge>
                 ))}

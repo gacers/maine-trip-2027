@@ -122,8 +122,8 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       <div className={styles.templatesSection}>
         <h2 className={styles.sectionHeading}>Add from a template</h2>
         <p className={styles.templatesHint}>
-          Each creates a ready-made &quot;Possible&quot; / &quot;Previous&quot; pair — fully editable or deletable
-          afterward, this is just a fast starting point.
+          Each creates a ready-made &quot;Options&quot; / &quot;Before&quot; pair (e.g. House Options / Stayed
+          Before) — fully editable or deletable afterward, this is just a fast starting point.
         </p>
         <div className={styles.templateList}>
           {SECTION_TEMPLATES.map((t) => {

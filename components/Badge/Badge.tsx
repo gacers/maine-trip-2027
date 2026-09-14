@@ -4,9 +4,15 @@ import { forwardRef, type HTMLAttributes } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import styles from "./Badge.module.css";
 
-export type BadgeVariant = "amber" | "red" | "green" | "blue" | "purple" | "teal" | "pink" | "neutral";
+export type BadgeVariant = "amber" | "blue" | "purple" | "teal" | "pink" | "indigo" | "neutral" | "closed";
 
-const COLOR_VARIANTS: BadgeVariant[] = ["amber", "blue", "green", "purple", "teal", "pink", "red"];
+// Deliberately excludes red/green — colors with their own strong "bad"/
+// "good" connotation, which is exactly what went wrong when Closed (a
+// real status) happened to land on green and read as "open" by
+// accident. Those two are reserved for actual status meaning instead
+// (see the dedicated "closed" variant); an arbitrary type tag only ever
+// cycles through these purely-decorative colors.
+const COLOR_VARIANTS: BadgeVariant[] = ["amber", "blue", "purple", "teal", "pink", "indigo"];
 
 // Deterministically maps an arbitrary string (a boolean field's own
 // `key`, e.g. "winery") to one of the color variants above — same input

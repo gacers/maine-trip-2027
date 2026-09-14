@@ -10,6 +10,9 @@ export interface RequestAccessProps {
   trip: PublicTrip;
   section: Section;
   contactEmail: string | null;
+  /** Extra class for the trigger button — e.g. letting it wrap in a
+   * tight space like the nav bar instead of overflowing on one line. */
+  triggerClassName?: string;
 }
 
 // Shown in place of the Add form to a visitor with no invite link (and
@@ -20,7 +23,7 @@ export interface RequestAccessProps {
 // generated from InviteLinksManager. The actual form lives in a modal
 // (Radix Dialog) rather than expanding inline — this trigger shows up
 // in tight spaces (the nav bar) where growing in place isn't an option.
-export default function RequestAccess({ trip, section, contactEmail }: RequestAccessProps) {
+export default function RequestAccess({ trip, section, contactEmail, triggerClassName }: RequestAccessProps) {
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -40,7 +43,7 @@ export default function RequestAccess({ trip, section, contactEmail }: RequestAc
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="link" size="sm">
+        <Button variant="link" size="sm" className={triggerClassName}>
           Want to add something here? Request access
         </Button>
       </DialogTrigger>

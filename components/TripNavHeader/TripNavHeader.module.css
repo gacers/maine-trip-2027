@@ -24,9 +24,10 @@
   width: 100%;
   padding: 0.5rem 1.25rem;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
   background: var(--color-zinc-50);
   border-top: 1px solid var(--color-zinc-200);
 }
@@ -53,9 +54,10 @@
   width: 100%;
   padding: 0.75rem 1.25rem;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
   border-bottom: 1px solid var(--color-zinc-200);
 }
 
@@ -68,6 +70,15 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-zinc-900);
   text-decoration: none;
+}
+
+/* Long by design ("Want to add something here? Request access") — lets
+   it wrap onto a second line within a bounded width instead of forcing
+   one long line that pushes past the bar's edge. */
+.requestAccessTrigger {
+  white-space: normal;
+  text-align: right;
+  max-width: 16rem;
 }
 
 /* Below 1024px there's rarely room for every group's flat text item
@@ -96,7 +107,6 @@
 }
 
 .actions {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 1rem;

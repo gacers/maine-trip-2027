@@ -13,16 +13,6 @@
   color: var(--color-amber-800);
 }
 
-.red {
-  background: var(--color-red-50);
-  color: var(--color-red-800);
-}
-
-.green {
-  background: var(--color-green-100);
-  color: var(--color-green-800);
-}
-
 .blue {
   background: var(--color-blue-100);
   color: var(--color-blue-800);
@@ -43,7 +33,23 @@
   color: var(--color-pink-800);
 }
 
+.indigo {
+  background: var(--color-indigo-100);
+  color: var(--color-indigo-800);
+}
+
 .neutral {
   background: var(--color-zinc-100);
   color: var(--color-zinc-700);
+}
+
+/* Reserved for a real negative status (Closed) — solid + white text,
+   deliberately never in the arbitrary per-type rotation above, so it
+   always reads as "pay attention" rather than blending in as just
+   another type tag (and never lands on a color that could be misread
+   as "open"/fine, which green did before this existed). */
+.closed {
+  background: var(--color-red-600);
+  color: var(--color-white);
+  font-weight: var(--font-weight-semibold);
 }

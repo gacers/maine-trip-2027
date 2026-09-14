@@ -106,7 +106,14 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
               </Link>
             </>
           ) : (
-            showRequestAccess && <RequestAccess trip={trip} section={activeSection!} contactEmail={contactEmail} />
+            showRequestAccess && (
+              <RequestAccess
+                trip={trip}
+                section={activeSection!}
+                contactEmail={contactEmail}
+                triggerClassName={styles.requestAccessTrigger}
+              />
+            )
           )}
         </div>
       </div>
