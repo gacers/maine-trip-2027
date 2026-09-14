@@ -74,7 +74,10 @@ function rowToFieldDef(row: FieldRow) {
 
 export interface SectionFormProps {
   trip: PublicTrip;
-  navGroups: NavGroup[];
+  // Just enough of a NavGroup to populate the picker (id + label) — the
+  // pages that render this form strip `sections` off before passing
+  // these down, so it's never actually present here.
+  navGroups: Omit<NavGroup, "sections">[];
   section?: Section | null;
 }
 

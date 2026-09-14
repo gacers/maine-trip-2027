@@ -6,7 +6,12 @@ import SectionPage from "@/components/SectionPage";
 
 export const dynamic = "force-dynamic";
 
-export default async function TripSectionPage({ params }) {
+interface Params {
+  tripSlug: string;
+  sectionSlug: string;
+}
+
+export default async function TripSectionPage({ params }: { params: Promise<Params> }) {
   const { tripSlug, sectionSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) notFound();
@@ -19,12 +24,5 @@ export default async function TripSectionPage({ params }) {
   // SectionPage is a Client Component — its props are serialized into
   // the page's own source, so the raw trip row (carrying the real,
   // standing sheet_invite_token) must never be passed through as-is.
-  return (
-    <SectionPage
-      trip={sanitizeTripForClient(trip)}
-      section={section}
-      isAdmin={!!admin}
-      contactEmail={contactEmail}
-    />
-  );
+  return <SectionPage trip={sanitizeTripForClient(trip)} section={section} isAdmin={!!admin} contactEmail={contactEmail} />;
 }
