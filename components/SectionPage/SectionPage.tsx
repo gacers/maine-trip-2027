@@ -1,0 +1,480 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import AddEntryForm from "@/components/AddEntryForm";
+import RequestAccess from "@/components/RequestAccess";
+import EntryCard from "@/components/EntryCard";
+import ListingSection from "@/components/ListingSection";
+import GroupMap from "@/components/GroupMap";
+import SimpleGroupMap from "@/components/SimpleGroupMap";
+import OverviewMap from "@/components/OverviewMap";
+import { groupUnits } from "@/lib/groupUnits";
+import { captureInviteToken, getOrCreateDeviceId } from "@/lib/inviteClient";
+import { buildAgentInstructions, downloadTextFile } from "@/lib/agentInstructions";
+import type { PublicTrip, Section, ClientEntry, EntryUnit, OverviewPin } from "@/lib/types";
+import styles from "./SectionPage.module.css";
+
+type SortBy = "rank" | "myScore" | "averageScore";
+
+function pinFor(unit: EntryUnit): OverviewPin {
+  const primary = unit.listings[0];
+  return {
+    anchor: unit.type === "group" ? `group-${primary.id}` : `listing-${primary.id}`,
+    label: unit.type === "group" ? primary.groupLabel : primary.title,
+    lat: primary.lat,
+    lng: primary.lng,
+  };
+}
+
+export interface SectionPageProps {
+  trip: PublicTrip;
+  section: Section;
+  isAdmin?: boolean;
+  contactEmail?: string | null;
+}
+
+// Replaces CollectionPage.jsx — same fetch/patch/delete/add logic and
+// grouping, now against /api/trips/[tripSlug]/sections/[sectionSlug]/
+// entries instead of /api/[collection], and rendering whichever fields
+// `section.field_defs` defines instead of a hardcoded showBedBath flag.
+export default function SectionPage({ trip, section, isAdmin = false, contactEmail = null }: SectionPageProps) {
+  const [entries, setEntries] = useState<ClientEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(() => new Set());
+  // rank | myScore | averageScore — defaults to whichever concept this
+  // section actually has; Rank only exists as an option at all once
+  // supports_ranking is on.
+  const [sortBy, setSortBy] = useState<SortBy>(section.supports_ranking ? "rank" : "averageScore");
+  const [contributorToken, setContributorToken] = useState<string | null>(null);
+  // Whether the localStorage/invite-param check below has actually run
+  // yet. An admin's access is already known synchronously from the
+  // server (the isAdmin prop), so there's nothing to wait for; everyone
+  // else's real status depends on reading localStorage client-side,
+  // which can't happen before mount. Gating "Request access" on this
+  // (rather than just `!canContribute`) stops it from flashing on for a
+  // returning contributor whose token just hasn't been read back yet.
+  const [accessChecked, setAccessChecked] = useState(isAdmin);
+  // Fetched separately (not handed down in trip's own props) once access
+  // is confirmed — see /api/trips/[tripSlug]/sheet-url and
+  // sanitizeTripForClient for why this can't just be trip.google_sheet_url.
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+
+  const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
+  const fieldDefs = section.field_defs || [];
+  const mapConfig = trip.map_config;
+  // `has_map` doubles as "this is a still-deciding-among-options list" —
+  // ranking and driving times/Closest Town exist to help pick a winner,
+  // which a "previous"/already-done section (nothing left to decide) has
+  // no use for. It still gets a map, just the plain SimplePlaceMap
+  // version (marker + a link to open real Google Maps, no Directions API
+  // calls) instead of ListingMap's full comparison tooling — see
+  // EntryCard's comparisonMode prop. Off by default for "previous"
+  // sections in the Section Designer/starter templates; still a
+  // per-section admin toggle either way.
+  const comparisonMode = !!section.has_map;
+  // Whether to show the manual Rank input/reordering at all — its own
+  // toggle, decoupled from comparisonMode/has_map (which is about map
+  // complexity, not ranking). Only a still-deciding-among-options list
+  // like Possible Houses needs it; per-section admin toggle either way.
+  const showRanking = !!section.supports_ranking;
+  // Two-score star ratings (My Score / Average Score) — same opt-in
+  // pattern, only meaningful for a still-deciding list.
+  const showRatings = !!section.supports_ratings;
+  // Houses get one full-width card per row; lighter entries (food &
+  // drink, activities) read better two to a row — a plain per-section
+  // layout toggle, unrelated to comparisonMode.
+  const compactCards = !!section.compact_cards;
+  const listClassName = compactCards ? styles.entryGrid : styles.entryList;
+
+  // An admin's own session cookie already carries full access — an
+  // invite link only matters for everyone else, so it's ignored here if
+  // both happen to be present (e.g. the trip owner clicking their own
+  // invite link while signed in). Defaulting to false until proven
+  // otherwise (rather than assuming access) is deliberate: a visitor
+  // gets the Add form, the notes/concerns add button, and the live
+  // Google Sheet link only once one of the three real grants — an
+  // admin session, an invite param, or a cached invite token — is
+  // actually confirmed.
+  const canManage = isAdmin;
+  const canContribute = isAdmin || !!contributorToken;
+  const authToken = isAdmin ? null : contributorToken;
+  const showRequestAccess = accessChecked && !canContribute;
+
+  useEffect(() => {
+    setContributorToken(captureInviteToken(trip.slug));
+    setAccessChecked(true);
+  }, [trip.slug]);
+
+  useEffect(() => {
+    if (!canContribute) {
+      setSheetUrl(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/trips/${trip.slug}/sheet-url`, { headers: authHeaders() })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled) setSheetUrl(data?.googleSheetUrl || null);
+      })
+      .catch(() => {
+        // Non-fatal — worst case the Google Sheet pill just doesn't show.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canContribute, trip.slug, authToken]);
+
+  function authHeaders(): Record<string, string> {
+    // X-Rater-Device always goes along for the ride — harmless for any
+    // route that ignores it, and it's what lets a contributor's own
+    // score be told apart from another person sharing the same invite
+    // link (see lib/ratings.ts's resolveRaterKey). Ignored for an admin,
+    // whose real login is already a stable identity of its own.
+    const headers: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+    headers["X-Rater-Device"] = getOrCreateDeviceId();
+    return headers;
+  }
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      // Needs authHeaders() (not just a plain fetch) so a section with
+      // ratings on can resolve *this caller's* myScore, not just the
+      // public average.
+      const res = await fetch(apiBase, { cache: "no-store", headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load entries");
+      setEntries(data.entries);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+    // Reruns once contributorToken resolves (it's still null on the very
+    // first render) so a contributor's myScore shows up without needing
+    // a manual refresh — not just apiBase.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiBase, authToken]);
+
+  // Filters are per-section, not global — clear them when navigating to a
+  // different section rather than silently carrying a stale selection
+  // (e.g. "Bar" checked) into one that doesn't even have that field.
+  useEffect(() => {
+    setActiveFilters(new Set());
+    setSortBy(section.supports_ranking ? "rank" : "averageScore");
+  }, [section.id, section.supports_ranking]);
+
+  function toggleFilter(key: string) {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function applyLocalPatch(id: string, patch: Partial<ClientEntry>) {
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  }
+
+  async function handlePatch(id: string, patch: Record<string, unknown>) {
+    applyLocalPatch(id, patch as Partial<ClientEntry>); // optimistic
+    try {
+      const res = await fetch(`${apiBase}/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      const data = await res.json();
+      applyLocalPatch(id, data.entry);
+    } catch (err) {
+      setError((err as Error).message);
+      load(); // re-sync on failure
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+    try {
+      const res = await fetch(`${apiBase}/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error("Delete failed");
+    } catch (err) {
+      setError((err as Error).message);
+      load();
+    }
+  }
+
+  async function handleRate(id: string, score: number | null) {
+    applyLocalPatch(id, { myScore: score }); // optimistic
+    try {
+      const res =
+        score == null
+          ? await fetch(`${apiBase}/${id}/ratings`, { method: "DELETE", headers: authHeaders() })
+          : await fetch(`${apiBase}/${id}/ratings`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json", ...authHeaders() },
+              body: JSON.stringify({ score }),
+            });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Rating failed");
+      applyLocalPatch(id, data);
+    } catch (err) {
+      setError((err as Error).message);
+      load(); // re-sync on failure
+    }
+  }
+
+  function handleAdded(entry: ClientEntry) {
+    setEntries((prev) => [...prev, entry]);
+  }
+
+  async function handleDownloadInstructions() {
+    // A contributor already has their own (add/append-only) token —
+    // reuse it. An admin has no bearer token at all (their access is
+    // the session cookie), so mint a fresh full-access owner key on the
+    // spot rather than sending them to the API Keys admin page first.
+    if (contributorToken) {
+      const text = buildAgentInstructions({
+        trip,
+        section,
+        siteUrl: window.location.origin,
+        token: contributorToken,
+        role: "contributor",
+      });
+      downloadTextFile(`${trip.slug}-agent-instructions.md`, text);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/trips/${trip.slug}/api-keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: "Downloaded agent instructions", role: "owner" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't create a key");
+      const text = buildAgentInstructions({
+        trip,
+        section,
+        siteUrl: window.location.origin,
+        token: data.token,
+        role: "owner",
+      });
+      downloadTextFile(`${trip.slug}-agent-instructions.md`, text);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  const active = entries.filter((e) => e.status !== "archived").sort((a, b) => (a.rank ?? 999999) - (b.rank ?? 999999));
+  const archived = entries.filter((e) => e.status === "archived");
+
+  // Any boolean field (e.g. Food & Drink's Restaurant/Bar/Cafe/Breakfast/
+  // Lunch/Dinner) doubles as a filter, not just a card badge — generic to
+  // whatever a section's own field_defs define, no section-specific code.
+  const filterFieldDefs = fieldDefs.filter((f) => f.field_type === "boolean");
+
+  function unitMatchesFilters(unit: EntryUnit): boolean {
+    if (activeFilters.size === 0) return true;
+    return unit.listings.some((entry) => [...activeFilters].some((key) => !!entry[key]));
+  }
+
+  // A 2-item group has two separate scores (one per listing) — sorting by
+  // either takes the better of the two, same "at least this good" idea
+  // as picking a representative rank for the pair.
+  function unitSortValue(unit: EntryUnit, key: SortBy): number {
+    if (key === "rank") return unit.listings[0]?.rank ?? 999999;
+    const values = unit.listings.map((l) => l[key] as number | null | undefined).filter((v): v is number => v != null);
+    return values.length > 0 ? Math.max(...values) : -Infinity;
+  }
+
+  const activeUnits = groupUnits(active)
+    .filter(unitMatchesFilters)
+    .sort((a, b) =>
+      sortBy === "rank"
+        ? unitSortValue(a, "rank") - unitSortValue(b, "rank")
+        : unitSortValue(b, sortBy) - unitSortValue(a, sortBy) // higher score first
+    );
+  const pins = activeUnits.map(pinFor);
+
+  function renderUnit(unit: EntryUnit) {
+    if (unit.type === "group") {
+      return (
+        <ListingSection
+          key={unit.listings.map((e) => e.id).join("-")}
+          id={`group-${unit.listings[0].id}`}
+          title={unit.listings[0].groupLabel}
+          rank={canManage && showRanking ? unit.listings[0].rank ?? undefined : undefined}
+          onRankChange={(newRank) => unit.listings.forEach((e) => handlePatch(e.id, { rank: newRank }))}
+          canManage={canManage}
+          onDeleteGroup={
+            unit.listings[0].status === "archived"
+              ? null
+              : (reason) => unit.listings.forEach((e) => handlePatch(e.id, { archiveReason: reason, status: "archived" }))
+          }
+        >
+          <div className={styles.groupListings}>
+            {unit.listings.map((entry) => (
+              <div key={entry.id} className={styles.groupListingHalf}>
+                <EntryCard
+                  entry={entry}
+                  fieldDefs={fieldDefs}
+                  mapConfig={mapConfig}
+                  onPatch={handlePatch}
+                  onDelete={handleDelete}
+                  onRate={handleRate}
+                  canManage={canManage}
+                  canContribute={canContribute}
+                  bare
+                  showRank={false}
+                  showRatings={showRatings}
+                  showMap={false}
+                  compact={compactCards}
+                />
+              </div>
+            ))}
+          </div>
+          {comparisonMode ? (
+            <GroupMap listings={unit.listings} mapConfig={mapConfig} />
+          ) : (
+            <SimpleGroupMap listings={unit.listings} />
+          )}
+        </ListingSection>
+      );
+    }
+    const entry = unit.listings[0];
+    // This is the one render path where ListingSection (not EntryCard,
+    // which has showTitle={false} here) owns the visible title — so any
+    // "Closed"-style badge has to be handed to it directly instead of
+    // EntryCard, or it'd render detached from the title entirely.
+    const entryBadges = fieldDefs
+      .filter((f) => f.field_type === "boolean" && entry[f.key])
+      .map((f) => ({ key: f.key, label: f.label }));
+    return (
+      <ListingSection key={entry.id} title={entry.title} href={entry.url ?? undefined} badges={entryBadges}>
+        <EntryCard
+          entry={entry}
+          fieldDefs={fieldDefs}
+          mapConfig={mapConfig}
+          onPatch={handlePatch}
+          onDelete={handleDelete}
+          onRate={handleRate}
+          canManage={canManage}
+          canContribute={canContribute}
+          bare
+          showTitle={false}
+          showRank={showRanking}
+          showRatings={showRatings}
+          comparisonMode={comparisonMode}
+          compact={compactCards}
+        />
+      </ListingSection>
+    );
+  }
+
+  return (
+    <main className={styles.main}>
+      <div className={styles.sheetRow}>
+        {canContribute ? (
+          sheetUrl && (
+            <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={styles.sheetLink}>
+              Google Sheet
+            </a>
+          )
+        ) : (
+          // No hint that a Sheet even exists for a non-contributor — same
+          // "ask the owner" flow as the Add form below uses, not a
+          // disabled placeholder for something they can't get to anyway.
+          showRequestAccess && <RequestAccess trip={trip} section={section} contactEmail={contactEmail} />
+        )}
+      </div>
+
+      {canContribute && (
+        <div className={styles.addSection}>
+          <AddEntryForm trip={trip} section={section} onAdded={handleAdded} authToken={authToken} />
+          <button onClick={handleDownloadInstructions} className={styles.downloadInstructionsButton}>
+            Download agent instructions (add via your own AI agent instead)
+          </button>
+        </div>
+      )}
+
+      {filterFieldDefs.length > 0 && (
+        <div className={styles.filterRow}>
+          <span className={styles.filterCaption}>Filter</span>
+          {filterFieldDefs.map((f) => (
+            <label key={f.key} className={styles.filterCheckboxLabel}>
+              <input
+                type="checkbox"
+                checked={activeFilters.has(f.key)}
+                onChange={() => toggleFilter(f.key)}
+                className={styles.filterCheckbox}
+              />
+              {f.label}
+            </label>
+          ))}
+          {activeFilters.size > 0 && (
+            <button onClick={() => setActiveFilters(new Set())} className={styles.filterClearButton}>
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
+      {showRatings && (
+        <label className={styles.sortByLabel}>
+          <span className={styles.sortByCaption}>Sort by</span>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className={styles.sortBySelect}>
+            {showRanking && <option value="rank">Rank</option>}
+            <option value="myScore">My Score</option>
+            <option value="averageScore">Average Score</option>
+          </select>
+        </label>
+      )}
+
+      {error && <p className={styles.errorBanner}>{error}</p>}
+
+      {loading ? (
+        <p className={styles.loadingText}>Loading...</p>
+      ) : (
+        <>
+          {/* Independent of comparisonMode on purpose — OverviewMap is a
+              plain "everything on one map, click a pin to jump to it"
+              index, not the driving-times/Closest Town comparison
+              tooling that flag actually governs. Every section with
+              located entries gets one, "previous" included. */}
+          {!loading && activeUnits.length > 0 && <OverviewMap pins={pins} />}
+
+          {activeUnits.length === 0 && (
+            <p className={styles.emptyText}>{active.length === 0 ? section.empty_message : "Nothing matches the selected filters."}</p>
+          )}
+          <div className={listClassName}>{activeUnits.map(renderUnit)}</div>
+
+          {archived.length > 0 && (
+            <div className={styles.archivedSection}>
+              <button onClick={() => setShowArchived((v) => !v)} className={styles.archivedToggle}>
+                {showArchived ? "Hide" : "Show"} archived ({archived.length})
+              </button>
+              {showArchived && (
+                <div className={`${listClassName} ${styles.archivedList}`}>
+                  {groupUnits(archived).filter(unitMatchesFilters).map(renderUnit)}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </main>
+  );
+}

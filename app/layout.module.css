@@ -1,0 +1,13 @@
+.html {
+  height: 100%;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.body {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-zinc-50);
+  color: var(--color-zinc-900);
+}

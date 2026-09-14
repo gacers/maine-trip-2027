@@ -1,0 +1,46 @@
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.starBox {
+  position: relative;
+  display: inline-block;
+}
+
+.outline {
+  position: absolute;
+  inset: 0;
+  color: var(--color-zinc-300);
+}
+
+.fillClip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.fill {
+  color: var(--color-amber-400);
+}
+
+.halfButton {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 50%;
+  cursor: pointer;
+  /* Reset the <button> default appearance — this is an invisible hit
+     target overlaid on the star icon, not a visible button. */
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.wholeButton {
+  composes: halfButton;
+  left: auto;
+  right: 0;
+}

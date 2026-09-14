@@ -1,6 +1,8 @@
 const config = {
   plugins: {
-    "@tailwindcss/postcss": {},
+    // Flattens native CSS nesting (`.foo { &:hover { ... } }`) before
+    // anything else runs — used across this project's CSS Modules.
+    "postcss-nesting": {},
   },
 };
 

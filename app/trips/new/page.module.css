@@ -1,0 +1,16 @@
+.main {
+  max-width: 24rem;
+  margin-inline: auto;
+  padding: 3rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.heading {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-zinc-900);
+  text-align: center;
+}

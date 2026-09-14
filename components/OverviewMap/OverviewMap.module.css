@@ -1,0 +1,49 @@
+.card {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-zinc-200);
+  background: var(--color-white);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+@media (min-width: 640px) {
+  .card {
+    padding: 1.25rem;
+  }
+}
+
+.heading {
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-zinc-500);
+  font-weight: var(--font-weight-medium);
+}
+
+.errorBox {
+  font-size: var(--text-sm);
+  color: var(--color-amber-700);
+  background: var(--color-amber-50);
+  border: 1px solid var(--color-amber-200);
+  border-radius: var(--radius);
+  padding: 0.5rem;
+}
+
+.mapCanvas {
+  width: 100%;
+  height: 16rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-zinc-100);
+}
+@media (min-width: 640px) {
+  .mapCanvas {
+    height: 20rem;
+  }
+}
+
+.hint {
+  font-size: var(--text-xs);
+  color: var(--color-zinc-500);
+}
