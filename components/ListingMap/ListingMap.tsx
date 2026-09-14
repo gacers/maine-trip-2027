@@ -295,7 +295,7 @@ export default function ListingMap({ houses, extraMarkers, mapConfig, showRefere
       </a>
 
       {closestTown && (
-        <div>
+        <div className={styles.section}>
           <h3 className={styles.headingSpaced}>Closest Town</h3>
           <a
             href={`https://www.google.com/search?q=${encodeURIComponent(closestTown.searchQuery)}`}
@@ -309,7 +309,7 @@ export default function ListingMap({ houses, extraMarkers, mapConfig, showRefere
       )}
 
       {showReferencePoints && (
-        <div>
+        <div className={styles.section}>
           <h3 className={styles.headingSpaced}>Driving Times</h3>
           <ul className={styles.drivingTimesList}>
             {originInfo && (
