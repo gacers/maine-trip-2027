@@ -16,6 +16,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -27,6 +29,12 @@ import type { PublicTrip, Section, ClientEntry, EntryUnit, OverviewPin } from "@
 import styles from "./SectionPage.module.css";
 
 type SortBy = "rank" | "myScore" | "averageScore";
+
+const SORT_BY_LABELS: Record<SortBy, string> = {
+  rank: "Rank",
+  myScore: "My Score",
+  averageScore: "Average Score",
+};
 
 // Admins just name the pair itself ("Gouldsboro") — this appends the
 // "- 2 House Option" suffix so it's never on them to type/remember it
@@ -446,14 +454,21 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
       )}
 
       {showRatings && (
-        <label className={styles.sortByLabel}>
-          <span className={styles.sortByCaption}>Sort by</span>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className={styles.sortBySelect}>
-            {showRanking && <option value="rank">Rank</option>}
-            <option value="myScore">My Score</option>
-            <option value="averageScore">Average Score</option>
-          </select>
-        </label>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm">
+              Sort: {SORT_BY_LABELS[sortBy]}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
+              {showRanking && <DropdownMenuRadioItem value="rank">Rank</DropdownMenuRadioItem>}
+              <DropdownMenuRadioItem value="myScore">My Score</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="averageScore">Average Score</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </>
   );

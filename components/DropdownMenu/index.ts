@@ -3,6 +3,8 @@ export {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,

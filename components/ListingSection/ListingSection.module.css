@@ -4,6 +4,9 @@
   background: var(--color-white);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  /* Same reasoning as EntryCard's own .article — a jump to #group-<id>
+     shouldn't land half-hidden under TripNavHeader's sticky bar. */
+  scroll-margin-top: calc(var(--sticky-nav-height, 0px) + 1rem);
 }
 
 /* Styled to match EntryCard's own title section exactly (same padding,

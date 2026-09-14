@@ -31,3 +31,25 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+/* Applied for a few seconds (via plain DOM classList, not a CSS Module
+   — this targets whatever element a map pin's anchor id happens to be
+   on, in a totally different component than the map itself, e.g.
+   OverviewMap) after jumping to a card from a map pin, so it's obvious
+   which one you actually landed on. Five 1s pulses, then the element
+   settles back to normal — the class is removed by the same timeout
+   that's already waiting for the pulses to finish, so nothing lingers
+   even if the animation's own fill got interrupted. */
+@keyframes pin-jump-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--color-blue-400);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgb(96 165 250 / 0);
+  }
+}
+
+.pin-jump-highlight {
+  animation: pin-jump-pulse 1s ease-in-out 5;
+}

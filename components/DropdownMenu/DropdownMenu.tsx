@@ -14,11 +14,20 @@ import styles from "./DropdownMenu.module.css";
 // styled wrapper below. Add pieces here as new call sites need them.
 export const DropdownMenu = RadixDropdownMenu.Root;
 export const DropdownMenuTrigger = RadixDropdownMenu.Trigger;
+export const DropdownMenuRadioGroup = RadixDropdownMenu.RadioGroup;
 
 function CheckIcon() {
   return (
     <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
       <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function DotIcon() {
+  return (
+    <svg width={8} height={8} viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="12" cy="12" r="12" />
     </svg>
   );
 }
@@ -61,6 +70,28 @@ export const DropdownMenuCheckboxItem = forwardRef<HTMLDivElement, CheckboxItemP
       </span>
       {children}
     </RadixDropdownMenu.CheckboxItem>
+  );
+});
+
+type RadioItemProps = ComponentPropsWithoutRef<typeof RadixDropdownMenu.RadioItem>;
+
+export const DropdownMenuRadioItem = forwardRef<HTMLDivElement, RadioItemProps>(function DropdownMenuRadioItem(
+  { className, children, ...props },
+  ref
+) {
+  return (
+    <RadixDropdownMenu.RadioItem
+      ref={ref}
+      className={[styles.checkboxItem, className].filter(Boolean).join(" ")}
+      {...props}
+    >
+      <span className={styles.indicatorRound}>
+        <RadixDropdownMenu.ItemIndicator>
+          <DotIcon />
+        </RadixDropdownMenu.ItemIndicator>
+      </span>
+      {children}
+    </RadixDropdownMenu.RadioItem>
   );
 });
 

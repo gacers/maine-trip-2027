@@ -3,6 +3,13 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  /* So a jump to #listing-<id> (from OverviewMap's pins, or a shared
+     link) doesn't land the card half-hidden under TripNavHeader's own
+     sticky bar — scroll-margin-top is honored by scrollIntoView() too,
+     not just native anchor jumps. --sticky-nav-height is measured live
+     by that bar itself (see TripNavHeader.tsx), so this stays correct
+     whether it's one row or wraps to several. */
+  scroll-margin-top: calc(var(--sticky-nav-height, 0px) + 1rem);
 }
 
 .framed {
