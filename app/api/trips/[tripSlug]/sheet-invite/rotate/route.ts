@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug, getAllSectionsForTrip } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 import { rotateSheetInviteToken, exportSection } from "@/lib/sheetsExport";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // every tab immediately, so any copy of the old link (screenshotted,
 // forwarded outside the group it was meant for, etc.) stops working
 // right away rather than whenever the Sheet next happens to re-export.
-export async function POST(request, { params }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
@@ -26,6 +26,6 @@ export async function POST(request, { params }) {
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

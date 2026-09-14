@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 
@@ -11,7 +11,7 @@ export const revalidate = 0;
 // (see sanitizeTripForClient, which strips it before SectionPage ever
 // renders). The client fetches it here, with real auth, only once it
 // already knows it has access.
-export async function GET(request, { params }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });

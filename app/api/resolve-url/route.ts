@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // so this can't become a general-purpose URL-fetching proxy.
 const ALLOWED_HOSTS = new Set(["share.google", "maps.app.goo.gl", "goo.gl"]);
 
-export async function POST(request) {
+export async function POST(request: NextRequest) {
   let body;
   try {
     body = await request.json();
@@ -17,7 +17,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  let parsed;
+  let parsed: URL;
   try {
     parsed = new URL(body.url);
   } catch {

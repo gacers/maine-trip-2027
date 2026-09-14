@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getAdminUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabaseServer";
 
@@ -20,7 +20,7 @@ export async function GET() {
   return NextResponse.json({ settings: data });
 }
 
-export async function PATCH(request) {
+export async function PATCH(request: NextRequest) {
   const user = await getAdminUser();
   if (!user) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
 
@@ -31,7 +31,7 @@ export async function PATCH(request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if ("googleDriveFolderId" in body) patch.google_drive_folder_id = body.googleDriveFolderId || null;
   if ("siteUrl" in body) patch.site_url = body.siteUrl || null;
   if ("contactEmail" in body) patch.contact_email = body.contactEmail || null;
@@ -41,12 +41,7 @@ export async function PATCH(request) {
   }
 
   const supabase = await supabaseServer();
-  const { data, error } = await supabase
-    .from("app_settings")
-    .update(patch)
-    .eq("id", true)
-    .select()
-    .single();
+  const { data, error } = await supabase.from("app_settings").update(patch).eq("id", true).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ settings: data });
 }

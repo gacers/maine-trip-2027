@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getAllTrips, sanitizeTripForClient } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 
@@ -10,15 +10,15 @@ export const revalidate = 0;
 export async function GET() {
   try {
     const trips = await getAllTrips();
-    return NextResponse.json({ trips: trips.map(sanitizeTripForClient) });
+    return NextResponse.json({ trips: trips.map((t) => sanitizeTripForClient(t)) });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
 
 // "One stop shop" new-trip action (Phase 2 gets a real form on top of
 // this; the route itself is Phase 1 so the capability exists early).
-export async function POST(request) {
+export async function POST(request: NextRequest) {
   const { error: authError, supabase } = await requireWriteAccess(request);
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
@@ -41,7 +41,7 @@ export async function POST(request) {
   }
 
   try {
-    const { data: trip, error } = await supabase
+    const { data: trip, error } = await supabase!
       .from("trips")
       .insert({
         slug,
@@ -56,6 +56,6 @@ export async function POST(request) {
     if (error) throw new Error(error.message);
     return NextResponse.json({ trip }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
