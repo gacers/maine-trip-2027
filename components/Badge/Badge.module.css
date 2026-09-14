@@ -8,34 +8,44 @@
   white-space: nowrap;
 }
 
+.orange {
+  background: var(--badge-orange-bg);
+  color: var(--badge-orange-text);
+}
+
 .amber {
-  background: var(--color-amber-100);
-  color: var(--color-amber-800);
-}
-
-.blue {
-  background: var(--color-blue-100);
-  color: var(--color-blue-800);
-}
-
-.purple {
-  background: var(--color-purple-100);
-  color: var(--color-purple-800);
+  background: var(--badge-amber-bg);
+  color: var(--badge-amber-text);
 }
 
 .teal {
-  background: var(--color-teal-100);
-  color: var(--color-teal-800);
+  background: var(--badge-teal-bg);
+  color: var(--badge-teal-text);
 }
 
-.pink {
-  background: var(--color-pink-100);
-  color: var(--color-pink-800);
+.blue {
+  background: var(--badge-blue-bg);
+  color: var(--badge-blue-text);
 }
 
 .indigo {
-  background: var(--color-indigo-100);
-  color: var(--color-indigo-800);
+  background: var(--badge-indigo-bg);
+  color: var(--badge-indigo-text);
+}
+
+.plum {
+  background: var(--badge-plum-bg);
+  color: var(--badge-plum-text);
+}
+
+.pink {
+  background: var(--badge-pink-bg);
+  color: var(--badge-pink-text);
+}
+
+.brown {
+  background: var(--badge-brown-bg);
+  color: var(--badge-brown-text);
 }
 
 .neutral {

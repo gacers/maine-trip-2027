@@ -212,6 +212,9 @@ export interface EntryCardProps {
   showMap?: boolean;
   comparisonMode?: boolean;
   compact?: boolean;
+  /** Houses' own cards get a taller photo — see EntryMedia's own
+   * `large` prop, which this just forwards to. */
+  largeMedia?: boolean;
   /** Skip rendering this card's own photo — used for a 2-house-option
    * group, where SectionPage lays both houses' photos out as their own
    * row (via EntryMedia directly) above the group's shared title
@@ -234,6 +237,7 @@ export default function EntryCard({
   showMap = true,
   comparisonMode = true,
   compact = false,
+  largeMedia = false,
   hideMedia = false,
 }: EntryCardProps) {
   const [rankDraft, setRankDraft] = useState<string | number>(entry.rank ?? "");
@@ -447,7 +451,7 @@ export default function EntryCard({
 
   return (
     <article id={`listing-${entry.id}`} className={rootClassName}>
-      {!hideMedia && <EntryMedia entry={entry} compact={compact} showRatings={showRatings} />}
+      {!hideMedia && <EntryMedia entry={entry} compact={compact} large={largeMedia} showRatings={showRatings} />}
 
       <div className={sectionsClassName}>
         <div className={styles.section}>

@@ -4,15 +4,30 @@ import { forwardRef, type HTMLAttributes } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import styles from "./Badge.module.css";
 
-export type BadgeVariant = "amber" | "blue" | "purple" | "teal" | "pink" | "indigo" | "neutral" | "closed";
+export type BadgeVariant =
+  | "orange"
+  | "amber"
+  | "teal"
+  | "blue"
+  | "indigo"
+  | "plum"
+  | "pink"
+  | "brown"
+  | "neutral"
+  | "closed";
 
-// Deliberately excludes red/green — colors with their own strong "bad"/
-// "good" connotation, which is exactly what went wrong when Closed (a
-// real status) happened to land on green and read as "open" by
-// accident. Those two are reserved for actual status meaning instead
-// (see the dedicated "closed" variant); an arbitrary type tag only ever
-// cycles through these purely-decorative colors.
-const COLOR_VARIANTS: BadgeVariant[] = ["amber", "blue", "purple", "teal", "pink", "indigo"];
+// Sourced from Radix Colors' accessible categorical scale (radix-ui.com/
+// colors) instead of an ad hoc pastel set — chosen to be genuinely
+// distinguishable at a glance (spread across the hue wheel, each with
+// real chroma/lightness contrast from its neighbors), not just
+// technically-different hex values that all read as "pale tint" from a
+// few feet away. Deliberately excludes red/green — colors with their
+// own strong "bad"/"good" connotation, which is exactly what went wrong
+// when Closed (a real status) happened to land on green and read as
+// "open" by accident. Those two are reserved for actual status meaning
+// instead (see the dedicated "closed" variant); an arbitrary type tag
+// only ever cycles through these purely-decorative colors.
+const COLOR_VARIANTS: BadgeVariant[] = ["orange", "amber", "teal", "blue", "indigo", "plum", "pink", "brown"];
 
 // Assigns each key in `keys` (already deduped, in a stable order — e.g.
 // a section's own boolean field_defs, in their defined order) to one of

@@ -18,6 +18,11 @@
   height: 11rem;
 }
 
+.mediaHeaderLarge {
+  composes: mediaHeader;
+  height: 20rem;
+}
+
 .mediaImg {
   width: 100%;
   height: 100%;

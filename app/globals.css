@@ -27,7 +27,7 @@ blockquote {
 
 body {
   margin: 0;
-  background: var(--background);
+  background: var(--color-zinc-200);
   color: var(--foreground);
   font-family: var(--font-sans);
 }
@@ -37,10 +37,11 @@ body {
    on, in a totally different component than the map itself, e.g.
    OverviewMap) after jumping to a card from a map pin, so it's obvious
    which one you actually landed on. A gentle light-blue wash over the
-   card's own background (rather than a box-shadow ring), fading back
-   to transparent between pulses — works whether the card's actual
-   background is white (a framed solo card) or transparent (a bare
-   split-card half). Four 1.2s pulses, then the element settles back to
+   card's own background (rather than a box-shadow ring alone), plus a
+   slight pulsating drop-shadow around the card at the same time — works
+   whether the card's actual background is white (a framed solo card)
+   or transparent (a bare split-card half), fading back to nothing
+   between pulses. Four 1.2s pulses, then the element settles back to
    normal — the class is removed by the same timeout that's already
    waiting for the pulses to finish, so nothing lingers even if the
    animation's own fill got interrupted. */
@@ -48,9 +49,11 @@ body {
   0%,
   100% {
     background-color: transparent;
+    box-shadow: 0 0 0 0 rgb(37 99 235 / 0);
   }
   50% {
     background-color: rgb(37 99 235 / 0.12);
+    box-shadow: 0 0 16px 2px rgb(37 99 235 / 0.25);
   }
 }
 

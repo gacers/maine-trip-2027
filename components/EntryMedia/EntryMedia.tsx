@@ -4,6 +4,12 @@ import styles from "./EntryMedia.module.css";
 export interface EntryMediaProps {
   entry: Pick<ClientEntry, "posterImage" | "title" | "averageScore" | "ratingCount">;
   compact?: boolean;
+  /** Houses' own cards get a taller photo than the default — richer/
+   * full-width cards can support it, and a bigger house photo is
+   * actually useful, unlike a listing that's mostly text. Ignored when
+   * compact is also set (compact always wins, e.g. a paired option's
+   * shared media row). */
+  large?: boolean;
   showRatings?: boolean;
 }
 
@@ -14,10 +20,11 @@ export interface EntryMediaProps {
 // continues below that. EntryCard itself renders this exact same
 // component for a solo/compact card (hideMedia lets it skip its own
 // copy when a caller like SectionPage is placing this separately).
-export default function EntryMedia({ entry, compact = false, showRatings = false }: EntryMediaProps) {
+export default function EntryMedia({ entry, compact = false, large = false, showRatings = false }: EntryMediaProps) {
   if (!entry.posterImage) return null;
+  const headerClass = compact ? styles.mediaHeaderCompact : large ? styles.mediaHeaderLarge : styles.mediaHeader;
   return (
-    <div className={compact ? styles.mediaHeaderCompact : styles.mediaHeader}>
+    <div className={headerClass}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={entry.posterImage} alt={entry.title ?? ""} className={styles.mediaImg} loading="lazy" />
       {showRatings && !!entry.ratingCount && entry.averageScore != null && (

@@ -1,11 +1,28 @@
 .main {
-  max-width: 56rem;
+  max-width: 88rem;
   margin-inline: auto;
   padding: 1.5rem 1rem 4rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   width: 100%;
+}
+@media (min-width: 640px) {
+  .main {
+    padding-inline: 1.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  .main {
+    padding-inline: 2rem;
+  }
+}
+
+/* Houses' own single-column cards are already rich/full-width — they
+   don't want the wide 3-across grid's own max-width, which would just
+   stretch each card further than it should go. */
+.mainHouses {
+  max-width: 75rem;
 }
 
 .sheetRow {
@@ -79,10 +96,23 @@
   composes: loadingText;
 }
 
+.loadingWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
 .entryList {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* Houses' cards are bigger/richer than a typical entry — more room
+   between them reads better than the default list gap. */
+.entryListHouses {
+  gap: 2rem;
 }
 
 .entryGrid {
@@ -95,6 +125,11 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+@media (min-width: 1024px) {
+  .entryGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 
 .archivedSection {
   margin-top: 1rem;
@@ -105,9 +140,10 @@
 }
 
 /* Both houses' photos, side by side, ahead of the group's own title
-   section — no divider here (unlike .groupListingHalf below); a photo
-   already has its own hard edge, and the vertical line is meant to
-   start under the title section, not run through the images too. */
+   section. A thin white seam (not the usual zinc divider — the images
+   already have plenty of their own contrast) separates the two once
+   they're actually side by side; stacked on mobile, there's no shared
+   edge to seam. */
 .groupMediaRow {
   display: flex;
   flex-direction: column;
@@ -124,6 +160,9 @@
 @media (min-width: 640px) {
   .groupMediaHalf {
     width: 50%;
+  }
+  .groupMediaHalf:last-child {
+    border-left: 1px solid #fff;
   }
 }
 

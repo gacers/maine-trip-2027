@@ -11,6 +11,7 @@ import GroupMap from "@/components/GroupMap";
 import SimpleGroupMap from "@/components/SimpleGroupMap";
 import OverviewMap from "@/components/OverviewMap";
 import Button from "@/components/Button";
+import Spinner from "@/components/Spinner";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -114,7 +115,14 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // drink, activities) read better two to a row — a plain per-section
   // layout toggle, unrelated to comparisonMode.
   const compactCards = !!section.compact_cards;
-  const listClassName = compactCards ? styles.entryGrid : styles.entryList;
+  // Houses specifically (identified by nav group, not compactCards —
+  // Houses always uses the single-column .entryList) get a larger
+  // photo, more breathing room between cards, and a narrower page
+  // overall than the wide 3-across grid other sections use.
+  const isHouses = navGroupSlug === "houses";
+  const listClassName = [compactCards ? styles.entryGrid : styles.entryList, isHouses && styles.entryListHouses]
+    .filter(Boolean)
+    .join(" ");
 
   // An admin's own session cookie already carries full access — an
   // invite link only matters for everyone else, so it's ignored here if
@@ -348,7 +356,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
             <div className={styles.groupMediaRow}>
               {unit.listings.map((entry) => (
                 <div key={entry.id} className={styles.groupMediaHalf}>
-                  <EntryMedia entry={entry} compact={compactCards} showRatings={showRatings} />
+                  <EntryMedia entry={entry} compact={compactCards} large={isHouses} showRatings={showRatings} />
                 </div>
               ))}
             </div>
@@ -414,6 +422,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         showRatings={showRatings}
         comparisonMode={comparisonMode}
         compact={compactCards}
+        largeMedia={isHouses}
       />
     );
   }
@@ -474,7 +483,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   );
 
   return (
-    <main className={styles.main}>
+    <main className={[styles.main, isHouses && styles.mainHouses].filter(Boolean).join(" ")}>
       {/* No hint that a Sheet even exists for a non-contributor — Request
           Access itself now lives once, globally, in TripNavHeader. */}
       {canContribute && sheetUrl && (
@@ -499,7 +508,9 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
       {error && <p className={styles.errorBanner}>{error}</p>}
 
       {loading ? (
-        <p className={styles.loadingText}>Loading...</p>
+        <div className={styles.loadingWrap}>
+          <Spinner size={48} />
+        </div>
       ) : (
         <>
           {/* Independent of comparisonMode on purpose — OverviewMap is a
