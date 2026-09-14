@@ -1,1 +1,13 @@
-/* Pure passthrough to ListingMap — no markup of its own to style. */
+/* Matches SectionPage's own .groupMapSection exactly — that class wraps
+   the simple (non-comparison) map instead, since this component now
+   provides its own two section-styled blocks rather than one bundled
+   one. */
+.section {
+  padding: 0.875rem 1rem;
+  border-top: 1px solid var(--color-zinc-200);
+}
+@media (min-width: 640px) {
+  .section {
+    padding-inline: 1.25rem;
+  }
+}

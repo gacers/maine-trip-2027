@@ -384,13 +384,13 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
               </div>
             ))}
           </div>
-          <div className={styles.groupMapSection}>
-            {comparisonMode ? (
-              <GroupMap listings={unit.listings} mapConfig={mapConfig} />
-            ) : (
+          {comparisonMode ? (
+            <GroupMap listings={unit.listings} mapConfig={mapConfig} />
+          ) : (
+            <div className={styles.groupMapSection}>
               <SimpleGroupMap listings={unit.listings} />
-            )}
-          </div>
+            </div>
+          )}
         </ListingSection>
       );
     }
