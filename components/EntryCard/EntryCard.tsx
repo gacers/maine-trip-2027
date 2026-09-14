@@ -8,7 +8,7 @@ import SimplePlaceMap from "@/components/SimplePlaceMap";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import StarRating from "@/components/StarRating";
 import Button from "@/components/Button";
-import Badge, { pickBadgeVariant } from "@/components/Badge";
+import Badge, { assignBadgeVariants } from "@/components/Badge";
 import EntryMedia from "@/components/EntryMedia";
 import BulletList from "@/components/BulletList";
 import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
@@ -312,6 +312,16 @@ export default function EntryCard({
   // "Bar", "Restaurant") — generic by field *type*, not by name, so any
   // boolean field an admin adds to any section gets this for free.
   const activeBooleanFields = fieldDefs.filter((f) => f.field_type === "boolean" && entry[f.key]);
+  // Colors are assigned from the section's full boolean field list (not
+  // just this entry's active ones), in that list's own defined order —
+  // so a given type always lands on the same color everywhere it shows
+  // up, and two different types in the same section never collide the
+  // way an independent per-key hash could. "closed" is excluded here
+  // since it always gets its own dedicated variant below, never one of
+  // the arbitrary rotation colors.
+  const badgeVariants = assignBadgeVariants(
+    fieldDefs.filter((f) => f.field_type === "boolean" && f.key !== "closed").map((f) => f.key)
+  );
 
   function archive(reason: string) {
     onPatch(entry.id, { archiveReason: reason, status: "archived" });
@@ -446,7 +456,7 @@ export default function EntryCard({
               {activeBooleanFields.length > 0 && (
                 <div className={styles.eyebrows}>
                   {activeBooleanFields.map((f) => (
-                    <Badge key={f.key} variant={f.key === "closed" ? "closed" : pickBadgeVariant(f.key)}>
+                    <Badge key={f.key} variant={f.key === "closed" ? "closed" : badgeVariants[f.key]}>
                       {f.label}
                     </Badge>
                   ))}

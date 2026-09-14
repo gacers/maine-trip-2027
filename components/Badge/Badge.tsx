@@ -14,18 +14,24 @@ export type BadgeVariant = "amber" | "blue" | "purple" | "teal" | "pink" | "indi
 // cycles through these purely-decorative colors.
 const COLOR_VARIANTS: BadgeVariant[] = ["amber", "blue", "purple", "teal", "pink", "indigo"];
 
-// Deterministically maps an arbitrary string (a boolean field's own
-// `key`, e.g. "winery") to one of the color variants above — same input
-// always gets the same color, so a given type reads consistently as
-// "the same tag" everywhere it shows up (this card, that card, the
-// filter dropdown, ...) without hardcoding a color per label, which
-// wouldn't generalize to whatever boolean field an admin adds next.
-export function pickBadgeVariant(seed: string): BadgeVariant {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
-  }
-  return COLOR_VARIANTS[Math.abs(hash) % COLOR_VARIANTS.length];
+// Assigns each key in `keys` (already deduped, in a stable order — e.g.
+// a section's own boolean field_defs, in their defined order) to one of
+// the color variants above, one at a time. Two distinct types shown
+// together (Restaurant, Breakfast, ...) never collide on the same
+// color this way, the way an independent per-key hash could (and did —
+// two unrelated types in the same section landing on the same bucket
+// purely by hash coincidence). A different section's own field list
+// gets its own independent assignment, so the same key can land on a
+// different color there — that's fine, only same-section collisions
+// actually read as a bug. Wraps back to the start if a section somehow
+// defines more boolean fields than there are colors, an inherent limit
+// of a small, deliberately non-alarming palette rather than a bug.
+export function assignBadgeVariants(keys: string[]): Record<string, BadgeVariant> {
+  const map: Record<string, BadgeVariant> = {};
+  keys.forEach((key, i) => {
+    map[key] = COLOR_VARIANTS[i % COLOR_VARIANTS.length];
+  });
+  return map;
 }
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
