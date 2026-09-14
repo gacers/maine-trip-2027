@@ -1,13 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
 import { summarizeRatings, resolveRaterKey } from "@/lib/ratings";
+import type { Trip, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-async function resolveTripAndSection(tripSlug, sectionSlug) {
+async function resolveTripAndSection(
+  tripSlug: string,
+  sectionSlug: string
+): Promise<{ trip: Trip; section: Section; notFound?: undefined } | { notFound: NextResponse; trip?: undefined; section?: undefined }> {
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return { notFound: NextResponse.json({ error: "Unknown trip" }, { status: 404 }) };
   const section = await getSectionBySlug(trip.id, sectionSlug);
@@ -23,7 +27,10 @@ async function resolveTripAndSection(tripSlug, sectionSlug) {
 // Auth session for RLS to check — entry_ratings has no write policy at
 // all, this route is the only door in, same pattern as entries' own
 // bearer-token path.
-export async function PUT(request, { params }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string; entryId: string }> }
+) {
   const { tripSlug, sectionSlug, entryId } = await params;
   const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
   if (notFound) return notFound;
@@ -37,7 +44,7 @@ export async function PUT(request, { params }) {
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
   const raterKey = resolveRaterKey(accessKey, request);
 
-  let body;
+  let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
@@ -61,16 +68,19 @@ export async function PUT(request, { params }) {
 
   const { data: rows, error: readError } = await service
     .from("entry_ratings")
-    .select("rater_key, score")
+    .select("entry_id, rater_key, score")
     .eq("entry_id", entryId);
   if (readError) return NextResponse.json({ error: readError.message }, { status: 500 });
 
-  return NextResponse.json(summarizeRatings(rows, raterKey));
+  return NextResponse.json(summarizeRatings(rows, raterKey ?? null));
 }
 
 // Clears the caller's own score (e.g. "never mind, I have no opinion") —
 // leaves everyone else's ratings and the average untouched.
-export async function DELETE(request, { params }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string; entryId: string }> }
+) {
   const { tripSlug, sectionSlug, entryId } = await params;
   const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
   if (notFound) return notFound;
@@ -94,9 +104,9 @@ export async function DELETE(request, { params }) {
 
   const { data: rows, error: readError } = await service
     .from("entry_ratings")
-    .select("rater_key, score")
+    .select("entry_id, rater_key, score")
     .eq("entry_id", entryId);
   if (readError) return NextResponse.json({ error: readError.message }, { status: 500 });
 
-  return NextResponse.json(summarizeRatings(rows, raterKey));
+  return NextResponse.json(summarizeRatings(rows, raterKey ?? null));
 }
