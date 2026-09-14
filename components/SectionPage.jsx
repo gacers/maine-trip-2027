@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AddEntryForm from "@/components/AddEntryForm";
+import BookmarkletButton from "@/components/BookmarkletButton";
 import RequestAccess from "@/components/RequestAccess";
 import EntryCard from "@/components/EntryCard";
 import ListingSection from "@/components/ListingSection";
@@ -9,7 +10,7 @@ import GroupMap from "@/components/GroupMap";
 import SimpleGroupMap from "@/components/SimpleGroupMap";
 import OverviewMap from "@/components/OverviewMap";
 import { groupUnits } from "@/lib/groupUnits";
-import { captureInviteToken } from "@/lib/inviteClient";
+import { captureInviteToken, captureBookmarkletData } from "@/lib/inviteClient";
 import { buildAgentInstructions, downloadTextFile } from "@/lib/agentInstructions";
 
 function pinFor(unit) {
@@ -32,6 +33,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [contributorToken, setContributorToken] = useState(null);
+  const [bookmarkletData, setBookmarkletData] = useState(null);
   // Whether the localStorage/invite-param check below has actually run
   // yet. An admin's access is already known synchronously from the
   // server (the isAdmin prop), so there's nothing to wait for; everyone
@@ -76,6 +78,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
 
   useEffect(() => {
     setContributorToken(captureInviteToken(trip.slug));
+    setBookmarkletData(captureBookmarkletData());
     setAccessChecked(true);
   }, [trip.slug]);
 
@@ -280,7 +283,14 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
 
       {canContribute && (
         <div className="flex flex-col gap-2">
-          <AddEntryForm trip={trip} section={section} onAdded={handleAdded} authToken={authToken} />
+          <AddEntryForm
+            trip={trip}
+            section={section}
+            onAdded={handleAdded}
+            authToken={authToken}
+            bookmarkletData={bookmarkletData}
+          />
+          <BookmarkletButton trip={trip} section={section} inviteToken={authToken} />
           <button
             onClick={handleDownloadInstructions}
             className="text-sm text-zinc-500 hover:underline self-start"

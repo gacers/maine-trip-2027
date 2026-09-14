@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import {
@@ -24,7 +24,7 @@ const CORE_INITIAL = {
   groupLabel: "",
 };
 
-export default function AddEntryForm({ trip, section, onAdded, authToken = null }) {
+export default function AddEntryForm({ trip, section, onAdded, authToken = null, bookmarkletData = null }) {
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState("idle"); // idle | loading | editing | duplicate | picking | saving | error
   const [fields, setFields] = useState(CORE_INITIAL);
@@ -36,8 +36,29 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
-  const [deepSearching, setDeepSearching] = useState(false);
-  const [deepMsg, setDeepMsg] = useState("");
+
+  // The bookmarklet already read these fields straight out of the real
+  // listing page in the visitor's own browser (see
+  // components/BookmarkletButton.jsx) — no fetch, nothing to preview,
+  // just drop straight into the same editing form a normal preview
+  // would land on. Runs once on mount; bookmarkletData is a one-shot
+  // value, not something that changes later.
+  useEffect(() => {
+    if (bookmarkletData) {
+      setUrl(bookmarkletData.url || "");
+      setFields({
+        ...CORE_INITIAL,
+        title: bookmarkletData.title || "",
+        posterImage: bookmarkletData.posterImage || "",
+        description: bookmarkletData.description || "",
+        lat: bookmarkletData.lat ?? "",
+        lng: bookmarkletData.lng ?? "",
+      });
+      setData(initialData());
+      setPhase("editing");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fieldDefs = section.field_defs || [];
   const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
@@ -77,8 +98,6 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
     setAddress("");
     setGeocodeMsg("");
     setErrorMsg("");
-    setDeepSearching(false);
-    setDeepMsg("");
   }
 
   async function handlePreview(e) {
@@ -160,74 +179,6 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
     } catch (err) {
       setErrorMsg(err.message);
       setPhase("idle");
-    }
-  }
-
-  // A slower, heavier-duty fallback for an Airbnb listing that beat the
-  // fast /preview scraper's own attempt (including its Apify fallback)
-  // — real residential IPs + a managed browser, confirmed live to
-  // recover listings the fast path can't. A real run can take up to
-  // ~2 minutes, so this polls rather than waiting on one long request.
-  async function handleDeepSearch() {
-    setDeepSearching(true);
-    setDeepMsg("Starting a deeper search (this can take up to about 2 minutes)...");
-    setErrorMsg("");
-    try {
-      const res = await fetch(`${apiBase}/deep-preview`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ url }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't start a deeper search.");
-
-      const snapshotId = data.snapshotId;
-      const startedAt = Date.now();
-      const maxWaitMs = 3 * 60 * 1000;
-
-      const poll = async () => {
-        if (Date.now() - startedAt > maxWaitMs) {
-          setDeepMsg("Still hasn't finished after a few minutes — give up and fill in the fields manually.");
-          setDeepSearching(false);
-          return;
-        }
-        const pollRes = await fetch(`${apiBase}/deep-preview?snapshotId=${encodeURIComponent(snapshotId)}`, {
-          headers: authHeaders,
-        });
-        const pollData = await pollRes.json();
-        if (!pollRes.ok || pollData.status === "failed") {
-          setDeepMsg("Deeper search didn't turn up anything either — fill in the fields manually.");
-          setDeepSearching(false);
-          return;
-        }
-        if (pollData.status === "pending") {
-          const elapsed = Math.round((Date.now() - startedAt) / 1000);
-          setDeepMsg(`Still searching... (${elapsed}s)`);
-          setTimeout(poll, 5000);
-          return;
-        }
-        // status === "ready"
-        if (!pollData.result) {
-          setDeepMsg("Deeper search didn't turn up anything either — fill in the fields manually.");
-          setDeepSearching(false);
-          return;
-        }
-        const r = pollData.result;
-        setFields((f) => ({
-          ...f,
-          title: f.title || r.title || "",
-          posterImage: f.posterImage || r.posterImage || "",
-          description: f.description || r.description || "",
-          lat: f.lat !== "" ? f.lat : r.lat ?? "",
-          lng: f.lng !== "" ? f.lng : r.lng ?? "",
-        }));
-        setDeepMsg("Found it!");
-        setDeepSearching(false);
-      };
-      poll();
-    } catch (err) {
-      setDeepMsg(err.message);
-      setDeepSearching(false);
     }
   }
 
@@ -367,20 +318,6 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
                 <li key={i}>{w}</li>
               ))}
             </ul>
-          )}
-
-          {!fields.title && url.includes("airbnb.") && (
-            <div className="flex flex-col gap-1">
-              <button
-                type="button"
-                onClick={handleDeepSearch}
-                disabled={deepSearching}
-                className="text-sm text-blue-600 hover:underline self-start disabled:opacity-50"
-              >
-                {deepSearching ? "Searching..." : "Try a deeper search (slower, up to ~2 min)"}
-              </button>
-              {deepMsg && <p className="text-xs text-zinc-500">{deepMsg}</p>}
-            </div>
           )}
 
           <div className="grid sm:grid-cols-2 gap-3">
