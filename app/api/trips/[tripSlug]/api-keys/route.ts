@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { requireWriteAccess, hashApiKey } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
@@ -15,7 +15,7 @@ export const revalidate = 0;
 // check, since a real admin's own session client would otherwise be
 // blocked reading/writing this table by its RLS lockdown too.
 
-export async function GET(request, { params }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
@@ -43,7 +43,7 @@ export async function GET(request, { params }) {
     }));
     return NextResponse.json({ apiKeys });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
 
@@ -59,7 +59,7 @@ export async function GET(request, { params }) {
 //   yourself. Ignored (always false) for a contributor key — an invite
 //   link only ever makes sense scoped to the one trip it was shared
 //   for.
-export async function POST(request, { params }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
@@ -94,6 +94,6 @@ export async function POST(request, { params }) {
     if (error) throw new Error(error.message);
     return NextResponse.json({ apiKey: { ...data, hasStoredToken: true }, token }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

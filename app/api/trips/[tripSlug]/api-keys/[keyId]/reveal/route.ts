@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
@@ -12,7 +12,10 @@ export const revalidate = 0;
 // its hash, so there's genuinely nothing to return; revoke and create a
 // fresh one instead. Owner/admin only — this is strictly more sensitive
 // than the create endpoint since it can be called any number of times.
-export async function GET(request, { params }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ tripSlug: string; keyId: string }> }
+) {
   const { tripSlug, keyId } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
@@ -39,6 +42,6 @@ export async function GET(request, { params }) {
     }
     return NextResponse.json({ token: data.token_plaintext });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

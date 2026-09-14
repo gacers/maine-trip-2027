@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
@@ -8,7 +8,10 @@ export const revalidate = 0;
 
 // Revoke only — keys are never un-revoked or deleted outright, so a
 // compromised/rotated key can't accidentally come back to life.
-export async function PATCH(request, { params }) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ tripSlug: string; keyId: string }> }
+) {
   const { tripSlug, keyId } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
@@ -27,6 +30,6 @@ export async function PATCH(request, { params }) {
     if (error) throw new Error(error.message);
     return NextResponse.json({ apiKey: data });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
