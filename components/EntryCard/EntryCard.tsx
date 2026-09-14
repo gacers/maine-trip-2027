@@ -416,13 +416,17 @@ export default function EntryCard({
   }
 
   const rootClassName = [styles.article, !bare && styles.framed, isArchived && styles.archived].filter(Boolean).join(" ");
+  // On a split/paired card (bare + hideMedia, inside GroupMap's own
+  // ListingSection), this top border would just double up whatever
+  // divider that wrapping context already draws above it.
+  const sectionsClassName = [styles.sections, bare && styles.sectionsBare].filter(Boolean).join(" ");
   const mapsSearchUrl = hasHouse ? `https://www.google.com/maps/search/?api=1&query=${entry.lat},${entry.lng}` : undefined;
 
   return (
     <article id={`listing-${entry.id}`} className={rootClassName}>
       {!hideMedia && <EntryMedia entry={entry} compact={compact} showRatings={showRatings} />}
 
-      <div className={styles.sections}>
+      <div className={sectionsClassName}>
         <div className={styles.section}>
           <div className={styles.utilityRow}>
             {activeBooleanFields.length > 0 ? (
@@ -697,34 +701,33 @@ export default function EntryCard({
           </div>
         )}
 
-        {(hasNotes || hasConcerns || canContribute) && (
+        {/* Its own section, same as every other content block — not
+            bundled with Concerns under one shared heading-pair anymore. */}
+        {(hasNotes || canContribute) && (
           <div className={styles.section}>
-            {(hasNotes || canContribute) && (
-              <>
-                <h3 className={styles.sectionHeading}>Notes</h3>
-                <EditableNoteList
-                  items={toBullets(entry.notes)}
-                  onAdd={canContribute ? addNote : null}
-                  onRemove={canManage ? removeNoteAt : null}
-                  addLabel="Add note"
-                  placeholder="Add a note..."
-                />
-              </>
-            )}
-            {(hasConcerns || canContribute) && (
-              <>
-                <h3 className={styles.concernsHeading}>Concerns</h3>
-                <div className={styles.concernsBox}>
-                  <EditableNoteList
-                    items={toBullets(entry.concerns)}
-                    onAdd={canContribute ? addConcern : null}
-                    onRemove={canManage ? removeConcernAt : null}
-                    addLabel="Add concern"
-                    placeholder="Anything that gives you pause..."
-                  />
-                </div>
-              </>
-            )}
+            <h3 className={styles.sectionHeading}>Notes</h3>
+            <EditableNoteList
+              items={toBullets(entry.notes)}
+              onAdd={canContribute ? addNote : null}
+              onRemove={canManage ? removeNoteAt : null}
+              addLabel="Add note"
+              placeholder="Add a note..."
+            />
+          </div>
+        )}
+
+        {/* The whole section gets the amber tint now, not just a box
+            wrapped around the list inside a plain section. */}
+        {(hasConcerns || canContribute) && (
+          <div className={styles.concernsSection}>
+            <h3 className={styles.concernsHeading}>Concerns</h3>
+            <EditableNoteList
+              items={toBullets(entry.concerns)}
+              onAdd={canContribute ? addConcern : null}
+              onRemove={canManage ? removeConcernAt : null}
+              addLabel="Add concern"
+              placeholder="Anything that gives you pause..."
+            />
           </div>
         )}
 
