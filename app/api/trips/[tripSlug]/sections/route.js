@@ -44,6 +44,7 @@ export async function POST(request, { params }) {
     supportsPairing,
     hasMap,
     supportsRanking,
+    supportsRatings,
     compactCards,
     navGroupId,
     newNavGroupLabel,
@@ -98,6 +99,7 @@ export async function POST(request, { params }) {
         supports_pairing: !!supportsPairing,
         has_map: !!hasMap,
         supports_ranking: !!supportsRanking,
+        supports_ratings: !!supportsRatings,
         compact_cards: !!compactCards,
         sort_order: 999,
       })

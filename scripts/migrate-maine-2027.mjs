@@ -203,6 +203,7 @@ async function main() {
     supports_pairing: true,
     has_map: true,
     supports_ranking: true,
+    supports_ratings: true,
     sort_order: 0,
   });
   const previousStays = await upsertSection(trip.id, housesGroup.id, {
@@ -214,6 +215,7 @@ async function main() {
     supports_pairing: false,
     has_map: false,
     supports_ranking: false,
+    supports_ratings: false,
     sort_order: 1,
   });
   // The other 4 sections have no field defs or data to seed yet — create

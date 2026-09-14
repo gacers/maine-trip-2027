@@ -62,6 +62,7 @@ export default function SectionForm({ trip, navGroups, section }) {
   const [supportsPairing, setSupportsPairing] = useState(section?.supports_pairing ?? false);
   const [hasMap, setHasMap] = useState(section?.has_map ?? true);
   const [supportsRanking, setSupportsRanking] = useState(section?.supports_ranking ?? false);
+  const [supportsRatings, setSupportsRatings] = useState(section?.supports_ratings ?? false);
   const [compactCards, setCompactCards] = useState(section?.compact_cards ?? false);
   const [navGroupId, setNavGroupId] = useState(section?.nav_group_id || navGroups[0]?.id || "");
   const [newGroupLabel, setNewGroupLabel] = useState("");
@@ -108,6 +109,7 @@ export default function SectionForm({ trip, navGroups, section }) {
       supportsPairing,
       hasMap,
       supportsRanking,
+      supportsRatings,
       compactCards,
       fieldDefs: fields.map(rowToFieldDef),
     };
@@ -144,10 +146,12 @@ export default function SectionForm({ trip, navGroups, section }) {
           addPlaceholder: `Paste a link for a ${label.toLowerCase()} you've already been to...`,
           emptyMessage: `No previous ${label.toLowerCase()} yet — paste a link above.`,
           // A "previous"/already-decided list never needs pairing, a map,
-          // or ranking, regardless of what the primary section is set to.
+          // ranking, or ratings, regardless of what the primary section
+          // is set to.
           supportsPairing: false,
           hasMap: false,
           supportsRanking: false,
+          supportsRatings: false,
           compactCards,
           navGroupId: data.section.nav_group_id,
           fieldDefs: fields.map(rowToFieldDef),
@@ -292,6 +296,16 @@ export default function SectionForm({ trip, navGroups, section }) {
           />
           Show the manual Rank input — only for a still-deciding-among-options list (e.g. Possible
           Houses), not a &quot;previous&quot; list or lighter sections like Food &amp; Drink/Activities.
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={supportsRatings}
+            onChange={(e) => setSupportsRatings(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Show 5-star ratings (each visitor&apos;s own score, plus everyone&apos;s average) — same
+          still-deciding-among-options sections as ranking.
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input

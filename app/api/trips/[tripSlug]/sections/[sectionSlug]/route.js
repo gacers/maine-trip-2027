@@ -44,6 +44,7 @@ export async function PATCH(request, { params }) {
     supportsPairing,
     hasMap,
     supportsRanking,
+    supportsRatings,
     compactCards,
     navGroupId,
     enabled,
@@ -58,6 +59,7 @@ export async function PATCH(request, { params }) {
   if (supportsPairing !== undefined) patch.supports_pairing = !!supportsPairing;
   if (hasMap !== undefined) patch.has_map = !!hasMap;
   if (supportsRanking !== undefined) patch.supports_ranking = !!supportsRanking;
+  if (supportsRatings !== undefined) patch.supports_ratings = !!supportsRatings;
   if (compactCards !== undefined) patch.compact_cards = !!compactCards;
   if (navGroupId !== undefined) patch.nav_group_id = navGroupId;
   if (enabled !== undefined) patch.enabled = !!enabled;

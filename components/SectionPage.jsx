@@ -32,6 +32,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [activeFilters, setActiveFilters] = useState(() => new Set());
+  const [sortBy, setSortBy] = useState("rank"); // rank | myScore | averageScore
   const [contributorToken, setContributorToken] = useState(null);
   // Whether the localStorage/invite-param check below has actually run
   // yet. An admin's access is already known synchronously from the
@@ -64,6 +65,9 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // complexity, not ranking). Only a still-deciding-among-options list
   // like Possible Houses needs it; per-section admin toggle either way.
   const showRanking = !!section.supports_ranking;
+  // Two-score star ratings (My Score / Average Score) — same opt-in
+  // pattern, only meaningful for a still-deciding list.
+  const showRatings = !!section.supports_ratings;
   // Houses get one full-width card per row; lighter entries (food &
   // drink, activities) read better two to a row — a plain per-section
   // layout toggle, unrelated to comparisonMode.
@@ -138,6 +142,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // (e.g. "Bar" checked) into one that doesn't even have that field.
   useEffect(() => {
     setActiveFilters(new Set());
+    setSortBy("rank");
   }, [section.id]);
 
   function toggleFilter(key) {
@@ -181,6 +186,23 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
     } catch (err) {
       setError(err.message);
       load();
+    }
+  }
+
+  async function handleRate(id, score) {
+    applyLocalPatch(id, { myScore: score }); // optimistic
+    try {
+      const res = await fetch(`${apiBase}/${id}/ratings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ score }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Rating failed");
+      applyLocalPatch(id, data);
+    } catch (err) {
+      setError(err.message);
+      load(); // re-sync on failure
     }
   }
 
@@ -241,7 +263,22 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
     return unit.listings.some((entry) => [...activeFilters].some((key) => !!entry[key]));
   }
 
-  const activeUnits = groupUnits(active).filter(unitMatchesFilters);
+  // A 2-item group has two separate scores (one per listing) — sorting by
+  // either takes the better of the two, same "at least this good" idea
+  // as picking a representative rank for the pair.
+  function unitSortValue(unit, key) {
+    if (key === "rank") return unit.listings[0]?.rank ?? 999999;
+    const values = unit.listings.map((l) => l[key]).filter((v) => v != null);
+    return values.length > 0 ? Math.max(...values) : -Infinity;
+  }
+
+  const activeUnits = groupUnits(active)
+    .filter(unitMatchesFilters)
+    .sort((a, b) =>
+      sortBy === "rank"
+        ? unitSortValue(a, "rank") - unitSortValue(b, "rank")
+        : unitSortValue(b, sortBy) - unitSortValue(a, sortBy) // higher score first
+    );
   const pins = activeUnits.map(pinFor);
 
   function renderUnit(unit) {
@@ -272,10 +309,12 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
                   mapConfig={mapConfig}
                   onPatch={handlePatch}
                   onDelete={handleDelete}
+                  onRate={handleRate}
                   canManage={canManage}
                   canContribute={canContribute}
                   bare
                   showRank={false}
+                  showRatings={showRatings}
                   showMap={false}
                   compact={compactCards}
                 />
@@ -306,11 +345,13 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
           mapConfig={mapConfig}
           onPatch={handlePatch}
           onDelete={handleDelete}
+          onRate={handleRate}
           canManage={canManage}
           canContribute={canContribute}
           bare
           showTitle={false}
           showRank={showRanking}
+          showRatings={showRatings}
           comparisonMode={comparisonMode}
           compact={compactCards}
         />
@@ -375,6 +416,21 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
             </button>
           )}
         </div>
+      )}
+
+      {showRatings && (
+        <label className="flex items-center gap-2 text-sm text-zinc-700 self-start">
+          <span className="text-xs uppercase tracking-wide text-zinc-500 font-medium">Sort by</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          >
+            <option value="rank">Rank</option>
+            <option value="myScore">My Score</option>
+            <option value="averageScore">Average Score</option>
+          </select>
+        </label>
       )}
 
       {error && (

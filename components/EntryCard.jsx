@@ -4,6 +4,7 @@ import { useState } from "react";
 import ListingMap from "./ListingMap";
 import SimplePlaceMap from "./SimplePlaceMap";
 import ArchiveDialog from "./ArchiveDialog";
+import StarRating from "./StarRating";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
@@ -158,11 +159,13 @@ export default function EntryCard({
   mapConfig,
   onPatch,
   onDelete,
+  onRate,
   canManage = true,
   canContribute = true,
   bare = false,
   showTitle = true,
   showRank = true,
+  showRatings = false,
   showMap = true,
   comparisonMode = true,
   compact = false,
@@ -341,6 +344,24 @@ export default function EntryCard({
               );
             })}
             {countsSummary && <div className="text-xs text-zinc-500 mt-0.5">{countsSummary}</div>}
+            {showRatings && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5">
+                <div className="flex items-center gap-1.5">
+                  <StarRating value={entry.averageScore ?? 0} size={16} />
+                  <span className="text-xs text-zinc-500">
+                    {entry.averageScore != null
+                      ? `${entry.averageScore.toFixed(1)} avg (${entry.ratingCount})`
+                      : "No ratings yet"}
+                  </span>
+                </div>
+                {canContribute && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-zinc-500">You:</span>
+                    <StarRating value={entry.myScore ?? 0} size={16} onChange={(v) => onRate(entry.id, v)} />
+                  </div>
+                )}
+              </div>
+            )}
             {!showTitle && (
               <a
                 href={entry.url}
