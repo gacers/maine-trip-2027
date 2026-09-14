@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { getAllEntries, findEntryByUrl, createEntry, toClientEntry } from "@/lib/entries";
@@ -8,11 +8,15 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { normalizeListingUrl } from "@/lib/scrape";
 import { extractCount } from "@/lib/fieldTypes/count";
 import { exportSection } from "@/lib/sheetsExport";
+import type { Trip, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-async function resolveTripAndSection(tripSlug, sectionSlug) {
+async function resolveTripAndSection(
+  tripSlug: string,
+  sectionSlug: string
+): Promise<{ trip: Trip; section: Section; notFound?: undefined } | { notFound: NextResponse; trip?: undefined; section?: undefined }> {
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return { notFound: NextResponse.json({ error: "Unknown trip" }, { status: 404 }) };
   const section = await getSectionBySlug(trip.id, sectionSlug);
@@ -20,7 +24,10 @@ async function resolveTripAndSection(tripSlug, sectionSlug) {
   return { trip, section };
 }
 
-export async function GET(request, { params }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string }> }
+) {
   const { tripSlug, sectionSlug } = await params;
   const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
   if (notFound) return notFound;
@@ -28,7 +35,7 @@ export async function GET(request, { params }) {
   try {
     const supabase = await supabaseServer();
     const entries = await getAllEntries(supabase, section.id);
-    let clientEntries = entries.map(toClientEntry);
+    let clientEntries = entries.map((e) => toClientEntry(e));
 
     if (section.supports_ratings) {
       const ratingsByEntry = await getRatingsForEntries(
@@ -41,17 +48,20 @@ export async function GET(request, { params }) {
       const raterKey = resolveRaterKey(accessKey, request);
       clientEntries = clientEntries.map((e) => ({
         ...e,
-        ...summarizeRatings(ratingsByEntry[e.id], raterKey),
+        ...summarizeRatings(ratingsByEntry[e.id], raterKey ?? null),
       }));
     }
 
     return NextResponse.json({ trip, section, entries: clientEntries });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
 
-export async function POST(request, { params }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string }> }
+) {
   const { tripSlug, sectionSlug } = await params;
   const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
   if (notFound) return notFound;
@@ -81,19 +91,19 @@ export async function POST(request, { params }) {
   }
 
   try {
-    const existing = await findEntryByUrl(supabase, section.id, normalizedUrl);
+    const existing = await findEntryByUrl(supabase!, section.id, normalizedUrl);
     if (existing) {
       return NextResponse.json({ error: "duplicate", existing: toClientEntry(existing) }, { status: 409 });
     }
 
-    const all = await getAllEntries(supabase, section.id);
+    const all = await getAllEntries(supabase!, section.id);
     const maxRank = all.reduce((max, e) => (e.rank && e.rank > max ? e.rank : max), 0);
 
     // Auto-fill any "count"-type field not explicitly given, from the
     // description text — generalizes today's bedroom/bed/bathroom
     // auto-extraction to whichever count fields this section defines.
-    const filledData = { ...(data || {}) };
-    for (const fieldDef of section.field_defs) {
+    const filledData: Record<string, unknown> = { ...(data || {}) };
+    for (const fieldDef of section.field_defs || []) {
       if (fieldDef.field_type === "count" && fieldDef.storage === "jsonb") {
         const has = filledData[fieldDef.key] !== undefined && filledData[fieldDef.key] !== "";
         if (!has) {
@@ -103,7 +113,7 @@ export async function POST(request, { params }) {
       }
     }
 
-    const entry = await createEntry(supabase, {
+    const entry = await createEntry(supabase!, {
       id: nanoid(8),
       section_id: section.id,
       rank: maxRank + 1,
@@ -119,9 +129,9 @@ export async function POST(request, { params }) {
       group_label: groupLabel || null,
       data: filledData,
     });
-    await exportSection(supabase, trip, section);
+    await exportSection(supabase!, trip, section);
     return NextResponse.json({ entry: toClientEntry(entry) }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
