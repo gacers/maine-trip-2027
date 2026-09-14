@@ -1,13 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug, getTripNav } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
+import type { FieldType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const VALID_FIELD_TYPES = ["text", "textarea", "url", "image_url", "number", "count", "price", "select", "boolean", "date"];
+const VALID_FIELD_TYPES: FieldType[] = [
+  "text",
+  "textarea",
+  "url",
+  "image_url",
+  "number",
+  "count",
+  "price",
+  "select",
+  "boolean",
+  "date",
+];
 
-export async function GET(request, { params }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
@@ -16,11 +28,11 @@ export async function GET(request, { params }) {
     const nav = await getTripNav(trip.id);
     return NextResponse.json({ trip, nav });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
 
-export async function POST(request, { params }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
@@ -55,10 +67,7 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: "slug and label are required" }, { status: 400 });
   }
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) {
-    return NextResponse.json(
-      { error: "slug must be lowercase letters/numbers separated by hyphens" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "slug must be lowercase letters/numbers separated by hyphens" }, { status: 400 });
   }
   if (!navGroupId && !newNavGroupLabel) {
     return NextResponse.json({ error: "Pick an existing nav group or name a new one" }, { status: 400 });
@@ -77,7 +86,7 @@ export async function POST(request, { params }) {
         .trim()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
-      const { data: group, error: groupError } = await supabase
+      const { data: group, error: groupError } = await supabase!
         .from("nav_groups")
         .insert({ trip_id: trip.id, slug: groupSlug, label: newNavGroupLabel, sort_order: 999 })
         .select()
@@ -86,7 +95,7 @@ export async function POST(request, { params }) {
       resolvedNavGroupId = group.id;
     }
 
-    const { data: section, error: sectionError } = await supabase
+    const { data: section, error: sectionError } = await supabase!
       .from("sections")
       .insert({
         trip_id: trip.id,
@@ -108,7 +117,7 @@ export async function POST(request, { params }) {
     if (sectionError) throw new Error(sectionError.message);
 
     if (fieldDefs?.length > 0) {
-      const rows = fieldDefs.map((f, i) => ({
+      const rows = fieldDefs.map((f: Record<string, unknown>, i: number) => ({
         section_id: section.id,
         key: f.key,
         label: f.label,
@@ -119,12 +128,12 @@ export async function POST(request, { params }) {
         options: f.options || null,
         sort_order: i,
       }));
-      const { error: fieldError } = await supabase.from("field_defs").insert(rows);
+      const { error: fieldError } = await supabase!.from("field_defs").insert(rows);
       if (fieldError) throw new Error(fieldError.message);
     }
 
     return NextResponse.json({ section }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
