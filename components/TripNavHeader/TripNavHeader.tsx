@@ -3,15 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  NavigationMenu,
-  NavigationMenuList,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuTrigger,
-  NavigationMenuContent,
-  NavigationMenuViewportWrapper,
-} from "@/components/NavigationMenu";
+import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/NavigationMenu";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from "@/components/DropdownMenu";
 import Button from "@/components/Button";
 import RequestAccess from "@/components/RequestAccess";
@@ -38,15 +30,19 @@ export interface TripNavHeaderProps {
 // already attached and sorted (see lib/sections.js's getTripNav) —
 // entirely data-driven per trip, replacing the old hardcoded
 // GROUPS/COLLECTIONS constants. One single sticky bar, full width:
-// trip name on the left, each nav group as a flat text item (a real
-// dropdown, via Radix NavigationMenu, when it has more than one
-// section) on larger screens — collapsing to a single hamburger menu
-// (a Radix DropdownMenu instead, listing every group/section) below
-// that — and utility links on the right, gated on who's actually
-// looking: an admin session gets "All trips"/"Manage", a visitor with
-// neither that nor an invite link gets "Request access", and a
-// contributor (has an invite link, isn't the owner) gets neither —
-// they already have what they need on the page itself.
+// trip name + utility links on their own row, then every top-level
+// group (Houses, Food & Drink, Activities, ...) as a plain flat link
+// on the row below — no dropdown/flyout. Landing on a group navigates
+// straight to its first (normally "Possible ...") section; once you're
+// on any section in that group, a second row appears underneath with
+// that group's own sections (Possible/Previous), so there's always at
+// most one extra row, never a hover-menu. Collapses to a single
+// hamburger (a Radix DropdownMenu listing every group/section) below
+// 1024px, where the flat row doesn't reliably fit. Utility links are
+// gated on who's actually looking: an admin session gets "All trips"/
+// "Manage", a visitor with neither that nor an invite link gets
+// "Request access", and a contributor (has an invite link, isn't the
+// owner) gets neither — they already have what they need on the page.
 export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, contactEmail = null }: TripNavHeaderProps) {
   const pathname = usePathname();
   const barRef = useRef<HTMLElement>(null);
@@ -114,60 +110,64 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
       </div>
 
       {nav.length > 0 && (
-        <div className={styles.navRow}>
-          <NavigationMenu className={styles.menuDesktop} aria-label="Trip sections">
-            <NavigationMenuList>
-              {nav.map((g) =>
-                g.sections.length > 1 ? (
-                  <NavigationMenuItem key={g.id}>
-                    <NavigationMenuTrigger active={g.id === activeGroup?.id}>{g.label}</NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      {g.sections.map((s) => (
-                        <NavigationMenuLink
-                          key={s.id}
-                          asChild
-                          size="menuItem"
-                          active={pathname === sectionPath(s.slug)}
-                        >
-                          <Link href={sectionPath(s.slug)}>{s.sub_nav_label || s.label}</Link>
-                        </NavigationMenuLink>
-                      ))}
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
-                ) : (
+        <>
+          <div className={styles.navRow}>
+            <NavigationMenu className={styles.menuDesktop} aria-label="Trip categories">
+              <NavigationMenuList>
+                {nav.map((g) => (
                   <NavigationMenuItem key={g.id}>
                     <NavigationMenuLink asChild active={g.id === activeGroup?.id}>
                       <Link href={sectionPath(g.sections[0].slug)}>{g.label}</Link>
                     </NavigationMenuLink>
                   </NavigationMenuItem>
-                )
-              )}
-            </NavigationMenuList>
-            <NavigationMenuViewportWrapper />
-          </NavigationMenu>
-
-          <div className={styles.menuMobile}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" aria-label="Sections menu" className={styles.hamburgerButton}>
-                  <MenuIcon />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {nav.map((g) => (
-                  <div key={g.id}>
-                    <DropdownMenuLabel>{g.label}</DropdownMenuLabel>
-                    {g.sections.map((s) => (
-                      <DropdownMenuItem key={s.id} asChild>
-                        <Link href={sectionPath(s.slug)}>{s.sub_nav_label || s.label}</Link>
-                      </DropdownMenuItem>
-                    ))}
-                  </div>
                 ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </NavigationMenuList>
+            </NavigationMenu>
+
+            <div className={styles.menuMobile}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" aria-label="Sections menu" className={styles.hamburgerButton}>
+                    <MenuIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {nav.map((g) => (
+                    <div key={g.id}>
+                      <DropdownMenuLabel>{g.label}</DropdownMenuLabel>
+                      {g.sections.map((s) => (
+                        <DropdownMenuItem key={s.id} asChild>
+                          <Link href={sectionPath(s.slug)}>{s.sub_nav_label || s.label}</Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        </div>
+
+          {/* Only the active group's own sections (e.g. Possible/
+              Previous) — appears once you're actually on one of them,
+              defaulting to the first (normally "Possible ..."). Shown
+              at every width, alongside whichever of the row above/the
+              hamburger is currently visible. */}
+          {activeGroup && activeGroup.sections.length > 1 && (
+            <div className={styles.subNavRow}>
+              <NavigationMenu aria-label={`${activeGroup.label} sections`}>
+                <NavigationMenuList>
+                  {activeGroup.sections.map((s) => (
+                    <NavigationMenuItem key={s.id}>
+                      <NavigationMenuLink asChild size="sm" active={pathname === sectionPath(s.slug)}>
+                        <Link href={sectionPath(s.slug)}>{s.sub_nav_label || s.label}</Link>
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                  ))}
+                </NavigationMenuList>
+              </NavigationMenu>
+            </div>
+          )}
+        </>
       )}
     </header>
   );

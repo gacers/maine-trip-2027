@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import AddEntryForm from "@/components/AddEntryForm";
-import RequestAccess from "@/components/RequestAccess";
 import EntryCard from "@/components/EntryCard";
 import EntryMedia from "@/components/EntryMedia";
 import ListingSection from "@/components/ListingSection";
@@ -51,14 +50,13 @@ export interface SectionPageProps {
   trip: PublicTrip;
   section: Section;
   isAdmin?: boolean;
-  contactEmail?: string | null;
 }
 
 // Replaces CollectionPage.jsx — same fetch/patch/delete/add logic and
 // grouping, now against /api/trips/[tripSlug]/sections/[sectionSlug]/
 // entries instead of /api/[collection], and rendering whichever fields
 // `section.field_defs` defines instead of a hardcoded showBedBath flag.
-export default function SectionPage({ trip, section, isAdmin = false, contactEmail = null }: SectionPageProps) {
+export default function SectionPage({ trip, section, isAdmin = false }: SectionPageProps) {
   const [entries, setEntries] = useState<ClientEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -69,14 +67,6 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // supports_ranking is on.
   const [sortBy, setSortBy] = useState<SortBy>(section.supports_ranking ? "rank" : "averageScore");
   const [contributorToken, setContributorToken] = useState<string | null>(null);
-  // Whether the localStorage/invite-param check below has actually run
-  // yet. An admin's access is already known synchronously from the
-  // server (the isAdmin prop), so there's nothing to wait for; everyone
-  // else's real status depends on reading localStorage client-side,
-  // which can't happen before mount. Gating "Request access" on this
-  // (rather than just `!canContribute`) stops it from flashing on for a
-  // returning contributor whose token just hasn't been read back yet.
-  const [accessChecked, setAccessChecked] = useState(isAdmin);
   // Fetched separately (not handed down in trip's own props) once access
   // is confirmed — see /api/trips/[tripSlug]/sheet-url and
   // sanitizeTripForClient for why this can't just be trip.google_sheet_url.
@@ -121,11 +111,9 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   const canManage = isAdmin;
   const canContribute = isAdmin || !!contributorToken;
   const authToken = isAdmin ? null : contributorToken;
-  const showRequestAccess = accessChecked && !canContribute;
 
   useEffect(() => {
     setContributorToken(captureInviteToken(trip.slug));
-    setAccessChecked(true);
   }, [trip.slug]);
 
   useEffect(() => {
@@ -413,20 +401,15 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
 
   return (
     <main className={styles.main}>
-      <div className={styles.sheetRow}>
-        {canContribute ? (
-          sheetUrl && (
-            <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={styles.sheetLink}>
-              Google Sheet
-            </a>
-          )
-        ) : (
-          // No hint that a Sheet even exists for a non-contributor — same
-          // "ask the owner" flow as the Add form below uses, not a
-          // disabled placeholder for something they can't get to anyway.
-          showRequestAccess && <RequestAccess trip={trip} section={section} contactEmail={contactEmail} />
-        )}
-      </div>
+      {/* No hint that a Sheet even exists for a non-contributor — Request
+          Access itself now lives once, globally, in TripNavHeader. */}
+      {canContribute && sheetUrl && (
+        <div className={styles.sheetRow}>
+          <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={styles.sheetLink}>
+            Google Sheet
+          </a>
+        </div>
+      )}
 
       {canContribute && (
         <div className={styles.addSection}>
