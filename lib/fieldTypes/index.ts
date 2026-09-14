@@ -6,12 +6,13 @@
 import * as price from "./price";
 import * as count from "./count";
 import * as textarea from "./textarea";
+import type { FieldType } from "@/lib/types";
 
 // Every type at minimum needs nothing beyond a plain value round-trip
 // (render the stored value, store whatever's typed in) — text/url/
 // image_url/number/select/boolean/date all just need their input control
 // (that's a component-layer concern, not logic) and have no entry here.
-export const FIELD_TYPES = {
+export const FIELD_TYPES: Record<FieldType, Record<string, unknown>> = {
   text: {},
   textarea,
   url: {},
@@ -24,6 +25,6 @@ export const FIELD_TYPES = {
   date: {},
 };
 
-export function getFieldType(type) {
+export function getFieldType(type: FieldType) {
   return FIELD_TYPES[type] || FIELD_TYPES.text;
 }

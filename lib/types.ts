@@ -24,7 +24,7 @@ export interface FieldDef {
   core_column?: string | null;
   show_on_overview: boolean;
   required: boolean;
-  options?: { choices?: string[]; aliases?: string[] } | null;
+  options?: { choices?: string[]; aliases?: string[]; shortLabel?: string } | null;
   sort_order: number;
 }
 
@@ -143,4 +143,22 @@ export interface ClientEntry {
   // Section-specific field_def values (price, bedrooms, Closed, ...),
   // keyed by each field's own `key` — genuinely dynamic per section.
   [fieldKey: string]: unknown;
+}
+
+// lib/groupUnits.ts's pairing result: a solo entry, or two entries
+// sharing a groupLabel rendered as one card/map/rank.
+export type EntryUnit =
+  | { type: "solo"; listings: [ClientEntry] }
+  | { type: "group"; listings: [ClientEntry, ClientEntry] };
+
+export interface PlaceResult {
+  id: string;
+  title: string;
+  address: string;
+  summary: string | null;
+  lat: number | null;
+  lng: number | null;
+  website: string | null;
+  mapsUrl: string | null;
+  photoUrl: string | null;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { loadGoogleMaps } from "@/lib/loadGoogleMaps";
+import type { PlaceResult } from "@/lib/types";
 
 // Text-searches Google Places (New) for whatever a friend pasted or
 // typed — a name pulled from a Google search URL's q= param, a name
@@ -9,11 +10,11 @@ import { loadGoogleMaps } from "@/lib/loadGoogleMaps";
 // AddEntryForm needs to fill itself in the moment one is picked (no
 // second request for details) — uses the same `places` library already
 // loaded by loadGoogleMaps() for the Geocoder, so no new API key.
-export async function searchPlacesByText(query) {
+export async function searchPlacesByText(query: string): Promise<PlaceResult[]> {
   const google = await loadGoogleMaps();
   if (!google.maps.places?.Place?.searchByText) {
     throw new Error(
-      "Google Places search isn't available — \"Places API (New)\" may need to be enabled for this project."
+      'Google Places search isn\'t available — "Places API (New)" may need to be enabled for this project.'
     );
   }
   const { places } = await google.maps.places.Place.searchByText({
@@ -30,7 +31,8 @@ export async function searchPlacesByText(query) {
     ],
     maxResultCount: 5,
   });
-  return (places || []).map((p) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (places || []).map((p: any) => ({
     id: p.id,
     title: p.displayName || "",
     address: p.formattedAddress || "",

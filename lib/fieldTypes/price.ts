@@ -6,7 +6,7 @@
 const PER_NIGHT_RE = /\$\s?([\d,]+(?:\.\d+)?)\s*(?:\/\s?night|per\s?night)/gi;
 const TOTAL_FOR_NIGHTS_RE = /\$\s?([\d,]+(?:\.\d+)?)\s*(?:total\s*)?for\s*(\d+)\s*nights?/i;
 
-export function extractAvgPerNight(priceText) {
+export function extractAvgPerNight(priceText: string | null | undefined): number | null {
   if (!priceText) return null;
   const text = String(priceText);
 
@@ -27,7 +27,7 @@ export function extractAvgPerNight(priceText) {
 }
 
 // e.g. 780.5 -> "~$781/night"
-export function formatAvgPerNight(amount) {
+export function formatAvgPerNight(amount: number | null | undefined): string {
   if (amount == null || Number.isNaN(amount)) return "";
   return `~$${Math.round(amount).toLocaleString()}/night`;
 }
@@ -35,7 +35,7 @@ export function formatAvgPerNight(amount) {
 // What EntryCard shows next to the raw price value. Only computed when
 // the raw text doesn't already spell out a nightly rate itself (avoids
 // showing the same number twice) — same rule ListingCard.jsx used.
-export function computeBadge(rawValue) {
+export function computeBadge(rawValue: string | null | undefined): string | null {
   if (!rawValue) return null;
   const avg = extractAvgPerNight(rawValue);
   if (avg == null) return null;
@@ -48,7 +48,7 @@ export function computeBadge(rawValue) {
 // "\n"-joined multi-line string, which Sheets stores as text — a
 // numberFormat silently never applies to it (found and fixed this
 // session). Baking "$" into the value itself works the same either way.
-export function exportValue(rawValue) {
+export function exportValue(rawValue: string | null | undefined): string {
   const avg = extractAvgPerNight(rawValue);
   return avg == null ? "" : `$${Math.round(avg).toLocaleString()}`;
 }

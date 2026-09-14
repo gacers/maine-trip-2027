@@ -5,7 +5,7 @@
 // brings back nothing). AddEntryForm uses these to route such input to
 // a Places text search instead of the rental-site scraper.
 
-function hostnameOf(value) {
+function hostnameOf(value: string): string | null {
   try {
     return new URL(value).hostname.replace(/^www\./, "");
   } catch {
@@ -13,7 +13,7 @@ function hostnameOf(value) {
   }
 }
 
-export function isPlainUrl(value) {
+export function isPlainUrl(value: string): boolean {
   return hostnameOf(value) !== null;
 }
 
@@ -26,7 +26,7 @@ export function isPlainUrl(value) {
 // the comment in app/api/resolve-url/route.js. Still worth attempting:
 // it's free when it works, and fails with a clear message when it
 // doesn't.
-export function isGoogleMapsShareUrl(value) {
+export function isGoogleMapsShareUrl(value: string): boolean {
   const host = hostnameOf(value);
   return host === "share.google" || host === "maps.app.goo.gl";
 }
@@ -34,7 +34,7 @@ export function isGoogleMapsShareUrl(value) {
 // A plain "google.com/search?q=..." results page — e.g. copied from the
 // address bar after searching for a place. The query text is right
 // there in the URL, no fetch needed.
-export function isGoogleSearchUrl(value) {
+export function isGoogleSearchUrl(value: string): boolean {
   try {
     const u = new URL(value);
     return hostnameOf(value) === "google.com" && u.pathname === "/search" && u.searchParams.has("q");
@@ -43,13 +43,13 @@ export function isGoogleSearchUrl(value) {
   }
 }
 
-export function extractGoogleSearchQuery(value) {
+export function extractGoogleSearchQuery(value: string): string {
   return new URL(value).searchParams.get("q") || "";
 }
 
 // A full (not shortened) Google Maps URL, e.g.
 // google.com/maps/place/Eventide+Oyster+Co/@43.65,-70.25,17z/...
-export function isGoogleMapsUrl(value) {
+export function isGoogleMapsUrl(value: string): boolean {
   try {
     const u = new URL(value);
     const host = hostnameOf(value);
@@ -59,11 +59,17 @@ export function isGoogleMapsUrl(value) {
   }
 }
 
+export interface ParsedMapsUrl {
+  name: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
 // Pulls a place name and, if present, coordinates out of a Maps URL's
 // own path (`/maps/place/<name>/@<lat>,<lng>,<zoom>z/...`) — best-effort,
 // used only to seed the Places text search below with something better
 // than the raw URL.
-export function parseGoogleMapsUrl(value) {
+export function parseGoogleMapsUrl(value: string): ParsedMapsUrl {
   const u = new URL(value);
   const nameMatch = u.pathname.match(/\/maps\/place\/([^/]+)/);
   const name = nameMatch ? decodeURIComponent(nameMatch[1].replace(/\+/g, " ")) : null;
