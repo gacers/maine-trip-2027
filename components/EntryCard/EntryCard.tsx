@@ -246,6 +246,14 @@ export default function EntryCard({
   const isArchived = entry.status === "archived";
   const extraMarkers = parseExtraMarkers(entry.extraMarkers);
   const hasHouse = hasCoords(entry);
+  // Reference points/Closest Town/Driving Times are for a still-
+  // deciding-among-house-options list — today that's identified by
+  // *either* scoring mechanism being on (showRank for a manual-rank
+  // section, showRatings for Possible Houses' now-retired-ranking/
+  // ratings-driven one), not showRank alone: that went stale the
+  // moment manual ranking got retired here in favor of ratings, which
+  // silently turned this whole section off for House Options.
+  const showHouseDetails = showRank || showRatings;
   // Called unconditionally (Rules of Hooks) — `enabled` lets it no-op
   // entirely (skip loading Google Maps, skip every effect) for a card
   // that won't actually show a comparison map (editing, no coords, or a
@@ -257,7 +265,7 @@ export default function EntryCard({
     houses: hasHouse ? [{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }] : [],
     extraMarkers,
     mapConfig,
-    showReferencePoints: showRank,
+    showReferencePoints: showHouseDetails,
     enabled: comparisonMode && hasHouse && showMap && !isEditing,
   });
 
