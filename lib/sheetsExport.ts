@@ -1,4 +1,6 @@
 import { randomBytes } from "crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { sheets_v4 } from "googleapis";
 import { getSheetsClient } from "@/lib/googleSheetsAuth";
 import { createSheetInDrive } from "@/lib/drive";
 import { getAllEntries, toClientEntry } from "@/lib/entries";
@@ -7,6 +9,9 @@ import { groupUnits } from "@/lib/groupUnits";
 import { exportValue as priceExportValue } from "@/lib/fieldTypes/price";
 import { hashApiKey } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
+import type { Trip, Section, EntryUnit, FieldDef, ClientEntry } from "@/lib/types";
+
+type RankedUnit = EntryUnit & { rank: number };
 
 // A trip's Sheet is meant to be shared freely (link-shareable, no
 // Google account needed) — so every link the Sheet generates back to
@@ -19,7 +24,7 @@ import { supabaseServiceRole } from "@/lib/supabaseServer";
 // at all (service-role only, same lockdown as app_admins), and the
 // passed-in `supabase` here is sometimes just an admin's own session
 // client, which can't touch that table directly.
-export async function ensureSheetInviteToken(trip) {
+export async function ensureSheetInviteToken(trip: Trip): Promise<string> {
   if (trip.sheet_invite_token) return trip.sheet_invite_token;
 
   const service = supabaseServiceRole();
@@ -52,7 +57,7 @@ export async function ensureSheetInviteToken(trip) {
 // caller is responsible for re-exporting every section afterward so the
 // live Sheet's links actually pick up the new token instead of leaving
 // stale ones that still work.
-export async function rotateSheetInviteToken(trip) {
+export async function rotateSheetInviteToken(trip: Trip): Promise<string> {
   const service = supabaseServiceRole();
   if (trip.sheet_invite_key_id) {
     await service.from("api_keys").update({ revoked: true }).eq("id", trip.sheet_invite_key_id);
@@ -62,12 +67,21 @@ export async function rotateSheetInviteToken(trip) {
   return ensureSheetInviteToken(trip);
 }
 
+export interface ExportResult {
+  spreadsheetId: string;
+  spreadsheetUrl: string;
+}
+
 // Best-effort, presentational Sheets export — one spreadsheet per trip
-// (auto-created + shared on first use, see lib/drive.js), one tab per
+// (auto-created + shared on first use, see lib/drive.ts), one tab per
 // section. Never throws: a hiccup here can't break the actual write
 // that triggered it, same philosophy as the old single-trip app's
 // syncOverviewSheet.
-export async function exportSection(supabase, trip, section) {
+export async function exportSection(
+  supabase: SupabaseClient,
+  trip: Trip,
+  section: Section
+): Promise<ExportResult | null> {
   try {
     const { data: settings } = await supabase
       .from("app_settings")
@@ -82,10 +96,7 @@ export async function exportSection(supabase, trip, section) {
       const created = await createSheetInDrive(trip.name, settings?.google_drive_folder_id);
       spreadsheetId = created.id;
       spreadsheetUrl = created.url;
-      await supabase
-        .from("trips")
-        .update({ google_sheet_id: spreadsheetId, google_sheet_url: spreadsheetUrl })
-        .eq("id", trip.id);
+      await supabase.from("trips").update({ google_sheet_id: spreadsheetId, google_sheet_url: spreadsheetUrl }).eq("id", trip.id);
     }
 
     const inviteToken = await ensureSheetInviteToken(trip);
@@ -106,10 +117,10 @@ export async function exportSection(supabase, trip, section) {
     const showRankColumn = showRank || showRatings;
     const header = buildHeader(overviewFields, showRankColumn, showRatings);
     const tabName = sanitizeTabName(section.label);
-    const { lastCol } = await ensureTab(sheets, spreadsheetId, tabName, header);
+    const { lastCol } = await ensureTab(sheets, spreadsheetId!, tabName, header);
 
     const rawEntries = await getAllEntries(supabase, section.id);
-    let entries = rawEntries.map(toClientEntry);
+    let entries: ClientEntry[] = rawEntries.map((row) => toClientEntry(row));
     if (showRatings) {
       const ratingsByEntry = await getRatingsForEntries(
         supabase,
@@ -118,7 +129,7 @@ export async function exportSection(supabase, trip, section) {
       entries = entries.map((e) => ({ ...e, ...summarizeRatings(ratingsByEntry[e.id]) }));
     }
 
-    let units;
+    let units: RankedUnit[];
     if (showRatings) {
       // Rank here is computed fresh from Average Score, not the site's
       // manual Rank field — highest average is 1, next is 2, etc.; a tie
@@ -142,9 +153,9 @@ export async function exportSection(supabase, trip, section) {
       buildRow(u, overviewFields, trip, section, siteUrl, inviteToken, showRankColumn, showRatings)
     );
 
-    await syncTabData(sheets, spreadsheetId, tabName, lastCol, rows);
+    await syncTabData(sheets, spreadsheetId!, tabName, lastCol, rows);
 
-    return { spreadsheetId, spreadsheetUrl };
+    return { spreadsheetId: spreadsheetId!, spreadsheetUrl: spreadsheetUrl! };
   } catch (err) {
     console.error("exportSection failed:", err);
     return null;
@@ -154,23 +165,23 @@ export async function exportSection(supabase, trip, section) {
 // A group has two listings, each with its own average — rank the pair by
 // the better of the two, same "at least this good" idea used for the
 // site's own My Score/Average Score sort.
-function unitScoreForSort(unit) {
-  const values = unit.listings.map((l) => l.averageScore).filter((v) => v != null);
+function unitScoreForSort(unit: EntryUnit): number {
+  const values = unit.listings.map((l) => l.averageScore).filter((v): v is number => v != null);
   return values.length > 0 ? Math.max(...values) : -Infinity;
 }
 
-function unitTitleForSort(unit) {
+function unitTitleForSort(unit: EntryUnit): string {
   return (unit.listings[0].groupLabel || unit.listings[0].title || "").toLowerCase();
 }
 
-function sanitizeTabName(label) {
+function sanitizeTabName(label: string): string {
   // Sheets tab names can't contain [ ] * ? : / \ and top out at 100
   // chars — leave headroom since Google may append its own suffix on a
   // name collision.
   return (label || "Sheet").replace(/[[\]*?:/\\]/g, "").slice(0, 90) || "Sheet";
 }
 
-function buildHeader(overviewFields, showRank, showRatings) {
+function buildHeader(overviewFields: FieldDef[], showRank: boolean, showRatings: boolean): string[] {
   const header = showRank ? ["Rank", "Property"] : ["Property"];
   for (const f of overviewFields) {
     header.push(f.label);
@@ -181,7 +192,7 @@ function buildHeader(overviewFields, showRank, showRatings) {
   return header;
 }
 
-function colLetter(n) {
+function colLetter(n: number): string {
   let s = "";
   while (n > 0) {
     const rem = (n - 1) % 26;
@@ -191,13 +202,20 @@ function colLetter(n) {
   return s;
 }
 
-function statusLabelFor(item) {
-  return item.status === "archived"
-    ? `Archived${item.archiveReason ? ` (${item.archiveReason})` : ""}`
-    : "Active";
+function statusLabelFor(item: ClientEntry): string {
+  return item.status === "archived" ? `Archived${item.archiveReason ? ` (${item.archiveReason})` : ""}` : "Active";
 }
 
-function buildRow(unit, overviewFields, trip, section, siteUrl, inviteToken, showRank, showRatings) {
+function buildRow(
+  unit: RankedUnit,
+  overviewFields: FieldDef[],
+  trip: Trip,
+  section: Section,
+  siteUrl: string,
+  inviteToken: string,
+  showRank: boolean,
+  showRatings: boolean
+): (string | number)[] {
   const anchor = unit.listings.length > 1 ? `group-${unit.listings[0].id}` : `listing-${unit.listings[0].id}`;
   // The invite param comes before the #anchor (query strings precede
   // fragments) and is what turns clicking through from the Sheet into
@@ -209,7 +227,7 @@ function buildRow(unit, overviewFields, trip, section, siteUrl, inviteToken, sho
     .replace(/"/g, '""');
   const propertyCell = label ? `=HYPERLINK("${url}", "${label}")` : "";
 
-  const row = showRank ? [unit.rank >= 999999 ? "" : unit.rank, propertyCell] : [propertyCell];
+  const row: (string | number)[] = showRank ? [unit.rank >= 999999 ? "" : unit.rank, propertyCell] : [propertyCell];
   for (const f of overviewFields) {
     // A boolean field is an exception-style flag (e.g. "Closed") — show
     // its label when true and leave the cell blank otherwise, not the
@@ -217,7 +235,7 @@ function buildRow(unit, overviewFields, trip, section, siteUrl, inviteToken, sho
     if (f.field_type === "boolean") {
       row.push(unit.listings.map((l) => (l[f.key] ? f.label : "")).join("\n"));
     } else {
-      row.push(unit.listings.map((l) => l[f.key] ?? "").join("\n"));
+      row.push(unit.listings.map((l) => (l[f.key] as string | number | undefined) ?? "").join("\n"));
     }
     // Baked into text rather than a cell-level currency format — a
     // grouped row's cell here is a "\n"-joined multi-line string,
@@ -225,7 +243,7 @@ function buildRow(unit, overviewFields, trip, section, siteUrl, inviteToken, sho
     // (found and fixed for the old single-sheet Overview this session;
     // same fix applies here).
     if (f.field_type === "price") {
-      row.push(unit.listings.map((l) => priceExportValue(l[f.key])).join("\n"));
+      row.push(unit.listings.map((l) => priceExportValue(l[f.key] as string)).join("\n"));
     }
   }
   if (showRatings) {
@@ -244,34 +262,37 @@ function buildRow(unit, overviewFields, trip, section, siteUrl, inviteToken, sho
 // time: bold header on creation, top-aligned cells always — the same
 // grouped-row-Rank-looks-detached fix from the old single-sheet
 // Overview, since a paired option's cells here are multi-line too.
-async function ensureTab(sheets, spreadsheetId, tabName, header) {
+async function ensureTab(
+  sheets: sheets_v4.Sheets,
+  spreadsheetId: string,
+  tabName: string,
+  header: string[]
+): Promise<{ sheetId: number; lastCol: string }> {
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  let existing = meta.data.sheets.find((s) => s.properties.title === tabName);
+  const existing = meta.data.sheets?.find((s) => s.properties?.title === tabName);
   const lastCol = colLetter(header.length);
 
-  let sheetId;
+  let sheetId: number;
   if (!existing) {
     const addRes = await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: {
-        requests: [
-          { addSheet: { properties: { title: tabName, gridProperties: { frozenRowCount: 1 } } } },
-        ],
+        requests: [{ addSheet: { properties: { title: tabName, gridProperties: { frozenRowCount: 1 } } } }],
       },
     });
-    sheetId = addRes.data.replies[0].addSheet.properties.sheetId;
+    sheetId = addRes.data.replies![0].addSheet!.properties!.sheetId!;
 
     // Every brand-new spreadsheet comes with one empty default "Sheet1"
     // tab — harmless but unpolished for something friends will actually
     // open. Safe to remove now that a second (this) tab exists.
-    const defaultSheet = meta.data.sheets.find(
-      (s) => s.properties.title === "Sheet1" && s.properties.sheetId !== sheetId
+    const defaultSheet = meta.data.sheets?.find(
+      (s) => s.properties?.title === "Sheet1" && s.properties?.sheetId !== sheetId
     );
     if (defaultSheet) {
       try {
         await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
-          requestBody: { requests: [{ deleteSheet: { sheetId: defaultSheet.properties.sheetId } }] },
+          requestBody: { requests: [{ deleteSheet: { sheetId: defaultSheet.properties!.sheetId } }] },
         });
       } catch {
         // non-fatal
@@ -303,7 +324,7 @@ async function ensureTab(sheets, spreadsheetId, tabName, header) {
       // non-fatal
     }
   } else {
-    sheetId = existing.properties.sheetId;
+    sheetId = existing.properties!.sheetId!;
     const headerRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${tabName}!A1:${lastCol}1`,
@@ -342,7 +363,13 @@ async function ensureTab(sheets, spreadsheetId, tabName, header) {
   return { sheetId, lastCol };
 }
 
-async function syncTabData(sheets, spreadsheetId, tabName, lastCol, rows) {
+async function syncTabData(
+  sheets: sheets_v4.Sheets,
+  spreadsheetId: string,
+  tabName: string,
+  lastCol: string,
+  rows: (string | number)[][]
+): Promise<void> {
   await sheets.spreadsheets.values.clear({
     spreadsheetId,
     range: `${tabName}!A2:${lastCol}`,

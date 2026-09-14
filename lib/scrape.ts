@@ -25,7 +25,7 @@
 // → Network → any airbnb.com request → copy the "cookie" request
 // header value).
 
-export function normalizeListingUrl(rawUrl) {
+export function normalizeListingUrl(rawUrl: string): string {
   const u = new URL(rawUrl);
   const host = u.hostname.replace(/^www\./, "");
 
@@ -44,24 +44,15 @@ export function normalizeListingUrl(rawUrl) {
   return `${u.origin}${u.pathname}`;
 }
 
-function extractMeta(html, property) {
-  const re = new RegExp(
-    `<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']*)["']`,
-    "i"
-  );
-  const altRe = new RegExp(
-    `<meta[^>]+content=["']([^"']*)["'][^>]+property=["']${property}["']`,
-    "i"
-  );
-  const nameRe = new RegExp(
-    `<meta[^>]+name=["']${property}["'][^>]+content=["']([^"']*)["']`,
-    "i"
-  );
+function extractMeta(html: string, property: string): string | null {
+  const re = new RegExp(`<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']*)["']`, "i");
+  const altRe = new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+property=["']${property}["']`, "i");
+  const nameRe = new RegExp(`<meta[^>]+name=["']${property}["'][^>]+content=["']([^"']*)["']`, "i");
   const m = html.match(re) || html.match(altRe) || html.match(nameRe);
   return m ? m[1] : null;
 }
 
-function extractFirstPrice(html) {
+function extractFirstPrice(html: string): string | null {
   // Try a handful of common shapes across Airbnb/VRBO/generic listing pages.
   // First match wins; this is inherently fragile and best-effort.
   const patterns = [
@@ -82,7 +73,7 @@ function extractFirstPrice(html) {
   return null;
 }
 
-function extractFirstLatLng(html) {
+function extractFirstLatLng(html: string): { lat: number; lng: number } | null {
   const patterns = [
     /"lat"\s*:\s*(-?\d+\.\d+)\s*,\s*"lng"\s*:\s*(-?\d+\.\d+)/i,
     /"latitude"\s*:\s*(-?\d+\.\d+)\s*,\s*"longitude"\s*:\s*(-?\d+\.\d+)/i,
@@ -104,11 +95,20 @@ function extractFirstLatLng(html) {
 // listing-ish @type.
 const LISTING_JSONLD_TYPES = ["VacationRental", "LodgingBusiness", "House", "Apartment", "Product"];
 
-function extractJsonLd(html) {
+interface JsonLdListing {
+  "@type"?: string;
+  name?: string;
+  description?: string;
+  image?: string | string[];
+  latitude?: number;
+  longitude?: number;
+}
+
+function extractJsonLd(html: string): JsonLdListing | null {
   const scriptRe = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g;
-  let match;
+  let match: RegExpExecArray | null;
   while ((match = scriptRe.exec(html)) !== null) {
-    let parsed;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(match[1]);
     } catch {
@@ -121,10 +121,22 @@ function extractJsonLd(html) {
   return null;
 }
 
-export async function scrapeListing(rawUrl) {
+export interface ScrapeResult {
+  normalizedUrl: string;
+  title: string | null;
+  description: string | null;
+  price: string | null;
+  posterImage: string | null;
+  lat: number | null;
+  lng: number | null;
+  warnings: string[];
+  cookieWarning: string | null;
+}
+
+export async function scrapeListing(rawUrl: string): Promise<ScrapeResult> {
   const normalizedUrl = normalizeListingUrl(rawUrl);
   const isAirbnb = new URL(normalizedUrl).hostname.replace(/^www\./, "").includes("airbnb.");
-  const result = {
+  const result: ScrapeResult = {
     normalizedUrl,
     title: null,
     description: null,
@@ -141,11 +153,11 @@ export async function scrapeListing(rawUrl) {
     cookieWarning: null,
   };
 
-  let html = null;
-  let blockedReason = null;
+  let html: string | null = null;
+  let blockedReason: string | null = null;
 
   try {
-    const headers = {
+    const headers: Record<string, string> = {
       "User-Agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
       "Accept-Language": "en-US,en;q=0.9",
@@ -173,13 +185,14 @@ export async function scrapeListing(rawUrl) {
             : "⚠️ No AIRBNB_SESSION_COOKIE is set — Airbnb blocks anonymous requests for some listings. An admin needs to add one (see .env.local for instructions).";
           blockedReason = "Airbnb didn't return this listing's page.";
         } else {
-          blockedReason = "Airbnb didn't return this listing's page — it may have been removed/delisted, or Airbnb blocked this request.";
+          blockedReason =
+            "Airbnb didn't return this listing's page — it may have been removed/delisted, or Airbnb blocked this request.";
         }
         html = null;
       }
     }
   } catch (err) {
-    blockedReason = `Couldn't reach that site (${err.message}).`;
+    blockedReason = `Couldn't reach that site (${(err as Error).message}).`;
   }
 
   if (html) {
