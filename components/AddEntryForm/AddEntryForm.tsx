@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import {
@@ -11,9 +11,22 @@ import {
   extractGoogleSearchQuery,
   parseGoogleMapsUrl,
 } from "@/lib/googleUrlHelpers";
-import FieldInput from "./FieldInput";
+import FieldInput from "@/components/FieldInput";
+import type { PublicTrip, Section, ClientEntry, PlaceResult } from "@/lib/types";
+import styles from "./AddEntryForm.module.css";
 
-const CORE_INITIAL = {
+interface CoreFields {
+  title: string;
+  posterImage: string;
+  description: string;
+  lat: string | number;
+  lng: string | number;
+  notes: string;
+  concerns: string;
+  groupLabel: string;
+}
+
+const CORE_INITIAL: CoreFields = {
   title: "",
   posterImage: "",
   description: "",
@@ -24,31 +37,41 @@ const CORE_INITIAL = {
   groupLabel: "",
 };
 
+type Phase = "idle" | "loading" | "editing" | "duplicate" | "picking" | "saving";
+type PairPhase = "none" | "input" | "loading" | "ready";
+
 // Mirrors the guidance Claude Desktop already follows for a paired 2-URL
 // add (docs/claude-desktop-add-prompts.md): prefer the two titles' shared
 // lead-in before a separator (e.g. "Gouldsboro - Schoodic East" /
 // "Gouldsboro - Harbor House" share "Gouldsboro"), otherwise just combine
 // both titles — always just a starting suggestion, the field stays editable.
-function deriveGroupLabel(titleA, titleB) {
+function deriveGroupLabel(titleA: string, titleB: string): string {
   const a = (titleA || "").trim();
   const b = (titleB || "").trim();
   if (!a || !b) return a || b || "";
-  const lead = (t) => t.split(/\s*[-:|]\s*/)[0].trim();
+  const lead = (t: string) => t.split(/\s*[-:|]\s*/)[0].trim();
   const aLead = lead(a);
   const bLead = lead(b);
   if (aLead && aLead.toLowerCase() === bLead.toLowerCase()) return aLead;
   return `${a} / ${b}`;
 }
 
-export default function AddEntryForm({ trip, section, onAdded, authToken = null }) {
+export interface AddEntryFormProps {
+  trip: PublicTrip;
+  section: Section;
+  onAdded: (entry: ClientEntry) => void;
+  authToken?: string | null;
+}
+
+export default function AddEntryForm({ trip, section, onAdded, authToken = null }: AddEntryFormProps) {
   const [url, setUrl] = useState("");
-  const [phase, setPhase] = useState("idle"); // idle | loading | editing | duplicate | picking | saving | error
-  const [fields, setFields] = useState(CORE_INITIAL);
-  const [data, setData] = useState({});
-  const [warnings, setWarnings] = useState([]);
-  const [cookieWarning, setCookieWarning] = useState(null);
-  const [duplicate, setDuplicate] = useState(null);
-  const [placeResults, setPlaceResults] = useState([]);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [fields, setFields] = useState<CoreFields>(CORE_INITIAL);
+  const [data, setData] = useState<Record<string, unknown>>({});
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [cookieWarning, setCookieWarning] = useState<string | null>(null);
+  const [duplicate, setDuplicate] = useState<ClientEntry | null>(null);
+  const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
@@ -56,22 +79,22 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
 
   // Pairing a second link into this same "2-item option" — the manual-input
   // equivalent of the AI agent's paired-URL add (both entries get the same
-  // groupLabel; groupUnits.js renders any two entries sharing one as a
+  // groupLabel; groupUnits.ts renders any two entries sharing one as a
   // single card/map/rank).
   const [pairUrl, setPairUrl] = useState("");
-  const [pairPhase, setPairPhase] = useState("none"); // none | input | loading | ready
-  const [pairFields, setPairFields] = useState(CORE_INITIAL);
-  const [pairData, setPairData] = useState({});
-  const [pairWarnings, setPairWarnings] = useState([]);
-  const [pairCookieWarning, setPairCookieWarning] = useState(null);
+  const [pairPhase, setPairPhase] = useState<PairPhase>("none");
+  const [pairFields, setPairFields] = useState<CoreFields>(CORE_INITIAL);
+  const [pairData, setPairData] = useState<Record<string, unknown>>({});
+  const [pairWarnings, setPairWarnings] = useState<string[]>([]);
+  const [pairCookieWarning, setPairCookieWarning] = useState<string | null>(null);
   const [pairError, setPairError] = useState("");
 
   const fieldDefs = section.field_defs || [];
   const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
-  const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+  const authHeaders: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
   function initialData() {
-    const d = {};
+    const d: Record<string, unknown> = {};
     fieldDefs.forEach((f) => {
       d[f.key] = "";
     });
@@ -87,7 +110,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
       setFields((f) => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
       setGeocodeMsg(`Found: ${formattedAddress}`);
     } catch (err) {
-      setGeocodeMsg(err.message);
+      setGeocodeMsg((err as Error).message);
     } finally {
       setGeocoding(false);
     }
@@ -118,7 +141,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
     setPairError("");
   }
 
-  async function handlePairPreview(e) {
+  async function handlePairPreview(e: FormEvent) {
     e.preventDefault();
     const raw = pairUrl.trim();
     if (!raw) return;
@@ -157,12 +180,12 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
       // alone if the admin already typed one in themselves.
       setFields((f) => (f.groupLabel.trim() ? f : { ...f, groupLabel: deriveGroupLabel(f.title, s.title || "") }));
     } catch (err) {
-      setPairError(err.message);
+      setPairError((err as Error).message);
       setPairPhase("input");
     }
   }
 
-  async function handlePreview(e) {
+  async function handlePreview(e: FormEvent) {
     e.preventDefault();
     const raw = url.trim();
     if (!raw) return;
@@ -204,7 +227,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
         setCookieWarning(s.cookieWarning || null);
         setPhase("editing");
       } catch (err) {
-        setErrorMsg(err.message);
+        setErrorMsg((err as Error).message);
         setPhase("idle");
       }
       return;
@@ -240,12 +263,12 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
       setPlaceResults(results);
       setPhase("picking");
     } catch (err) {
-      setErrorMsg(err.message);
+      setErrorMsg((err as Error).message);
       setPhase("idle");
     }
   }
 
-  function choosePlace(place) {
+  function choosePlace(place: PlaceResult) {
     setFields({
       ...CORE_INITIAL,
       title: place.title || "",
@@ -266,7 +289,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
     setPhase("editing");
   }
 
-  async function postEntry(entryUrl, entryFields, entryData, groupLabel) {
+  async function postEntry(entryUrl: string, entryFields: CoreFields, entryData: Record<string, unknown>, groupLabel: string | null) {
     const res = await fetch(apiBase, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders },
@@ -276,7 +299,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
     return { ok: res.ok, status: res.status, data: resData };
   }
 
-  async function handleSave(e) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault();
     if (!fields.title.trim()) {
       setErrorMsg("Title is required.");
@@ -293,10 +316,10 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
       fields.groupLabel.trim() || (paired ? deriveGroupLabel(fields.title, pairFields.title) : "") || null;
     try {
       const r1 = await postEntry(url, fields, data, groupLabel);
-      let entry1 = null;
+      let entry1: ClientEntry | null = null;
       if (r1.ok) {
         entry1 = r1.data.entry;
-        onAdded(entry1);
+        onAdded(entry1!);
       } else if (r1.data.error === "duplicate") {
         if (paired) {
           // Already saved from an earlier attempt at this same pairing
@@ -330,346 +353,300 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
         // The first link is already saved (or was already saved) — keep the
         // pair sub-form open with what was entered so fixing and re-saving
         // doesn't add the first link twice.
-        setFields((f) => ({ ...f, groupLabel }));
+        setFields((f) => ({ ...f, groupLabel: groupLabel || "" }));
         setErrorMsg(
-          `Saved "${entry1.title}" — but the second link failed: ${
+          `Saved "${entry1!.title}" — but the second link failed: ${
             r2.data.error || "Something went wrong."
           } Fix it below and save again.`
         );
         setPhase("editing");
       }
     } catch (err) {
-      setErrorMsg(err.message);
+      setErrorMsg((err as Error).message);
       setPhase("editing");
     }
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 shadow-sm">
+    <div className={styles.card}>
       {phase === "idle" || phase === "loading" ? (
-        <form onSubmit={handlePreview} className="flex flex-col gap-2">
-          <div className="flex flex-col sm:flex-row gap-2">
+        <form onSubmit={handlePreview} className={styles.urlForm}>
+          <div className={styles.urlRow}>
             <input
               type="text"
               required
-              placeholder={section.add_placeholder}
+              placeholder={section.add_placeholder ?? undefined}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
+              className={styles.urlInput}
             />
-            <button
-              type="submit"
-              disabled={phase === "loading"}
-              className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-            >
+            <button type="submit" disabled={phase === "loading"} className={styles.primaryButton}>
               {phase === "loading" ? "Fetching..." : "Add"}
             </button>
           </div>
-          <p className="text-xs text-zinc-500">
-            A listing link, a full Google Maps link, or just type a name (e.g. &quot;Eventide Oyster
-            Co.&quot;) all work. A share.google link usually can&apos;t be read automatically — type
-            the name instead if it doesn&apos;t work.
+          <p className={styles.urlHint}>
+            A listing link, a full Google Maps link, or just type a name (e.g. &quot;Eventide Oyster Co.&quot;) all
+            work. A share.google link usually can&apos;t be read automatically — type the name instead if it
+            doesn&apos;t work.
           </p>
         </form>
       ) : null}
 
-      {errorMsg && <p className="text-sm text-red-600 mt-2">{errorMsg}</p>}
+      {errorMsg && <p className={styles.errorMsg}>{errorMsg}</p>}
 
       {phase === "picking" && placeResults.length > 0 && (
-        <div className="mt-2 flex flex-col gap-2">
-          <p className="text-sm text-zinc-600">Select the right place:</p>
+        <div className={styles.pickingList}>
+          <p className={styles.pickingHint}>Select the right place:</p>
           {placeResults.map((place) => (
-            <button
-              key={place.id}
-              type="button"
-              onClick={() => choosePlace(place)}
-              className="text-left rounded-lg border border-zinc-200 hover:border-blue-400 hover:bg-blue-50/40 p-2 flex gap-3 items-center"
-            >
+            <button key={place.id} type="button" onClick={() => choosePlace(place)} className={styles.placeButton}>
               {place.photoUrl ? (
-                <img
-                  src={place.photoUrl}
-                  alt=""
-                  className="w-12 h-12 object-cover rounded shrink-0"
-                />
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={place.photoUrl} alt="" className={styles.placePhoto} />
               ) : (
-                <div className="w-12 h-12 rounded bg-zinc-100 shrink-0" />
+                <div className={styles.placePhotoFallback} />
               )}
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-zinc-900 truncate">{place.title}</div>
-                <div className="text-xs text-zinc-500 truncate">{place.address}</div>
+              <div className={styles.placeInfo}>
+                <div className={styles.placeTitle}>{place.title}</div>
+                <div className={styles.placeAddress}>{place.address}</div>
               </div>
             </button>
           ))}
-          <button type="button" onClick={reset} className="text-sm text-zinc-500 hover:underline self-start">
+          <button type="button" onClick={reset} className={styles.cancelPickingButton}>
             None of these — cancel
           </button>
         </div>
       )}
 
       {phase === "duplicate" && duplicate && (
-        <div className="mt-2 text-sm text-zinc-700">
+        <div className={styles.duplicateNotice}>
           Already on the list:{" "}
-          <a href={`#listing-${duplicate.id}`} className="text-blue-600 hover:underline">
+          <a href={`#listing-${duplicate.id}`} className={styles.duplicateLink}>
             {duplicate.title}
           </a>
           .
-          <button onClick={reset} className="ml-3 text-zinc-500 hover:underline">
+          <button onClick={reset} className={styles.duplicateResetButton}>
             Add a different one
           </button>
         </div>
       )}
 
       {phase === "editing" || phase === "saving" ? (
-        <form onSubmit={handleSave} className="mt-3 flex flex-col gap-3">
-          {cookieWarning && (
-            <p className="text-xs font-medium text-red-800 bg-red-50 border border-red-200 rounded p-2">
-              {cookieWarning}
-            </p>
-          )}
+        <form onSubmit={handleSave} className={styles.editForm}>
+          {cookieWarning && <p className={styles.cookieWarning}>{cookieWarning}</p>}
           {warnings.length > 0 && (
-            <ul className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 list-disc pl-5">
+            <ul className={styles.warningsList}>
               {warnings.map((w, i) => (
                 <li key={i}>{w}</li>
               ))}
             </ul>
           )}
 
-          <div className="grid sm:grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1 text-sm">
+          <div className={styles.grid}>
+            <label className={styles.field}>
               Title
               <input
                 required
                 value={fields.title}
                 onChange={(e) => setFields({ ...fields, title: e.target.value })}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+            <label className={styles.wideField}>
               Photo URL
               <input
                 value={fields.posterImage}
                 onChange={(e) => setFields({ ...fields, posterImage: e.target.value })}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+            <label className={styles.wideField}>
               Description (one bullet per line, optional)
               <textarea
                 value={fields.description}
                 onChange={(e) => setFields({ ...fields, description: e.target.value })}
                 rows={3}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
 
             {fieldDefs.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:col-span-2">
+              <div className={styles.fieldDefsGrid}>
                 {fieldDefs.map((f) => (
-                  <FieldInput
-                    key={f.key}
-                    fieldDef={f}
-                    value={data[f.key]}
-                    onChange={(v) => setData({ ...data, [f.key]: v })}
-                  />
+                  <FieldInput key={f.key} fieldDef={f} value={data[f.key]} onChange={(v) => setData({ ...data, [f.key]: v })} />
                 ))}
                 {fieldDefs.some((f) => f.field_type === "count") && (
-                  <p className="text-xs text-zinc-500 col-span-full -mt-1">
-                    Leave count fields blank to auto-fill from the description.
-                  </p>
+                  <p className={styles.countHint}>Leave count fields blank to auto-fill from the description.</p>
                 )}
               </div>
             )}
 
-            <label className="flex flex-col gap-1 text-sm">
+            <label className={styles.field}>
               Latitude
               <input
                 value={fields.lat}
                 onChange={(e) => setFields({ ...fields, lat: e.target.value })}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
+            <label className={styles.field}>
               Longitude
               <input
                 value={fields.lng}
                 onChange={(e) => setFields({ ...fields, lng: e.target.value })}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
-            <div className="flex flex-col gap-1 text-sm sm:col-span-2">
+            <div className={styles.wideField}>
               <label>Or find lat/lng from an address</label>
-              <div className="flex gap-2">
+              <div className={styles.geocodeRow}>
                 <input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="e.g. 129 State Route 32, New Harbor, ME"
-                  className="flex-1 rounded border border-zinc-300 px-2 py-1.5"
+                  className={styles.geocodeInput}
                 />
-                <button
-                  type="button"
-                  onClick={handleFindCoords}
-                  disabled={geocoding || !address.trim()}
-                  className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-                >
+                <button type="button" onClick={handleFindCoords} disabled={geocoding || !address.trim()} className={styles.findButton}>
                   {geocoding ? "Finding..." : "Find"}
                 </button>
               </div>
-              {geocodeMsg && <p className="text-xs text-zinc-500">{geocodeMsg}</p>}
+              {geocodeMsg && <p className={styles.geocodeMsg}>{geocodeMsg}</p>}
             </div>
-            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+            <label className={styles.wideField}>
               Notes
               <textarea
                 value={fields.notes}
                 onChange={(e) => setFields({ ...fields, notes: e.target.value })}
                 rows={2}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+            <label className={styles.wideField}>
               Concerns (optional)
               <textarea
                 value={fields.concerns}
                 onChange={(e) => setFields({ ...fields, concerns: e.target.value })}
                 rows={2}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
             {section.supports_pairing && (
-            <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-3 sm:col-span-2">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-medium text-zinc-700">
-                  Pair with a second link (2-item option)
-                </h3>
-                {pairPhase === "none" ? (
-                  <button
-                    type="button"
-                    onClick={() => setPairPhase("input")}
-                    className="text-sm text-blue-600 hover:underline shrink-0"
-                  >
-                    + Add another
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={cancelPair}
-                    className="text-sm text-zinc-500 hover:underline shrink-0"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-
-              {pairPhase === "input" || pairPhase === "loading" ? (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    placeholder="Paste the second link..."
-                    value={pairUrl}
-                    onChange={(e) => setPairUrl(e.target.value)}
-                    className="flex-1 rounded border border-zinc-300 px-2 py-1.5 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={handlePairPreview}
-                    disabled={pairPhase === "loading" || !pairUrl.trim()}
-                    className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-                  >
-                    {pairPhase === "loading" ? "Fetching..." : "Fetch"}
-                  </button>
+              <div className={styles.pairBox}>
+                <div className={styles.pairHeader}>
+                  <h3 className={styles.pairTitle}>Pair with a second link (2-item option)</h3>
+                  {pairPhase === "none" ? (
+                    <button type="button" onClick={() => setPairPhase("input")} className={styles.pairToggleButtonAdd}>
+                      + Add another
+                    </button>
+                  ) : (
+                    <button type="button" onClick={cancelPair} className={styles.pairToggleButtonRemove}>
+                      Remove
+                    </button>
+                  )}
                 </div>
-              ) : null}
-              {pairError && <p className="text-xs text-red-600">{pairError}</p>}
 
-              {pairPhase === "ready" && (
-                <div className="flex flex-col gap-2">
-                  {pairCookieWarning && (
-                    <p className="text-xs font-medium text-red-800 bg-red-50 border border-red-200 rounded p-2">
-                      {pairCookieWarning}
-                    </p>
-                  )}
-                  {pairWarnings.length > 0 && (
-                    <ul className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 list-disc pl-5">
-                      {pairWarnings.map((w, i) => (
-                        <li key={i}>{w}</li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    <label className="flex flex-col gap-1 text-sm">
-                      Title
-                      <input
-                        required
-                        value={pairFields.title}
-                        onChange={(e) => setPairFields({ ...pairFields, title: e.target.value })}
-                        className="rounded border border-zinc-300 px-2 py-1.5"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                      Photo URL
-                      <input
-                        value={pairFields.posterImage}
-                        onChange={(e) => setPairFields({ ...pairFields, posterImage: e.target.value })}
-                        className="rounded border border-zinc-300 px-2 py-1.5"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                      Latitude
-                      <input
-                        value={pairFields.lat}
-                        onChange={(e) => setPairFields({ ...pairFields, lat: e.target.value })}
-                        className="rounded border border-zinc-300 px-2 py-1.5"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                      Longitude
-                      <input
-                        value={pairFields.lng}
-                        onChange={(e) => setPairFields({ ...pairFields, lng: e.target.value })}
-                        className="rounded border border-zinc-300 px-2 py-1.5"
-                      />
-                    </label>
-                    {fieldDefs.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 sm:col-span-2">
-                        {fieldDefs.map((f) => (
-                          <FieldInput
-                            key={f.key}
-                            fieldDef={f}
-                            value={pairData[f.key]}
-                            onChange={(v) => setPairData({ ...pairData, [f.key]: v })}
-                          />
-                        ))}
-                      </div>
-                    )}
+                {pairPhase === "input" || pairPhase === "loading" ? (
+                  <div className={styles.pairUrlRow}>
+                    <input
+                      type="text"
+                      placeholder="Paste the second link..."
+                      value={pairUrl}
+                      onChange={(e) => setPairUrl(e.target.value)}
+                      className={styles.pairUrlInput}
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePairPreview}
+                      disabled={pairPhase === "loading" || !pairUrl.trim()}
+                      className={styles.pairFetchButton}
+                    >
+                      {pairPhase === "loading" ? "Fetching..." : "Fetch"}
+                    </button>
                   </div>
-                  <p className="text-xs text-zinc-500">
-                    Notes, concerns, and description can be added to this one afterward via its own
-                    &quot;Edit details.&quot;
-                  </p>
-                </div>
-              )}
+                ) : null}
+                {pairError && <p className={styles.pairError}>{pairError}</p>}
 
-              <label className="flex flex-col gap-1 text-sm">
-                Group label{pairPhase === "ready" ? "" : " (optional — only if this is a 2-item option)"}
-                <input
-                  value={fields.groupLabel}
-                  onChange={(e) => setFields({ ...fields, groupLabel: e.target.value })}
-                  placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
-                  className="rounded border border-zinc-300 px-2 py-1.5"
-                />
-              </label>
-            </div>
+                {pairPhase === "ready" && (
+                  <div className={styles.pairReadyBox}>
+                    {pairCookieWarning && <p className={styles.cookieWarning}>{pairCookieWarning}</p>}
+                    {pairWarnings.length > 0 && (
+                      <ul className={styles.warningsList}>
+                        {pairWarnings.map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className={styles.pairGrid}>
+                      <label className={styles.field}>
+                        Title
+                        <input
+                          required
+                          value={pairFields.title}
+                          onChange={(e) => setPairFields({ ...pairFields, title: e.target.value })}
+                          className={styles.input}
+                        />
+                      </label>
+                      <label className={styles.field}>
+                        Photo URL
+                        <input
+                          value={pairFields.posterImage}
+                          onChange={(e) => setPairFields({ ...pairFields, posterImage: e.target.value })}
+                          className={styles.input}
+                        />
+                      </label>
+                      <label className={styles.field}>
+                        Latitude
+                        <input
+                          value={pairFields.lat}
+                          onChange={(e) => setPairFields({ ...pairFields, lat: e.target.value })}
+                          className={styles.input}
+                        />
+                      </label>
+                      <label className={styles.field}>
+                        Longitude
+                        <input
+                          value={pairFields.lng}
+                          onChange={(e) => setPairFields({ ...pairFields, lng: e.target.value })}
+                          className={styles.input}
+                        />
+                      </label>
+                      {fieldDefs.length > 0 && (
+                        <div className={styles.pairFieldDefsGrid}>
+                          {fieldDefs.map((f) => (
+                            <FieldInput
+                              key={f.key}
+                              fieldDef={f}
+                              value={pairData[f.key]}
+                              onChange={(v) => setPairData({ ...pairData, [f.key]: v })}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <p className={styles.pairEditHint}>
+                      Notes, concerns, and description can be added to this one afterward via its own &quot;Edit
+                      details.&quot;
+                    </p>
+                  </div>
+                )}
+
+                <label className={styles.field}>
+                  Group label{pairPhase === "ready" ? "" : " (optional — only if this is a 2-item option)"}
+                  <input
+                    value={fields.groupLabel}
+                    onChange={(e) => setFields({ ...fields, groupLabel: e.target.value })}
+                    placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
+                    className={styles.input}
+                  />
+                </label>
+              </div>
             )}
           </div>
 
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={phase === "saving"}
-              className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-            >
+          <div className={styles.actions}>
+            <button type="submit" disabled={phase === "saving"} className={styles.primaryButton}>
               {phase === "saving" ? "Saving..." : "Save"}
             </button>
-            <button type="button" onClick={reset} className="text-sm text-zinc-500 hover:underline">
+            <button type="button" onClick={reset} className={styles.cancelButton}>
               Cancel
             </button>
           </div>
