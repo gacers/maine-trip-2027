@@ -4,6 +4,27 @@
   box-sizing: border-box;
 }
 
+/* Every layout in this app spaces things with flex/grid `gap`, not
+   margin — but headings/paragraphs/lists all carry their own default
+   UA margin, which stacks on TOP of a parent's `gap` (gap doesn't
+   collapse into margin) rather than being replaced by it. Left alone,
+   that shows up as inconsistent, larger-than-intended space wherever
+   one of these sits next to a sibling in a gapped container. Zeroed
+   here, once, so `gap` is the only thing controlling spacing anywhere. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+ul,
+ol,
+figure,
+blockquote {
+  margin: 0;
+}
+
 body {
   margin: 0;
   background: var(--background);
