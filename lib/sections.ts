@@ -4,6 +4,7 @@
 // adding a trip or a section never requires a deploy.
 import { cache } from "react";
 import { supabaseServer } from "@/lib/supabaseServer";
+import type { Trip, PublicTrip, NavGroup, Section } from "@/lib/types";
 
 // A trip row carries secrets/gated fields that must never reach a
 // visitor who hasn't already proven access:
@@ -22,13 +23,15 @@ import { supabaseServer } from "@/lib/supabaseServer";
 // server. Found live leaking through both the public /api/trips
 // response and every trip page's own RSC payload, readable by any
 // visitor regardless of access.
-export function sanitizeTripForClient(trip) {
+export function sanitizeTripForClient(trip: Trip): PublicTrip;
+export function sanitizeTripForClient(trip: null | undefined): null | undefined;
+export function sanitizeTripForClient(trip: Trip | null | undefined): PublicTrip | null | undefined {
   if (!trip) return trip;
   const { sheet_invite_token, sheet_invite_key_id, google_sheet_url, google_sheet_id, ...safe } = trip;
   return safe;
 }
 
-export async function getAllTrips() {
+export async function getAllTrips(): Promise<Trip[]> {
   const supabase = await supabaseServer();
   const { data, error } = await supabase
     .from("trips")
@@ -43,7 +46,7 @@ export async function getAllTrips() {
 // Cached per-request: both a trip's layout and its page (and, for the
 // index redirect, its own page too) look this up for the same slug in
 // the same request — React's cache() dedupes that into one query.
-export const getTripBySlug = cache(async (slug) => {
+export const getTripBySlug = cache(async (slug: string): Promise<Trip | null> => {
   const supabase = await supabaseServer();
   const { data, error } = await supabase.from("trips").select("*").eq("slug", slug).maybeSingle();
   if (error) throw new Error(error.message);
@@ -53,7 +56,7 @@ export const getTripBySlug = cache(async (slug) => {
 // Nav groups, each with its member sections attached and both levels
 // sorted by sort_order (PostgREST doesn't apply an order() on the outer
 // query to an embedded relation, so the inner sort happens here).
-export async function getTripNav(tripId) {
+export async function getTripNav(tripId: string): Promise<NavGroup[]> {
   const supabase = await supabaseServer();
   const { data, error } = await supabase
     .from("nav_groups")
@@ -61,7 +64,7 @@ export async function getTripNav(tripId) {
     .eq("trip_id", tripId)
     .order("sort_order");
   if (error) throw new Error(error.message);
-  return data.map((group) => ({
+  return data.map((group: NavGroup) => ({
     ...group,
     sections: (group.sections || []).sort((a, b) => a.sort_order - b.sort_order),
   }));
@@ -71,17 +74,17 @@ export async function getTripNav(tripId) {
 // every tab of a trip's Google Sheet at once (e.g. after rotating its
 // embedded invite token), where nav grouping/enabled-filtering don't
 // matter.
-export async function getAllSectionsForTrip(tripId) {
+export async function getAllSectionsForTrip(tripId: string): Promise<Section[]> {
   const supabase = await supabaseServer();
-  const { data, error } = await supabase
-    .from("sections")
-    .select("*, field_defs(*)")
-    .eq("trip_id", tripId);
+  const { data, error } = await supabase.from("sections").select("*, field_defs(*)").eq("trip_id", tripId);
   if (error) throw new Error(error.message);
-  return data.map((s) => ({ ...s, field_defs: (s.field_defs || []).sort((a, b) => a.sort_order - b.sort_order) }));
+  return data.map((s: Section) => ({
+    ...s,
+    field_defs: (s.field_defs || []).sort((a, b) => a.sort_order - b.sort_order),
+  }));
 }
 
-export async function getSectionBySlug(tripId, sectionSlug) {
+export async function getSectionBySlug(tripId: string, sectionSlug: string): Promise<Section | null> {
   const supabase = await supabaseServer();
   const { data, error } = await supabase
     .from("sections")
@@ -90,6 +93,6 @@ export async function getSectionBySlug(tripId, sectionSlug) {
     .eq("slug", sectionSlug)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  if (data) data.field_defs = (data.field_defs || []).sort((a, b) => a.sort_order - b.sort_order);
+  if (data) data.field_defs = (data.field_defs || []).sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order);
   return data;
 }

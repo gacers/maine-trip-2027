@@ -7,14 +7,16 @@ import { google } from "googleapis";
 // Google account (GOOGLE_OAUTH_REFRESH_TOKEN) does the actual file
 // creation — that account has real quota — then shares it with the
 // service account, which does every read/write after that via the
-// normal Sheets API (see lib/googleSheetsAuth.js).
+// normal Sheets API (see lib/googleSheetsAuth.ts).
 function getOAuthClient() {
-  const client = new google.auth.OAuth2(
-    process.env.GOOGLE_OAUTH_CLIENT_ID,
-    process.env.GOOGLE_OAUTH_CLIENT_SECRET
-  );
+  const client = new google.auth.OAuth2(process.env.GOOGLE_OAUTH_CLIENT_ID, process.env.GOOGLE_OAUTH_CLIENT_SECRET);
   client.setCredentials({ refresh_token: process.env.GOOGLE_OAUTH_REFRESH_TOKEN });
   return client;
+}
+
+export interface CreatedSheet {
+  id: string;
+  url: string;
 }
 
 // Creates a new Google Sheet named `name` inside `folderId` (or the
@@ -23,7 +25,7 @@ function getOAuthClient() {
 // link can view) — that's the actual point of exporting to a
 // spreadsheet, so friends can open it without individual Google
 // accounts. Returns { id, url }.
-export async function createSheetInDrive(name, folderId) {
+export async function createSheetInDrive(name: string, folderId?: string | null): Promise<CreatedSheet> {
   const oauth = getOAuthClient();
   const drive = google.drive({ version: "v3", auth: oauth });
 
@@ -37,7 +39,7 @@ export async function createSheetInDrive(name, folderId) {
   });
 
   await drive.permissions.create({
-    fileId: data.id,
+    fileId: data.id!,
     requestBody: {
       type: "user",
       role: "writer",
@@ -46,9 +48,9 @@ export async function createSheetInDrive(name, folderId) {
   });
 
   await drive.permissions.create({
-    fileId: data.id,
+    fileId: data.id!,
     requestBody: { type: "anyone", role: "reader" },
   });
 
-  return { id: data.id, url: `https://docs.google.com/spreadsheets/d/${data.id}/edit` };
+  return { id: data.id!, url: `https://docs.google.com/spreadsheets/d/${data.id}/edit` };
 }
