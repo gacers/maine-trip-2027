@@ -20,6 +20,19 @@ function toBullets(text: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
+// A raw street address ("9 Thurston Rd, Bernard, ME 04612, USA") ending
+// up as the whole description — the Google Places fallback used to do
+// exactly this whenever a place had no editorial summary (see
+// AddEntryForm's choosePlace) — isn't real descriptive content; the
+// address is already covered by the address line below the title, so a
+// line that's just that reads as a broken/duplicated field, not a
+// description. Filtered out here (rather than at save time) so it also
+// catches entries added before that fallback was fixed.
+const US_ADDRESS_RE = /,\s*[A-Z]{2}\s*\d{5}(-\d{4})?(,\s*(USA|United States))?\s*$/;
+function isAddressLike(line: string): boolean {
+  return US_ADDRESS_RE.test(line.trim());
+}
+
 const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#616161"];
 
 function PinIcon() {
@@ -260,6 +273,7 @@ export default function EntryCard({
   const priceFields = fieldDefs.filter((f) => f.field_type === "price");
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
   const countsSummary = formatCounts(countFields.map((f) => ({ fieldDef: f, value: entry[f.key] })));
+  const descriptionBullets = toBullets(entry.description).filter((line) => !isAddressLike(line));
   // Any boolean field flips on an eyebrow tag when true (e.g. "Closed",
   // "Bar", "Restaurant") — generic by field *type*, not by name, so any
   // boolean field an admin adds to any section gets this for free.
@@ -434,7 +448,7 @@ export default function EntryCard({
             <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
               {entry.title}
             </a>
-            {priceFields.length > 0 && (
+            {(priceFields.length > 0 || countsSummary) && (
               <div className={styles.priceStack}>
                 {priceFields.map((f) => {
                   const value = entry[f.key] as string;
@@ -450,6 +464,7 @@ export default function EntryCard({
                     </div>
                   );
                 })}
+                {countsSummary && <div className={styles.countsSummary}>{countsSummary}</div>}
               </div>
             )}
           </div>
@@ -472,14 +487,12 @@ export default function EntryCard({
               )}
             </div>
           )}
-
-          {countsSummary && <div className={styles.countsSummary}>{countsSummary}</div>}
         </div>
 
-        {!isEditing && toBullets(entry.description).length > 0 && (
+        {!isEditing && descriptionBullets.length > 0 && (
           <div className={styles.section}>
             <h3 className={styles.sectionHeading}>Description</h3>
-            <BulletList items={toBullets(entry.description)} />
+            <BulletList items={descriptionBullets} />
           </div>
         )}
 

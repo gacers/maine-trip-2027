@@ -172,12 +172,10 @@
 .groupListings {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
 }
 @media (min-width: 640px) {
   .groupListings {
     flex-direction: row;
-    gap: 1.25rem;
   }
 }
 
@@ -187,5 +185,25 @@
 @media (min-width: 640px) {
   .groupListingHalf {
     width: 50%;
+  }
+  /* The vertical line between the two options — runs the full height of
+     the row (both cards stretch to match each other already) and stops
+     exactly where the shared map section begins, since that sits below
+     this row rather than inside it. */
+  .groupListingHalf:first-child {
+    border-right: 1px solid var(--color-zinc-200);
+  }
+}
+
+/* The shared map (GroupMap/SimpleGroupMap) gets the exact same section
+   treatment as every other section — a divider above it, padding of its
+   own — instead of relying on .body's old blanket padding. */
+.groupMapSection {
+  padding: 0.875rem 1rem;
+  border-top: 1px solid var(--color-zinc-200);
+}
+@media (min-width: 640px) {
+  .groupMapSection {
+    padding-inline: 1.25rem;
   }
 }

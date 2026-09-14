@@ -346,11 +346,13 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
               </div>
             ))}
           </div>
-          {comparisonMode ? (
-            <GroupMap listings={unit.listings} mapConfig={mapConfig} />
-          ) : (
-            <SimpleGroupMap listings={unit.listings} />
-          )}
+          <div className={styles.groupMapSection}>
+            {comparisonMode ? (
+              <GroupMap listings={unit.listings} mapConfig={mapConfig} />
+            ) : (
+              <SimpleGroupMap listings={unit.listings} />
+            )}
+          </div>
         </ListingSection>
       );
     }

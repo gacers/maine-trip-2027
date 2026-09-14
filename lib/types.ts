@@ -198,6 +198,7 @@ export interface PlaceResult {
   title: string;
   address: string;
   summary: string | null;
+  category: string | null;
   lat: number | null;
   lng: number | null;
   website: string | null;

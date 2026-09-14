@@ -273,11 +273,13 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
       ...CORE_INITIAL,
       title: place.title || "",
       posterImage: place.photoUrl || "",
-      // Prefer Google's own editorial blurb when it has one — a real
-      // description reads far better here than a bare street address,
-      // which still isn't lost: it's what the map/"open in Google Maps"
-      // link is built from regardless of what description ends up as.
-      description: place.summary || place.address || "",
+      // Prefer Google's own editorial blurb, then fall back to a short
+      // category ("Seafood restaurant") derived from its place types —
+      // never the street address, which isn't lost either way: it's
+      // what the map/"open in Google Maps" link is built from regardless
+      // of what description ends up as, and EntryCard shows it as its
+      // own address line, not as the description.
+      description: place.summary || place.category || "",
       lat: place.lat ?? "",
       lng: place.lng ?? "",
     });
