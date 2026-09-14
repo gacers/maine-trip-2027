@@ -24,6 +24,17 @@
 // replacing there directly (same steps: log into airbnb.com, DevTools
 // → Network → any airbnb.com request → copy the "cookie" request
 // header value).
+//
+// VRBO does *not* need the same treatment — confirmed live (a plain
+// anonymous fetch, same headers as below) that VRBO serves its real
+// property page with no block/wall at all, unlike Airbnb. Its gaps are
+// a parsing problem, not an access problem: VRBO has no listing JSON-LD
+// block (title/description/image already fall back to og: meta tags,
+// which work fine), lat/lng lives in schema.org *microdata* instead
+// (<meta itemProp="latitude"/"longitude">, handled by a dedicated
+// pattern in extractFirstLatLng below), and price genuinely isn't in
+// the static HTML at all — it's fetched client-side once dates are
+// picked, so that one has no scrape fix and stays manual entry.
 
 export function normalizeListingUrl(rawUrl: string): string {
   const u = new URL(rawUrl);
@@ -44,12 +55,28 @@ export function normalizeListingUrl(rawUrl: string): string {
   return `${u.origin}${u.pathname}`;
 }
 
+// Meta tag content comes through HTML-entity-escaped (VRBO's own
+// og:description has a plain apostrophe as &#x27;, for instance) —
+// decoded once here so every extractMeta caller gets real text, not a
+// title/description full of literal &amp;/&#x27; noise.
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&#x2F;|&#47;/g, "/")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+}
+
 function extractMeta(html: string, property: string): string | null {
   const re = new RegExp(`<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']*)["']`, "i");
   const altRe = new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+property=["']${property}["']`, "i");
   const nameRe = new RegExp(`<meta[^>]+name=["']${property}["'][^>]+content=["']([^"']*)["']`, "i");
   const m = html.match(re) || html.match(altRe) || html.match(nameRe);
-  return m ? m[1] : null;
+  return m ? decodeHtmlEntities(m[1]) : null;
 }
 
 function extractFirstPrice(html: string): string | null {
@@ -77,6 +104,14 @@ function extractFirstLatLng(html: string): { lat: number; lng: number } | null {
   const patterns = [
     /"lat"\s*:\s*(-?\d+\.\d+)\s*,\s*"lng"\s*:\s*(-?\d+\.\d+)/i,
     /"latitude"\s*:\s*(-?\d+\.\d+)\s*,\s*"longitude"\s*:\s*(-?\d+\.\d+)/i,
+    // VRBO (confirmed by hand — no cookie/access problem, VRBO serves
+    // its real page to a plain anonymous request just fine, unlike
+    // Airbnb): doesn't embed a listing JSON-LD block at all, and has no
+    // inline JSON lat/lng either — coordinates live in schema.org
+    // *microdata* instead, a pair of <meta itemProp="latitude"/
+    // "longitude"> tags. A completely different shape from the two
+    // JSON patterns above, so those never matched it.
+    /itemprop=["']latitude["']\s+content=["'](-?\d+(?:\.\d+)?)["']\s*\/?>\s*<meta[^>]+itemprop=["']longitude["']\s+content=["'](-?\d+(?:\.\d+)?)["']/i,
   ];
   for (const re of patterns) {
     const m = html.match(re);
@@ -207,6 +242,13 @@ export async function scrapeListing(rawUrl: string): Promise<ScrapeResult> {
 
     if (typeof jsonLd?.description === "string" && jsonLd.description.trim()) {
       result.description = jsonLd.description.trim();
+    } else {
+      // VRBO (confirmed by hand): no listing JSON-LD block at all, but
+      // a real, specific og:description — this fallback was missing
+      // entirely, so a VRBO add always came through with an empty
+      // description no matter how good the page's own text was.
+      const ogDescription = extractMeta(html, "og:description");
+      if (ogDescription) result.description = ogDescription.trim();
     }
 
     const jsonLdImage = Array.isArray(jsonLd?.image) ? jsonLd.image[0] : jsonLd?.image;
