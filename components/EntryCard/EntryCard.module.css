@@ -133,6 +133,10 @@
   align-items: flex-end;
   gap: 0.25rem;
   flex-shrink: 0;
+  /* Stays pinned to the row's right edge whether or not the eyebrows
+     div is there to pair against via justify-content: space-between —
+     that div no longer renders a placeholder when there are no badges. */
+  margin-left: auto;
 }
 
 .rankLabel {

@@ -36,17 +36,21 @@ body {
    — this targets whatever element a map pin's anchor id happens to be
    on, in a totally different component than the map itself, e.g.
    OverviewMap) after jumping to a card from a map pin, so it's obvious
-   which one you actually landed on. Five 1s pulses, then the element
-   settles back to normal — the class is removed by the same timeout
-   that's already waiting for the pulses to finish, so nothing lingers
-   even if the animation's own fill got interrupted. */
+   which one you actually landed on. A gentle light-blue wash over the
+   card's own background (rather than a box-shadow ring), fading back
+   to transparent between pulses — works whether the card's actual
+   background is white (a framed solo card) or transparent (a bare
+   split-card half). Four 1.2s pulses, then the element settles back to
+   normal — the class is removed by the same timeout that's already
+   waiting for the pulses to finish, so nothing lingers even if the
+   animation's own fill got interrupted. */
 @keyframes pin-jump-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgb(37 99 235 / 0.3);
+    background-color: transparent;
   }
   50% {
-    box-shadow: 0 0 0 6px rgb(37 99 235 / 0);
+    background-color: rgb(37 99 235 / 0.12);
   }
 }
 

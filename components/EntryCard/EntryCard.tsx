@@ -40,6 +40,19 @@ function isAddressLike(line: string): boolean {
 
 const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#616161"];
 
+// A count field's label is stored plural ("Bedrooms", "Beds",
+// "Bathrooms") since that's how it reads in the field-defs admin UI and
+// in the count summary for the common >1 case — singularized here only
+// for display when the actual value is exactly 1 ("1 Bedroom", not
+// "1 Bedrooms"). Simple heuristic covers every count field in use today;
+// good enough for whatever an admin invents later too.
+function singularizeCountLabel(label: string, value: unknown): string {
+  if (Number(value) !== 1) return label;
+  if (/ies$/i.test(label)) return label.replace(/ies$/i, "y");
+  if (/s$/i.test(label)) return label.replace(/s$/i, "");
+  return label;
+}
+
 // Picks a purpose-built icon by matching words in the field's own label —
 // generic count fields with an unrecognized label (anything an admin
 // might invent later) still get a sensible fallback rather than nothing.
@@ -428,31 +441,31 @@ export default function EntryCard({
 
       <div className={sectionsClassName}>
         <div className={styles.section}>
-          <div className={styles.utilityRow}>
-            {activeBooleanFields.length > 0 ? (
-              <div className={styles.eyebrows}>
-                {activeBooleanFields.map((f) => (
-                  <Badge key={f.key} variant={f.key === "closed" ? "closed" : pickBadgeVariant(f.key)}>
-                    {f.label}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <span />
-            )}
-            {showRank && canManage && (
-              <div className={styles.rankControl}>
-                <label className={styles.rankLabel}>Rank</label>
-                <input
-                  type="number"
-                  value={rankDraft}
-                  onChange={(e) => setRankDraft(e.target.value)}
-                  onBlur={commitRank}
-                  className={styles.rankInput}
-                />
-              </div>
-            )}
-          </div>
+          {(activeBooleanFields.length > 0 || (showRank && canManage)) && (
+            <div className={styles.utilityRow}>
+              {activeBooleanFields.length > 0 && (
+                <div className={styles.eyebrows}>
+                  {activeBooleanFields.map((f) => (
+                    <Badge key={f.key} variant={f.key === "closed" ? "closed" : pickBadgeVariant(f.key)}>
+                      {f.label}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              {showRank && canManage && (
+                <div className={styles.rankControl}>
+                  <label className={styles.rankLabel}>Rank</label>
+                  <input
+                    type="number"
+                    value={rankDraft}
+                    onChange={(e) => setRankDraft(e.target.value)}
+                    onBlur={commitRank}
+                    className={styles.rankInput}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <div className={styles.headerGrid}>
             <div className={styles.titleColumn}>
@@ -513,7 +526,7 @@ export default function EntryCard({
                 <li key={fieldDef.key} className={styles.countItem}>
                   {countFieldIcon(fieldDef.label)}
                   <span>
-                    {value as ReactNode} {fieldDef.options?.shortLabel || fieldDef.label}
+                    {value as ReactNode} {singularizeCountLabel(fieldDef.options?.shortLabel || fieldDef.label, value)}
                   </span>
                 </li>
               ))}
