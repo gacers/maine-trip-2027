@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import {
@@ -24,7 +24,7 @@ const CORE_INITIAL = {
   groupLabel: "",
 };
 
-export default function AddEntryForm({ trip, section, onAdded, authToken = null, bookmarkletData = null }) {
+export default function AddEntryForm({ trip, section, onAdded, authToken = null }) {
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState("idle"); // idle | loading | editing | duplicate | picking | saving | error
   const [fields, setFields] = useState(CORE_INITIAL);
@@ -36,29 +36,6 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null,
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
-
-  // The bookmarklet already read these fields straight out of the real
-  // listing page in the visitor's own browser (see
-  // components/BookmarkletButton.jsx) — no fetch, nothing to preview,
-  // just drop straight into the same editing form a normal preview
-  // would land on. Runs once on mount; bookmarkletData is a one-shot
-  // value, not something that changes later.
-  useEffect(() => {
-    if (bookmarkletData) {
-      setUrl(bookmarkletData.url || "");
-      setFields({
-        ...CORE_INITIAL,
-        title: bookmarkletData.title || "",
-        posterImage: bookmarkletData.posterImage || "",
-        description: bookmarkletData.description || "",
-        lat: bookmarkletData.lat ?? "",
-        lng: bookmarkletData.lng ?? "",
-      });
-      setData(initialData());
-      setPhase("editing");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const fieldDefs = section.field_defs || [];
   const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
