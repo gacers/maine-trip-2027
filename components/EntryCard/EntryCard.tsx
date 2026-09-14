@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
-import ListingMap from "@/components/ListingMap";
+import { ListingMapView, useListingMap } from "@/components/ListingMap";
+import ListingMapDetails from "@/components/ListingMapDetails";
 import SimplePlaceMap from "@/components/SimplePlaceMap";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import StarRating from "@/components/StarRating";
 import Button from "@/components/Button";
 import Badge, { pickBadgeVariant } from "@/components/Badge";
 import EntryMedia from "@/components/EntryMedia";
+import BulletList from "@/components/BulletList";
 import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
@@ -92,27 +94,6 @@ function Linkified({ text }: { text: string }) {
   return <>{parts}</>;
 }
 
-// The one bulleted-list structure every list on a card builds on —
-// Description (plain) and Notes/Concerns (editable, via `renderItem`
-// below) always render with this exact same <ul>/<li> markup so they
-// look and space identically everywhere.
-function BulletList({
-  items,
-  renderItem,
-}: {
-  items: string[];
-  renderItem?: (item: string, i: number) => ReactNode;
-}) {
-  if (!items.length) return null;
-  return (
-    <ul className={styles.bulletList}>
-      {items.map((item, i) => (
-        <li key={i}>{renderItem ? renderItem(item, i) : item}</li>
-      ))}
-    </ul>
-  );
-}
-
 interface EditableNoteListProps {
   items: string[];
   onAdd: ((text: string) => void) | null;
@@ -143,23 +124,26 @@ function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }: Edi
 
   return (
     <div className={styles.noteListWrapper}>
-      <BulletList
-        items={items}
-        renderItem={(item, i) =>
-          onRemove ? (
-            <span className={styles.removableNoteRow}>
-              <span>
+      {items.length > 0 && (
+        <BulletList>
+          {items.map((item, i) => (
+            <li key={i}>
+              {onRemove ? (
+                <span className={styles.removableNoteRow}>
+                  <span>
+                    <Linkified text={item} />
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => onRemove(i)} className={styles.removeNoteButton}>
+                    Remove
+                  </Button>
+                </span>
+              ) : (
                 <Linkified text={item} />
-              </span>
-              <Button variant="ghost" size="sm" onClick={() => onRemove(i)} className={styles.removeNoteButton}>
-                Remove
-              </Button>
-            </span>
-          ) : (
-            <Linkified text={item} />
-          )
-        }
-      />
+              )}
+            </li>
+          ))}
+        </BulletList>
+      )}
       {onAdd &&
         (adding ? (
           <form onSubmit={submit} className={styles.addNoteForm}>
@@ -262,6 +246,20 @@ export default function EntryCard({
   const isArchived = entry.status === "archived";
   const extraMarkers = parseExtraMarkers(entry.extraMarkers);
   const hasHouse = hasCoords(entry);
+  // Called unconditionally (Rules of Hooks) — `enabled` lets it no-op
+  // entirely (skip loading Google Maps, skip every effect) for a card
+  // that won't actually show a comparison map (editing, no coords, or a
+  // section that just wants the plain SimplePlaceMap instead). Feeds
+  // both ListingMapView and ListingMapDetails below so there's still
+  // only one Google Maps instance/Directions calls behind both of this
+  // card's map sections.
+  const listingMapData = useListingMap({
+    houses: hasHouse ? [{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }] : [],
+    extraMarkers,
+    mapConfig,
+    showReferencePoints: showRank,
+    enabled: comparisonMode && hasHouse && showMap && !isEditing,
+  });
 
   // entry.rank can change for reasons other than this exact input's own
   // edit (another card's edit, a re-fetch after sorting, etc.) — without
@@ -503,23 +501,34 @@ export default function EntryCard({
         {!isEditing && descriptionBullets.length > 0 && (
           <div className={styles.section}>
             <h3 className={styles.sectionHeading}>Description</h3>
-            <BulletList items={descriptionBullets} />
+            <BulletList>
+              {descriptionBullets.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </BulletList>
           </div>
         )}
 
         {!isEditing && showMap && hasHouse && (
-          <div className={styles.section}>
-            {comparisonMode ? (
-              <ListingMap
-                houses={[{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }]}
-                extraMarkers={extraMarkers}
-                mapConfig={mapConfig}
-                showReferencePoints={showRank}
-              />
-            ) : (
-              <SimplePlaceMap places={[{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }]} />
+          <>
+            <div className={styles.section}>
+              {comparisonMode ? (
+                <ListingMapView {...listingMapData} />
+              ) : (
+                <SimplePlaceMap places={[{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }]} />
+              )}
+            </div>
+            {/* Its own section, not bundled into the map's — Closest
+                Town/Driving Times are a distinct concern from "here's
+                the map". Skipped entirely (not just left empty) when
+                there's genuinely nothing to show, e.g. a non-ranking
+                section with no resolved closest town yet either. */}
+            {comparisonMode && (listingMapData.closestTown || listingMapData.showReferencePoints) && (
+              <div className={styles.section}>
+                <ListingMapDetails {...listingMapData} />
+              </div>
             )}
-          </div>
+          </>
         )}
 
         {isEditing && draft && (
