@@ -296,6 +296,8 @@ export default function EntryCard({
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
   const countsSummary = formatCounts(countFields.map((f) => ({ fieldDef: f, value: entry[f.key] })));
   const descriptionBullets = toBullets(entry.description).filter((line) => !isAddressLike(line));
+  const hasNotes = toBullets(entry.notes).length > 0;
+  const hasConcerns = toBullets(entry.concerns).length > 0;
   // Any boolean field flips on an eyebrow tag when true (e.g. "Closed",
   // "Bar", "Restaurant") — generic by field *type*, not by name, so any
   // boolean field an admin adds to any section gets this for free.
@@ -667,26 +669,36 @@ export default function EntryCard({
           </div>
         )}
 
-        <div className={styles.section}>
-          <h3 className={styles.sectionHeading}>Notes</h3>
-          <EditableNoteList
-            items={toBullets(entry.notes)}
-            onAdd={canContribute ? addNote : null}
-            onRemove={canManage ? removeNoteAt : null}
-            addLabel="Add note"
-            placeholder="Add a note..."
-          />
-          <h3 className={styles.concernsHeading}>Concerns</h3>
-          <div className={styles.concernsBox}>
-            <EditableNoteList
-              items={toBullets(entry.concerns)}
-              onAdd={canContribute ? addConcern : null}
-              onRemove={canManage ? removeConcernAt : null}
-              addLabel="Add concern"
-              placeholder="Anything that gives you pause..."
-            />
+        {(hasNotes || hasConcerns || canContribute) && (
+          <div className={styles.section}>
+            {(hasNotes || canContribute) && (
+              <>
+                <h3 className={styles.sectionHeading}>Notes</h3>
+                <EditableNoteList
+                  items={toBullets(entry.notes)}
+                  onAdd={canContribute ? addNote : null}
+                  onRemove={canManage ? removeNoteAt : null}
+                  addLabel="Add note"
+                  placeholder="Add a note..."
+                />
+              </>
+            )}
+            {(hasConcerns || canContribute) && (
+              <>
+                <h3 className={styles.concernsHeading}>Concerns</h3>
+                <div className={styles.concernsBox}>
+                  <EditableNoteList
+                    items={toBullets(entry.concerns)}
+                    onAdd={canContribute ? addConcern : null}
+                    onRemove={canManage ? removeConcernAt : null}
+                    addLabel="Add concern"
+                    placeholder="Anything that gives you pause..."
+                  />
+                </div>
+              </>
+            )}
           </div>
-        </div>
+        )}
 
         {canManage && (
           <div className={styles.section}>

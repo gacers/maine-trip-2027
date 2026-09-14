@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import Button from "@/components/Button";
 import RequestAccess from "@/components/RequestAccess";
 import { captureInviteToken } from "@/lib/inviteClient";
+import { useNavSlot } from "./NavSlot";
 import type { PublicTrip, NavGroup } from "@/lib/types";
 import styles from "./TripNavHeader.module.css";
 
@@ -46,6 +47,7 @@ export interface TripNavHeaderProps {
 export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, contactEmail = null }: TripNavHeaderProps) {
   const pathname = usePathname();
   const barRef = useRef<HTMLElement>(null);
+  const navSlot = useNavSlot();
   const [contributorToken, setContributorToken] = useState<string | null>(null);
   const [accessChecked, setAccessChecked] = useState(isAdmin);
   const sectionPath = (slug: string) => `/${trip.slug}/${slug}`;
@@ -147,24 +149,31 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
             </div>
           </div>
 
-          {/* Only the active group's own sections (e.g. Possible/
-              Previous) — appears once you're actually on one of them,
-              defaulting to the first (normally "Possible ..."). Shown
-              at every width, alongside whichever of the row above/the
-              hamburger is currently visible. */}
-          {activeGroup && activeGroup.sections.length > 1 && (
+          {/* The active group's own sections (e.g. Possible/Previous) on
+              the left — appears once you're actually on one of them,
+              defaulting to the first (normally "Possible ..."), hidden
+              on the mobile hamburger view since that already lists
+              these nested under their group — plus a slot on the right
+              that SectionPage portals its filter/sort controls into
+              (see NavSlot), so they visually live in this bar instead
+              of their own separate row. Always rendered (even with a
+              single-section group) so that slot always has a home. */}
+          {activeGroup && (
             <div className={styles.subNavRow}>
-              <NavigationMenu aria-label={`${activeGroup.label} sections`}>
-                <NavigationMenuList>
-                  {activeGroup.sections.map((s) => (
-                    <NavigationMenuItem key={s.id}>
-                      <NavigationMenuLink asChild size="sm" active={pathname === sectionPath(s.slug)}>
-                        <Link href={sectionPath(s.slug)}>{s.sub_nav_label || s.label}</Link>
-                      </NavigationMenuLink>
-                    </NavigationMenuItem>
-                  ))}
-                </NavigationMenuList>
-              </NavigationMenu>
+              {activeGroup.sections.length > 1 && (
+                <NavigationMenu className={styles.subNavMenu} aria-label={`${activeGroup.label} sections`}>
+                  <NavigationMenuList>
+                    {activeGroup.sections.map((s) => (
+                      <NavigationMenuItem key={s.id}>
+                        <NavigationMenuLink asChild size="sm" active={pathname === sectionPath(s.slug)}>
+                          <Link href={sectionPath(s.slug)}>{s.sub_nav_label || s.label}</Link>
+                        </NavigationMenuLink>
+                      </NavigationMenuItem>
+                    ))}
+                  </NavigationMenuList>
+                </NavigationMenu>
+              )}
+              <div ref={(el) => navSlot?.setSlot(el)} className={styles.navSlotTarget} />
             </div>
           )}
         </>

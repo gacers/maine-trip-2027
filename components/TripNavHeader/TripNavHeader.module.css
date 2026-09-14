@@ -10,15 +10,43 @@
   border-bottom: 1px solid var(--color-zinc-200);
 }
 
-.navRow,
-.subNavRow {
+.navRow {
   width: 100%;
   padding: 0.625rem 1.25rem;
   display: flex;
+  align-items: center;
   justify-content: flex-start;
 }
+
+/* Visually distinct from .navRow above it — a tinted background reads
+   as "secondary/nested" rather than a same-weight repeat of it. */
 .subNavRow {
-  padding-top: 0;
+  width: 100%;
+  padding: 0.5rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--color-zinc-50);
+  border-top: 1px solid var(--color-zinc-200);
+}
+
+/* Hidden below 1024px — the hamburger menu already lists these nested
+   under their group, so showing them again here would be redundant on
+   a screen with little room to spare. */
+.subNavMenu {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .subNavMenu {
+    display: flex;
+  }
+}
+
+.navSlotTarget {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
 }
 
 .topRow {

@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import AddEntryForm from "@/components/AddEntryForm";
 import EntryCard from "@/components/EntryCard";
 import EntryMedia from "@/components/EntryMedia";
 import ListingSection from "@/components/ListingSection";
+import { useNavSlot } from "@/components/TripNavHeader/NavSlot";
 import GroupMap from "@/components/GroupMap";
 import SimpleGroupMap from "@/components/SimpleGroupMap";
 import OverviewMap from "@/components/OverviewMap";
@@ -57,6 +59,7 @@ export interface SectionPageProps {
 // entries instead of /api/[collection], and rendering whichever fields
 // `section.field_defs` defines instead of a hardcoded showBedBath flag.
 export default function SectionPage({ trip, section, isAdmin = false }: SectionPageProps) {
+  const navSlot = useNavSlot();
   const [entries, setEntries] = useState<ClientEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -399,6 +402,54 @@ export default function SectionPage({ trip, section, isAdmin = false }: SectionP
     );
   }
 
+  // Portaled into TripNavHeader's sub-nav row (see NavSlot) so it reads
+  // as part of that sticky bar instead of its own separate row further
+  // down the page — falls back to rendering right here (still sticky,
+  // still right-aligned) if that slot isn't available for some reason.
+  const utilityControls = (filterFieldDefs.length > 0 || showRatings) && (
+    <>
+      {filterFieldDefs.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm">
+              Filter{activeFilters.size > 0 ? ` (${activeFilters.size})` : ""}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>Filter</DropdownMenuLabel>
+            {filterFieldDefs.map((f) => (
+              <DropdownMenuCheckboxItem
+                key={f.key}
+                checked={activeFilters.has(f.key)}
+                onCheckedChange={() => toggleFilter(f.key)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {f.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+            {activeFilters.size > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setActiveFilters(new Set())}>Clear all</DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
+      {showRatings && (
+        <label className={styles.sortByLabel}>
+          <span className={styles.sortByCaption}>Sort by</span>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className={styles.sortBySelect}>
+            {showRanking && <option value="rank">Rank</option>}
+            <option value="myScore">My Score</option>
+            <option value="averageScore">Average Score</option>
+          </select>
+        </label>
+      )}
+    </>
+  );
+
   return (
     <main className={styles.main}>
       {/* No hint that a Sheet even exists for a non-contributor — Request
@@ -420,49 +471,7 @@ export default function SectionPage({ trip, section, isAdmin = false }: SectionP
         </div>
       )}
 
-      {(filterFieldDefs.length > 0 || showRatings) && (
-        <div className={styles.utilityRow}>
-          {filterFieldDefs.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary" size="sm">
-                  Filter{activeFilters.size > 0 ? ` (${activeFilters.size})` : ""}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuLabel>Filter</DropdownMenuLabel>
-                {filterFieldDefs.map((f) => (
-                  <DropdownMenuCheckboxItem
-                    key={f.key}
-                    checked={activeFilters.has(f.key)}
-                    onCheckedChange={() => toggleFilter(f.key)}
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    {f.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-                {activeFilters.size > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => setActiveFilters(new Set())}>Clear all</DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          {showRatings && (
-            <label className={styles.sortByLabel}>
-              <span className={styles.sortByCaption}>Sort by</span>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className={styles.sortBySelect}>
-                {showRanking && <option value="rank">Rank</option>}
-                <option value="myScore">My Score</option>
-                <option value="averageScore">Average Score</option>
-              </select>
-            </label>
-          )}
-        </div>
-      )}
+      {utilityControls && (navSlot?.slot ? createPortal(utilityControls, navSlot.slot) : <div className={styles.utilityRow}>{utilityControls}</div>)}
 
       {error && <p className={styles.errorBanner}>{error}</p>}
 
