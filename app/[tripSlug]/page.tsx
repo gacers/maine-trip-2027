@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { getTripBySlug, getTripNav } from "@/lib/sections";
+import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -10,26 +11,27 @@ export const dynamic = "force-dynamic";
 // (the New Trip flow sends you straight to the Section Designer, but
 // nothing stops you from navigating away first) — show a way back to
 // it instead of a bare 404.
-export default async function TripDefaultPage({ params, searchParams }) {
+export default async function TripDefaultPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ tripSlug: string }>;
+  searchParams: Promise<{ invite?: string }>;
+}) {
   const { tripSlug } = await params;
   const { invite } = await searchParams;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) notFound();
 
   const nav = await getTripNav(trip.id);
-  const firstSection = nav.find((g) => g.sections.some((s) => s.enabled))?.sections.find(
-    (s) => s.enabled
-  );
+  const firstSection = nav.find((g) => g.sections.some((s) => s.enabled))?.sections.find((s) => s.enabled);
 
   if (!firstSection) {
     return (
-      <main className="max-w-md mx-auto px-4 py-16 flex flex-col items-center gap-4 text-center">
-        <h1 className="text-xl font-bold text-zinc-900">{trip.name}</h1>
-        <p className="text-zinc-500 text-sm">This trip doesn&apos;t have any sections yet.</p>
-        <Link
-          href={`/${tripSlug}/admin/sections/new`}
-          className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium"
-        >
+      <main className={styles.emptyMain}>
+        <h1 className={styles.tripName}>{trip.name}</h1>
+        <p className={styles.emptyHint}>This trip doesn&apos;t have any sections yet.</p>
+        <Link href={`/${tripSlug}/admin/sections/new`} className={styles.addSectionButton}>
           + Add a section
         </Link>
       </main>
@@ -38,7 +40,7 @@ export default async function TripDefaultPage({ params, searchParams }) {
 
   // Forward `?invite=...` through the redirect — otherwise a friend's
   // invite link would drop the param before SectionPage ever gets a
-  // chance to capture it into localStorage (see lib/inviteClient.js).
+  // chance to capture it into localStorage (see lib/inviteClient.ts).
   const qs = invite ? `?invite=${encodeURIComponent(invite)}` : "";
   redirect(`/${tripSlug}/${firstSection.slug}${qs}`);
 }
