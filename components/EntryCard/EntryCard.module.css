@@ -221,7 +221,7 @@
 .addressLink {
   align-self: flex-start;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.3rem;
   font-size: var(--text-sm);
   color: var(--color-zinc-600);
@@ -234,6 +234,7 @@
 
 .pinIcon {
   flex-shrink: 0;
+  margin-top: 2px;
   color: var(--color-zinc-400);
 }
 
@@ -254,9 +255,13 @@
 
 /* Bedrooms/Beds/Bathrooms etc. as their own horizontal, icon-led strip
    in its own section — rather than crammed into the price column or
-   flattened into one "3 Bedrooms / 6 Beds / 2 Bathrooms" sentence. */
-.countsRow {
+   flattened into one "3 Bedrooms / 6 Beds / 2 Bathrooms" sentence.
+   Qualified with the element type (not just the class) so this reliably
+   beats .bulletList's own flex-direction: column at equal specificity,
+   regardless of which CSS Module's rules happen to load first. */
+ul.countsRow {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   gap: 1.25rem;
 }
