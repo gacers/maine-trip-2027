@@ -233,7 +233,29 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   }
 
+  // Wipes *every* rater's score for this entry (not just the caller's
+  // own — see handleRate below for that) via the ratings route's
+  // ?all=true. Used whenever an entry's pairing composition just
+  // changed (see handlePatch's status-change check and requestPair): a
+  // house's score as a solo listing and its score as half of a 2-house
+  // option aren't the same thing, so whatever was rated under the old
+  // shape shouldn't silently carry over as if it were rated under the
+  // new one.
+  async function clearAllRatings(id: string) {
+    applyLocalPatch(id, { myScore: null, averageScore: null, ratingCount: 0 }); // optimistic
+    try {
+      const res = await fetch(`${apiBase}/${id}/ratings?all=true`, { method: "DELETE", headers: authHeaders() });
+      if (!res.ok) throw new Error("Couldn't clear ratings");
+    } catch (err) {
+      setError((err as Error).message);
+      load(); // re-sync on failure
+    }
+  }
+
   async function handlePatch(id: string, patch: Record<string, unknown>) {
+    // Captured before the optimistic update below, so a status change
+    // on `id` itself doesn't affect what we see here for its partner.
+    const beforeEntry = entries.find((e) => e.id === id);
     applyLocalPatch(id, patch as Partial<ClientEntry>); // optimistic
     try {
       const res = await fetch(`${apiBase}/${id}`, {
@@ -244,6 +266,23 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
       if (!res.ok) throw new Error("Update failed");
       const data = await res.json();
       applyLocalPatch(id, data.entry);
+
+      // Archiving or restoring `id` may have just broken up a pair (the
+      // surviving half goes back to being scored as a solo house) or
+      // reformed one (both halves go back to being scored as one
+      // option) — either way, whatever score(s) existed under the old
+      // shape get cleared. See clearAllRatings above.
+      if (showRatings && typeof patch.status === "string" && beforeEntry?.groupLabel) {
+        const partner = entries.find(
+          (e) => e.id !== id && e.groupLabel === beforeEntry.groupLabel && e.status !== "archived"
+        );
+        if (partner && patch.status === "archived") {
+          clearAllRatings(partner.id);
+        } else if (partner && patch.status === "active") {
+          clearAllRatings(id);
+          clearAllRatings(partner.id);
+        }
+      }
     } catch (err) {
       setError((err as Error).message);
       load(); // re-sync on failure
@@ -510,6 +549,14 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
           onOpenChange={(o) => !o && setPairingEntry(null)}
           onAdded={(entry) => {
             handleAdded(entry);
+            // This pair just formed for the first time — neither half's
+            // old score (if either had one, from before pairing) means
+            // anything as a rating of the option now shared between
+            // them. See clearAllRatings.
+            if (showRatings) {
+              clearAllRatings(entry.id);
+              clearAllRatings(pairingEntry.id);
+            }
             setPairingEntry(null);
           }}
         />

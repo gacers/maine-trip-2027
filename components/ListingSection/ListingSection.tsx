@@ -84,6 +84,17 @@ export default function ListingSection({
       <div className={styles.header}>
         <div className={styles.titleArea}>
           <h2 className={styles.title}>{title}</h2>
+          {showRatings && canContribute && onRate && (
+            <div className={styles.userRatingRow}>
+              <span className={styles.ratingCaption}>Your score</span>
+              <StarRating value={myScore ?? 0} size={18} onChange={(v) => onRate(v)} />
+              {myScore != null && (
+                <Button variant="ghost" size="sm" onClick={() => onRate(null)} className={styles.clearScoreButton}>
+                  Clear
+                </Button>
+              )}
+            </div>
+          )}
         </div>
         <div className={styles.controls}>
           {rank !== undefined && (
@@ -96,17 +107,6 @@ export default function ListingSection({
                 onBlur={commitRank}
                 className={styles.rankInput}
               />
-            </div>
-          )}
-          {showRatings && canContribute && onRate && (
-            <div className={styles.userRatingRow}>
-              <span className={styles.ratingCaption}>Your score</span>
-              <StarRating value={myScore ?? 0} size={18} onChange={(v) => onRate(v)} />
-              {myScore != null && (
-                <Button variant="ghost" size="sm" onClick={() => onRate(null)} className={styles.clearScoreButton}>
-                  Clear
-                </Button>
-              )}
             </div>
           )}
           {canManage && onDeleteGroup && (
