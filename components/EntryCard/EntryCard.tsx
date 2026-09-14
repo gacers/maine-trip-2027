@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
-import { BedDouble, BedSingle, Bath, Hash, MapPin } from "lucide-react";
+import { BedDouble, BedSingle, Bath, Hash } from "lucide-react";
 import { ListingMapView, useListingMap } from "@/components/ListingMap";
 import ListingMapDetails from "@/components/ListingMapDetails";
 import SimplePlaceMap from "@/components/SimplePlaceMap";
@@ -49,10 +49,6 @@ function countFieldIcon(label: string) {
   if (l.includes("bedroom")) return <BedDouble size={17} className={styles.countIcon} />;
   if (l.includes("bed")) return <BedSingle size={17} className={styles.countIcon} />;
   return <Hash size={17} className={styles.countIcon} />;
-}
-
-function PinIcon() {
-  return <MapPin size={14} className={styles.pinIcon} />;
 }
 
 // Renders plain text with any http(s) URL inside it turned into a real
@@ -461,7 +457,6 @@ export default function EntryCard({
               </a>
               {hasHouse && (
                 <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles.addressLink}>
-                  <PinIcon />
                   {addressLabel || "View on map"}
                 </a>
               )}
