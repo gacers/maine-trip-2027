@@ -1,5 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 // Refreshes the Supabase auth session cookie on every request that isn't
 // a static asset or API route — standard @supabase/ssr App Router
@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 // same behavior, just a naming change upstream). Without this, a
 // signed-in admin's session silently expires mid-visit instead of being
 // kept alive.
-export async function proxy(request) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   // Supabase isn't configured yet (e.g. mid-setup, or a local checkout
@@ -47,7 +47,7 @@ export async function proxy(request) {
 export const config = {
   matcher: [
     // Every route except static assets and API routes (API routes handle
-    // their own auth via lib/auth.js, including the bearer-token path
+    // their own auth via lib/auth.ts, including the bearer-token path
     // that has no cookie session at all).
     "/((?!_next/static|_next/image|favicon.ico|api/).*)",
   ],
