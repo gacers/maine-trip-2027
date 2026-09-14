@@ -52,6 +52,17 @@ function closestOf(house, options) {
 //     closestOf:   [{lat,lng,label,color}, ...]   — only the nearest one shown
 //     originLabel: "Brooklyn, NY"                 — extra "X -> house" driving time
 //     houseColor, townColor }
+//
+// An `alwaysShown` point can also opt into the closestOf competition
+// (`joinClosestOf: true`) when it offers the same kind of thing as the
+// closestOf options but has another reason to always have a pin regardless
+// (e.g. Stonington's ferry to Isle Au Haut also runs a puffin tour — it
+// should always show a pin, but only claim "& puffin tour" in its label
+// when it's genuinely the closest one, via its own `closestLabel`).
+function computeClosestOfWinner(house, config) {
+  const candidates = [...(config.closestOf || []), ...(config.alwaysShown || []).filter((p) => p.joinClosestOf)];
+  return closestOf(house, candidates);
+}
 export default function ListingMap({ houses, extraMarkers, mapConfig }) {
   const mapDivRef = useRef(null);
   const { google, status, errorMsg } = useGoogleMaps();
@@ -64,9 +75,19 @@ export default function ListingMap({ houses, extraMarkers, mapConfig }) {
   const townColor = config.townColor || DEFAULT_TOWN_COLOR;
 
   const referenceHouse = houses[0];
+  const closestOfWinner = computeClosestOfWinner(referenceHouse, config);
+  // alwaysShown pins that opted in via joinClosestOf swap to their
+  // closestLabel only when they're the one that actually won; everyone
+  // else keeps their normal label.
+  const alwaysShownResolved = (config.alwaysShown || []).map((p) =>
+    p.joinClosestOf && closestOfWinner === p && p.closestLabel ? { ...p, label: p.closestLabel } : p
+  );
+  // Only add a separate closestOf pin when the winner isn't already one of
+  // the alwaysShown points above (which is already on the map either way).
+  const closestOfPin = closestOfWinner && !closestOfWinner.joinClosestOf ? closestOfWinner : null;
   const destinations = [
-    ...(config.alwaysShown || []),
-    ...(closestOf(referenceHouse, config.closestOf) ? [closestOf(referenceHouse, config.closestOf)] : []),
+    ...alwaysShownResolved,
+    ...(closestOfPin ? [closestOfPin] : []),
     ...(extraMarkers || []),
     ...(closestTown ? [{ lat: closestTown.lat, lng: closestTown.lng, label: closestTown.name, color: townColor }] : []),
   ];

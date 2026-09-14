@@ -41,7 +41,17 @@ async function sb(path, options = {}) {
 const MAP_CONFIG = {
   alwaysShown: [
     { lat: 44.4089658, lng: -68.2472733, label: "Acadia National Park", color: "#2E7D32" },
-    { lat: 44.1552157, lng: -68.660962, label: "Stonington (Isle Au Haut Boat & puffin tour)", color: "#8E24AA" },
+    {
+      lat: 44.1552157,
+      lng: -68.660962,
+      // Stonington's ferry to Isle Au Haut also runs a puffin tour, so it
+      // competes with the closestOf towns below for "closest puffin tour" —
+      // ListingMap.jsx only shows closestLabel when it actually wins that.
+      label: "Stonington (Isle Au Haut boat)",
+      closestLabel: "Stonington (Isle Au Haut boat & puffin tour)",
+      color: "#8E24AA",
+      joinClosestOf: true,
+    },
   ],
   closestOf: [
     { lat: 43.8722, lng: -69.4873, label: "New Harbor (Hardy Boat puffin tour)", color: "#F57C00" },
