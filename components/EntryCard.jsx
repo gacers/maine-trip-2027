@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ListingMap from "./ListingMap";
 import SimplePlaceMap from "./SimplePlaceMap";
 import ArchiveDialog from "./ArchiveDialog";
@@ -181,6 +181,14 @@ export default function EntryCard({
   const isArchived = entry.status === "archived";
   const extraMarkers = parseExtraMarkers(entry.extraMarkers);
 
+  // entry.rank can change for reasons other than this exact input's own
+  // edit (another card's edit, a re-fetch after sorting, etc.) — without
+  // this, the box would keep showing whatever was last typed/mounted
+  // with instead of following the real value.
+  useEffect(() => {
+    setRankDraft(entry.rank ?? "");
+  }, [entry.rank]);
+
   const priceFields = fieldDefs.filter((f) => f.field_type === "price");
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
   const countsSummary = formatCounts(countFields.map((f) => ({ fieldDef: f, value: entry[f.key] })));
@@ -358,6 +366,15 @@ export default function EntryCard({
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-zinc-500">You:</span>
                     <StarRating value={entry.myScore ?? 0} size={16} onChange={(v) => onRate(entry.id, v)} />
+                    {entry.myScore != null && (
+                      <button
+                        type="button"
+                        onClick={() => onRate(entry.id, null)}
+                        className="text-xs text-zinc-400 hover:underline"
+                      >
+                        Clear
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

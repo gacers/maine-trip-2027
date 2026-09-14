@@ -192,11 +192,14 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   async function handleRate(id, score) {
     applyLocalPatch(id, { myScore: score }); // optimistic
     try {
-      const res = await fetch(`${apiBase}/${id}/ratings`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ score }),
-      });
+      const res =
+        score == null
+          ? await fetch(`${apiBase}/${id}/ratings`, { method: "DELETE", headers: authHeaders() })
+          : await fetch(`${apiBase}/${id}/ratings`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json", ...authHeaders() },
+              body: JSON.stringify({ score }),
+            });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Rating failed");
       applyLocalPatch(id, data);

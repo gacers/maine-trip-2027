@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ArchiveDialog from "./ArchiveDialog";
 
 // `rank`/`onRankChange` are only passed for a 2-house-option group, where
@@ -28,6 +28,14 @@ export default function ListingSection({
 }) {
   const [rankDraft, setRankDraft] = useState(rank ?? "");
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+
+  // `rank` can change for reasons other than this exact input's own edit
+  // (e.g. the group's "representative" listing shifting after a
+  // re-fetch) — without this, the box would keep showing whatever was
+  // last typed/mounted with instead of following the real value.
+  useEffect(() => {
+    setRankDraft(rank ?? "");
+  }, [rank]);
 
   function commitRank() {
     const n = Number(rankDraft);
