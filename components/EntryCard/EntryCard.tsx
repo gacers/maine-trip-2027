@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import ListingMap from "./ListingMap";
-import SimplePlaceMap from "./SimplePlaceMap";
-import ArchiveDialog from "./ArchiveDialog";
-import StarRating from "./StarRating";
+import { useEffect, useState, type ReactNode, type FormEvent } from "react";
+import ListingMap from "@/components/ListingMap";
+import SimplePlaceMap from "@/components/SimplePlaceMap";
+import ArchiveDialog from "@/components/ArchiveDialog";
+import StarRating from "@/components/StarRating";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
 import { formatCounts } from "@/lib/fieldTypes/count";
-import FieldInput from "./FieldInput";
+import FieldInput from "@/components/FieldInput";
+import type { ClientEntry, FieldDef, MapConfig, MapReferencePoint } from "@/lib/types";
+import styles from "./EntryCard.module.css";
 
-function toBullets(text) {
+function toBullets(text: string | null | undefined): string[] {
   return (text || "")
     .split("\n")
     .map((s) => s.trim())
@@ -26,11 +28,11 @@ const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#
 // than sitting there as dead text. Trailing punctuation (a period
 // ending the sentence, a closing paren, ...) is kept out of the link
 // itself so "see https://example.com." doesn't swallow the period.
-function Linkified({ text }) {
+function Linkified({ text }: { text: string }) {
   const re = /https?:\/\/[^\s]+/g;
-  const parts = [];
+  const parts: ReactNode[] = [];
   let lastIndex = 0;
-  let match;
+  let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
     let url = match[0];
     let end = match.index + url.length;
@@ -42,13 +44,7 @@ function Linkified({ text }) {
     if (!url) continue;
     if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
     parts.push(
-      <a
-        key={match.index}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-600 underline decoration-blue-400 hover:text-blue-700 break-words"
-      >
+      <a key={match.index} href={url} target="_blank" rel="noopener noreferrer" className={styles.linkifiedLink}>
         {url}
       </a>
     );
@@ -62,15 +58,29 @@ function Linkified({ text }) {
 // Description (plain) and Notes/Concerns (editable, via `renderItem`
 // below) always render with this exact same <ul>/<li> markup so they
 // look and space identically everywhere.
-function BulletList({ items, renderItem }) {
+function BulletList({
+  items,
+  renderItem,
+}: {
+  items: string[];
+  renderItem?: (item: string, i: number) => ReactNode;
+}) {
   if (!items.length) return null;
   return (
-    <ul className="list-disc pl-5 text-sm text-zinc-700 flex flex-col gap-0.5">
+    <ul className={styles.bulletList}>
       {items.map((item, i) => (
         <li key={i}>{renderItem ? renderItem(item, i) : item}</li>
       ))}
     </ul>
   );
+}
+
+interface EditableNoteListProps {
+  items: string[];
+  onAdd: ((text: string) => void) | null;
+  onRemove: ((i: number) => void) | null;
+  addLabel: string;
+  placeholder: string;
 }
 
 // A BulletList whose items are removable on hover, plus a "+ Add ..."
@@ -82,32 +92,28 @@ function BulletList({ items, renderItem }) {
 // (undefined/null) to drop that capability entirely — used to gate
 // add-only invite-link contributors (can add, can't remove) and
 // read-only visitors (can't do either) down to the same shared markup.
-function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }) {
+function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }: EditableNoteListProps) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
 
-  function submit(e) {
+  function submit(e: FormEvent) {
     e.preventDefault();
     if (!draft.trim()) return;
-    onAdd(draft.trim());
+    onAdd?.(draft.trim());
     setDraft("");
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={styles.noteListWrapper}>
       <BulletList
         items={items}
         renderItem={(item, i) =>
           onRemove ? (
-            <span className="group flex items-start justify-between gap-2">
+            <span className={styles.removableNoteRow}>
               <span>
                 <Linkified text={item} />
               </span>
-              <button
-                type="button"
-                onClick={() => onRemove(i)}
-                className="text-xs text-zinc-400 hover:text-red-600 opacity-0 group-hover:opacity-100 shrink-0"
-              >
+              <button type="button" onClick={() => onRemove(i)} className={styles.removeNoteButton}>
                 Remove
               </button>
             </span>
@@ -118,15 +124,15 @@ function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }) {
       />
       {onAdd &&
         (adding ? (
-          <form onSubmit={submit} className="flex gap-2">
+          <form onSubmit={submit} className={styles.addNoteForm}>
             <input
               autoFocus
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder={placeholder}
-              className="flex-1 rounded border border-zinc-300 px-2 py-1 text-sm"
+              className={styles.addNoteInput}
             />
-            <button type="submit" className="text-sm font-medium text-blue-600 hover:underline">
+            <button type="submit" className={styles.addNoteSubmit}>
               Add
             </button>
             <button
@@ -135,22 +141,54 @@ function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }) {
                 setAdding(false);
                 setDraft("");
               }}
-              className="text-sm text-zinc-500 hover:underline"
+              className={styles.addNoteCancel}
             >
               Cancel
             </button>
           </form>
         ) : (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="text-sm text-blue-600 hover:underline self-start"
-          >
+          <button type="button" onClick={() => setAdding(true)} className={styles.addNoteTrigger}>
             + {addLabel}
           </button>
         ))}
     </div>
   );
+}
+
+interface DraftMarker {
+  label: string;
+  color: string;
+  lat: string | number;
+  lng: string | number;
+}
+
+interface EntryDraft {
+  title: string;
+  posterImage: string;
+  description: string;
+  lat: string | number;
+  lng: string | number;
+  groupLabel: string;
+  extraMarkers: DraftMarker[];
+  data: Record<string, string>;
+}
+
+export interface EntryCardProps {
+  entry: ClientEntry;
+  fieldDefs?: FieldDef[];
+  mapConfig?: MapConfig;
+  onPatch: (id: string, patch: Record<string, unknown>) => void;
+  onDelete: (id: string) => void;
+  onRate?: (id: string, score: number | null) => void;
+  canManage?: boolean;
+  canContribute?: boolean;
+  bare?: boolean;
+  showTitle?: boolean;
+  showRank?: boolean;
+  showRatings?: boolean;
+  showMap?: boolean;
+  comparisonMode?: boolean;
+  compact?: boolean;
 }
 
 export default function EntryCard({
@@ -169,12 +207,12 @@ export default function EntryCard({
   showMap = true,
   comparisonMode = true,
   compact = false,
-}) {
-  const [rankDraft, setRankDraft] = useState(entry.rank ?? "");
+}: EntryCardProps) {
+  const [rankDraft, setRankDraft] = useState<string | number>(entry.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(null);
+  const [draft, setDraft] = useState<EntryDraft | null>(null);
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
@@ -198,7 +236,7 @@ export default function EntryCard({
   // which reads naturally for exception-style flags like this.
   const activeBooleanFields = fieldDefs.filter((f) => f.field_type === "boolean" && entry[f.key]);
 
-  function archive(reason) {
+  function archive(reason: string) {
     onPatch(entry.id, { archiveReason: reason, status: "archived" });
     setShowArchiveDialog(false);
   }
@@ -214,28 +252,28 @@ export default function EntryCard({
     }
   }
 
-  function addNote(text) {
+  function addNote(text: string) {
     onPatch(entry.id, { appendNote: text });
   }
 
-  function removeNoteAt(i) {
+  function removeNoteAt(i: number) {
     const remaining = toBullets(entry.notes).filter((_, idx) => idx !== i);
     onPatch(entry.id, { notes: remaining.join("\n") });
   }
 
-  function addConcern(text) {
+  function addConcern(text: string) {
     onPatch(entry.id, { appendConcern: text });
   }
 
-  function removeConcernAt(i) {
+  function removeConcernAt(i: number) {
     const remaining = toBullets(entry.concerns).filter((_, idx) => idx !== i);
     onPatch(entry.id, { concerns: remaining.join("\n") });
   }
 
   function startEdit() {
-    const dataDraft = {};
+    const dataDraft: Record<string, string> = {};
     fieldDefs.forEach((f) => {
-      dataDraft[f.key] = entry[f.key] ?? "";
+      dataDraft[f.key] = (entry[f.key] as string) ?? "";
     });
     setDraft({
       title: entry.title || "",
@@ -244,7 +282,7 @@ export default function EntryCard({
       lat: entry.lat ?? "",
       lng: entry.lng ?? "",
       groupLabel: entry.groupLabel || "",
-      extraMarkers: extraMarkers.length ? extraMarkers : [],
+      extraMarkers: extraMarkers.length ? (extraMarkers as unknown as DraftMarker[]) : [],
       data: dataDraft,
     });
     setAddress("");
@@ -258,21 +296,23 @@ export default function EntryCard({
     setGeocodeMsg("");
     try {
       const { lat, lng, formattedAddress } = await geocodeAddress(address);
-      setDraft((d) => ({ ...d, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+      setDraft((d) => (d ? { ...d, lat: lat.toFixed(6), lng: lng.toFixed(6) } : d));
       setGeocodeMsg(`Found: ${formattedAddress}`);
     } catch (err) {
-      setGeocodeMsg(err.message);
+      setGeocodeMsg((err as Error).message);
     } finally {
       setGeocoding(false);
     }
   }
 
-  function updateDraftMarker(i, field, value) {
+  function updateDraftMarker(i: number, field: keyof DraftMarker, value: string) {
+    if (!draft) return;
     const next = draft.extraMarkers.map((m, idx) => (idx === i ? { ...m, [field]: value } : m));
     setDraft({ ...draft, extraMarkers: next });
   }
 
   function addDraftMarker() {
+    if (!draft) return;
     const color = MARKER_COLORS[draft.extraMarkers.length % MARKER_COLORS.length];
     setDraft({
       ...draft,
@@ -280,16 +320,18 @@ export default function EntryCard({
     });
   }
 
-  function removeDraftMarker(i) {
+  function removeDraftMarker(i: number) {
+    if (!draft) return;
     setDraft({ ...draft, extraMarkers: draft.extraMarkers.filter((_, idx) => idx !== i) });
   }
 
   function saveEdit() {
-    const cleanMarkers = draft.extraMarkers
+    if (!draft) return;
+    const cleanMarkers: MapReferencePoint[] = draft.extraMarkers
       .filter((m) => m.label && m.lat !== "" && m.lng !== "")
       .map((m) => ({ label: m.label, color: m.color, lat: Number(m.lat), lng: Number(m.lng) }));
 
-    const dataPatch = {};
+    const dataPatch: Record<string, unknown> = {};
     for (const f of fieldDefs) {
       const v = draft.data[f.key];
       dataPatch[f.key] = f.field_type === "number" || f.field_type === "count" ? (v === "" ? "" : Number(v)) : v;
@@ -312,66 +354,46 @@ export default function EntryCard({
   const hasHouse = hasCoords(entry);
 
   return (
-    <article
-      id={`listing-${entry.id}`}
-      className={`flex flex-col gap-3 ${
-        bare
-          ? isArchived
-            ? "opacity-70"
-            : ""
-          : `rounded-xl border p-4 sm:p-5 shadow-sm bg-white ${
-              isArchived ? "border-zinc-200 opacity-70" : "border-zinc-200"
-            }`
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 flex items-start justify-between gap-2">
-          <div className="min-w-0">
+    <article id={`listing-${entry.id}`} className={bare ? (isArchived ? styles.archived : "") : styles.articleFramed}>
+      <div className={styles.topRow}>
+        <div className={styles.titleArea}>
+          <div className={styles.titleColumn}>
             {showTitle && (
-              <a
-                href={entry.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-lg font-semibold text-zinc-900 hover:text-blue-600 underline decoration-blue-400 break-words"
-              >
+              <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
                 {entry.title}
               </a>
             )}
             {priceFields.map((f) => {
-              const value = entry[f.key];
+              const value = entry[f.key] as string;
               const badge = computePriceBadge(value);
               return value ? (
-                <div key={f.key} className="text-sm text-zinc-600 mt-0.5">
+                <div key={f.key} className={styles.priceLine}>
                   {value}
-                  {badge && <span className="text-zinc-500"> ({badge})</span>}
+                  {badge && <span className={styles.priceBadge}> ({badge})</span>}
                 </div>
               ) : (
-                <div key={f.key} className="text-sm text-zinc-400 mt-0.5 italic">
+                <div key={f.key} className={styles.noPriceLine}>
                   No {f.label.toLowerCase()} yet
                 </div>
               );
             })}
-            {countsSummary && <div className="text-xs text-zinc-500 mt-0.5">{countsSummary}</div>}
+            {countsSummary && <div className={styles.countsSummary}>{countsSummary}</div>}
             {showRatings && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5">
-                <div className="flex items-center gap-1.5">
+              <div className={styles.ratingsRow}>
+                <div className={styles.ratingGroup}>
                   <StarRating value={entry.averageScore ?? 0} size={16} />
-                  <span className="text-xs text-zinc-500">
+                  <span className={styles.ratingCaption}>
                     {entry.averageScore != null
                       ? `${entry.averageScore.toFixed(1)} avg (${entry.ratingCount})`
                       : "No ratings yet"}
                   </span>
                 </div>
-                {canContribute && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-zinc-500">You:</span>
+                {canContribute && onRate && (
+                  <div className={styles.ratingGroup}>
+                    <span className={styles.ratingCaption}>You:</span>
                     <StarRating value={entry.myScore ?? 0} size={16} onChange={(v) => onRate(entry.id, v)} />
                     {entry.myScore != null && (
-                      <button
-                        type="button"
-                        onClick={() => onRate(entry.id, null)}
-                        className="text-xs text-zinc-400 hover:underline"
-                      >
+                      <button type="button" onClick={() => onRate(entry.id, null)} className={styles.clearScoreButton}>
                         Clear
                       </button>
                     )}
@@ -380,23 +402,15 @@ export default function EntryCard({
               </div>
             )}
             {!showTitle && (
-              <a
-                href={entry.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-blue-600 hover:underline"
-              >
+              <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.originalListingLink}>
                 Original listing &#8599;
               </a>
             )}
           </div>
           {showTitle && activeBooleanFields.length > 0 && (
-            <div className="flex flex-wrap justify-end gap-1 shrink-0">
+            <div className={styles.badgeGroup}>
               {activeBooleanFields.map((f) => (
-                <span
-                  key={f.key}
-                  className="inline-block rounded-full bg-amber-100 text-amber-800 text-xs font-medium px-2 py-0.5"
-                >
+                <span key={f.key} className={styles.badge}>
                   {f.label}
                 </span>
               ))}
@@ -404,14 +418,14 @@ export default function EntryCard({
           )}
         </div>
         {showRank && canManage && (
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            <label className="text-xs text-zinc-500">Rank</label>
+          <div className={styles.rankControl}>
+            <label className={styles.rankLabel}>Rank</label>
             <input
               type="number"
               value={rankDraft}
               onChange={(e) => setRankDraft(e.target.value)}
               onBlur={commitRank}
-              className="w-16 rounded border border-zinc-300 px-2 py-1 text-sm text-center"
+              className={styles.rankInput}
             />
           </div>
         )}
@@ -424,15 +438,12 @@ export default function EntryCard({
         // keep the old auto-height-up-to-a-cap behavior, unaffected.
         // object-contain either way: the whole photo stays uncropped,
         // just letterboxed and centered within whatever box it gets.
-        <div
-          className={`w-full flex items-center justify-center bg-zinc-100 rounded-lg overflow-hidden ${
-            compact ? "h-56 sm:h-64" : "max-h-[480px]"
-          }`}
-        >
+        <div className={compact ? styles.photoBoxCompact : styles.photoBox}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={entry.posterImage}
-            alt={entry.title}
-            className={`w-full object-contain ${compact ? "h-full" : "h-auto max-h-[480px]"}`}
+            alt={entry.title ?? ""}
+            className={compact ? styles.photoImgCompact : styles.photoImg}
             loading="lazy"
           />
         </div>
@@ -440,164 +451,146 @@ export default function EntryCard({
 
       {!isEditing && toBullets(entry.description).length > 0 && (
         <div>
-          <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium mb-1">
-            Description
-          </h3>
+          <h3 className={styles.sectionHeading}>Description</h3>
           <BulletList items={toBullets(entry.description)} />
         </div>
       )}
 
-      {!isEditing && showMap && hasHouse && (
-        comparisonMode ? (
+      {!isEditing &&
+        showMap &&
+        hasHouse &&
+        (comparisonMode ? (
           <ListingMap
-            houses={[{ lat: entry.lat, lng: entry.lng, label: "House (approximate location)" }]}
+            houses={[{ lat: entry.lat as number, lng: entry.lng as number, label: "House (approximate location)" }]}
             extraMarkers={extraMarkers}
             mapConfig={mapConfig}
           />
         ) : (
-          <SimplePlaceMap places={[{ lat: entry.lat, lng: entry.lng, label: entry.title || "Location" }]} />
-        )
-      )}
+          <SimplePlaceMap places={[{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }]} />
+        ))}
 
       {isEditing && draft && (
-        <div className="border border-zinc-200 rounded-lg p-3 flex flex-col gap-3 bg-zinc-50">
-          <div className="grid sm:grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1 text-sm">
+        <div className={styles.editBox}>
+          <div className={styles.editGrid}>
+            <label className={styles.field}>
               Title
               <input
                 value={draft.title}
                 onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
+            <label className={styles.field}>
               Photo URL
               <input
                 value={draft.posterImage}
                 onChange={(e) => setDraft({ ...draft, posterImage: e.target.value })}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+            <label className={styles.wideField}>
               Description (one bullet per line)
               <textarea
                 value={draft.description}
                 onChange={(e) => setDraft({ ...draft, description: e.target.value })}
                 rows={4}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
 
             {fieldDefs.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:col-span-2">
+              <div className={styles.fieldDefsGrid}>
                 {fieldDefs.map((f) => (
                   <FieldInput
                     key={f.key}
                     fieldDef={f}
                     value={draft.data[f.key]}
-                    onChange={(v) => setDraft({ ...draft, data: { ...draft.data, [f.key]: v } })}
+                    onChange={(v) => setDraft({ ...draft, data: { ...draft.data, [f.key]: String(v) } })}
                   />
                 ))}
                 {countFields.length > 0 && (
-                  <p className="text-xs text-zinc-500 col-span-full -mt-1">
-                    Count fields auto-fill from the description when left blank.
-                  </p>
+                  <p className={styles.countHint}>Count fields auto-fill from the description when left blank.</p>
                 )}
               </div>
             )}
 
-            <label className="flex flex-col gap-1 text-sm">
+            <label className={styles.field}>
               House latitude
               <input
                 value={draft.lat}
                 onChange={(e) => setDraft({ ...draft, lat: e.target.value })}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
+            <label className={styles.field}>
               House longitude
               <input
                 value={draft.lng}
                 onChange={(e) => setDraft({ ...draft, lng: e.target.value })}
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
-            <div className="flex flex-col gap-1 text-sm sm:col-span-2">
+            <div className={styles.wideField}>
               <label>Or find lat/lng from an address</label>
-              <div className="flex gap-2">
+              <div className={styles.geocodeRow}>
                 <input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="e.g. 45 Ocean Ave, Jonesport, ME"
-                  className="flex-1 rounded border border-zinc-300 px-2 py-1.5"
+                  className={styles.geocodeInput}
                 />
-                <button
-                  type="button"
-                  onClick={handleFindCoords}
-                  disabled={geocoding || !address.trim()}
-                  className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-                >
+                <button type="button" onClick={handleFindCoords} disabled={geocoding || !address.trim()} className={styles.findButton}>
                   {geocoding ? "Finding..." : "Find"}
                 </button>
               </div>
-              {geocodeMsg && <p className="text-xs text-zinc-500">{geocodeMsg}</p>}
+              {geocodeMsg && <p className={styles.geocodeMsg}>{geocodeMsg}</p>}
             </div>
-            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+            <label className={styles.wideField}>
               Group label (optional — only if this is a 2-item option)
               <input
                 value={draft.groupLabel}
                 onChange={(e) => setDraft({ ...draft, groupLabel: e.target.value })}
                 placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
-                className="rounded border border-zinc-300 px-2 py-1.5"
+                className={styles.input}
               />
             </label>
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <h4 className="text-sm font-medium text-zinc-700">
-                Extra map points (restaurants, hikes, puffin tour, nearest town, etc.)
-              </h4>
-              <button
-                type="button"
-                onClick={addDraftMarker}
-                className="text-sm text-blue-600 hover:underline"
-              >
+            <div className={styles.markersHeader}>
+              <h4 className={styles.markersTitle}>Extra map points (restaurants, hikes, puffin tour, nearest town, etc.)</h4>
+              <button type="button" onClick={addDraftMarker} className={styles.addPointButton}>
                 + Add point
               </button>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className={styles.markerRowList}>
               {draft.extraMarkers.map((m, i) => (
-                <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-2 items-center">
+                <div key={i} className={styles.markerRow}>
                   <input
                     placeholder="Label"
                     value={m.label}
                     onChange={(e) => updateDraftMarker(i, "label", e.target.value)}
-                    className="rounded border border-zinc-300 px-2 py-1 text-sm"
+                    className={styles.markerInput}
                   />
                   <input
                     placeholder="Latitude"
                     value={m.lat}
                     onChange={(e) => updateDraftMarker(i, "lat", e.target.value)}
-                    className="rounded border border-zinc-300 px-2 py-1 text-sm"
+                    className={styles.markerInput}
                   />
                   <input
                     placeholder="Longitude"
                     value={m.lng}
                     onChange={(e) => updateDraftMarker(i, "lng", e.target.value)}
-                    className="rounded border border-zinc-300 px-2 py-1 text-sm"
+                    className={styles.markerInput}
                   />
                   <input
                     type="color"
                     value={m.color}
                     onChange={(e) => updateDraftMarker(i, "color", e.target.value)}
-                    className="w-8 h-8 p-0 border-0"
+                    className={styles.markerColorInput}
                   />
-                  <button
-                    type="button"
-                    onClick={() => removeDraftMarker(i)}
-                    className="text-sm text-red-600 hover:underline"
-                  >
+                  <button type="button" onClick={() => removeDraftMarker(i)} className={styles.markerRemoveButton}>
                     Remove
                   </button>
                 </div>
@@ -605,11 +598,8 @@ export default function EntryCard({
             </div>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              onClick={saveEdit}
-              className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium"
-            >
+          <div className={styles.editActions}>
+            <button onClick={saveEdit} className={styles.saveButton}>
               Save
             </button>
             <button
@@ -617,7 +607,7 @@ export default function EntryCard({
                 setIsEditing(false);
                 setDraft(null);
               }}
-              className="text-sm text-zinc-500 hover:underline"
+              className={styles.cancelButton}
             >
               Cancel
             </button>
@@ -625,8 +615,8 @@ export default function EntryCard({
         </div>
       )}
 
-      <div className="flex flex-col gap-1">
-        <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium">Notes</h3>
+      <div className={styles.notesSection}>
+        <h3 className={styles.sectionHeading}>Notes</h3>
         <EditableNoteList
           items={toBullets(entry.notes)}
           onAdd={canContribute ? addNote : null}
@@ -636,8 +626,8 @@ export default function EntryCard({
         />
       </div>
 
-      <div className="flex flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
-        <h3 className="text-sm uppercase tracking-wide text-amber-700 font-medium">Concerns</h3>
+      <div className={styles.concernsSection}>
+        <h3 className={styles.concernsHeading}>Concerns</h3>
         <EditableNoteList
           items={toBullets(entry.concerns)}
           onAdd={canContribute ? addConcern : null}
@@ -648,56 +638,40 @@ export default function EntryCard({
       </div>
 
       {canManage && (
-        <div className="relative flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 border-t border-zinc-100 mt-1">
+        <div className={styles.footer}>
           {!isArchived && (
-            <div className="relative">
-              <button
-                onClick={() => setShowArchiveDialog((v) => !v)}
-                className="text-sm text-red-600 hover:underline"
-              >
+            <div className={styles.deleteWrapper}>
+              <button onClick={() => setShowArchiveDialog((v) => !v)} className={styles.deleteButton}>
                 Delete
               </button>
-              {showArchiveDialog && (
-                <ArchiveDialog onConfirm={archive} onCancel={() => setShowArchiveDialog(false)} />
-              )}
+              {showArchiveDialog && <ArchiveDialog onConfirm={archive} onCancel={() => setShowArchiveDialog(false)} />}
             </div>
           )}
 
           {!isEditing && (
-            <button onClick={startEdit} className="text-sm text-zinc-600 hover:underline">
+            <button onClick={startEdit} className={styles.editDetailsButton}>
               Edit details
             </button>
           )}
 
           {isArchived && (
-            <div className="ml-auto flex items-center gap-3">
-              {entry.archiveReason && (
-                <span className="text-xs text-zinc-500 italic">{entry.archiveReason}</span>
-              )}
-              <button onClick={restore} className="text-sm text-blue-600 hover:underline">
+            <div className={styles.archivedActions}>
+              {entry.archiveReason && <span className={styles.archiveReason}>{entry.archiveReason}</span>}
+              <button onClick={restore} className={styles.restoreButton}>
                 Restore
               </button>
               {confirmingDelete ? (
-                <span className="text-sm flex items-center gap-2">
+                <span className={styles.confirmDeleteRow}>
                   Delete for good?
-                  <button
-                    onClick={() => onDelete(entry.id)}
-                    className="text-red-600 font-medium hover:underline"
-                  >
+                  <button onClick={() => onDelete(entry.id)} className={styles.confirmYes}>
                     Yes
                   </button>
-                  <button
-                    onClick={() => setConfirmingDelete(false)}
-                    className="text-zinc-500 hover:underline"
-                  >
+                  <button onClick={() => setConfirmingDelete(false)} className={styles.confirmNo}>
                     No
                   </button>
                 </span>
               ) : (
-                <button
-                  onClick={() => setConfirmingDelete(true)}
-                  className="text-sm text-red-600 hover:underline"
-                >
+                <button onClick={() => setConfirmingDelete(true)} className={styles.deleteButton}>
                   Delete
                 </button>
               )}
