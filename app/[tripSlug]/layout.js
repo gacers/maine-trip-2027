@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getTripBySlug, getTripNav } from "@/lib/sections";
+import { getTripBySlug, getTripNav, sanitizeTripForClient } from "@/lib/sections";
 import TripNavHeader from "@/components/TripNavHeader";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,10 @@ export default async function TripLayout({ children, params }) {
 
   return (
     <>
-      <TripNavHeader trip={trip} nav={nav} />
+      {/* TripNavHeader is a Client Component — anything passed to it
+          gets serialized into the page's own source, so the raw trip
+          row (carrying sheet_invite_token) must never go here as-is. */}
+      <TripNavHeader trip={sanitizeTripForClient(trip)} nav={nav} />
       {children}
     </>
   );

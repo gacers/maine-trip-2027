@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { getAllTrips } from "@/lib/sections";
+import { getAllTrips, sanitizeTripForClient } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// Public, unauthenticated endpoint — every trip's sheet_invite_token must
+// never appear in this response (see sanitizeTripForClient).
 export async function GET() {
   try {
     const trips = await getAllTrips();
-    return NextResponse.json({ trips });
+    return NextResponse.json({ trips: trips.map(sanitizeTripForClient) });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
