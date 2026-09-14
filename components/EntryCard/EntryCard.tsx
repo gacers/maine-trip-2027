@@ -6,6 +6,7 @@ import SimplePlaceMap from "@/components/SimplePlaceMap";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import StarRating from "@/components/StarRating";
 import Button from "@/components/Button";
+import Badge, { pickBadgeVariant } from "@/components/Badge";
 import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
@@ -423,9 +424,9 @@ export default function EntryCard({
             {activeBooleanFields.length > 0 ? (
               <div className={styles.eyebrows}>
                 {activeBooleanFields.map((f) => (
-                  <span key={f.key} className={styles.eyebrow}>
+                  <Badge key={f.key} variant={pickBadgeVariant(f.key)}>
                     {f.label}
-                  </span>
+                  </Badge>
                 ))}
               </div>
             ) : (

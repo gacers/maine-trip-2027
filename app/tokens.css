@@ -32,13 +32,29 @@
   --color-amber-800: #92400e;
 
   /* Colors — green */
+  --color-green-100: #dcfce7;
   --color-green-700: #15803d;
+  --color-green-800: #166534;
 
   /* Colors — blue */
   --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
   --color-blue-400: #60a5fa;
   --color-blue-600: #2563eb;
   --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+
+  /* Colors — purple (added for Badge's per-type color cycling) */
+  --color-purple-100: #f3e8ff;
+  --color-purple-800: #6b21a8;
+
+  /* Colors — teal (added for Badge's per-type color cycling) */
+  --color-teal-100: #ccfbf1;
+  --color-teal-800: #115e59;
+
+  /* Colors — pink (added for Badge's per-type color cycling) */
+  --color-pink-100: #fce7f3;
+  --color-pink-800: #9d174d;
 
   /* Colors — base */
   --color-white: #ffffff;
