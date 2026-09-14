@@ -189,11 +189,11 @@ async function main() {
   const foodDrinkGroup = await upsertNavGroup(trip.id, "food-drink", "Food & Drink", 1);
   const activitiesGroup = await upsertNavGroup(trip.id, "activities", "Activities", 2);
 
-  // Pairing (2-item options) and manual ranking only make sense for a
+  // Pairing (2-item options) and ratings only make sense for a
   // still-deciding-among-options list — Possible Houses is the only one:
   // Stayed Before/Previously Visited/Previous Activities are already
   // decided (no map either), and Food & Drink/Activities are lighter,
-  // one-at-a-time adds that were never meant to be paired or ranked.
+  // one-at-a-time adds that were never meant to be paired or scored.
   const houses = await upsertSection(trip.id, housesGroup.id, {
     slug: "houses",
     label: "House Options",
@@ -202,7 +202,9 @@ async function main() {
     empty_message: "No listings yet — paste a URL above.",
     supports_pairing: true,
     has_map: true,
-    supports_ranking: true,
+    // Manual ranking is retired in favor of star ratings (My Score/
+    // Average Score) — see the Rank column change in sheetsExport.js.
+    supports_ranking: false,
     supports_ratings: true,
     sort_order: 0,
   });

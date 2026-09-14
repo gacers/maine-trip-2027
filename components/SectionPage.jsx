@@ -32,7 +32,10 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [activeFilters, setActiveFilters] = useState(() => new Set());
-  const [sortBy, setSortBy] = useState("rank"); // rank | myScore | averageScore
+  // rank | myScore | averageScore — defaults to whichever concept this
+  // section actually has; Rank only exists as an option at all once
+  // supports_ranking is on.
+  const [sortBy, setSortBy] = useState(section.supports_ranking ? "rank" : "averageScore");
   const [contributorToken, setContributorToken] = useState(null);
   // Whether the localStorage/invite-param check below has actually run
   // yet. An admin's access is already known synchronously from the
@@ -155,8 +158,8 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
   // (e.g. "Bar" checked) into one that doesn't even have that field.
   useEffect(() => {
     setActiveFilters(new Set());
-    setSortBy("rank");
-  }, [section.id]);
+    setSortBy(section.supports_ranking ? "rank" : "averageScore");
+  }, [section.id, section.supports_ranking]);
 
   function toggleFilter(key) {
     setActiveFilters((prev) => {
@@ -442,7 +445,7 @@ export default function SectionPage({ trip, section, isAdmin = false, contactEma
             onChange={(e) => setSortBy(e.target.value)}
             className="rounded border border-zinc-300 px-2 py-1 text-sm"
           >
-            <option value="rank">Rank</option>
+            {showRanking && <option value="rank">Rank</option>}
             <option value="myScore">My Score</option>
             <option value="averageScore">Average Score</option>
           </select>
