@@ -2,6 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { useGoogleMaps } from "@/lib/useGoogleMaps";
+import type { LatLngLabel } from "@/lib/types";
+import styles from "./SimplePlaceMap.module.css";
+
+export interface SimplePlaceMapProps {
+  places: LatLngLabel[];
+}
 
 // A plain marker map for an entry that isn't being actively compared
 // against other options (a "previous"/already-decided section — see
@@ -11,8 +17,8 @@ import { useGoogleMaps } from "@/lib/useGoogleMaps";
 // for a still-deciding section. `places` is one or more {lat, lng,
 // label}, matching ListingMap's `houses` shape so a group of 2 renders
 // on one shared map the same way GroupMap does for the full version.
-export default function SimplePlaceMap({ places }) {
-  const mapDivRef = useRef(null);
+export default function SimplePlaceMap({ places }: SimplePlaceMapProps) {
+  const mapDivRef = useRef<HTMLDivElement>(null);
   const { google, status, errorMsg } = useGoogleMaps();
   const key = places.map((p) => `${p.lat},${p.lng}`).join("|");
 
@@ -29,25 +35,23 @@ export default function SimplePlaceMap({ places }) {
   }, [google, key]);
 
   return (
-    <div className="flex flex-col gap-2">
-      <h3 className="text-sm uppercase tracking-wide text-zinc-500 font-medium">Map</h3>
+    <div className={styles.wrapper}>
+      <h3 className={styles.heading}>Map</h3>
 
       {status === "error" ? (
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-          Couldn&apos;t load the map ({errorMsg}).
-        </p>
+        <p className={styles.errorBox}>Couldn&apos;t load the map ({errorMsg}).</p>
       ) : (
-        <div ref={mapDivRef} className="w-full h-48 sm:h-56 rounded-lg bg-zinc-100" />
+        <div ref={mapDivRef} className={styles.mapCanvas} />
       )}
 
-      <ul className="flex flex-col gap-1 text-sm">
+      <ul className={styles.placeList}>
         {places.map((p) => (
           <li key={p.label}>
             <a
               href={`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:underline"
+              className={styles.placeLink}
             >
               {p.label} — Open in Google Maps
             </a>

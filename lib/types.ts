@@ -56,6 +56,14 @@ export interface NavGroup {
   sections: Section[];
 }
 
+// A bare point — a house, a paired listing, or anything else placed on
+// a map with nothing more than where it is and what to call it.
+export interface LatLngLabel {
+  lat: number;
+  lng: number;
+  label: string;
+}
+
 export interface MapReferencePoint {
   lat: number;
   lng: number;
