@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import styles from "./ResetPasswordForm.module.css";
 
 // Lands here from a Supabase "recover" (magic-link-style) email. The
 // browser client auto-detects the recovery token in the URL and
@@ -15,7 +16,7 @@ export default function ResetPasswordForm() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -31,12 +32,12 @@ export default function ResetPasswordForm() {
   }
 
   if (success) {
-    return <p className="text-sm text-green-700 text-center">Password set — redirecting...</p>;
+    return <p className={styles.success}>Password set — redirecting...</p>;
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm">
+    <form onSubmit={handleSubmit} className={styles.form}>
+      <label className={styles.field}>
         New password
         <input
           type="password"
@@ -44,15 +45,11 @@ export default function ResetPasswordForm() {
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="rounded border border-zinc-300 px-2 py-1.5"
+          className={styles.input}
         />
       </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={loading}
-        className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-      >
+      {error && <p className={styles.error}>{error}</p>}
+      <button type="submit" disabled={loading} className={styles.submitButton}>
         {loading ? "Saving..." : "Set password"}
       </button>
     </form>

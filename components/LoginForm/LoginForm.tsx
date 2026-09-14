@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import styles from "./LoginForm.module.css";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function LoginForm() {
   const [resetSent, setResetSent] = useState(false);
   const [resetting, setResetting] = useState(false);
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -36,7 +37,7 @@ export default function LoginForm() {
   // the vercel.app one) without hardcoding either.
   async function handleForgotPassword() {
     if (!email.trim()) {
-      setError("Enter your email above first, then click \"Forgot password\".");
+      setError('Enter your email above first, then click "Forgot password".');
       return;
     }
     setResetting(true);
@@ -54,45 +55,39 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm">
+    <form onSubmit={handleSubmit} className={styles.form}>
+      <label className={styles.field}>
         Email
         <input
           type="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="rounded border border-zinc-300 px-2 py-1.5"
+          className={styles.input}
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
+      <label className={styles.field}>
         Password
         <input
           type="password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="rounded border border-zinc-300 px-2 py-1.5"
+          className={styles.input}
         />
       </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className={styles.error}>{error}</p>}
       {resetSent && (
-        <p className="text-sm text-green-700">
-          If that email has an account, a reset link was just sent to it.
-        </p>
+        <p className={styles.success}>If that email has an account, a reset link was just sent to it.</p>
       )}
-      <button
-        type="submit"
-        disabled={loading}
-        className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-      >
+      <button type="submit" disabled={loading} className={styles.submitButton}>
         {loading ? "Signing in..." : "Sign in"}
       </button>
       <button
         type="button"
         onClick={handleForgotPassword}
         disabled={resetting}
-        className="text-sm text-zinc-500 hover:underline self-center disabled:opacity-50"
+        className={styles.forgotButton}
       >
         {resetting ? "Sending..." : "Forgot password?"}
       </button>
