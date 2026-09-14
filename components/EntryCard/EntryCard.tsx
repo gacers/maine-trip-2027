@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
+import { BedDouble, BedSingle, Bath, Hash, MapPin, ExternalLink } from "lucide-react";
 import { ListingMapView, useListingMap } from "@/components/ListingMap";
 import ListingMapDetails from "@/components/ListingMapDetails";
 import SimplePlaceMap from "@/components/SimplePlaceMap";
@@ -13,7 +14,6 @@ import BulletList from "@/components/BulletList";
 import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
-import { formatCounts } from "@/lib/fieldTypes/count";
 import FieldInput from "@/components/FieldInput";
 import type { ClientEntry, FieldDef, MapConfig, MapReferencePoint } from "@/lib/types";
 import styles from "./EntryCard.module.css";
@@ -40,26 +40,26 @@ function isAddressLike(line: string): boolean {
 
 const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#616161"];
 
+// Picks a purpose-built icon by matching words in the field's own label —
+// generic count fields with an unrecognized label (anything an admin
+// might invent later) still get a sensible fallback rather than nothing.
+function countFieldIcon(label: string) {
+  const l = label.toLowerCase();
+  if (l.includes("bath")) return <Bath size={17} className={styles.countIcon} />;
+  if (l.includes("bedroom")) return <BedDouble size={17} className={styles.countIcon} />;
+  if (l.includes("bed")) return <BedSingle size={17} className={styles.countIcon} />;
+  return <Hash size={17} className={styles.countIcon} />;
+}
+
 function PinIcon() {
-  return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={styles.pinIcon}>
-      <path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z" />
-      <circle cx="12" cy="9.5" r="2.25" fill="currentColor" stroke="none" />
-    </svg>
-  );
+  return <MapPin size={14} className={styles.pinIcon} />;
 }
 
 // Appended after the title/address text instead of the old underline —
 // signals "this opens somewhere else" (the original listing, a Google
 // Maps search) without dressing plain text up as a link.
 function ExternalLinkIcon() {
-  return (
-    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={styles.externalIcon}>
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-      <path d="M15 3h6v6" />
-      <path d="M10 14 21 3" />
-    </svg>
-  );
+  return <ExternalLink size={12} className={styles.externalIcon} />;
 }
 
 // Renders plain text with any http(s) URL inside it turned into a real
@@ -300,7 +300,9 @@ export default function EntryCard({
 
   const priceFields = fieldDefs.filter((f) => f.field_type === "price");
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
-  const countsSummary = formatCounts(countFields.map((f) => ({ fieldDef: f, value: entry[f.key] })));
+  const countRows = countFields
+    .map((f) => ({ fieldDef: f, value: entry[f.key] }))
+    .filter(({ value }) => value !== "" && value !== null && value !== undefined);
   const descriptionBullets = toBullets(entry.description).filter((line) => !isAddressLike(line));
   const hasNotes = toBullets(entry.notes).length > 0;
   const hasConcerns = toBullets(entry.concerns).length > 0;
@@ -459,20 +461,33 @@ export default function EntryCard({
             )}
           </div>
 
-          <div className={styles.titleRow}>
-            <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
-              {entry.title}
-              <ExternalLinkIcon />
-            </a>
-            {(priceFields.length > 0 || countsSummary) && (
+          <div className={styles.headerGrid}>
+            <div className={styles.titleColumn}>
+              <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
+                {entry.title}
+                <ExternalLinkIcon />
+              </a>
+              {hasHouse && (
+                <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles.addressLink}>
+                  <PinIcon />
+                  {addressLabel || "View on map"}
+                  <ExternalLinkIcon />
+                </a>
+              )}
+            </div>
+
+            {priceFields.length > 0 && (
               <div className={styles.priceStack}>
                 {priceFields.map((f) => {
                   const value = entry[f.key] as string;
                   const badge = computePriceBadge(value);
                   return value ? (
                     <div key={f.key} className={styles.priceGroup}>
-                      <span className={styles.priceAvg}>{badge || value}</span>
-                      {badge && <span className={styles.priceTotal}>{value}</span>}
+                      {/* The total is what actually matters when
+                          comparing options — the per-night average is
+                          useful context, not the headline number. */}
+                      <span className={styles.priceTotal}>{value}</span>
+                      {badge && <span className={styles.priceAvg}>{badge}</span>}
                     </div>
                   ) : (
                     <div key={f.key} className={styles.noPriceLine}>
@@ -480,18 +495,9 @@ export default function EntryCard({
                     </div>
                   );
                 })}
-                {countsSummary && <div className={styles.countsSummary}>{countsSummary}</div>}
               </div>
             )}
           </div>
-
-          {hasHouse && (
-            <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles.addressLink}>
-              <PinIcon />
-              {addressLabel || "View on map"}
-              <ExternalLinkIcon />
-            </a>
-          )}
 
           {showRatings && canContribute && onRate && (
             <div className={styles.userRatingRow}>
@@ -505,6 +511,25 @@ export default function EntryCard({
             </div>
           )}
         </div>
+
+        {/* Its own section, horizontal — bedrooms/beds/bathrooms read as
+            a quick-scan strip rather than being crammed into the price
+            column or a slash-joined sentence. Skipped entirely when the
+            section has no count-type fields defined or none are filled in. */}
+        {countRows.length > 0 && (
+          <div className={styles.section}>
+            <ul className={styles.countsRow}>
+              {countRows.map(({ fieldDef, value }) => (
+                <li key={fieldDef.key} className={styles.countItem}>
+                  {countFieldIcon(fieldDef.label)}
+                  <span>
+                    {value as ReactNode} {fieldDef.options?.shortLabel || fieldDef.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {!isEditing && descriptionBullets.length > 0 && (
           <div className={styles.section}>
