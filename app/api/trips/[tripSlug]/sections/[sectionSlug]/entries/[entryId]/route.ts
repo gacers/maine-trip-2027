@@ -1,14 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { getAllEntries, updateEntry, deleteEntry, toClientEntry } from "@/lib/entries";
 import { requireWriteAccess } from "@/lib/auth";
 import { extractCount } from "@/lib/fieldTypes/count";
 import { exportSection } from "@/lib/sheetsExport";
+import type { EntryRow, Trip, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const CORE_TO_COLUMN = {
+const CORE_TO_COLUMN: Record<string, keyof EntryRow> = {
   rank: "rank",
   title: "title",
   url: "url",
@@ -23,7 +24,10 @@ const CORE_TO_COLUMN = {
   groupLabel: "group_label",
 };
 
-async function resolveTripAndSection(tripSlug, sectionSlug) {
+async function resolveTripAndSection(
+  tripSlug: string,
+  sectionSlug: string
+): Promise<{ trip: Trip; section: Section; notFound?: undefined } | { notFound: NextResponse; trip?: undefined; section?: undefined }> {
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return { notFound: NextResponse.json({ error: "Unknown trip" }, { status: 404 }) };
   const section = await getSectionBySlug(trip.id, sectionSlug);
@@ -31,12 +35,15 @@ async function resolveTripAndSection(tripSlug, sectionSlug) {
   return { trip, section };
 }
 
-export async function PATCH(request, { params }) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string; entryId: string }> }
+) {
   const { tripSlug, sectionSlug, entryId } = await params;
   const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
   if (notFound) return notFound;
 
-  let body;
+  let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
@@ -56,12 +63,12 @@ export async function PATCH(request, { params }) {
   });
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
-  const patch = {};
+  const patch: Partial<EntryRow> = {};
   for (const [key, column] of Object.entries(CORE_TO_COLUMN)) {
-    if (key in body) patch[column] = body[key];
+    if (key in body) (patch as Record<string, unknown>)[column] = body[key];
   }
 
-  const dataPatch = body.data && typeof body.data === "object" ? body.data : null;
+  const dataPatch = body.data && typeof body.data === "object" ? (body.data as Record<string, unknown>) : null;
   // appendNote/appendConcern add one more bullet to the existing list
   // (each is a "\n"-joined string under the hood, same convention as
   // description) instead of replacing the whole thing — the same
@@ -77,18 +84,18 @@ export async function PATCH(request, { params }) {
 
   try {
     if (dataPatch || appendNote || appendConcern) {
-      const all = await getAllEntries(supabase, section.id);
+      const all = await getAllEntries(supabase!, section.id);
       const existing = all.find((e) => e.id === entryId);
       if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
       if (dataPatch) {
-        const mergedData = { ...existing.data, ...dataPatch };
+        const mergedData: Record<string, unknown> = { ...existing.data, ...dataPatch };
 
         // If the description changed but a count field wasn't explicitly
         // patched alongside it, re-extract it — same as today's PATCH
         // route's bedroom/bed/bathroom re-parse behavior.
         if ("description" in patch) {
-          for (const fieldDef of section.field_defs) {
+          for (const fieldDef of section.field_defs || []) {
             if (fieldDef.field_type === "count" && !(fieldDef.key in dataPatch)) {
               const extracted = extractCount(patch.description, fieldDef);
               if (extracted !== "") mergedData[fieldDef.key] = extracted;
@@ -106,15 +113,18 @@ export async function PATCH(request, { params }) {
       }
     }
 
-    const entry = await updateEntry(supabase, entryId, patch);
-    await exportSection(supabase, trip, section);
+    const entry = await updateEntry(supabase!, entryId, patch);
+    await exportSection(supabase!, trip, section);
     return NextResponse.json({ entry: toClientEntry(entry) });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string; entryId: string }> }
+) {
   const { tripSlug, sectionSlug, entryId } = await params;
   const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
   if (notFound) return notFound;
@@ -123,10 +133,10 @@ export async function DELETE(request, { params }) {
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   try {
-    await deleteEntry(supabase, entryId);
-    await exportSection(supabase, trip, section);
+    await deleteEntry(supabase!, entryId);
+    await exportSection(supabase!, trip, section);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
