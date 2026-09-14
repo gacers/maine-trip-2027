@@ -25,10 +25,10 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     if (res.ok) setNav(data.nav);
   }
 
-  async function toggleEnabled(section: Section, enabled: boolean) {
+  async function toggleEnabled(section: Section, navGroupSlug: string, enabled: boolean) {
     setError("");
     try {
-      const res = await fetch(`${apiBase}/${section.slug}`, {
+      const res = await fetch(`${apiBase}/${navGroupSlug}/${section.slug}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled }),
@@ -159,7 +159,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                     <div>
                       <div className={styles.sectionLabel}>{section.label}</div>
                       <div className={styles.sectionMeta}>
-                        /{trip.slug}/{section.slug}
+                        /{trip.slug}/{group.slug}/{section.slug}
                         {!section.enabled && " · disabled"}
                       </div>
                     </div>
@@ -168,12 +168,15 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                         <input
                           type="checkbox"
                           checked={section.enabled}
-                          onChange={(e) => toggleEnabled(section, e.target.checked)}
+                          onChange={(e) => toggleEnabled(section, group.slug, e.target.checked)}
                           className={styles.enabledCheckbox}
                         />
                         Enabled
                       </label>
-                      <Link href={`/${trip.slug}/admin/sections/${section.slug}/edit`} className={styles.editLink}>
+                      <Link
+                        href={`/${trip.slug}/admin/sections/${group.slug}/${section.slug}/edit`}
+                        className={styles.editLink}
+                      >
                         Edit
                       </Link>
                     </div>

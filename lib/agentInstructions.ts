@@ -3,6 +3,10 @@ import type { PublicTrip, Section } from "@/lib/types";
 export interface BuildAgentInstructionsArgs {
   trip: PublicTrip;
   section: Section;
+  /** This section's own nav group slug — a section's slug is only
+   * unique within its group (see migration 0014), so the entries API
+   * path needs both. */
+  navGroupSlug: string;
   siteUrl: string;
   token: string;
   role: "owner" | "contributor";
@@ -18,8 +22,8 @@ export interface BuildAgentInstructionsArgs {
 // token kept as a placeholder on purpose), this file is generated
 // client-side at download time and safe to embed a real token in —
 // it's never written to disk or committed anywhere.
-export function buildAgentInstructions({ trip, section, siteUrl, token, role }: BuildAgentInstructionsArgs): string {
-  const base = `${siteUrl}/api/trips/${trip.slug}/sections/${section.slug}/entries`;
+export function buildAgentInstructions({ trip, section, navGroupSlug, siteUrl, token, role }: BuildAgentInstructionsArgs): string {
+  const base = `${siteUrl}/api/trips/${trip.slug}/sections/${navGroupSlug}/${section.slug}/entries`;
   const isOwner = role === "owner";
 
   const capabilities = isOwner
@@ -90,7 +94,7 @@ ${capabilities}
 
 Optional first step — check for a duplicate and grab a photo/coordinates:
 POST {"url": "<the listing url>"} to
-${siteUrl}/api/trips/${trip.slug}/sections/${section.slug}/entries/preview
+${siteUrl}/api/trips/${trip.slug}/sections/${navGroupSlug}/${section.slug}/entries/preview
 (no auth needed). If it comes back \`{"duplicate": true, "existing": {...}}\`,
 stop — don't add it again, just say it's already on the list. Otherwise
 you may get \`posterImage\`/\`lat\`/\`lng\` — keep those if present, but
@@ -123,9 +127,9 @@ Body (JSON):
 }
 
 Only "url" and "title" are required. To add to a different list under
-this same trip, swap "${section.slug}" in the URL for that list's slug —
-ask the trip owner for the exact list you want, or fetch
-${siteUrl}/api/trips/${trip.slug}/sections to see them all.
+this same trip, swap "${navGroupSlug}/${section.slug}" in the URL for
+that list's own two slugs — ask the trip owner for the exact list you
+want, or fetch ${siteUrl}/api/trips/${trip.slug}/sections to see them all.
 ${editSection}
 
 ## Adding a note or concern to an existing item

@@ -21,12 +21,12 @@ const VALID_FIELD_TYPES: FieldType[] = [
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string }> }
+  { params }: { params: Promise<{ tripSlug: string; navGroupSlug: string; sectionSlug: string }> }
 ) {
-  const { tripSlug, sectionSlug } = await params;
+  const { tripSlug, navGroupSlug, sectionSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
-  const section = await getSectionBySlug(trip.id, sectionSlug);
+  const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) return NextResponse.json({ error: "Unknown section" }, { status: 404 });
   return NextResponse.json({ trip, section });
 }
@@ -36,12 +36,12 @@ export async function GET(
 // state, rather than diffing individual field rows).
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string }> }
+  { params }: { params: Promise<{ tripSlug: string; navGroupSlug: string; sectionSlug: string }> }
 ) {
-  const { tripSlug, sectionSlug } = await params;
+  const { tripSlug, navGroupSlug, sectionSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
-  const section = await getSectionBySlug(trip.id, sectionSlug);
+  const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) return NextResponse.json({ error: "Unknown section" }, { status: 404 });
 
   const { error: authError, supabase } = await requireWriteAccess(request, trip.id);
@@ -116,7 +116,7 @@ export async function PATCH(
       }
     }
 
-    const updated = await getSectionBySlug(trip.id, sectionSlug);
+    const updated = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
     return NextResponse.json({ section: updated });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
@@ -125,12 +125,12 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string }> }
+  { params }: { params: Promise<{ tripSlug: string; navGroupSlug: string; sectionSlug: string }> }
 ) {
-  const { tripSlug, sectionSlug } = await params;
+  const { tripSlug, navGroupSlug, sectionSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
-  const section = await getSectionBySlug(trip.id, sectionSlug);
+  const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) return NextResponse.json({ error: "Unknown section" }, { status: 404 });
 
   const { error: authError, supabase } = await requireWriteAccess(request, trip.id);

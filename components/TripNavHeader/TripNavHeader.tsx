@@ -50,7 +50,10 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
   const navSlot = useNavSlot();
   const [contributorToken, setContributorToken] = useState<string | null>(null);
   const [accessChecked, setAccessChecked] = useState(isAdmin);
-  const sectionPath = (slug: string) => `/${trip.slug}/${slug}`;
+  // Nested under the nav group's own slug now — /{tripSlug}/{navGroupSlug}/
+  // {sectionSlug} — since a section's slug is only unique within its own
+  // group (see migration 0014), not trip-wide.
+  const sectionPath = (navGroupSlug: string, sectionSlug: string) => `/${trip.slug}/${navGroupSlug}/${sectionSlug}`;
 
   useEffect(() => {
     setContributorToken(captureInviteToken(trip.slug));
@@ -81,9 +84,9 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
     .map((g) => ({ ...g, sections: g.sections.filter((s) => s.enabled) }))
     .filter((g) => g.sections.length > 0);
   const activeGroup =
-    nav.find((g) => g.sections.some((s) => sectionPath(s.slug) === pathname)) || nav[0];
+    nav.find((g) => g.sections.some((s) => sectionPath(g.slug, s.slug) === pathname)) || nav[0];
   const activeSection =
-    activeGroup?.sections.find((s) => sectionPath(s.slug) === pathname) || activeGroup?.sections[0];
+    activeGroup?.sections.find((s) => sectionPath(activeGroup.slug, s.slug) === pathname) || activeGroup?.sections[0];
 
   const canContribute = isAdmin || !!contributorToken;
   const showRequestAccess = accessChecked && !canContribute && activeSection;
@@ -91,7 +94,7 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
   return (
     <header ref={barRef} className={styles.bar}>
       <div className={styles.topRow}>
-        <Link href={sectionPath(nav[0]?.sections[0]?.slug || "")} className={styles.brand}>
+        <Link href={nav[0] ? sectionPath(nav[0].slug, nav[0].sections[0].slug) : `/${trip.slug}`} className={styles.brand}>
           {trip.name}
         </Link>
 
@@ -126,7 +129,7 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
                 {nav.map((g) => (
                   <NavigationMenuItem key={g.id}>
                     <NavigationMenuLink asChild active={g.id === activeGroup?.id}>
-                      <Link href={sectionPath(g.sections[0].slug)}>{g.label}</Link>
+                      <Link href={sectionPath(g.slug, g.sections[0].slug)}>{g.label}</Link>
                     </NavigationMenuLink>
                   </NavigationMenuItem>
                 ))}
@@ -146,7 +149,7 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
                       <DropdownMenuLabel>{g.label}</DropdownMenuLabel>
                       {g.sections.map((s) => (
                         <DropdownMenuItem key={s.id} asChild>
-                          <Link href={sectionPath(s.slug)}>{s.sub_nav_label || s.label}</Link>
+                          <Link href={sectionPath(g.slug, s.slug)}>{s.sub_nav_label || s.label}</Link>
                         </DropdownMenuItem>
                       ))}
                     </div>
@@ -172,8 +175,8 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
                   <NavigationMenuList>
                     {activeGroup.sections.map((s) => (
                       <NavigationMenuItem key={s.id}>
-                        <NavigationMenuLink asChild size="sm" active={pathname === sectionPath(s.slug)}>
-                          <Link href={sectionPath(s.slug)}>{s.sub_nav_label || s.label}</Link>
+                        <NavigationMenuLink asChild size="sm" active={pathname === sectionPath(activeGroup.slug, s.slug)}>
+                          <Link href={sectionPath(activeGroup.slug, s.slug)}>{s.sub_nav_label || s.label}</Link>
                         </NavigationMenuLink>
                       </NavigationMenuItem>
                     ))}

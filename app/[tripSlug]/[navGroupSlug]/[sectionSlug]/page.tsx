@@ -7,15 +7,16 @@ export const dynamic = "force-dynamic";
 
 interface Params {
   tripSlug: string;
+  navGroupSlug: string;
   sectionSlug: string;
 }
 
 export default async function TripSectionPage({ params }: { params: Promise<Params> }) {
-  const { tripSlug, sectionSlug } = await params;
+  const { tripSlug, navGroupSlug, sectionSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) notFound();
 
-  const section = await getSectionBySlug(trip.id, sectionSlug);
+  const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) notFound();
 
   const admin = await getAdminUser();
@@ -23,5 +24,12 @@ export default async function TripSectionPage({ params }: { params: Promise<Para
   // SectionPage is a Client Component — its props are serialized into
   // the page's own source, so the raw trip row (carrying the real,
   // standing sheet_invite_token) must never be passed through as-is.
-  return <SectionPage trip={sanitizeTripForClient(trip)} section={section} isAdmin={!!admin} />;
+  return (
+    <SectionPage
+      trip={sanitizeTripForClient(trip)}
+      section={section}
+      navGroupSlug={navGroupSlug}
+      isAdmin={!!admin}
+    />
+  );
 }

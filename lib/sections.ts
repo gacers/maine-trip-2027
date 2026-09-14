@@ -84,15 +84,25 @@ export async function getAllSectionsForTrip(tripId: string): Promise<Section[]> 
   }));
 }
 
-export async function getSectionBySlug(tripId: string, sectionSlug: string): Promise<Section | null> {
+// A section's slug is only unique within its own nav group now (see
+// migration 0014), not trip-wide — every category can reuse the same
+// friendly leaf slugs ("options", "previously-visited") — so looking
+// one up needs the nav group's own slug too. The URL is nested the
+// same way: /{tripSlug}/{navGroupSlug}/{sectionSlug}. `!inner` makes
+// PostgREST actually filter on the joined nav_groups row instead of
+// just embedding it.
+export async function getSectionBySlug(tripId: string, navGroupSlug: string, sectionSlug: string): Promise<Section | null> {
   const supabase = await supabaseServer();
   const { data, error } = await supabase
     .from("sections")
-    .select("*, field_defs(*)")
+    .select("*, field_defs(*), nav_groups!inner(slug)")
     .eq("trip_id", tripId)
     .eq("slug", sectionSlug)
+    .eq("nav_groups.slug", navGroupSlug)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  if (data) data.field_defs = (data.field_defs || []).sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order);
-  return data;
+  if (!data) return null;
+  const { nav_groups, ...section } = data;
+  section.field_defs = (section.field_defs || []).sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order);
+  return section;
 }

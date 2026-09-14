@@ -101,6 +101,11 @@ export async function exportSection(
 
     const inviteToken = await ensureSheetInviteToken(trip);
     const siteUrl = (settings?.site_url || "").replace(/\/$/, "");
+    // A section's slug is only unique within its own nav group now (see
+    // migration 0014) — the site link this builds needs both slugs:
+    // /{tripSlug}/{navGroupSlug}/{sectionSlug}.
+    const { data: navGroup } = await supabase.from("nav_groups").select("slug").eq("id", section.nav_group_id).maybeSingle();
+    const navGroupSlug = navGroup?.slug || "";
     const sheets = await getSheetsClient();
     const overviewFields = (section.field_defs || []).filter((f) => f.show_on_overview);
     // Only a still-deciding-among-options list (e.g. Possible Houses) has
@@ -150,7 +155,7 @@ export async function exportSection(
     }
 
     const rows = units.map((u) =>
-      buildRow(u, overviewFields, trip, section, siteUrl, inviteToken, showRankColumn, showRatings)
+      buildRow(u, overviewFields, trip, section, navGroupSlug, siteUrl, inviteToken, showRankColumn, showRatings)
     );
 
     await syncTabData(sheets, spreadsheetId!, tabName, lastCol, rows);
@@ -211,6 +216,7 @@ function buildRow(
   overviewFields: FieldDef[],
   trip: Trip,
   section: Section,
+  navGroupSlug: string,
   siteUrl: string,
   inviteToken: string,
   showRank: boolean,
@@ -220,7 +226,7 @@ function buildRow(
   // The invite param comes before the #anchor (query strings precede
   // fragments) and is what turns clicking through from the Sheet into
   // real add/append access on the site — see ensureSheetInviteToken.
-  const url = `${siteUrl}/${trip.slug}/${section.slug}?invite=${inviteToken}#${anchor}`.replace(/"/g, '""');
+  const url = `${siteUrl}/${trip.slug}/${navGroupSlug}/${section.slug}?invite=${inviteToken}#${anchor}`.replace(/"/g, '""');
   const label = unit.listings
     .map((l) => l.title || "")
     .join("\n")

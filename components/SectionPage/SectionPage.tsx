@@ -51,14 +51,20 @@ function pinFor(unit: EntryUnit): OverviewPin {
 export interface SectionPageProps {
   trip: PublicTrip;
   section: Section;
+  /** This section's own nav group slug — a section's slug is only
+   * unique within its group (see migration 0014), so the entries API
+   * path needs both: /api/trips/{tripSlug}/sections/{navGroupSlug}/
+   * {sectionSlug}/entries. */
+  navGroupSlug: string;
   isAdmin?: boolean;
 }
 
 // Replaces CollectionPage.jsx — same fetch/patch/delete/add logic and
-// grouping, now against /api/trips/[tripSlug]/sections/[sectionSlug]/
-// entries instead of /api/[collection], and rendering whichever fields
-// `section.field_defs` defines instead of a hardcoded showBedBath flag.
-export default function SectionPage({ trip, section, isAdmin = false }: SectionPageProps) {
+// grouping, now against /api/trips/[tripSlug]/sections/[navGroupSlug]/
+// [sectionSlug]/entries instead of /api/[collection], and rendering
+// whichever fields `section.field_defs` defines instead of a
+// hardcoded showBedBath flag.
+export default function SectionPage({ trip, section, navGroupSlug, isAdmin = false }: SectionPageProps) {
   const navSlot = useNavSlot();
   const [entries, setEntries] = useState<ClientEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +81,7 @@ export default function SectionPage({ trip, section, isAdmin = false }: SectionP
   // sanitizeTripForClient for why this can't just be trip.google_sheet_url.
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
 
-  const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
+  const apiBase = `/api/trips/${trip.slug}/sections/${navGroupSlug}/${section.slug}/entries`;
   const fieldDefs = section.field_defs || [];
   const mapConfig = trip.map_config;
   // `has_map` doubles as "this is a still-deciding-among-options list" —
@@ -261,6 +267,7 @@ export default function SectionPage({ trip, section, isAdmin = false }: SectionP
       const text = buildAgentInstructions({
         trip,
         section,
+        navGroupSlug,
         siteUrl: window.location.origin,
         token: contributorToken,
         role: "contributor",
@@ -280,6 +287,7 @@ export default function SectionPage({ trip, section, isAdmin = false }: SectionP
       const text = buildAgentInstructions({
         trip,
         section,
+        navGroupSlug,
         siteUrl: window.location.origin,
         token: data.token,
         role: "owner",
@@ -464,7 +472,7 @@ export default function SectionPage({ trip, section, isAdmin = false }: SectionP
 
       {canContribute && (
         <div className={styles.addSection}>
-          <AddEntryForm trip={trip} section={section} onAdded={handleAdded} authToken={authToken} />
+          <AddEntryForm trip={trip} section={section} navGroupSlug={navGroupSlug} onAdded={handleAdded} authToken={authToken} />
           <Button variant="ghost" size="sm" className={styles.downloadInstructionsButton} onClick={handleDownloadInstructions}>
             Download agent instructions (add via your own AI agent instead)
           </Button>

@@ -26,21 +26,22 @@ const CORE_TO_COLUMN: Record<string, keyof EntryRow> = {
 
 async function resolveTripAndSection(
   tripSlug: string,
+  navGroupSlug: string,
   sectionSlug: string
 ): Promise<{ trip: Trip; section: Section; notFound?: undefined } | { notFound: NextResponse; trip?: undefined; section?: undefined }> {
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return { notFound: NextResponse.json({ error: "Unknown trip" }, { status: 404 }) };
-  const section = await getSectionBySlug(trip.id, sectionSlug);
+  const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) return { notFound: NextResponse.json({ error: "Unknown section" }, { status: 404 }) };
   return { trip, section };
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string; entryId: string }> }
+  { params }: { params: Promise<{ tripSlug: string; navGroupSlug: string; sectionSlug: string; entryId: string }> }
 ) {
-  const { tripSlug, sectionSlug, entryId } = await params;
-  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
+  const { tripSlug, navGroupSlug, sectionSlug, entryId } = await params;
+  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, navGroupSlug, sectionSlug);
   if (notFound) return notFound;
 
   let body: Record<string, unknown>;
@@ -123,10 +124,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ tripSlug: string; sectionSlug: string; entryId: string }> }
+  { params }: { params: Promise<{ tripSlug: string; navGroupSlug: string; sectionSlug: string; entryId: string }> }
 ) {
-  const { tripSlug, sectionSlug, entryId } = await params;
-  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, sectionSlug);
+  const { tripSlug, navGroupSlug, sectionSlug, entryId } = await params;
+  const { trip, section, notFound } = await resolveTripAndSection(tripSlug, navGroupSlug, sectionSlug);
   if (notFound) return notFound;
 
   const { error: authError, supabase } = await requireWriteAccess(request, trip.id);

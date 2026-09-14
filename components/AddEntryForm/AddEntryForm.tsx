@@ -59,11 +59,15 @@ function deriveGroupLabel(titleA: string, titleB: string): string {
 export interface AddEntryFormProps {
   trip: PublicTrip;
   section: Section;
+  /** This section's own nav group slug — a section's slug is only
+   * unique within its group (see migration 0014), so the entries API
+   * path needs both. */
+  navGroupSlug: string;
   onAdded: (entry: ClientEntry) => void;
   authToken?: string | null;
 }
 
-export default function AddEntryForm({ trip, section, onAdded, authToken = null }: AddEntryFormProps) {
+export default function AddEntryForm({ trip, section, navGroupSlug, onAdded, authToken = null }: AddEntryFormProps) {
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [fields, setFields] = useState<CoreFields>(CORE_INITIAL);
@@ -90,7 +94,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
   const [pairError, setPairError] = useState("");
 
   const fieldDefs = section.field_defs || [];
-  const apiBase = `/api/trips/${trip.slug}/sections/${section.slug}/entries`;
+  const apiBase = `/api/trips/${trip.slug}/sections/${navGroupSlug}/${section.slug}/entries`;
   const authHeaders: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
   function initialData() {

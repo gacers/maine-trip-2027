@@ -24,9 +24,10 @@ export default async function TripDefaultPage({
   if (!trip) notFound();
 
   const nav = await getTripNav(trip.id);
-  const firstSection = nav.find((g) => g.sections.some((s) => s.enabled))?.sections.find((s) => s.enabled);
+  const firstGroup = nav.find((g) => g.sections.some((s) => s.enabled));
+  const firstSection = firstGroup?.sections.find((s) => s.enabled);
 
-  if (!firstSection) {
+  if (!firstGroup || !firstSection) {
     return (
       <main className={styles.emptyMain}>
         <h1 className={styles.tripName}>{trip.name}</h1>
@@ -42,5 +43,5 @@ export default async function TripDefaultPage({
   // invite link would drop the param before SectionPage ever gets a
   // chance to capture it into localStorage (see lib/inviteClient.ts).
   const qs = invite ? `?invite=${encodeURIComponent(invite)}` : "";
-  redirect(`/${tripSlug}/${firstSection.slug}${qs}`);
+  redirect(`/${tripSlug}/${firstGroup.slug}/${firstSection.slug}${qs}`);
 }
