@@ -1,10 +1,34 @@
 import { createHash } from "crypto";
+import { cookies } from "next/headers";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { supabaseServer, supabaseServiceRole } from "@/lib/supabaseServer";
+import { isDevBypassEnabled, DEV_ADMIN_COOKIE, DEV_CONTRIBUTOR_TOKEN } from "@/lib/devAuth";
 
 export function hashApiKey(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
+
+// See lib/devAuth.ts for what this is and why it's safe — folds to
+// `false` outside `next dev`, so this always returns false on any real
+// build/deploy without even reading a cookie.
+async function hasDevAdminCookie(): Promise<boolean> {
+  if (!isDevBypassEnabled) return false;
+  const store = await cookies();
+  return store.get(DEV_ADMIN_COOKIE)?.value === "1";
+}
+
+// A stand-in for a real Supabase Auth User, used only by the dev-admin
+// bypass — every real caller of getAdminUser only ever checks
+// truthiness (`!!admin`) or passes it straight through as `isAdmin`,
+// never reads a specific field off it, so this only needs to satisfy
+// the type, not actually resemble a real account.
+const DEV_ADMIN_USER = {
+  id: "dev-admin",
+  app_metadata: {},
+  user_metadata: {},
+  aud: "dev",
+  created_at: new Date(0).toISOString(),
+} as User;
 
 export interface WriteAccessError {
   status: number;
@@ -56,6 +80,17 @@ export async function requireWriteAccess(
 
   if (bearerMatch) {
     const token = bearerMatch[1].trim();
+
+    // See lib/devAuth.ts — a fixed token standing in for a real invite
+    // link's api_keys row, recognized only in `next dev`. Same
+    // allowContributor gate a real contributor key gets below.
+    if (isDevBypassEnabled && token === DEV_CONTRIBUTOR_TOKEN) {
+      if (!allowContributor) {
+        return { error: { status: 403, message: "This invite link can only add new items, not edit or delete" } };
+      }
+      return { supabase: supabaseServiceRole(), raterKey: "key:dev-contributor" };
+    }
+
     const service = supabaseServiceRole();
     const { data: keys, error } = await service
       .from("api_keys")
@@ -84,7 +119,16 @@ export async function requireWriteAccess(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: { status: 401, message: "Sign in required" } };
+  if (!user) {
+    // See lib/devAuth.ts — the /api/dev/admin cookie, `next dev` only.
+    // Service-role client here for the same reason the dev-contributor
+    // bearer token above uses it: there's no real Supabase Auth session
+    // for RLS's app_admins policy to check.
+    if (await hasDevAdminCookie()) {
+      return { supabase: supabaseServiceRole(), raterKey: "admin:dev" };
+    }
+    return { error: { status: 401, message: "Sign in required" } };
+  }
   return { supabase, raterKey: `admin:${user.id}` };
 }
 
@@ -93,13 +137,17 @@ export async function requireWriteAccess(
 // requireWriteAccess above instead. Returns the signed-in admin's user
 // object, or null if not signed in / not an admin (relies on the
 // app_admins_self_read RLS policy so a user's own session client can
-// check their own membership row).
+// check their own membership row) — or, in `next dev` only, a stand-in
+// user if the /api/dev/admin cookie is set (see lib/devAuth.ts), so
+// every one of this function's callers gets the bypass for free.
 export async function getAdminUser(): Promise<User | null> {
   const supabase = await supabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from("app_admins").select("user_id").eq("user_id", user.id).maybeSingle();
-  return data ? user : null;
+  if (user) {
+    const { data } = await supabase.from("app_admins").select("user_id").eq("user_id", user.id).maybeSingle();
+    if (data) return user;
+  }
+  return (await hasDevAdminCookie()) ? DEV_ADMIN_USER : null;
 }
