@@ -42,7 +42,16 @@
   white-space: normal;
 }
 
+/* Sticks right below TripNavHeader's own sticky nav bar — see that
+   component for where --sticky-nav-height comes from. Falls back to 0
+   (stick to the very top) if that variable hasn't been set yet, e.g.
+   a trip with no nav at all. */
 .filterRow {
+  position: sticky;
+  top: var(--sticky-nav-height, 0px);
+  z-index: 9;
+  background: var(--background);
+  padding-block: 0.5rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

@@ -1,14 +1,11 @@
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/NavigationMenu";
 import type { PublicTrip, NavGroup } from "@/lib/types";
 import styles from "./TripNavHeader.module.css";
-
-function pillClasses(active: boolean, size: "large" | "small" = "large") {
-  const sizeClass = size === "small" ? styles.pillSmall : styles.pillLarge;
-  return `${sizeClass} ${active ? styles.pillActive : styles.pillInactive}`;
-}
 
 export interface TripNavHeaderProps {
   trip: PublicTrip;
@@ -21,7 +18,24 @@ export interface TripNavHeaderProps {
 // GROUPS/COLLECTIONS constants.
 export default function TripNavHeader({ trip, nav: allNav }: TripNavHeaderProps) {
   const pathname = usePathname();
+  const navBarRef = useRef<HTMLDivElement>(null);
   const sectionPath = (slug: string) => `/${trip.slug}/${slug}`;
+
+  // The sticky nav bar's own rendered height, published as a CSS
+  // variable on the document root so anything sticky further down the
+  // tree (SectionPage's filter dropdown, which isn't a DOM sibling of
+  // this component) can stick right below it instead of guessing a
+  // fixed offset — recalculated on resize since the bar wraps to more
+  // rows at narrow widths/long labels.
+  useLayoutEffect(() => {
+    const el = navBarRef.current;
+    if (!el) return;
+    const setHeight = () => document.documentElement.style.setProperty("--sticky-nav-height", `${el.offsetHeight}px`);
+    setHeight();
+    const observer = new ResizeObserver(setHeight);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // A nav group with zero *enabled* sections (all disabled, all deleted,
   // or none added yet) has nothing to link to — skip it rather than
@@ -35,43 +49,49 @@ export default function TripNavHeader({ trip, nav: allNav }: TripNavHeaderProps)
     nav.find((g) => g.sections.some((s) => sectionPath(s.slug) === pathname)) || nav[0];
 
   return (
-    <header className={styles.header}>
-      <div className={styles.topLinks}>
-        <Link href="/" className={styles.topLink}>
-          &larr; All trips
-        </Link>
-        <Link href={`/${trip.slug}/admin/sections`} className={styles.topLink}>
-          Manage
-        </Link>
+    <header>
+      <div className={styles.topArea}>
+        <div className={styles.topLinks}>
+          <Link href="/" className={styles.topLink}>
+            &larr; All trips
+          </Link>
+          <Link href={`/${trip.slug}/admin/sections`} className={styles.topLink}>
+            Manage
+          </Link>
+        </div>
+        <h1 className={styles.tripName}>{trip.name}</h1>
       </div>
-      <h1 className={styles.tripName}>{trip.name}</h1>
 
       {nav.length > 0 && (
-        <nav className={styles.navRow}>
-          {nav.map((g) => (
-            <Link
-              key={g.id}
-              href={sectionPath(g.sections[0]?.slug)}
-              className={pillClasses(g.id === activeGroup?.id)}
-            >
-              {g.label}
-            </Link>
-          ))}
-        </nav>
-      )}
+        <div ref={navBarRef} className={styles.navBar}>
+          <NavigationMenu aria-label="Trip sections">
+            <NavigationMenuList>
+              {nav.map((g) => (
+                <NavigationMenuItem key={g.id}>
+                  <NavigationMenuLink asChild active={g.id === activeGroup?.id}>
+                    <Link href={sectionPath(g.sections[0]?.slug)}>{g.label}</Link>
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              ))}
+            </NavigationMenuList>
+          </NavigationMenu>
 
-      {activeGroup && activeGroup.sections.length > 0 && (
-        <nav className={styles.navRow}>
-          {activeGroup.sections.map((s) => (
-            <Link
-              key={s.id}
-              href={sectionPath(s.slug)}
-              className={pillClasses(pathname === sectionPath(s.slug), "small")}
-            >
-              {s.sub_nav_label || s.label}
-            </Link>
-          ))}
-        </nav>
+          {/* The active group's own sections — reads as a sub-menu
+              appearing underneath the top-level row above. */}
+          {activeGroup && activeGroup.sections.length > 0 && (
+            <NavigationMenu aria-label={`${activeGroup.label} sections`} className={styles.subNav}>
+              <NavigationMenuList>
+                {activeGroup.sections.map((s) => (
+                  <NavigationMenuItem key={s.id}>
+                    <NavigationMenuLink asChild size="sm" active={pathname === sectionPath(s.slug)}>
+                      <Link href={sectionPath(s.slug)}>{s.sub_nav_label || s.label}</Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                ))}
+              </NavigationMenuList>
+            </NavigationMenu>
+          )}
+        </div>
       )}
     </header>
   );
