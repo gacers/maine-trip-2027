@@ -89,6 +89,8 @@ const FOOD_DRINK_FIELD_DEFS = [
   { key: "breakfast", label: "Breakfast", field_type: "boolean", storage: "jsonb", show_on_overview: true, sort_order: 3 },
   { key: "lunch", label: "Lunch", field_type: "boolean", storage: "jsonb", show_on_overview: true, sort_order: 4 },
   { key: "dinner", label: "Dinner", field_type: "boolean", storage: "jsonb", show_on_overview: true, sort_order: 5 },
+  { key: "seafoodShack", label: "Seafood Shack", field_type: "boolean", storage: "jsonb", show_on_overview: true, sort_order: 6 },
+  { key: "oysterFarm", label: "Oyster Farm", field_type: "boolean", storage: "jsonb", show_on_overview: true, sort_order: 7 },
 ];
 
 async function upsertTrip() {
