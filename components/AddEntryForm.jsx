@@ -534,6 +534,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
                 className="rounded border border-zinc-300 px-2 py-1.5"
               />
             </label>
+            {section.supports_pairing && (
             <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-3 sm:col-span-2">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-sm font-medium text-zinc-700">
@@ -657,6 +658,7 @@ export default function AddEntryForm({ trip, section, onAdded, authToken = null 
                 />
               </label>
             </div>
+            )}
           </div>
 
           <div className="flex gap-3">

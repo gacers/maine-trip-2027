@@ -43,6 +43,7 @@ export async function POST(request, { params }) {
     emptyMessage,
     supportsPairing,
     hasMap,
+    supportsRanking,
     compactCards,
     navGroupId,
     newNavGroupLabel,
@@ -96,6 +97,7 @@ export async function POST(request, { params }) {
         empty_message: emptyMessage || "Nothing here yet — paste a link above.",
         supports_pairing: !!supportsPairing,
         has_map: !!hasMap,
+        supports_ranking: !!supportsRanking,
         compact_cards: !!compactCards,
         sort_order: 999,
       })

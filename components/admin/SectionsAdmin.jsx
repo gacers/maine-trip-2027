@@ -41,6 +41,10 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
     // better two to a row — both tiers of a category share this, unlike
     // hasMap which differs between them.
     const compactCards = template.key !== "houses";
+    // Pairing (2-item options) and manual ranking only make sense for a
+    // still-deciding house-options list — Food & Drink/Activities never
+    // want either, and a "previous" list has nothing left to rank.
+    const isHouses = template.key === "houses";
     try {
       const possibleRes = await fetch(apiBase, {
         method: "POST",
@@ -50,8 +54,9 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
           label: template.possible.label,
           addPlaceholder: template.possible.addPlaceholder,
           emptyMessage: template.possible.emptyMessage,
-          supportsPairing: true,
+          supportsPairing: isHouses,
           hasMap: true,
+          supportsRanking: isHouses,
           compactCards,
           newNavGroupLabel: template.navGroupLabel,
           fieldDefs: template.fieldDefs,
@@ -68,10 +73,12 @@ export default function SectionsAdmin({ trip, nav: initialNav }) {
           label: template.previous.label,
           addPlaceholder: template.previous.addPlaceholder,
           emptyMessage: template.previous.emptyMessage,
-          supportsPairing: true,
-          // A "previous" list is a record of what's already decided —
-          // no ranking or driving-times/map to help pick a winner needed.
+          // Pairing is specifically for a still-deciding Possible Houses
+          // list — a "previous" list (already decided) doesn't need it,
+          // any more than it needs ranking or driving-times/map.
+          supportsPairing: false,
           hasMap: false,
+          supportsRanking: false,
           compactCards,
           navGroupId: possibleData.section.nav_group_id,
           fieldDefs: template.fieldDefs,

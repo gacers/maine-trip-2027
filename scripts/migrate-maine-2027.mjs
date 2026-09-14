@@ -175,6 +175,11 @@ async function main() {
   const foodDrinkGroup = await upsertNavGroup(trip.id, "food-drink", "Food & Drink", 1);
   const activitiesGroup = await upsertNavGroup(trip.id, "activities", "Activities", 2);
 
+  // Pairing (2-item options) and manual ranking only make sense for a
+  // still-deciding-among-options list — Possible Houses is the only one:
+  // Stayed Before/Previously Visited/Previous Activities are already
+  // decided (no map either), and Food & Drink/Activities are lighter,
+  // one-at-a-time adds that were never meant to be paired or ranked.
   const houses = await upsertSection(trip.id, housesGroup.id, {
     slug: "houses",
     label: "House Options",
@@ -183,6 +188,7 @@ async function main() {
     empty_message: "No listings yet — paste a URL above.",
     supports_pairing: true,
     has_map: true,
+    supports_ranking: true,
     sort_order: 0,
   });
   const previousStays = await upsertSection(trip.id, housesGroup.id, {
@@ -191,8 +197,9 @@ async function main() {
     sub_nav_label: "Previous Stays",
     add_placeholder: "Paste a link for a place we've stayed before...",
     empty_message: "No past stays yet — paste a link above.",
-    supports_pairing: true,
-    has_map: true,
+    supports_pairing: false,
+    has_map: false,
+    supports_ranking: false,
     sort_order: 1,
   });
   // The other 4 sections have no field defs or data to seed yet — create
@@ -200,12 +207,13 @@ async function main() {
   // with the returned rows.
   await upsertSection(trip.id, foodDrinkGroup.id, {
     slug: "food-drink",
-    label: "Food & Drink",
-    sub_nav_label: "Food & Drink",
+    label: "Possible Food & Drink",
+    sub_nav_label: "Possible Food & Drink",
     add_placeholder: "Paste a link for a bar or restaurant we like...",
     empty_message: "No spots yet — paste a link above.",
-    supports_pairing: true,
+    supports_pairing: false,
     has_map: true,
+    supports_ranking: false,
     sort_order: 0,
   });
   await upsertSection(trip.id, foodDrinkGroup.id, {
@@ -214,8 +222,9 @@ async function main() {
     sub_nav_label: "Previously Visited",
     add_placeholder: "Paste a link for a bar or restaurant you've already been to...",
     empty_message: "No visited spots yet — paste a link above.",
-    supports_pairing: true,
-    has_map: true,
+    supports_pairing: false,
+    has_map: false,
+    supports_ranking: false,
     sort_order: 1,
   });
   await upsertSection(trip.id, activitiesGroup.id, {
@@ -224,8 +233,9 @@ async function main() {
     sub_nav_label: "Activities",
     add_placeholder: "Paste a link for a hike, tour, or activity...",
     empty_message: "No activities yet — paste a link above.",
-    supports_pairing: true,
+    supports_pairing: false,
     has_map: true,
+    supports_ranking: false,
     sort_order: 0,
   });
   await upsertSection(trip.id, activitiesGroup.id, {
@@ -234,8 +244,9 @@ async function main() {
     sub_nav_label: "Previous Activities",
     add_placeholder: "Paste a link for a hike, tour, or activity you've already done...",
     empty_message: "No previous activities yet — paste a link above.",
-    supports_pairing: true,
-    has_map: true,
+    supports_pairing: false,
+    has_map: false,
+    supports_ranking: false,
     sort_order: 1,
   });
 

@@ -59,8 +59,9 @@ export default function SectionForm({ trip, navGroups, section }) {
   const [subNavLabel, setSubNavLabel] = useState(section?.sub_nav_label || "");
   const [addPlaceholder, setAddPlaceholder] = useState(section?.add_placeholder || "");
   const [emptyMessage, setEmptyMessage] = useState(section?.empty_message || "");
-  const [supportsPairing, setSupportsPairing] = useState(section?.supports_pairing ?? true);
+  const [supportsPairing, setSupportsPairing] = useState(section?.supports_pairing ?? false);
   const [hasMap, setHasMap] = useState(section?.has_map ?? true);
+  const [supportsRanking, setSupportsRanking] = useState(section?.supports_ranking ?? false);
   const [compactCards, setCompactCards] = useState(section?.compact_cards ?? false);
   const [navGroupId, setNavGroupId] = useState(section?.nav_group_id || navGroups[0]?.id || "");
   const [newGroupLabel, setNewGroupLabel] = useState("");
@@ -106,6 +107,7 @@ export default function SectionForm({ trip, navGroups, section }) {
       emptyMessage,
       supportsPairing,
       hasMap,
+      supportsRanking,
       compactCards,
       fieldDefs: fields.map(rowToFieldDef),
     };
@@ -132,10 +134,8 @@ export default function SectionForm({ trip, navGroups, section }) {
       // Create the "already visited/done" counterpart in the SAME nav
       // group the primary section just landed in (reusing its
       // nav_group_id rather than resolving newNavGroupLabel a second
-      // time, which would create a duplicate group) — same fields and
-      // pairing setting, but never the map/ranking one: a "previous"
-      // list is a record of what's already decided, regardless of
-      // whatever the primary section's own toggle is set to.
+      // time, which would create a duplicate group) — same fields, but
+      // never pairing/map/ranking (see below).
       if (!isEdit && addCounterpart) {
         const counterpartPayload = {
           slug: `${slug}-visited`,
@@ -143,8 +143,11 @@ export default function SectionForm({ trip, navGroups, section }) {
           subNavLabel: "Previously Visited",
           addPlaceholder: `Paste a link for a ${label.toLowerCase()} you've already been to...`,
           emptyMessage: `No previous ${label.toLowerCase()} yet — paste a link above.`,
-          supportsPairing,
+          // A "previous"/already-decided list never needs pairing, a map,
+          // or ranking, regardless of what the primary section is set to.
+          supportsPairing: false,
           hasMap: false,
+          supportsRanking: false,
           compactCards,
           navGroupId: data.section.nav_group_id,
           fieldDefs: fields.map(rowToFieldDef),
@@ -277,8 +280,18 @@ export default function SectionForm({ trip, navGroups, section }) {
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={hasMap} onChange={(e) => setHasMap(e.target.checked)} className="h-4 w-4" />
-          Still deciding among these — show ranking and a map/driving times. Turn off for a
-          &quot;previous&quot;/already-done list, which has nothing left to rank or compare.
+          Show a map with driving times, not just a plain marker. Turn off for a
+          &quot;previous&quot;/already-done list, which has nothing left to compare.
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={supportsRanking}
+            onChange={(e) => setSupportsRanking(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Show the manual Rank input — only for a still-deciding-among-options list (e.g. Possible
+          Houses), not a &quot;previous&quot; list or lighter sections like Food &amp; Drink/Activities.
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input
