@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import styles from "./NewTripForm.module.css";
 
-function slugify(s) {
+function slugify(s: string): string {
   return s
     .toLowerCase()
     .trim()
@@ -20,12 +21,12 @@ export default function NewTripForm() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  function handleNameChange(v) {
+  function handleNameChange(v: string) {
     setName(v);
     if (!slugTouched) setSlug(slugify(v));
   }
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
     setSaving(true);
@@ -39,24 +40,24 @@ export default function NewTripForm() {
       if (!res.ok) throw new Error(data.error || "Something went wrong");
       router.push(`/${data.trip.slug}/admin/sections`);
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm">
+    <form onSubmit={handleSubmit} className={styles.form}>
+      <label className={styles.field}>
         Name
         <input
           required
           value={name}
           onChange={(e) => handleNameChange(e.target.value)}
           placeholder="Iceland 2028"
-          className="rounded border border-zinc-300 px-2 py-1.5"
+          className={styles.input}
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
+      <label className={styles.field}>
         URL slug
         <input
           required
@@ -65,28 +66,24 @@ export default function NewTripForm() {
             setSlugTouched(true);
             setSlug(e.target.value);
           }}
-          className="rounded border border-zinc-300 px-2 py-1.5"
+          className={styles.input}
         />
-        <span className="text-xs text-zinc-500">yoursite.com/{slug || "..."}</span>
+        <span className={styles.hint}>yoursite.com/{slug || "..."}</span>
       </label>
-      <label className="flex flex-col gap-1 text-sm">
+      <label className={styles.field}>
         Start date (optional — used to sort the trips list)
         <input
           type="date"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
-          className="rounded border border-zinc-300 px-2 py-1.5"
+          className={styles.input}
         />
       </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={saving}
-        className="rounded bg-zinc-900 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-      >
+      {error && <p className={styles.error}>{error}</p>}
+      <button type="submit" disabled={saving} className={styles.submitButton}>
         {saving ? "Creating..." : "Create trip"}
       </button>
-      <p className="text-xs text-zinc-500 text-center">
+      <p className={styles.hintCentered}>
         You&apos;ll add its sections (Houses, Food &amp; Drink, whatever you want) next.
       </p>
     </form>
