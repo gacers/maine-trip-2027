@@ -186,12 +186,25 @@ function sanitizeTabName(label: string): string {
   return (label || "Sheet").replace(/[[\]*?:/\\]/g, "").slice(0, 90) || "Sheet";
 }
 
+// Boolean overview fields (Restaurant, Bar, Winery, Hike, Kayak, ...)
+// collapse into one "Type" column instead of one column per field —
+// a section can easily grow a dozen of these, and a wall of mostly-
+// blank TRUE/FALSE-shaped columns is far less readable than a single
+// comma-separated list of whichever ones are actually true.
+function splitOverviewFields(overviewFields: FieldDef[]): { plain: FieldDef[]; typeFields: FieldDef[] } {
+  const plain = overviewFields.filter((f) => f.field_type !== "boolean");
+  const typeFields = overviewFields.filter((f) => f.field_type === "boolean");
+  return { plain, typeFields };
+}
+
 function buildHeader(overviewFields: FieldDef[], showRank: boolean, showRatings: boolean): string[] {
+  const { plain, typeFields } = splitOverviewFields(overviewFields);
   const header = showRank ? ["Rank", "Property"] : ["Property"];
-  for (const f of overviewFields) {
+  for (const f of plain) {
     header.push(f.label);
     if (f.field_type === "price") header.push("Avg/Night");
   }
+  if (typeFields.length > 0) header.push("Type");
   if (showRatings) header.push("Average Score");
   header.push("Status", "Description", "Concerns", "Notes");
   return header;
@@ -233,16 +246,10 @@ function buildRow(
     .replace(/"/g, '""');
   const propertyCell = label ? `=HYPERLINK("${url}", "${label}")` : "";
 
+  const { plain, typeFields } = splitOverviewFields(overviewFields);
   const row: (string | number)[] = showRank ? [unit.rank >= 999999 ? "" : unit.rank, propertyCell] : [propertyCell];
-  for (const f of overviewFields) {
-    // A boolean field is an exception-style flag (e.g. "Closed") — show
-    // its label when true and leave the cell blank otherwise, not the
-    // literal word "false" cluttering every other row.
-    if (f.field_type === "boolean") {
-      row.push(unit.listings.map((l) => (l[f.key] ? f.label : "")).join("\n"));
-    } else {
-      row.push(unit.listings.map((l) => (l[f.key] as string | number | undefined) ?? "").join("\n"));
-    }
+  for (const f of plain) {
+    row.push(unit.listings.map((l) => (l[f.key] as string | number | undefined) ?? "").join("\n"));
     // Baked into text rather than a cell-level currency format — a
     // grouped row's cell here is a "\n"-joined multi-line string,
     // which Sheets stores as text and silently ignores numberFormat on
@@ -251,6 +258,18 @@ function buildRow(
     if (f.field_type === "price") {
       row.push(unit.listings.map((l) => priceExportValue(l[f.key] as string)).join("\n"));
     }
+  }
+  if (typeFields.length > 0) {
+    row.push(
+      unit.listings
+        .map((l) =>
+          typeFields
+            .filter((f) => l[f.key])
+            .map((f) => f.label)
+            .join(", ")
+        )
+        .join("\n")
+    );
   }
   if (showRatings) {
     row.push(unit.listings.map((l) => (l.averageScore != null ? l.averageScore.toFixed(1) : "")).join("\n"));
