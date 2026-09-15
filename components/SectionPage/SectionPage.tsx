@@ -309,12 +309,12 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // as part of that sticky bar instead of its own separate row further
   // down the page — falls back to rendering right here (still sticky,
   // still right-aligned) if that slot isn't available for some reason.
-  // Search is useful on any section with more than a couple of entries
-  // (even a plain "previous"/log list a read-only visitor is browsing),
-  // unlike Filter/Sort which only mean anything once the section itself
-  // opts into a real field/ratings to drive them.
-  const utilityControls =
-    (canContribute || filterFieldDefs.length > 0 || showRatings || trip.completed || entries.length > 0) && (
+  // (Search would also belong in this gate once it's back on — see
+  // UtilityControls' SEARCH_ENABLED — since it's useful on any section
+  // with more than a couple of entries, unlike Filter/Sort which only
+  // mean anything once the section itself opts into a real field/
+  // ratings to drive them.)
+  const utilityControls = (canContribute || filterFieldDefs.length > 0 || showRatings || trip.completed) && (
       <UtilityControls
         trip={trip}
         section={section}

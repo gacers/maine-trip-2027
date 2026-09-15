@@ -42,6 +42,12 @@ export interface UtilityControlsProps {
   onSearchQueryChange: (v: string) => void;
 }
 
+// Off for now — decided against a search box for the time being, but
+// SectionPage's whole matching pipeline (searchQuery state, the
+// title/group-label matcher, clearing on section nav) is left wired up
+// underneath so this is a one-line flip to bring back, not a rebuild.
+const SEARCH_ENABLED = false;
+
 // Add / Google Sheet link / Filter / Sort — everything that isn't the
 // entries themselves. Portaled into TripNavHeader's sub-nav row by
 // SectionPage itself (see NavSlot); this component doesn't know or
@@ -94,14 +100,16 @@ export default function UtilityControls({
         </Button>
       )}
 
-      <input
-        type="search"
-        value={searchQuery}
-        onChange={(e) => onSearchQueryChange(e.target.value)}
-        placeholder="Search..."
-        aria-label="Search this list"
-        className={styles["search-input"]}
-      />
+      {SEARCH_ENABLED && (
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => onSearchQueryChange(e.target.value)}
+          placeholder="Search..."
+          aria-label="Search this list"
+          className={styles["search-input"]}
+        />
+      )}
 
       {filterFieldDefs.length > 0 && (
         <DropdownMenu>
