@@ -34,6 +34,9 @@ export default async function TripAdminLayout({
           <Link href={`/${tripSlug}/admin/api-keys`} className={styles.navLink}>
             Invites &amp; API Keys
           </Link>
+          <Link href={`/${tripSlug}/admin/settings`} className={styles.navLink}>
+            Trip Settings
+          </Link>
         </nav>
       </div>
       {children}

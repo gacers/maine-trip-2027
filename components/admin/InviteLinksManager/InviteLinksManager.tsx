@@ -30,6 +30,10 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
   const [sheetUrl, setSheetUrl] = useState(trip.google_sheet_url ?? null);
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState("");
+  const [collabEmail, setCollabEmail] = useState("");
+  const [collabRole, setCollabRole] = useState<"writer" | "reader">("writer");
+  const [invitingCollab, setInvitingCollab] = useState(false);
+  const [collabMsg, setCollabMsg] = useState("");
   const apiBase = `/api/trips/${trip.slug}/api-keys`;
 
   async function load() {
@@ -132,6 +136,33 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
     }
   }
 
+  // Grants one specific person real Google Sheets access (edit or
+  // view) by email, on top of the "anyone with the link can view"
+  // sharing the Sheet already has — Google emails them directly that
+  // they now have access, so there's nothing further to hand them.
+  async function handleInviteCollaborator(e: FormEvent) {
+    e.preventDefault();
+    if (!collabEmail.trim()) return;
+    setInvitingCollab(true);
+    setCollabMsg("");
+    setError("");
+    try {
+      const res = await fetch(`/api/trips/${trip.slug}/sheet-collaborators`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: collabEmail.trim(), role: collabRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't add them");
+      setCollabMsg(`Done — Google emailed ${collabEmail.trim()} that they now have access.`);
+      setCollabEmail("");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setInvitingCollab(false);
+    }
+  }
+
   async function handleRotateSheetInvite() {
     setRotating(true);
     setRotateMsg("");
@@ -174,7 +205,7 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
           )}
         </p>
         <div className={styles.rotateRow}>
-          <button onClick={handleExportSheet} disabled={exporting} className={styles.rotateButton}>
+          <button onClick={handleExportSheet} disabled={exporting} className={styles.actionButton}>
             {exporting ? (sheetUrl ? "Re-exporting..." : "Creating...") : sheetUrl ? "Re-export all sections now" : "Create the Sheet now"}
           </button>
           {sheetUrl && (
@@ -185,6 +216,37 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
         </div>
         {exportMsg && <p className={styles.rotateMsg}>{exportMsg}</p>}
         {rotateMsg && <p className={styles.rotateMsg}>{rotateMsg}</p>}
+
+        {sheetUrl && (
+          <form onSubmit={handleInviteCollaborator} className={styles.collabForm}>
+            <p className={styles.sheetAccessText}>
+              <span className={styles.sheetAccessLabel}>Add someone to the Sheet:</span> gives them real Google
+              access (not just the link) — Google emails them directly.
+            </p>
+            <div className={styles.collabRow}>
+              <input
+                type="email"
+                required
+                placeholder="their@email.com"
+                value={collabEmail}
+                onChange={(e) => setCollabEmail(e.target.value)}
+                className={styles.collabInput}
+              />
+              <select
+                value={collabRole}
+                onChange={(e) => setCollabRole(e.target.value as "writer" | "reader")}
+                className={styles.collabSelect}
+              >
+                <option value="writer">Can edit</option>
+                <option value="reader">Can view</option>
+              </select>
+              <button type="submit" disabled={invitingCollab || !collabEmail.trim()} className={styles.actionButton}>
+                {invitingCollab ? "Adding..." : "Add"}
+              </button>
+            </div>
+            {collabMsg && <p className={styles.rotateMsg}>{collabMsg}</p>}
+          </form>
+        )}
       </div>
 
       {error && <p className={styles.error}>{error}</p>}

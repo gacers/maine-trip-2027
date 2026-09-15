@@ -48,7 +48,7 @@ const HOUSE_FIELD_DEFS: TemplateFieldDef[] = [
 export const SECTION_TEMPLATES: SectionTemplate[] = [
   {
     key: "houses",
-    navGroupLabel: "Houses",
+    navGroupLabel: "Stays",
     fieldDefs: HOUSE_FIELD_DEFS,
     possible: {
       slug: "options",

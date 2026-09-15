@@ -18,6 +18,7 @@ export default function NewTripForm() {
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -34,7 +35,7 @@ export default function NewTripForm() {
       const res = await fetch("/api/trips", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug, startDate: startDate || undefined }),
+        body: JSON.stringify({ name, slug, startDate: startDate || undefined, endDate: endDate || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
@@ -70,15 +71,21 @@ export default function NewTripForm() {
         />
         <span className={styles.hint}>yoursite.com/{slug || "..."}</span>
       </label>
-      <label className={styles.field}>
-        Start date (optional — used to sort the trips list)
-        <input
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className={styles.input}
-        />
-      </label>
+      <div className={styles.dateRow}>
+        <label className={styles.field}>
+          Start date (optional — used to sort the trips list)
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className={styles.input}
+          />
+        </label>
+        <label className={styles.field}>
+          End date (optional)
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={styles.input} />
+        </label>
+      </div>
       {error && <p className={styles.error}>{error}</p>}
       <button type="submit" disabled={saving} className={styles.submitButton}>
         {saving ? "Creating..." : "Create trip"}

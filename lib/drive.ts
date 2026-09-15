@@ -54,3 +54,26 @@ export async function createSheetInDrive(name: string, folderId?: string | null)
 
   return { id: data.id!, url: `https://docs.google.com/spreadsheets/d/${data.id}/edit` };
 }
+
+// Grants one specific person real Google Sheets access by email —
+// on top of the "anyone with the link can view" sharing every Sheet
+// already gets above, this is for someone you want to actually edit
+// cells directly (or just get their own real Google-account access
+// instead of relying on the link), with Google's own email
+// notification telling them it happened. Goes through the same OAuth
+// account that owns the file (see getOAuthClient above) — the service
+// account that does everyday reads/writes has no authority to grant
+// other people access to a file it doesn't own.
+export async function addSheetCollaborator(
+  spreadsheetId: string,
+  email: string,
+  role: "reader" | "writer" = "writer"
+): Promise<void> {
+  const oauth = getOAuthClient();
+  const drive = google.drive({ version: "v3", auth: oauth });
+  await drive.permissions.create({
+    fileId: spreadsheetId,
+    sendNotificationEmail: true,
+    requestBody: { type: "user", role, emailAddress: email },
+  });
+}

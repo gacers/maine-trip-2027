@@ -76,6 +76,16 @@ export interface AddEntryFormProps {
    * way any two entries sharing a groupLabel do (lib/groupUnits.ts).
    * Still just a plain editable field, not locked. */
   presetGroupLabel?: string;
+  /** Offers "Pair with a new second property" on the duplicate notice
+   * below, instead of just "Add a different one" — for the exact
+   * situation that notice exists for: you're trying to add a house
+   * that's already on the list because you actually want to use it in
+   * a *different* pairing too. Reuses the existing entry (see
+   * PairEntryDialog) rather than creating a second, duplicate row for
+   * the same house. Omit to just get the plain reset button (e.g.
+   * PairEntryDialog itself doesn't need this — it's already the
+   * pairing flow). */
+  onRequestPairExisting?: (entry: ClientEntry) => void;
 }
 
 export default function AddEntryForm({
@@ -86,6 +96,7 @@ export default function AddEntryForm({
   authToken = null,
   bare = false,
   presetGroupLabel = "",
+  onRequestPairExisting,
 }: AddEntryFormProps) {
   // A fresh CORE_INITIAL, except carrying presetGroupLabel forward —
   // every place below that resets `fields` back to a blank slate
@@ -102,6 +113,11 @@ export default function AddEntryForm({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [cookieWarning, setCookieWarning] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<ClientEntry | null>(null);
+  // Set when the preview route found this same URL already documented
+  // in a different trip/section and reused its core facts instead of
+  // re-scraping — shown as a small note so it's clear where the
+  // pre-filled fields came from (see the preview route).
+  const [reusedFrom, setReusedFrom] = useState<{ tripName: string; sectionLabel: string } | null>(null);
   const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [address, setAddress] = useState("");
@@ -155,6 +171,7 @@ export default function AddEntryForm({
     setWarnings([]);
     setCookieWarning(null);
     setDuplicate(null);
+    setReusedFrom(null);
     setPlaceResults([]);
     setAddress("");
     setGeocodeMsg("");
@@ -174,6 +191,7 @@ export default function AddEntryForm({
     setData(initialData());
     setWarnings([]);
     setCookieWarning(null);
+    setReusedFrom(null);
     setErrorMsg("");
     setPhase("editing");
   }
@@ -272,6 +290,7 @@ export default function AddEntryForm({
         setData(initialData());
         setWarnings(s.warnings || []);
         setCookieWarning(s.cookieWarning || null);
+        setReusedFrom(resData.reusedFrom || null);
         setPhase("editing");
       } catch (err) {
         setErrorMsg((err as Error).message);
@@ -478,14 +497,27 @@ export default function AddEntryForm({
             {duplicate.title}
           </a>
           .
-          <button onClick={reset} className={styles.duplicateResetButton}>
-            Add a different one
-          </button>
+          <div className={styles.duplicateActions}>
+            {onRequestPairExisting && (
+              <button onClick={() => onRequestPairExisting(duplicate)} className={styles.duplicatePairButton}>
+                Pair it with a new second property
+              </button>
+            )}
+            <button onClick={reset} className={styles.duplicateResetButton}>
+              Add a different one
+            </button>
+          </div>
         </div>
       )}
 
       {phase === "editing" || phase === "saving" ? (
         <form onSubmit={handleSave} className={styles.editForm}>
+          {reusedFrom && (
+            <p className={styles.reusedNotice}>
+              Reused details from &quot;{reusedFrom.sectionLabel}&quot; in {reusedFrom.tripName} — this is still its
+              own separate entry, edit anything you&apos;d like.
+            </p>
+          )}
           {cookieWarning && <p className={styles.cookieWarning}>{cookieWarning}</p>}
           {warnings.length > 0 && (
             <ul className={styles.warningsList}>

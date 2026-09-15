@@ -35,10 +35,14 @@
   gap: 0.75rem;
 }
 
-.rotateButton {
+/* Neutral action (create/re-export the Sheet, add a collaborator) —
+   .rotateButton below is the same shape but red, reserved for the one
+   genuinely destructive-feeling action (invalidating the Sheet's
+   current links). */
+.actionButton {
   align-self: flex-start;
   font-size: var(--text-sm);
-  color: var(--color-red-600);
+  color: var(--color-blue-600);
   background: none;
   border: none;
   cursor: pointer;
@@ -53,9 +57,43 @@
   }
 }
 
+.rotateButton {
+  composes: actionButton;
+  color: var(--color-red-600);
+}
+
 .rotateMsg {
   font-size: var(--text-xs);
   color: var(--color-green-700);
+}
+
+.collabForm {
+  border-top: 1px solid var(--color-zinc-200);
+  padding-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.collabRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.collabInput {
+  flex: 1 1 12rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-zinc-300);
+  padding: 0.375rem 0.5rem;
+  font-size: var(--text-sm);
+}
+
+.collabSelect {
+  border-radius: var(--radius);
+  border: 1px solid var(--color-zinc-300);
+  padding: 0.375rem 0.5rem;
+  font-size: var(--text-sm);
 }
 
 .error {

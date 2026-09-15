@@ -13,6 +13,13 @@ export interface AddEntryDialogProps {
   navGroupSlug: string;
   authToken: string | null;
   onAdded: (entry: ClientEntry) => void;
+  /** "This is already on the list, but I actually want to pair it with
+   * something new too" — see AddEntryForm's own onRequestPairExisting.
+   * Closes this dialog and hands off to SectionPage's own
+   * requestPair/PairEntryDialog flow. Optional purely so a caller that
+   * doesn't have that flow wired up (there isn't one today, but this
+   * keeps the two components decoupled) still works. */
+  onRequestPairExisting?: (entry: ClientEntry) => void;
 }
 
 // The Add form used to sit inline, always expanded, at the bottom of
@@ -24,12 +31,24 @@ export interface AddEntryDialogProps {
 // first, so SectionPage's entry list updates before the modal goes
 // away) — reopening starts the form fresh since Radix unmounts Dialog
 // content while closed.
-export default function AddEntryDialog({ trip, section, navGroupSlug, authToken, onAdded }: AddEntryDialogProps) {
+export default function AddEntryDialog({
+  trip,
+  section,
+  navGroupSlug,
+  authToken,
+  onAdded,
+  onRequestPairExisting,
+}: AddEntryDialogProps) {
   const [open, setOpen] = useState(false);
 
   function handleAdded(entry: ClientEntry) {
     onAdded(entry);
     setOpen(false);
+  }
+
+  function handleRequestPairExisting(entry: ClientEntry) {
+    setOpen(false);
+    onRequestPairExisting?.(entry);
   }
 
   return (
@@ -41,7 +60,15 @@ export default function AddEntryDialog({ trip, section, navGroupSlug, authToken,
       </DialogTrigger>
       <DialogContent className={styles.content}>
         <DialogTitle>Add to {section.label}</DialogTitle>
-        <AddEntryForm trip={trip} section={section} navGroupSlug={navGroupSlug} onAdded={handleAdded} authToken={authToken} bare />
+        <AddEntryForm
+          trip={trip}
+          section={section}
+          navGroupSlug={navGroupSlug}
+          onAdded={handleAdded}
+          authToken={authToken}
+          onRequestPairExisting={onRequestPairExisting ? handleRequestPairExisting : undefined}
+          bare
+        />
       </DialogContent>
     </Dialog>
   );

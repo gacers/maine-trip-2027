@@ -118,11 +118,15 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // drink, activities) read better two to a row — a plain per-section
   // layout toggle, unrelated to comparisonMode.
   const compactCards = !!section.compact_cards;
-  // Houses specifically (identified by nav group, not compactCards —
-  // Houses always uses the single-column .entryList) get a larger
-  // photo, more breathing room between cards, and a narrower page
-  // overall than the wide 3-across grid other sections use.
-  const isHouses = navGroupSlug === "houses";
+  // Houses/Stays specifically (identified by nav group, not
+  // compactCards — always uses the single-column .entryList) get a
+  // larger photo, more breathing room between cards, and a narrower
+  // page overall than the wide 3-across grid other sections use.
+  // "stays" is the slug a *new* trip's version of this group gets now
+  // (see lib/sectionTemplates.ts) — "houses" stays checked too since
+  // existing trips keep their original slug (renaming a nav group's
+  // label doesn't change its URL out from under anyone).
+  const isHouses = navGroupSlug === "houses" || navGroupSlug === "stays";
   const listClassName = [compactCards ? styles.entryGrid : styles.entryList, isHouses && styles.entryListHouses]
     .filter(Boolean)
     .join(" ");
@@ -471,7 +475,14 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   const utilityControls = (canContribute || filterFieldDefs.length > 0 || showRatings) && (
     <>
       {canContribute && (
-        <AddEntryDialog trip={trip} section={section} navGroupSlug={navGroupSlug} authToken={authToken} onAdded={handleAdded} />
+        <AddEntryDialog
+          trip={trip}
+          section={section}
+          navGroupSlug={navGroupSlug}
+          authToken={authToken}
+          onAdded={handleAdded}
+          onRequestPairExisting={section.supports_pairing ? requestPair : undefined}
+        />
       )}
 
       {canContribute && sheetUrl && (

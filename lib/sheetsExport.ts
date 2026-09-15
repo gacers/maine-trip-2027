@@ -83,6 +83,21 @@ export async function exportSection(
   section: Section
 ): Promise<ExportResult | null> {
   try {
+    const rawEntries = await getAllEntries(supabase, section.id);
+
+    // A disabled section, or one nobody's ever added anything to yet,
+    // doesn't belong in a shared Sheet at all — it'd just read as a
+    // real, empty category worth wondering about, instead of what it
+    // actually is (turned off, or simply untouched so far). If it
+    // already has a stale tab from before it was disabled/emptied out
+    // (or from before this check existed at all), remove it.
+    if (!section.enabled || rawEntries.length === 0) {
+      if (trip.google_sheet_id) {
+        await deleteTabIfExists(await getSheetsClient(), trip.google_sheet_id, sanitizeTabName(section.label));
+      }
+      return null;
+    }
+
     const { data: settings } = await supabase
       .from("app_settings")
       .select("google_drive_folder_id, site_url")
@@ -132,7 +147,6 @@ export async function exportSection(
       section.sheet_gid = sheetId;
     }
 
-    const rawEntries = await getAllEntries(supabase, section.id);
     let entries: ClientEntry[] = rawEntries.map((row) => toClientEntry(row));
     // Status only means anything for a still-deciding-among-options
     // list (showRankColumn above) — everywhere else, an archived row
@@ -305,6 +319,27 @@ function buildRow(
   row.push(unit.listings.map((l) => l.concerns || "").join("\n---\n"));
   row.push(unit.listings.map((l) => l.notes || "").join("\n---\n"));
   return row;
+}
+
+// Removes a section's own tab if it happens to already exist — used
+// when a section is disabled or has no entries (see exportSection),
+// so a Sheet never carries a stale/misleading tab for something that
+// isn't really there anymore. A no-op (not an error) if there's no
+// such tab, or if the delete itself fails for some reason — same
+// "never throws" philosophy as the rest of this file.
+async function deleteTabIfExists(sheets: sheets_v4.Sheets, spreadsheetId: string, tabName: string): Promise<void> {
+  try {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const existing = meta.data.sheets?.find((s) => s.properties?.title === tabName);
+    if (existing) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests: [{ deleteSheet: { sheetId: existing.properties!.sheetId } }] },
+      });
+    }
+  } catch {
+    // non-fatal
+  }
 }
 
 // Ensures a section's tab exists with the right header (creating it, or

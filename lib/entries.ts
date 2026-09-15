@@ -34,6 +34,40 @@ export async function findEntryByUrl(
   return data;
 }
 
+export interface ReusableEntryMatch {
+  entry: EntryRow;
+  tripName: string;
+  sectionLabel: string;
+}
+
+// The same spot referenced in a *different* trip or section — entries
+// has no unique constraint on url on purpose (the same restaurant
+// legitimately shows up in more than one trip, or in both a trip's
+// Options and Past tiers), so this is deliberately a *suggestion* to
+// reuse, not a duplicate block the way findEntryByUrl's same-section
+// match is. Only ever consulted after that same-section check already
+// came back empty (see the preview route). Public read (entries' own
+// RLS: `select using (true)`) — this app has one owner across every
+// trip, no per-user isolation to respect here.
+export async function findEntryByUrlAnywhere(
+  supabase: SupabaseClient,
+  url: string,
+  excludeSectionId: string
+): Promise<ReusableEntryMatch | null> {
+  const { data, error } = await supabase
+    .from("entries")
+    .select("*, sections!inner(label, trips!inner(name))")
+    .eq("url", url)
+    .neq("section_id", excludeSectionId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const { sections, ...entry } = data as EntryRow & { sections: { label: string; trips: { name: string } } };
+  return { entry: entry as EntryRow, tripName: sections.trips.name, sectionLabel: sections.label };
+}
+
 export async function createEntry(
   supabase: SupabaseClient,
   entry: Partial<EntryRow> & { id: string; section_id: string }
