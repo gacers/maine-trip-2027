@@ -122,10 +122,25 @@ export async function exportSection(
     const showRankColumn = showRank || showRatings;
     const header = buildHeader(overviewFields, showRankColumn, showRatings);
     const tabName = sanitizeTabName(section.label);
-    const { lastCol } = await ensureTab(sheets, spreadsheetId!, tabName, header);
+    const { sheetId, lastCol } = await ensureTab(sheets, spreadsheetId!, tabName, header);
+
+    // Lets the site's own "Google Sheet" link jump straight to this
+    // section's tab (see Section.sheet_gid) — cheap to just always
+    // write, rather than tracking whether it actually changed.
+    if (section.sheet_gid !== sheetId) {
+      await supabase.from("sections").update({ sheet_gid: sheetId }).eq("id", section.id);
+      section.sheet_gid = sheetId;
+    }
 
     const rawEntries = await getAllEntries(supabase, section.id);
     let entries: ClientEntry[] = rawEntries.map((row) => toClientEntry(row));
+    // Status only means anything for a still-deciding-among-options
+    // list (showRankColumn above) — everywhere else, an archived row
+    // with no Status column to explain it would just look like a
+    // mistake, so it's dropped from the export entirely instead.
+    if (!showRankColumn) {
+      entries = entries.filter((e) => e.status !== "archived");
+    }
     if (showRatings) {
       const ratingsByEntry = await getRatingsForEntries(
         supabase,
@@ -197,16 +212,23 @@ function splitOverviewFields(overviewFields: FieldDef[]): { plain: FieldDef[]; t
   return { plain, typeFields };
 }
 
-function buildHeader(overviewFields: FieldDef[], showRank: boolean, showRatings: boolean): string[] {
+// `stillDeciding` (showRankColumn at the call site — Rank or Ratings
+// is on) gates both Rank and Status: only a still-deciding-among-
+// options list (e.g. House Options) has entries worth excluding with a
+// reason, so it's the only one that gets a Status column at all —
+// everywhere else, exportSection filters archived entries out
+// entirely rather than showing them with nothing to explain why.
+function buildHeader(overviewFields: FieldDef[], stillDeciding: boolean, showRatings: boolean): string[] {
   const { plain, typeFields } = splitOverviewFields(overviewFields);
-  const header = showRank ? ["Rank", "Property"] : ["Property"];
+  const header = stillDeciding ? ["Rank", "Property"] : ["Property"];
   for (const f of plain) {
     header.push(f.label);
     if (f.field_type === "price") header.push("Avg/Night");
   }
   if (typeFields.length > 0) header.push("Type");
   if (showRatings) header.push("Average Score");
-  header.push("Status", "Description", "Concerns", "Notes");
+  if (stillDeciding) header.push("Status");
+  header.push("Description", "Concerns", "Notes");
   return header;
 }
 
@@ -224,6 +246,17 @@ function statusLabelFor(item: ClientEntry): string {
   return item.status === "archived" ? `Archived${item.archiveReason ? ` (${item.archiveReason})` : ""}` : "Active";
 }
 
+// "Closed" is the one true boolean type worth leading with — everything
+// else in the list is descriptive (Restaurant, Bar, ...), but Closed is
+// a status you want to see before scanning the rest, regardless of
+// where its field_def happens to sort among the others.
+function typeCellFor(item: ClientEntry, typeFields: FieldDef[]): string {
+  const active = typeFields.filter((f) => item[f.key]);
+  const closed = active.filter((f) => f.key === "closed");
+  const rest = active.filter((f) => f.key !== "closed");
+  return [...closed, ...rest].map((f) => f.label).join(", ");
+}
+
 function buildRow(
   unit: RankedUnit,
   overviewFields: FieldDef[],
@@ -232,7 +265,7 @@ function buildRow(
   navGroupSlug: string,
   siteUrl: string,
   inviteToken: string,
-  showRank: boolean,
+  stillDeciding: boolean,
   showRatings: boolean
 ): (string | number)[] {
   const anchor = unit.listings.length > 1 ? `group-${unit.listings[0].id}` : `listing-${unit.listings[0].id}`;
@@ -247,7 +280,7 @@ function buildRow(
   const propertyCell = label ? `=HYPERLINK("${url}", "${label}")` : "";
 
   const { plain, typeFields } = splitOverviewFields(overviewFields);
-  const row: (string | number)[] = showRank ? [unit.rank >= 999999 ? "" : unit.rank, propertyCell] : [propertyCell];
+  const row: (string | number)[] = stillDeciding ? [unit.rank >= 999999 ? "" : unit.rank, propertyCell] : [propertyCell];
   for (const f of plain) {
     row.push(unit.listings.map((l) => (l[f.key] as string | number | undefined) ?? "").join("\n"));
     // Baked into text rather than a cell-level currency format — a
@@ -260,21 +293,14 @@ function buildRow(
     }
   }
   if (typeFields.length > 0) {
-    row.push(
-      unit.listings
-        .map((l) =>
-          typeFields
-            .filter((f) => l[f.key])
-            .map((f) => f.label)
-            .join(", ")
-        )
-        .join("\n")
-    );
+    row.push(unit.listings.map((l) => typeCellFor(l, typeFields)).join("\n"));
   }
   if (showRatings) {
     row.push(unit.listings.map((l) => (l.averageScore != null ? l.averageScore.toFixed(1) : "")).join("\n"));
   }
-  row.push(unit.listings.map(statusLabelFor).join("\n"));
+  if (stillDeciding) {
+    row.push(unit.listings.map(statusLabelFor).join("\n"));
+  }
   row.push(unit.listings.map((l) => l.description || "").join("\n---\n"));
   row.push(unit.listings.map((l) => l.concerns || "").join("\n---\n"));
   row.push(unit.listings.map((l) => l.notes || "").join("\n---\n"));

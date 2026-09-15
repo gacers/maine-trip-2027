@@ -476,7 +476,15 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
 
       {canContribute && sheetUrl && (
         <Button variant="secondary" size="sm" asChild>
-          <a href={sheetUrl} target="_blank" rel="noopener noreferrer">
+          {/* #gid=<sheet_gid> jumps straight to this section's own tab
+              instead of landing on whichever tab the spreadsheet last
+              had open — null until this section's first export, in
+              which case it just opens the spreadsheet as before. */}
+          <a
+            href={section.sheet_gid != null ? `${sheetUrl}#gid=${section.sheet_gid}` : sheetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Google Sheet
           </a>
         </Button>

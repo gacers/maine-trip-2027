@@ -44,6 +44,11 @@ export interface Section {
   compact_cards: boolean;
   enabled: boolean;
   sort_order: number;
+  /** This section's own tab's Google-assigned numeric sheetId within
+   * the trip's shared spreadsheet — null until its first export (see
+   * lib/sheetsExport.ts's ensureTab). Lets the site's own "Google
+   * Sheet" link jump straight to the right tab via #gid=<sheet_gid>. */
+  sheet_gid: number | null;
   field_defs?: FieldDef[];
 }
 
