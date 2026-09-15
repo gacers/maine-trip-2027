@@ -19,6 +19,7 @@ export default function NewTripForm() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [nightsEstimate, setNightsEstimate] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -35,7 +36,13 @@ export default function NewTripForm() {
       const res = await fetch("/api/trips", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug, startDate: startDate || undefined, endDate: endDate || undefined }),
+        body: JSON.stringify({
+          name,
+          slug,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          nightsEstimate: nightsEstimate ? Number(nightsEstimate) : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
@@ -86,6 +93,17 @@ export default function NewTripForm() {
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={styles.input} />
         </label>
       </div>
+      <label className={styles.field}>
+        Estimated length in nights (optional — used to estimate a price/night if exact dates aren&apos;t known yet)
+        <input
+          type="number"
+          min="1"
+          value={nightsEstimate}
+          onChange={(e) => setNightsEstimate(e.target.value)}
+          placeholder="e.g. 7"
+          className={styles.input}
+        />
+      </label>
       {error && <p className={styles.error}>{error}</p>}
       <button type="submit" disabled={saving} className={styles.submitButton}>
         {saving ? "Creating..." : "Create trip"}

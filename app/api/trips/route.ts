@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { slug, name, subtitle, startDate, endDate, mapConfig } = body;
+  const { slug, name, subtitle, startDate, endDate, nightsEstimate, mapConfig } = body;
   if (!slug || !name) {
     return NextResponse.json({ error: "slug and name are required" }, { status: 400 });
   }
@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
         subtitle: subtitle || null,
         start_date: startDate || null,
         end_date: endDate || null,
+        nights_estimate: nightsEstimate || null,
         map_config: mapConfig || {},
       })
       .select()

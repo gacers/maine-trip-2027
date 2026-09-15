@@ -14,7 +14,11 @@ import BulletList from "@/components/BulletList";
 import ShowMore from "@/components/ShowMore";
 import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
-import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
+import {
+  computeBadge as computePriceBadge,
+  isAmbiguousBareAmount,
+  formatBareAsPerNight,
+} from "@/lib/fieldTypes/price";
 import FieldInput from "@/components/FieldInput";
 import type { ClientEntry, FieldDef, MapConfig, MapReferencePoint } from "@/lib/types";
 import styles from "./EntryCard.module.css";
@@ -234,6 +238,13 @@ export interface EntryCardProps {
   supportsPairing?: boolean;
   /** Opens SectionPage's PairEntryDialog for this entry specifically. */
   onAddPaired?: () => void;
+  /** The trip's real length (date range) or estimated one (see
+   * lib/fieldTypes/price.ts's computeTripNights) — resolves a price
+   * field's own bare, unexplained total ("$3,500", no stated "/night"
+   * or "for N nights") into a real avg/night instead of leaving it
+   * ambiguous. Null/undefined is a real, meaningful state here (no
+   * date range and no estimate set) — see isAmbiguousBareAmount. */
+  nightsEstimate?: number | null;
 }
 
 export default function EntryCard({
@@ -256,6 +267,7 @@ export default function EntryCard({
   showRatingControl = true,
   supportsPairing = false,
   onAddPaired,
+  nightsEstimate = null,
 }: EntryCardProps) {
   const [rankDraft, setRankDraft] = useState<string | number>(entry.rank ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -514,18 +526,37 @@ export default function EntryCard({
               <div className={styles.priceStack}>
                 {priceFields.map((f) => {
                   const value = entry[f.key] as string;
-                  const badge = computePriceBadge(value);
-                  return value ? (
+                  if (!value) {
+                    return (
+                      <div key={f.key} className={styles.noPriceLine}>
+                        No {f.label.toLowerCase()} yet
+                      </div>
+                    );
+                  }
+                  // A lone, unexplained total ("$3,500" — no stated "/
+                  // night" or "for N nights") can't be turned into a
+                  // real avg/night without knowing how long the trip
+                  // actually is. With no date range and no estimated
+                  // length either, the safer read is that the number
+                  // given already *is* the per-night rate — shown as
+                  // the headline figure with no secondary math below
+                  // it, instead of an ambiguous "total" of unknown
+                  // duration (see lib/fieldTypes/price.ts).
+                  if (isAmbiguousBareAmount(value, nightsEstimate)) {
+                    return (
+                      <div key={f.key} className={styles.priceGroup}>
+                        <span className={styles.priceTotal}>{formatBareAsPerNight(value)}</span>
+                      </div>
+                    );
+                  }
+                  const badge = computePriceBadge(value, nightsEstimate);
+                  return (
                     <div key={f.key} className={styles.priceGroup}>
                       {/* The total is what actually matters when
                           comparing options — the per-night average is
                           useful context, not the headline number. */}
                       <span className={styles.priceTotal}>{value}</span>
                       {badge && <span className={styles.priceAvg}>{badge}</span>}
-                    </div>
-                  ) : (
-                    <div key={f.key} className={styles.noPriceLine}>
-                      No {f.label.toLowerCase()} yet
                     </div>
                   );
                 })}

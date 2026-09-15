@@ -52,7 +52,7 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
     fieldDefs: HOUSE_FIELD_DEFS,
     possible: {
       slug: "options",
-      label: "House Options",
+      label: "Stay Options",
       addPlaceholder: "Paste an Airbnb, VRBO, or other listing URL...",
       emptyMessage: "No listings yet — paste a URL above.",
     },

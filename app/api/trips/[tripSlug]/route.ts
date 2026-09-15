@@ -28,6 +28,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if ("subtitle" in body) patch.subtitle = body.subtitle || null;
   if ("startDate" in body) patch.start_date = body.startDate || null;
   if ("endDate" in body) patch.end_date = body.endDate || null;
+  if ("nightsEstimate" in body) patch.nights_estimate = body.nightsEstimate || null;
   if ("mapConfig" in body) patch.map_config = body.mapConfig;
 
   const { data, error } = await supabase!.from("trips").update(patch).eq("id", trip.id).select().single();

@@ -102,6 +102,11 @@ export interface Trip {
   subtitle?: string | null;
   start_date?: string | null;
   end_date?: string | null;
+  /** Fallback trip length when there's no real start_date+end_date
+   * range yet — lets a price field's own lone total (no stated "/
+   * night" or "for N nights") still resolve to a useful avg/night
+   * instead of being ambiguous (see lib/fieldTypes/price.ts). */
+  nights_estimate?: number | null;
   map_config: MapConfig;
   google_sheet_id?: string | null;
   google_sheet_url?: string | null;

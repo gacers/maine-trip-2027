@@ -25,6 +25,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/DropdownMenu";
 import { groupUnits } from "@/lib/groupUnits";
+import { computeTripNights } from "@/lib/fieldTypes/price";
 import { captureInviteToken, getOrCreateDeviceId } from "@/lib/inviteClient";
 import type { PublicTrip, Section, ClientEntry, EntryUnit, OverviewPin } from "@/lib/types";
 import styles from "./SectionPage.module.css";
@@ -130,6 +131,10 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   const listClassName = [compactCards ? styles.entryGrid : styles.entryList, isHouses && styles.entryListHouses]
     .filter(Boolean)
     .join(" ");
+  // Real date range if the trip has one, else its estimated length
+  // (see lib/fieldTypes/price.ts) — resolves a price field's own bare,
+  // unexplained total into a real avg/night for every EntryCard below.
+  const nightsEstimate = computeTripNights(trip);
 
   // An admin's own session cookie already carries full access — an
   // invite link only matters for everyone else, so it's ignored here if
@@ -425,6 +430,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
                   showRatingControl={false}
                   showMap={false}
                   compact={compactCards}
+                  nightsEstimate={nightsEstimate}
                 />
               </div>
             ))}
@@ -462,6 +468,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         largeMedia={isHouses}
         supportsPairing={!!section.supports_pairing}
         onAddPaired={canContribute ? () => requestPair(entry) : undefined}
+        nightsEstimate={nightsEstimate}
       />
     );
   }

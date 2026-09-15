@@ -32,6 +32,7 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
   const [subtitle, setSubtitle] = useState(trip.subtitle || "");
   const [startDate, setStartDate] = useState(trip.start_date || "");
   const [endDate, setEndDate] = useState(trip.end_date || "");
+  const [nightsEstimate, setNightsEstimate] = useState(trip.nights_estimate ? String(trip.nights_estimate) : "");
   const [pois, setPois] = useState<DraftPoi[]>(toDraftPois(trip.map_config?.alwaysShown));
   const [poiQuery, setPoiQuery] = useState("");
   const [findingPoi, setFindingPoi] = useState(false);
@@ -94,6 +95,7 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
           subtitle,
           startDate: startDate || null,
           endDate: endDate || null,
+          nightsEstimate: nightsEstimate ? Number(nightsEstimate) : null,
           mapConfig: { ...trip.map_config, alwaysShown },
         }),
       });
@@ -127,6 +129,18 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={styles.input} />
         </label>
       </div>
+      <label className={styles.field}>
+        Estimated length in nights (used to estimate a price/night when a listing&apos;s own price doesn&apos;t say —
+        ignored once a real start/end date range is set above)
+        <input
+          type="number"
+          min="1"
+          value={nightsEstimate}
+          onChange={(e) => setNightsEstimate(e.target.value)}
+          placeholder="e.g. 7"
+          className={styles.input}
+        />
+      </label>
 
       <div className={styles.poiSection}>
         <h2 className={styles.poiHeading}>Points of interest</h2>
