@@ -1,0 +1,40 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  position: relative;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+
+/* Sits inside .content itself (see the component), flush against its
+   real bottom edge, so it fades into whatever's actually behind this
+   content — a card section's own background, passed in via fadeColor
+   since this component has no idea what that is on its own. */
+.fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4.5rem;
+  background: linear-gradient(to bottom, transparent, var(--show-more-fade-color, var(--color-white)));
+  pointer-events: none;
+}
+
+.toggleButton {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-blue-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

@@ -11,6 +11,7 @@ import Button from "@/components/Button";
 import Badge, { assignBadgeVariants } from "@/components/Badge";
 import EntryMedia from "@/components/EntryMedia";
 import BulletList from "@/components/BulletList";
+import ShowMore from "@/components/ShowMore";
 import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { computeBadge as computePriceBadge } from "@/lib/fieldTypes/price";
@@ -564,14 +565,20 @@ export default function EntryCard({
           </div>
         )}
 
-        {!isEditing && descriptionBullets.length > 0 && (
+        {!isEditing && (
           <div className={styles.section}>
             <h3 className={styles.sectionHeading}>Description</h3>
-            <BulletList>
-              {descriptionBullets.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </BulletList>
+            {descriptionBullets.length > 0 ? (
+              <ShowMore maxHeight={320}>
+                <BulletList>
+                  {descriptionBullets.map((item, i) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </BulletList>
+              </ShowMore>
+            ) : (
+              <p className={styles.noDescription}>No description</p>
+            )}
           </div>
         )}
 

@@ -91,6 +91,12 @@
    draws — this top border would just double it up. */
 .sectionsBare {
   border-top: none;
+  /* Matches .article's own height:100% (already there for a grid/flex
+     row that stretches every card to its tallest sibling) — without
+     this, a split house's shorter half left extra blank space below
+     its own last section instead of the whole card visibly filling
+     the stretched height it was given. */
+  height: 100%;
 }
 
 .section {
@@ -227,6 +233,12 @@
   color: var(--color-zinc-400);
   font-style: italic;
   white-space: nowrap;
+}
+
+.noDescription {
+  font-size: var(--text-sm);
+  color: var(--color-zinc-400);
+  font-style: italic;
 }
 
 .addressLink {
