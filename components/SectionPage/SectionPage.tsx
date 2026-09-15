@@ -132,8 +132,9 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     .filter(Boolean)
     .join(" ");
   // Real date range if the trip has one, else its estimated length
-  // (see lib/fieldTypes/price.ts) — resolves a price field's own bare,
-  // unexplained total into a real avg/night for every EntryCard below.
+  // (see lib/fieldTypes/price.ts) — passed down so a price field's own
+  // "total for stay" editor (FieldInput) can bake a real "for N
+  // nights" into what gets stored the moment a price is entered.
   const nightsEstimate = computeTripNights(trip);
 
   // An admin's own session cookie already carries full access — an

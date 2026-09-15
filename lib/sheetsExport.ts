@@ -6,7 +6,7 @@ import { createSheetInDrive } from "@/lib/drive";
 import { getAllEntries, toClientEntry } from "@/lib/entries";
 import { getRatingsForEntries, summarizeRatings } from "@/lib/ratings";
 import { groupUnits } from "@/lib/groupUnits";
-import { exportValue as priceExportValue, computeTripNights } from "@/lib/fieldTypes/price";
+import { exportValue as priceExportValue } from "@/lib/fieldTypes/price";
 import { hashApiKey } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
 import type { Trip, Section, EntryUnit, FieldDef, ClientEntry } from "@/lib/types";
@@ -302,7 +302,6 @@ function buildRow(
 
   const { plain, typeFields } = splitOverviewFields(overviewFields);
   const row: (string | number)[] = stillDeciding ? [unit.rank >= 999999 ? "" : unit.rank, propertyCell] : [propertyCell];
-  const tripNights = computeTripNights(trip);
   for (const f of plain) {
     row.push(unit.listings.map((l) => (l[f.key] as string | number | undefined) ?? "").join("\n"));
     // Baked into text rather than a cell-level currency format — a
@@ -311,7 +310,7 @@ function buildRow(
     // (found and fixed for the old single-sheet Overview this session;
     // same fix applies here).
     if (f.field_type === "price") {
-      row.push(unit.listings.map((l) => priceExportValue(l[f.key] as string, tripNights)).join("\n"));
+      row.push(unit.listings.map((l) => priceExportValue(l[f.key] as string)).join("\n"));
     }
   }
   if (typeFields.length > 0) {

@@ -12,6 +12,7 @@ import {
   parseGoogleMapsUrl,
 } from "@/lib/googleUrlHelpers";
 import FieldInput from "@/components/FieldInput";
+import { computeTripNights } from "@/lib/fieldTypes/price";
 import type { PublicTrip, Section, ClientEntry, PlaceResult } from "@/lib/types";
 import styles from "./AddEntryForm.module.css";
 
@@ -137,6 +138,7 @@ export default function AddEntryForm({
   const [pairError, setPairError] = useState("");
 
   const fieldDefs = section.field_defs || [];
+  const tripNights = computeTripNights(trip);
   const apiBase = `/api/trips/${trip.slug}/sections/${navGroupSlug}/${section.slug}/entries`;
   const authHeaders: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
@@ -558,7 +560,13 @@ export default function AddEntryForm({
             {fieldDefs.length > 0 && (
               <div className={styles.fieldDefsGrid}>
                 {fieldDefs.map((f) => (
-                  <FieldInput key={f.key} fieldDef={f} value={data[f.key]} onChange={(v) => setData({ ...data, [f.key]: v })} />
+                  <FieldInput
+                    key={f.key}
+                    fieldDef={f}
+                    value={data[f.key]}
+                    onChange={(v) => setData({ ...data, [f.key]: v })}
+                    tripNights={tripNights}
+                  />
                 ))}
                 {fieldDefs.some((f) => f.field_type === "count") && (
                   <p className={styles.countHint}>Leave count fields blank to auto-fill from the description.</p>
@@ -703,6 +711,7 @@ export default function AddEntryForm({
                               fieldDef={f}
                               value={pairData[f.key]}
                               onChange={(v) => setPairData({ ...pairData, [f.key]: v })}
+                              tripNights={tripNights}
                             />
                           ))}
                         </div>
@@ -715,16 +724,25 @@ export default function AddEntryForm({
                   </div>
                 )}
 
-                <label className={styles.field}>
-                  Group label
-                  {pairPhase === "ready" || presetGroupLabel ? "" : " (optional — only if this is a 2-item option)"}
-                  <input
-                    value={fields.groupLabel}
-                    onChange={(e) => setFields({ ...fields, groupLabel: e.target.value })}
-                    placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
-                    className={styles.input}
-                  />
-                </label>
+                {/* Pairing (2-item options) is a Houses/Stays-only
+                    concept — showing this on a section that doesn't
+                    support it at all would just be a confusing field
+                    with no visible effect. presetGroupLabel only ever
+                    arrives from PairEntryDialog, itself only ever
+                    opened for a section where supports_pairing is
+                    already true, so gating on that alone is safe. */}
+                {section.supports_pairing && (
+                  <label className={styles.field}>
+                    Group label
+                    {pairPhase === "ready" || presetGroupLabel ? "" : " (optional — only if this is a 2-item option)"}
+                    <input
+                      value={fields.groupLabel}
+                      onChange={(e) => setFields({ ...fields, groupLabel: e.target.value })}
+                      placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
+                      className={styles.input}
+                    />
+                  </label>
+                )}
               </div>
             )}
           </div>

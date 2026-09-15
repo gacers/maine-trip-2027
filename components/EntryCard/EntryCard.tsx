@@ -14,11 +14,7 @@ import BulletList from "@/components/BulletList";
 import ShowMore from "@/components/ShowMore";
 import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
-import {
-  computeBadge as computePriceBadge,
-  isAmbiguousBareAmount,
-  formatBareAsPerNight,
-} from "@/lib/fieldTypes/price";
+import { computeBadge as computePriceBadge, formatPriceDisplay } from "@/lib/fieldTypes/price";
 import FieldInput from "@/components/FieldInput";
 import type { ClientEntry, FieldDef, MapConfig, MapReferencePoint } from "@/lib/types";
 import styles from "./EntryCard.module.css";
@@ -239,11 +235,11 @@ export interface EntryCardProps {
   /** Opens SectionPage's PairEntryDialog for this entry specifically. */
   onAddPaired?: () => void;
   /** The trip's real length (date range) or estimated one (see
-   * lib/fieldTypes/price.ts's computeTripNights) — resolves a price
-   * field's own bare, unexplained total ("$3,500", no stated "/night"
-   * or "for N nights") into a real avg/night instead of leaving it
-   * ambiguous. Null/undefined is a real, meaningful state here (no
-   * date range and no estimate set) — see isAmbiguousBareAmount. */
+   * lib/fieldTypes/price.ts's computeTripNights) — passed through to
+   * FieldInput's own price editor (as tripNights) so its "total for
+   * stay" mode can bake a real "for N nights" into what gets stored
+   * the moment a price is entered, instead of leaving that to be
+   * guessed later. */
   nightsEstimate?: number | null;
 }
 
@@ -533,29 +529,26 @@ export default function EntryCard({
                       </div>
                     );
                   }
-                  // A lone, unexplained total ("$3,500" — no stated "/
-                  // night" or "for N nights") can't be turned into a
-                  // real avg/night without knowing how long the trip
-                  // actually is. With no date range and no estimated
-                  // length either, the safer read is that the number
-                  // given already *is* the per-night rate — shown as
-                  // the headline figure with no secondary math below
-                  // it, instead of an ambiguous "total" of unknown
-                  // duration (see lib/fieldTypes/price.ts).
-                  if (isAmbiguousBareAmount(value, nightsEstimate)) {
-                    return (
-                      <div key={f.key} className={styles.priceGroup}>
-                        <span className={styles.priceTotal}>{formatBareAsPerNight(value)}</span>
-                      </div>
-                    );
-                  }
-                  const badge = computePriceBadge(value, nightsEstimate);
+                  // A badge only ever appears when the value already
+                  // states its own breakdown ("/night" or "for N
+                  // nights") — a bare number ("$3,500", or a plain
+                  // "3500") is shown as-is (formatted as real currency
+                  // either way) with no computed avg/night guessed
+                  // under it. That guess used to run off whatever the
+                  // trip's length happened to be, which actively
+                  // produced a wrong reading the moment it guessed
+                  // wrong (confirmed live: a real $273/night price,
+                  // with the trip's real length known, got divided
+                  // down to "~$30/night"). FieldInput's own per-night/
+                  // total-for-stay toggle is what resolves a bare
+                  // number now, at the moment it's entered, not here.
+                  const badge = computePriceBadge(value);
                   return (
                     <div key={f.key} className={styles.priceGroup}>
                       {/* The total is what actually matters when
                           comparing options — the per-night average is
                           useful context, not the headline number. */}
-                      <span className={styles.priceTotal}>{value}</span>
+                      <span className={styles.priceTotal}>{formatPriceDisplay(value)}</span>
                       {badge && <span className={styles.priceAvg}>{badge}</span>}
                     </div>
                   );
@@ -672,6 +665,7 @@ export default function EntryCard({
                       fieldDef={f}
                       value={draft.data[f.key]}
                       onChange={(v) => setDraft({ ...draft, data: { ...draft.data, [f.key]: String(v) } })}
+                      tripNights={nightsEstimate}
                     />
                   ))}
                   {countFields.length > 0 && (
@@ -711,15 +705,21 @@ export default function EntryCard({
                 </div>
                 {geocodeMsg && <p className={styles.geocodeMsg}>{geocodeMsg}</p>}
               </div>
-              <label className={styles.wideField}>
-                Group label (optional — only if this is a 2-item option)
-                <input
-                  value={draft.groupLabel}
-                  onChange={(e) => setDraft({ ...draft, groupLabel: e.target.value })}
-                  placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
-                  className={styles.input}
-                />
-              </label>
+              {/* Pairing (2-item options) is a Houses/Stays-only
+                  concept — showing this on a section that doesn't
+                  support it at all would just be a confusing field
+                  with no visible effect. */}
+              {supportsPairing && (
+                <label className={styles.wideField}>
+                  Group label (optional — only if this is a 2-item option)
+                  <input
+                    value={draft.groupLabel}
+                    onChange={(e) => setDraft({ ...draft, groupLabel: e.target.value })}
+                    placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
+                    className={styles.input}
+                  />
+                </label>
+              )}
             </div>
 
             <div>

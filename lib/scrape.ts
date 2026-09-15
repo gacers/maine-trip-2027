@@ -51,6 +51,21 @@ export function normalizeListingUrl(rawUrl: string): string {
     return `https://${host}${u.pathname}`;
   }
 
+  // A place chosen from the Google Places picker (see lib/googlePlaces.ts
+  // and AddEntryForm's choosePlace) is saved as its googleMapsURI when it
+  // has no own website — confirmed live, that's literally
+  // "https://maps.google.com/?cid=<a place's permanent numeric id>": the
+  // pathname is just "/" for every single place, its *entire* identity
+  // lives in the ?cid= query string. The generic fallback below strips
+  // the whole query string as usually-just-tracking-cruft, which
+  // collapsed every such entry down to the same bare
+  // "https://maps.google.com/" — making completely unrelated places
+  // falsely register as duplicates of each other/of themselves across
+  // trips. Keep the query string as-is here instead.
+  if (host === "maps.google.com") {
+    return `${u.origin}${u.pathname}${u.search}`;
+  }
+
   // Generic fallback: strip query string and fragment (usually just tracking).
   return `${u.origin}${u.pathname}`;
 }
