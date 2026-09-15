@@ -1,0 +1,102 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-zinc-700);
+}
+
+.add-button {
+  font-size: var(--text-sm);
+  color: var(--color-blue-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.no-fields-hint {
+  font-size: var(--text-xs);
+  color: var(--color-zinc-500);
+}
+
+.row-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.row {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-zinc-200);
+  padding: 0.625rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  align-items: end;
+}
+@media (min-width: 640px) {
+  .row {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.row-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--text-xs);
+  grid-column: span 1 / span 1;
+}
+
+.row-wide-field {
+  composes: row-field;
+  grid-column: span 2 / span 2;
+}
+
+.row-input {
+  border-radius: var(--radius);
+  border: 1px solid var(--color-zinc-300);
+  padding: 0.25rem 0.5rem;
+  font-size: var(--text-sm);
+}
+
+.overview-field {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--text-xs);
+}
+
+.small-checkbox {
+  height: 0.875rem;
+  width: 0.875rem;
+}
+
+.remove-button {
+  justify-self: flex-start;
+  font-size: var(--text-xs);
+  color: var(--color-red-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
