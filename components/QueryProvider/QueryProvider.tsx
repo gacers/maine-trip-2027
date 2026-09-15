@@ -28,11 +28,16 @@ export default function QueryProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Data is "fresh enough" for half a minute — long enough that
+            // Data is "fresh enough" for a minute — long enough that
             // clicking between nav groups/sections and back doesn't
-            // re-fetch, short enough that another contributor's edit
-            // shows up on its own well within a normal browsing session.
-            staleTime: 30_000,
+            // re-fetch even across a typical "click through everything
+            // while deciding" session, short enough that another
+            // contributor's edit still shows up on its own well within
+            // a normal browsing session. Whoever *makes* a change sees
+            // it immediately regardless (mutations write straight into
+            // the cache) — this only governs how fast everyone else's
+            // view catches up.
+            staleTime: 60_000,
             // A background refetch (stale data still shown immediately,
             // swapped in when it resolves) covers the rest: reopening a
             // backgrounded tab, or a flaky connection coming back.
