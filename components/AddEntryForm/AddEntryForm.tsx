@@ -11,21 +11,14 @@ import {
   extractGoogleSearchQuery,
   parseGoogleMapsUrl,
 } from "@/lib/googleUrlHelpers";
-import FieldInput from "@/components/FieldInput";
 import { computeTripNights } from "@/lib/fieldTypes/price";
+import UrlEntryForm from "./components/UrlEntryForm";
+import PlacePicker from "./components/PlacePicker";
+import DuplicateNotice from "./components/DuplicateNotice";
+import CoreFieldsGrid, { type CoreFields } from "./components/CoreFieldsGrid";
+import PairFieldsBox, { type PairPhase } from "./components/PairFieldsBox";
 import type { PublicTrip, Section, ClientEntry, PlaceResult } from "@/lib/types";
 import styles from "./AddEntryForm.module.css";
-
-interface CoreFields {
-  title: string;
-  posterImage: string;
-  description: string;
-  lat: string | number;
-  lng: string | number;
-  notes: string;
-  concerns: string;
-  groupLabel: string;
-}
 
 const CORE_INITIAL: CoreFields = {
   title: "",
@@ -39,7 +32,6 @@ const CORE_INITIAL: CoreFields = {
 };
 
 type Phase = "idle" | "loading" | "editing" | "duplicate" | "picking" | "saving";
-type PairPhase = "none" | "input" | "loading" | "ready";
 
 // Mirrors the guidance Claude Desktop already follows for a paired 2-URL
 // add (docs/claude-desktop-add-prompts.md): prefer the two titles' shared
@@ -222,16 +214,15 @@ export default function AddEntryForm({
     setPairError("");
   }
 
-  // The actual fetch, split out of handlePairPreview's own submit
-  // handler so handleSave can also run it — the small "Fetch" button
-  // next to the second link is easy to miss; typing a second URL and
-  // going straight to Save shouldn't just silently drop it. Updates
-  // the pair state either way (so the form reflects it, and a later
-  // "fix and save again" — see handleSave's own postEntry failure path
-  // — starts from the right place), and returns the fetched fields/
-  // data directly, since a caller that just triggered this itself
-  // can't rely on state having already re-rendered by the time it
-  // needs them.
+  // The actual fetch, split out of handlePairPreview so handleSave can
+  // also run it — the small "Fetch" button next to the second link is
+  // easy to miss; typing a second URL and going straight to Save
+  // shouldn't just silently drop it. Updates the pair state either way
+  // (so the form reflects it, and a later "fix and save again" — see
+  // handleSave's own postEntry failure path — starts from the right
+  // place), and returns the fetched fields/data directly, since a
+  // caller that just triggered this itself can't rely on state having
+  // already re-rendered by the time it needs them.
   async function fetchPairPreview(
     raw: string
   ): Promise<{ ok: true; fields: CoreFields; data: Record<string, unknown> } | { ok: false; message: string }> {
@@ -271,8 +262,7 @@ export default function AddEntryForm({
     }
   }
 
-  async function handlePairPreview(e: FormEvent) {
-    e.preventDefault();
+  async function handlePairPreview() {
     const raw = pairUrl.trim();
     if (!raw) return;
     setPairPhase("loading");
@@ -494,325 +484,90 @@ export default function AddEntryForm({
   }
 
   return (
-    <div className={bare ? undefined : styles.card}>
-      {phase === "idle" || phase === "loading" ? (
-        <form onSubmit={handlePreview} className={styles.urlForm}>
-          <div className={styles.urlRow}>
-            <input
-              type="text"
-              required
-              placeholder={section.add_placeholder ?? undefined}
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className={styles.urlInput}
-            />
-            <button type="submit" disabled={phase === "loading"} className={styles.primaryButton}>
-              {phase === "loading" ? "Fetching..." : "Add"}
-            </button>
-          </div>
-          <p className={styles.urlHint}>
-            A listing link, a full Google Maps link, or just type a name (e.g. &quot;Eventide Oyster Co.&quot;) all
-            work. A share.google link usually can&apos;t be read automatically — type the name instead if it
-            doesn&apos;t work.
-          </p>
-          {phase === "idle" && (
-            <button type="button" onClick={startBlank} className={styles.startBlankButton}>
-              Or start with a blank entry instead
-            </button>
-          )}
-        </form>
-      ) : null}
-
-      {errorMsg && <p className={styles.errorMsg}>{errorMsg}</p>}
-
-      {phase === "picking" && placeResults.length > 0 && (
-        <div className={styles.pickingList}>
-          <p className={styles.pickingHint}>Select the right place:</p>
-          {placeResults.map((place) => (
-            <button key={place.id} type="button" onClick={() => choosePlace(place)} className={styles.placeButton}>
-              {place.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={place.photoUrl} alt="" className={styles.placePhoto} />
-              ) : (
-                <div className={styles.placePhotoFallback} />
-              )}
-              <div className={styles.placeInfo}>
-                <div className={styles.placeTitle}>{place.title}</div>
-                <div className={styles.placeAddress}>{place.address}</div>
-              </div>
-            </button>
-          ))}
-          <button type="button" onClick={reset} className={styles.cancelPickingButton}>
-            None of these — cancel
-          </button>
-        </div>
+    <div className={bare ? undefined : styles["card"]}>
+      {(phase === "idle" || phase === "loading") && (
+        <UrlEntryForm
+          url={url}
+          onUrlChange={setUrl}
+          loading={phase === "loading"}
+          placeholder={section.add_placeholder}
+          onSubmit={handlePreview}
+          onStartBlank={startBlank}
+        />
       )}
+
+      {errorMsg && <p className={styles["error-msg"]}>{errorMsg}</p>}
+
+      {phase === "picking" && placeResults.length > 0 && <PlacePicker places={placeResults} onChoose={choosePlace} onCancel={reset} />}
 
       {phase === "duplicate" && duplicate && (
-        <div className={styles.duplicateNotice}>
-          Already on the list:{" "}
-          <a href={`#listing-${duplicate.id}`} className={styles.duplicateLink}>
-            {duplicate.title}
-          </a>
-          .
-          <div className={styles.duplicateActions}>
-            {onRequestPairExisting && (
-              <button onClick={() => onRequestPairExisting(duplicate)} className={styles.duplicatePairButton}>
-                Pair it with a new second property
-              </button>
-            )}
-            <button onClick={reset} className={styles.duplicateResetButton}>
-              Add a different one
-            </button>
-          </div>
-        </div>
+        <DuplicateNotice duplicate={duplicate} onRequestPairExisting={onRequestPairExisting} onReset={reset} />
       )}
 
-      {phase === "editing" || phase === "saving" ? (
-        <form onSubmit={handleSave} className={styles.editForm}>
+      {(phase === "editing" || phase === "saving") && (
+        <form onSubmit={handleSave} className={styles["edit-form"]}>
           {reusedFrom && (
-            <p className={styles.reusedNotice}>
+            <p className={styles["reused-notice"]}>
               Reused details from &quot;{reusedFrom.sectionLabel}&quot; in {reusedFrom.tripName} — this is still its
               own separate entry, edit anything you&apos;d like.
             </p>
           )}
-          {cookieWarning && <p className={styles.cookieWarning}>{cookieWarning}</p>}
+          {cookieWarning && <p className={styles["cookie-warning"]}>{cookieWarning}</p>}
           {warnings.length > 0 && (
-            <ul className={styles.warningsList}>
+            <ul className={styles["warnings-list"]}>
               {warnings.map((w, i) => (
                 <li key={i}>{w}</li>
               ))}
             </ul>
           )}
 
-          <div className={styles.grid}>
-            <label className={styles.field}>
-              Title
-              <input
-                required
-                value={fields.title}
-                onChange={(e) => setFields({ ...fields, title: e.target.value })}
-                className={styles.input}
-              />
-            </label>
-            <label className={styles.wideField}>
-              Photo URL
-              <input
-                value={fields.posterImage}
-                onChange={(e) => setFields({ ...fields, posterImage: e.target.value })}
-                className={styles.input}
-              />
-            </label>
-            <label className={styles.wideField}>
-              Description (one bullet per line, optional)
-              <textarea
-                value={fields.description}
-                onChange={(e) => setFields({ ...fields, description: e.target.value })}
-                rows={3}
-                className={styles.input}
-              />
-            </label>
-
-            {fieldDefs.length > 0 && (
-              <div className={styles.fieldDefsGrid}>
-                {fieldDefs.map((f) => (
-                  <FieldInput
-                    key={f.key}
-                    fieldDef={f}
-                    value={data[f.key]}
-                    onChange={(v) => setData({ ...data, [f.key]: v })}
-                    tripNights={tripNights}
-                  />
-                ))}
-                {fieldDefs.some((f) => f.field_type === "count") && (
-                  <p className={styles.countHint}>Leave count fields blank to auto-fill from the description.</p>
-                )}
-              </div>
-            )}
-
-            <label className={styles.field}>
-              Latitude
-              <input
-                value={fields.lat}
-                onChange={(e) => setFields({ ...fields, lat: e.target.value })}
-                className={styles.input}
-              />
-            </label>
-            <label className={styles.field}>
-              Longitude
-              <input
-                value={fields.lng}
-                onChange={(e) => setFields({ ...fields, lng: e.target.value })}
-                className={styles.input}
-              />
-            </label>
-            <div className={styles.wideField}>
-              <label>Or find lat/lng from an address</label>
-              <div className={styles.geocodeRow}>
-                <input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. 129 State Route 32, New Harbor, ME"
-                  className={styles.geocodeInput}
-                />
-                <button type="button" onClick={handleFindCoords} disabled={geocoding || !address.trim()} className={styles.findButton}>
-                  {geocoding ? "Finding..." : "Find"}
-                </button>
-              </div>
-              {geocodeMsg && <p className={styles.geocodeMsg}>{geocodeMsg}</p>}
-            </div>
-            <label className={styles.wideField}>
-              Notes
-              <textarea
-                value={fields.notes}
-                onChange={(e) => setFields({ ...fields, notes: e.target.value })}
-                rows={2}
-                className={styles.input}
-              />
-            </label>
-            <label className={styles.wideField}>
-              Concerns (optional)
-              <textarea
-                value={fields.concerns}
-                onChange={(e) => setFields({ ...fields, concerns: e.target.value })}
-                rows={2}
-                className={styles.input}
-              />
-            </label>
-            {section.supports_pairing && (
-              <div className={styles.pairBox}>
-                <div className={styles.pairHeader}>
-                  <h3 className={styles.pairTitle}>Pair with a second link (2-item option)</h3>
-                  {pairPhase === "none" ? (
-                    <button type="button" onClick={() => setPairPhase("input")} className={styles.pairToggleButtonAdd}>
-                      + Add another
-                    </button>
-                  ) : (
-                    <button type="button" onClick={cancelPair} className={styles.pairToggleButtonRemove}>
-                      Remove
-                    </button>
-                  )}
-                </div>
-
-                {pairPhase === "input" || pairPhase === "loading" ? (
-                  <div className={styles.pairUrlRow}>
-                    <input
-                      type="text"
-                      placeholder="Paste the second link..."
-                      value={pairUrl}
-                      onChange={(e) => setPairUrl(e.target.value)}
-                      className={styles.pairUrlInput}
-                    />
-                    <button
-                      type="button"
-                      onClick={handlePairPreview}
-                      disabled={pairPhase === "loading" || !pairUrl.trim()}
-                      className={styles.pairFetchButton}
-                    >
-                      {pairPhase === "loading" ? "Fetching..." : "Fetch"}
-                    </button>
-                  </div>
-                ) : null}
-                {pairError && <p className={styles.pairError}>{pairError}</p>}
-
-                {pairPhase === "ready" && (
-                  <div className={styles.pairReadyBox}>
-                    {pairCookieWarning && <p className={styles.cookieWarning}>{pairCookieWarning}</p>}
-                    {pairWarnings.length > 0 && (
-                      <ul className={styles.warningsList}>
-                        {pairWarnings.map((w, i) => (
-                          <li key={i}>{w}</li>
-                        ))}
-                      </ul>
-                    )}
-                    <div className={styles.pairGrid}>
-                      <label className={styles.field}>
-                        Title
-                        <input
-                          required
-                          value={pairFields.title}
-                          onChange={(e) => setPairFields({ ...pairFields, title: e.target.value })}
-                          className={styles.input}
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        Photo URL
-                        <input
-                          value={pairFields.posterImage}
-                          onChange={(e) => setPairFields({ ...pairFields, posterImage: e.target.value })}
-                          className={styles.input}
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        Latitude
-                        <input
-                          value={pairFields.lat}
-                          onChange={(e) => setPairFields({ ...pairFields, lat: e.target.value })}
-                          className={styles.input}
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        Longitude
-                        <input
-                          value={pairFields.lng}
-                          onChange={(e) => setPairFields({ ...pairFields, lng: e.target.value })}
-                          className={styles.input}
-                        />
-                      </label>
-                      {fieldDefs.length > 0 && (
-                        <div className={styles.pairFieldDefsGrid}>
-                          {fieldDefs.map((f) => (
-                            <FieldInput
-                              key={f.key}
-                              fieldDef={f}
-                              value={pairData[f.key]}
-                              onChange={(v) => setPairData({ ...pairData, [f.key]: v })}
-                              tripNights={tripNights}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <p className={styles.pairEditHint}>
-                      Notes, concerns, and description can be added to this one afterward via its own &quot;Edit
-                      details.&quot;
-                    </p>
-                  </div>
-                )}
-
-                {/* Pairing (2-item options) is a Houses/Stays-only
-                    concept — showing this on a section that doesn't
-                    support it at all would just be a confusing field
-                    with no visible effect. presetGroupLabel only ever
-                    arrives from PairEntryDialog, itself only ever
-                    opened for a section where supports_pairing is
-                    already true, so gating on that alone is safe. */}
-                {section.supports_pairing && (
-                  <label className={styles.field}>
-                    Group label
-                    {pairPhase === "ready" || presetGroupLabel ? "" : " (optional — only if this is a 2-item option)"}
-                    <input
-                      value={fields.groupLabel}
-                      onChange={(e) => setFields({ ...fields, groupLabel: e.target.value })}
-                      placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
-                      className={styles.input}
-                    />
-                  </label>
-                )}
-              </div>
-            )}
+          <div className={styles["grid"]}>
+            <CoreFieldsGrid
+              fields={fields}
+              onFieldsChange={setFields}
+              fieldDefs={fieldDefs}
+              tripNights={tripNights}
+              data={data}
+              onDataChange={setData}
+              address={address}
+              onAddressChange={setAddress}
+              geocoding={geocoding}
+              geocodeMsg={geocodeMsg}
+              onFindCoords={handleFindCoords}
+            />
+            <PairFieldsBox
+              supportsPairing={!!section.supports_pairing}
+              pairPhase={pairPhase}
+              onOpen={() => setPairPhase("input")}
+              onCancel={cancelPair}
+              pairUrl={pairUrl}
+              onPairUrlChange={setPairUrl}
+              onFetch={handlePairPreview}
+              pairError={pairError}
+              pairCookieWarning={pairCookieWarning}
+              pairWarnings={pairWarnings}
+              pairFields={pairFields}
+              onPairFieldsChange={setPairFields}
+              pairData={pairData}
+              onPairDataChange={setPairData}
+              fieldDefs={fieldDefs}
+              tripNights={tripNights}
+              groupLabel={fields.groupLabel}
+              onGroupLabelChange={(v) => setFields({ ...fields, groupLabel: v })}
+              presetGroupLabel={presetGroupLabel}
+            />
           </div>
 
-          <div className={styles.actions}>
-            <button type="submit" disabled={phase === "saving"} className={styles.primaryButton}>
+          <div className={styles["actions"]}>
+            <button type="submit" disabled={phase === "saving"} className={styles["primary-button"]}>
               {phase === "saving" ? "Saving..." : "Save"}
             </button>
-            <button type="button" onClick={reset} className={styles.cancelButton}>
+            <button type="button" onClick={reset} className={styles["cancel-button"]}>
               Cancel
             </button>
           </div>
         </form>
-      ) : null}
+      )}
     </div>
   );
 }
