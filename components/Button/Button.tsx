@@ -2,6 +2,7 @@
 
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { Slot } from "@radix-ui/react-slot";
+import classNames from "classnames";
 import styles from "./Button.module.css";
 
 export type ButtonVariant = "primary" | "secondary" | "danger" | "ghost" | "link";
@@ -30,7 +31,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   ref
 ) {
   const Comp = asChild ? Slot : "button";
-  const classes = [styles.button, styles[variant], styles[size], className].filter(Boolean).join(" ");
+  const classes = classNames(styles["root"], styles[variant], styles[size], className);
   return <Comp ref={ref} type={asChild ? undefined : type} className={classes} {...props} />;
 });
 

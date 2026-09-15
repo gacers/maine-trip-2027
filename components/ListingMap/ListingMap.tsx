@@ -29,7 +29,7 @@ export type ListingMapProps = UseListingMapArgs;
 export default function ListingMap(args: ListingMapProps) {
   const data = useListingMap(args);
   return (
-    <div className={styles.allInOne}>
+    <div className={styles["root"]}>
       <ListingMapView {...data} />
       <ListingMapDetails {...data} />
     </div>

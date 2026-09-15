@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import classNames from "classnames";
 import styles from "./BulletList.module.css";
 
 export interface BulletListProps {
@@ -22,6 +23,6 @@ export interface BulletListProps {
 // children — a plain string, a link, a "loading" placeholder, whatever
 // that particular list's items need to be.
 export default function BulletList({ children, bulleted = true, className }: BulletListProps) {
-  const classes = [styles.bulletList, !bulleted && styles.plain, className].filter(Boolean).join(" ");
+  const classes = classNames(styles["root"], !bulleted && styles["plain"], className);
   return <ul className={classes}>{children}</ul>;
 }

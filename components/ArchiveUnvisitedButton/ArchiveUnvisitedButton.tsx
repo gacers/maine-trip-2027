@@ -106,11 +106,11 @@ export default function ArchiveUnvisitedButton({ trip, nav, triggerClassName }: 
             Nothing checked Stayed/Visited is touched.
           </DialogDescription>
 
-          {loading && <p className={styles.status}>Loading…</p>}
-          {error && <p className={styles.error}>{error}</p>}
+          {loading && <p className={styles["status"]}>Loading…</p>}
+          {error && <p className={styles["error"]}>{error}</p>}
 
           {done && (
-            <p className={styles.status}>
+            <p className={styles["status"]}>
               {done.totalArchived === 0
                 ? "Nothing to archive — everything was already checked off."
                 : `Archived ${done.totalArchived} item${done.totalArchived === 1 ? "" : "s"}.`}
@@ -120,9 +120,9 @@ export default function ArchiveUnvisitedButton({ trip, nav, triggerClassName }: 
           {!loading && !done && preview && (
             <>
               {preview.totalArchived === 0 ? (
-                <p className={styles.status}>Nothing to archive — everything&apos;s already checked off.</p>
+                <p className={styles["status"]}>Nothing to archive — everything&apos;s already checked off.</p>
               ) : (
-                <ul className={styles.countList}>
+                <ul className={styles["count-list"]}>
                   {preview.counts.map((c) => (
                     <li key={`${c.navGroupSlug}-${c.sectionLabel}`}>
                       {c.sectionLabel}: {c.toArchive} item{c.toArchive === 1 ? "" : "s"}
@@ -133,7 +133,7 @@ export default function ArchiveUnvisitedButton({ trip, nav, triggerClassName }: 
             </>
           )}
 
-          <div className={styles.actions}>
+          <div className={styles["actions"]}>
             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
               {done ? "Close" : "Cancel"}
             </Button>

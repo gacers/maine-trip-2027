@@ -2,6 +2,7 @@
 
 import { forwardRef, type HTMLAttributes } from "react";
 import { Slot } from "@radix-ui/react-slot";
+import classNames from "classnames";
 import styles from "./Badge.module.css";
 
 export type BadgeVariant =
@@ -66,7 +67,7 @@ const Badge = forwardRef<HTMLSpanElement, BadgeProps>(function Badge(
   ref
 ) {
   const Comp = asChild ? Slot : "span";
-  const classes = [styles.badge, styles[variant], className].filter(Boolean).join(" ");
+  const classes = classNames(styles["root"], styles[variant], className);
   return <Comp ref={ref} className={classes} {...props} />;
 });
 

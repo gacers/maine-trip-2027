@@ -1,4 +1,4 @@
-.emptyMain {
+.root {
   max-width: 28rem;
   margin-inline: auto;
   padding: 4rem 1rem;
@@ -9,18 +9,18 @@
   text-align: center;
 }
 
-.tripName {
+.trip-name {
   font-size: var(--text-xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-zinc-900);
 }
 
-.emptyHint {
+.empty-hint {
   color: var(--color-zinc-500);
   font-size: var(--text-sm);
 }
 
-.addSectionButton {
+.add-section-button {
   border-radius: var(--radius);
   background: var(--color-zinc-900);
   color: var(--color-white);

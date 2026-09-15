@@ -1,4 +1,4 @@
-.wrapper {
+.root {
   display: flex;
   flex-direction: column;
 }
@@ -23,7 +23,7 @@
   pointer-events: none;
 }
 
-.toggleButton {
+.toggle-button {
   align-self: flex-start;
   margin-top: 0.5rem;
   font-size: var(--text-sm);

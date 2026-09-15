@@ -2,7 +2,7 @@
    once you're on a section — that category's own sub-nav) — full width
    on purpose (no max-width cap): the bar always spans the viewport,
    just with its own side padding. */
-.bar {
+.root {
   position: sticky;
   top: 0;
   z-index: 10;
@@ -10,7 +10,7 @@
   border-bottom: 1px solid var(--color-zinc-200);
 }
 
-.navRow {
+.nav-row {
   width: 100%;
   padding: 0.625rem 1.25rem;
   display: flex;
@@ -18,9 +18,9 @@
   justify-content: flex-start;
 }
 
-/* Visually distinct from .navRow above it — a tinted background reads
+/* Visually distinct from .nav-row above it — a tinted background reads
    as "secondary/nested" rather than a same-weight repeat of it. */
-.subNavRow {
+.sub-nav-row {
   width: 100%;
   padding: 0.5rem 1.25rem;
   display: flex;
@@ -31,13 +31,13 @@
   background: var(--color-zinc-50);
   border-top: 1px solid var(--color-zinc-200);
 
-  /* A single-section group (no .subNavMenu rendered) with nothing
-     portaled into .navSlotTarget either (no filterable fields, no
+  /* A single-section group (no .sub-nav-menu rendered) with nothing
+     portaled into .nav-slot-target either (no filterable fields, no
      ratings, no Sheet access yet) has nothing to actually show here —
      collapsed to zero visible size instead of an empty gray bar. Pure
      CSS: the browser re-evaluates :has() live as the portal's real DOM
      content is added/removed, no React state needed to track it. */
-  &:not(:has(.subNavMenu)):not(:has(.navSlotTarget > *)) {
+  &:not(:has(.sub-nav-menu)):not(:has(.nav-slot-target > *)) {
     padding-block: 0;
     border-top: none;
   }
@@ -46,16 +46,16 @@
 /* Hidden below 1024px — the hamburger menu already lists these nested
    under their group, so showing them again here would be redundant on
    a screen with little room to spare. */
-.subNavMenu {
+.sub-nav-menu {
   display: none;
 }
 @media (min-width: 1024px) {
-  .subNavMenu {
+  .sub-nav-menu {
     display: flex;
   }
 }
 
-.navSlotTarget {
+.nav-slot-target {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -63,7 +63,7 @@
   margin-left: auto;
 }
 
-.topRow {
+.top-row {
   width: 100%;
   padding: 0.75rem 1.25rem;
   display: flex;
@@ -88,7 +88,7 @@
 /* Long by design ("Want to add something here? Request access") — lets
    it wrap onto a second line within a bounded width instead of forcing
    one long line that pushes past the bar's edge. */
-.requestAccessTrigger {
+.request-access-trigger {
   white-space: normal;
   text-align: right;
   max-width: 16rem;
@@ -97,25 +97,25 @@
 /* Below 1024px there's rarely room for every group's flat text item
    plus its dropdown chevron without wrapping onto a second line, so
    the whole row collapses into a single hamburger menu instead. */
-.menuDesktop {
+.menu-desktop {
   display: none;
 }
 @media (min-width: 1024px) {
-  .menuDesktop {
+  .menu-desktop {
     display: flex;
   }
 }
 
-.menuMobile {
+.menu-mobile {
   display: block;
 }
 @media (min-width: 1024px) {
-  .menuMobile {
+  .menu-mobile {
     display: none;
   }
 }
 
-.hamburgerButton {
+.hamburger-button {
   padding: 0.375rem;
 }
 
@@ -125,7 +125,7 @@
   gap: 1rem;
 }
 
-.actionLink {
+.action-link {
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-zinc-600);
@@ -136,7 +136,7 @@
   }
 }
 
-.manageLink {
+.manage-link {
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-zinc-700);

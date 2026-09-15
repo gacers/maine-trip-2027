@@ -22,31 +22,31 @@ export default function ListingMapView({
   liveMapUrl,
 }: ListingMapViewProps) {
   return (
-    <div className={styles.wrapper}>
+    <div className={styles["root"]}>
       {status === "error" ? (
-        <p className={styles.errorBox}>
+        <p className={styles["error-box"]}>
           Couldn&apos;t load the map ({errorMsg}). Check that NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set.
         </p>
       ) : (
-        <div ref={mapDivRef} className={styles.mapCanvas} />
+        <div ref={mapDivRef} className={styles["map-canvas"]} />
       )}
 
-      <ul className={styles.legend}>
+      <ul className={styles["legend"]}>
         {houses.map((h) => (
-          <li key={h.label} className={styles.legendItem}>
-            <span className={styles.legendDot} style={{ background: houseColor }} />
+          <li key={h.label} className={styles["legend-item"]}>
+            <span className={styles["legend-dot"]} style={{ background: houseColor }} />
             {h.label}
           </li>
         ))}
         {destinations.map((dest) => (
-          <li key={dest.label} className={styles.legendItem}>
-            <span className={styles.legendDot} style={{ background: dest.color }} />
+          <li key={dest.label} className={styles["legend-item"]}>
+            <span className={styles["legend-dot"]} style={{ background: dest.color }} />
             {dest.label}
           </li>
         ))}
       </ul>
 
-      <a href={liveMapUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
+      <a href={liveMapUrl} target="_blank" rel="noopener noreferrer" className={styles["link"]}>
         Open in Google Maps
       </a>
     </div>

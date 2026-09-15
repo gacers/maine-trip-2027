@@ -114,35 +114,45 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className={styles.form}>
-      <label className={styles.field}>
+    <form onSubmit={handleSubmit} className={styles["root"]}>
+      <label className={styles["field"]}>
         Name
-        <input value={name} onChange={(e) => setName(e.target.value)} required className={styles.input} />
+        <input value={name} onChange={(e) => setName(e.target.value)} required className={styles["input"]} />
       </label>
-      <label className={styles.field}>
+      <label className={styles["field"]}>
         Subtitle (optional)
-        <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={styles.input} />
+        <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={styles["input"]} />
       </label>
-      <label className={styles.field}>
+      <label className={styles["field"]}>
         Cover image (optional — shown full-bleed behind the name/dates on the trips list)
         <input
           value={coverImage}
           onChange={(e) => setCoverImage(e.target.value)}
           placeholder="https://..."
-          className={styles.input}
+          className={styles["input"]}
         />
       </label>
-      <div className={styles.dateRow}>
-        <label className={styles.field}>
+      <div className={styles["date-row"]}>
+        <label className={styles["field"]}>
           Start date
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={styles.input} />
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className={styles["input"]}
+          />
         </label>
-        <label className={styles.field}>
+        <label className={styles["field"]}>
           End date
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={styles.input} />
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className={styles["input"]}
+          />
         </label>
       </div>
-      <label className={styles.field}>
+      <label className={styles["field"]}>
         Estimated length in nights (used to estimate a price/night when a listing&apos;s own price doesn&apos;t say —
         ignored once a real start/end date range is set above)
         <input
@@ -151,11 +161,16 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
           value={nightsEstimate}
           onChange={(e) => setNightsEstimate(e.target.value)}
           placeholder="e.g. 7"
-          className={styles.input}
+          className={styles["input"]}
         />
       </label>
-      <label className={styles.checkboxField}>
-        <input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} className={styles.checkbox} />
+      <label className={styles["checkbox-field"]}>
+        <input
+          type="checkbox"
+          checked={completed}
+          onChange={(e) => setCompleted(e.target.checked)}
+          className={styles["checkbox"]}
+        />
         Completed — the trip already happened. Moves it to Past Trips on the trips list; a template added from here
         on becomes one plain section instead of an Options/Previously pair, and anything added to a section with no
         ranking/ratings/pairing comes in already checked off Stayed/Visited. Every section now also splits into what
@@ -164,40 +179,40 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
         Visited checks and dates already recorded stay saved and come right back if you turn it on again.
       </label>
 
-      <div className={styles.poiSection}>
-        <h2 className={styles.poiHeading}>Points of interest</h2>
-        <p className={styles.poiHint}>
+      <div className={styles["poi-section"]}>
+        <h2 className={styles["poi-heading"]}>Points of interest</h2>
+        <p className={styles["poi-hint"]}>
           Every Stay Option&apos;s Driving Times section shows the distance to each of these — a national park, a
           tour dock, anything worth knowing the drive from a house to.
         </p>
 
         {pois.length > 0 && (
-          <div className={styles.poiRowList}>
+          <div className={styles["poi-row-list"]}>
             {pois.map((p) => (
-              <div key={p._key} className={styles.poiRow}>
+              <div key={p._key} className={styles["poi-row"]}>
                 <input
                   placeholder="Label"
                   value={p.label}
                   onChange={(e) => updatePoi(p._key, "label", e.target.value)}
-                  className={styles.poiInput}
+                  className={styles["poi-input"]}
                 />
                 <input
                   placeholder="Latitude"
                   value={p.lat}
                   onChange={(e) => updatePoi(p._key, "lat", e.target.value)}
-                  className={styles.poiInput}
+                  className={styles["poi-input"]}
                 />
                 <input
                   placeholder="Longitude"
                   value={p.lng}
                   onChange={(e) => updatePoi(p._key, "lng", e.target.value)}
-                  className={styles.poiInput}
+                  className={styles["poi-input"]}
                 />
                 <input
                   type="color"
                   value={p.color}
                   onChange={(e) => updatePoi(p._key, "color", e.target.value)}
-                  className={styles.poiColorInput}
+                  className={styles["poi-color-input"]}
                 />
                 <Button variant="danger" size="sm" onClick={() => removePoi(p._key)}>
                   Remove
@@ -207,12 +222,12 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
           </div>
         )}
 
-        <div className={styles.poiFindRow}>
+        <div className={styles["poi-find-row"]}>
           <input
             placeholder="Search a place or address..."
             value={poiQuery}
             onChange={(e) => setPoiQuery(e.target.value)}
-            className={styles.input}
+            className={styles["input"]}
           />
           <Button variant="secondary" size="sm" onClick={findAndAddPoi} disabled={findingPoi || !poiQuery.trim()}>
             {findingPoi ? "Finding..." : "Find & add"}
@@ -220,9 +235,9 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
         </div>
       </div>
 
-      {error && <p className={styles.error}>{error}</p>}
-      {saved && <p className={styles.saved}>Saved.</p>}
-      <Button type="submit" variant="primary" size="sm" disabled={saving} className={styles.submitButton}>
+      {error && <p className={styles["error"]}>{error}</p>}
+      {saved && <p className={styles["saved"]}>Saved.</p>}
+      <Button type="submit" variant="primary" size="sm" disabled={saving} className={styles["submit-button"]}>
         {saving ? "Saving..." : "Save changes"}
       </Button>
     </form>

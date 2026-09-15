@@ -79,38 +79,38 @@ export default function ListingSection({
   }
 
   return (
-    <section id={id} className={styles.section}>
+    <section id={id} className={styles["root"]}>
       {media}
-      <div className={styles.header}>
-        <div className={styles.titleArea}>
-          <h2 className={styles.title}>{title}</h2>
+      <div className={styles["header"]}>
+        <div className={styles["title-area"]}>
+          <h2 className={styles["title"]}>{title}</h2>
           {showRatings && canContribute && onRate && (
-            <div className={styles.userRatingRow}>
-              <span className={styles.ratingCaption}>Your score</span>
+            <div className={styles["user-rating-row"]}>
+              <span className={styles["rating-caption"]}>Your score</span>
               <StarRating value={myScore ?? 0} size={18} onChange={(v) => onRate(v)} />
               {myScore != null && (
-                <Button variant="ghost" size="sm" onClick={() => onRate(null)} className={styles.clearScoreButton}>
+                <Button variant="ghost" size="sm" onClick={() => onRate(null)} className={styles["clear-score-button"]}>
                   Clear
                 </Button>
               )}
             </div>
           )}
         </div>
-        <div className={styles.controls}>
+        <div className={styles["controls"]}>
           {rank !== undefined && (
-            <div className={styles.rankControl}>
-              <label className={styles.rankLabel}>Rank</label>
+            <div className={styles["rank-control"]}>
+              <label className={styles["rank-label"]}>Rank</label>
               <input
                 type="number"
                 value={rankDraft}
                 onChange={(e) => setRankDraft(e.target.value)}
                 onBlur={commitRank}
-                className={styles.rankInput}
+                className={styles["rank-input"]}
               />
             </div>
           )}
           {canManage && onDeleteGroup && (
-            <div className={styles.deleteGroupWrapper}>
+            <div className={styles["delete-group-wrapper"]}>
               <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog(true)}>
                 Delete group
               </Button>
@@ -119,7 +119,7 @@ export default function ListingSection({
           )}
         </div>
       </div>
-      <div className={styles.body}>{children}</div>
+      <div className={styles["body"]}>{children}</div>
     </section>
   );
 }

@@ -1,4 +1,4 @@
-.wrapper {
+.root {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -18,7 +18,7 @@
   padding: 0.5rem;
 }
 
-.newTokenBox {
+.new-token-box {
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-amber-300);
   background: var(--color-amber-50);
@@ -28,13 +28,13 @@
   gap: 0.5rem;
 }
 
-.newTokenNote {
+.new-token-note {
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-amber-800);
 }
 
-.tokenCode {
+.token-code {
   font-size: var(--text-xs);
   background: var(--color-white);
   border: 1px solid var(--color-amber-200);
@@ -44,7 +44,7 @@
   user-select: all;
 }
 
-.dismissButton {
+.dismiss-button {
   align-self: flex-start;
   font-size: var(--text-xs);
   color: var(--color-zinc-500);
@@ -58,18 +58,18 @@
   }
 }
 
-.createForm {
+.create-form {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.createRow {
+.create-row {
   display: flex;
   gap: 0.5rem;
 }
 
-.labelInput {
+.label-input {
   flex: 1 1 auto;
   border-radius: var(--radius);
   border: 1px solid var(--color-zinc-300);
@@ -77,7 +77,7 @@
   font-size: var(--text-sm);
 }
 
-.generateButton {
+.generate-button {
   border-radius: var(--radius);
   background: var(--color-zinc-900);
   color: var(--color-white);
@@ -88,7 +88,7 @@
   cursor: pointer;
 }
 
-.globalCheckboxLabel {
+.global-checkbox-label {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -96,18 +96,18 @@
   color: var(--color-zinc-600);
 }
 
-.mutedText {
+.muted-text {
   font-size: var(--text-sm);
   color: var(--color-zinc-500);
 }
 
-.keyList {
+.key-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.keyCard {
+.key-card {
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-zinc-200);
   background: var(--color-white);
@@ -117,44 +117,44 @@
   gap: 0.5rem;
 }
 
-.keyCardRevoked {
-  composes: keyCard;
+.key-card-revoked {
+  composes: key-card;
   background: var(--color-zinc-50);
   opacity: 0.6;
 }
 
-.keyCardTop {
+.key-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.keyLabel {
+.key-label {
   font-weight: var(--font-weight-medium);
   color: var(--color-zinc-900);
   font-size: var(--text-sm);
 }
 
-.keyLabelSuffix {
+.key-label-suffix {
   margin-left: 0.5rem;
   font-size: var(--text-xs);
   color: var(--color-zinc-400);
   font-weight: var(--font-weight-normal);
 }
 
-.keyMeta {
+.key-meta {
   font-size: var(--text-xs);
   color: var(--color-zinc-500);
 }
 
-.keyActions {
+.key-actions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex-shrink: 0;
 }
 
-.showButton {
+.show-button {
   font-size: var(--text-sm);
   color: var(--color-blue-600);
   background: none;
@@ -167,7 +167,7 @@
   }
 }
 
-.revokeButton {
+.revoke-button {
   font-size: var(--text-sm);
   color: var(--color-red-600);
   background: none;

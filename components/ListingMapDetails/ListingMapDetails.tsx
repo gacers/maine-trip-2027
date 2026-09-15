@@ -25,15 +25,15 @@ export default function ListingMapDetails({
   if (!closestTown && !showReferencePoints) return null;
 
   return (
-    <div className={styles.wrapper}>
+    <div className={styles["root"]}>
       {closestTown && (
         <div>
-          <h3 className={styles.heading}>Closest Town</h3>
+          <h3 className={styles["heading"]}>Closest Town</h3>
           <a
             href={`https://www.google.com/search?q=${encodeURIComponent(closestTown.searchQuery)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className={styles.link}
+            className={styles["link"]}
           >
             {closestTown.name}
           </a>
@@ -42,11 +42,11 @@ export default function ListingMapDetails({
 
       {showReferencePoints && (
         <div>
-          <h3 className={styles.heading}>Driving Times</h3>
+          <h3 className={styles["heading"]}>Driving Times</h3>
           <BulletList>
             {originInfo && (
               <li>
-                <a href={originInfo.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                <a href={originInfo.url} target="_blank" rel="noopener noreferrer" className={styles["link"]}>
                   {originLabel} &rarr; house: {originInfo.text}
                 </a>
               </li>
@@ -56,11 +56,11 @@ export default function ListingMapDetails({
               return (
                 <li key={dest.label}>
                   {info ? (
-                    <a href={info.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                    <a href={info.url} target="_blank" rel="noopener noreferrer" className={styles["link"]}>
                       House &rarr; {dest.label}: {info.text}
                     </a>
                   ) : (
-                    <span className={styles.loadingRow}>House &rarr; {dest.label}: loading...</span>
+                    <span className={styles["loading-row"]}>House &rarr; {dest.label}: loading...</span>
                   )}
                 </li>
               );

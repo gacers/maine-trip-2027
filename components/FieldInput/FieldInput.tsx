@@ -62,9 +62,9 @@ function PriceFieldInput({ fieldDef, value, onChange, tripNights }: FieldInputPr
   }
 
   return (
-    <label className={styles.field}>
+    <label className={styles["field"]}>
       {fieldDef.label}
-      <div className={styles.priceRow}>
+      <div className={styles["price-row"]}>
         <input
           type="text"
           inputMode="decimal"
@@ -74,7 +74,7 @@ function PriceFieldInput({ fieldDef, value, onChange, tripNights }: FieldInputPr
             commit(e.target.value, mode);
           }}
           placeholder="e.g. 273"
-          className={styles.input}
+          className={styles["input"]}
         />
         <select
           value={mode}
@@ -83,14 +83,14 @@ function PriceFieldInput({ fieldDef, value, onChange, tripNights }: FieldInputPr
             setMode(nextMode);
             commit(amount, nextMode);
           }}
-          className={styles.input}
+          className={styles["input"]}
         >
           <option value="perNight">per night</option>
           <option value="total">total for stay</option>
         </select>
       </div>
       {mode === "total" && !tripNights && (
-        <span className={styles.priceHint}>
+        <span className={styles["price-hint"]}>
           No trip length set yet (Trip Settings) — this will show as a plain total until it computes an avg/night.
         </span>
       )}
@@ -108,25 +108,25 @@ export default function FieldInput({ fieldDef, value, onChange, tripNights }: Fi
   }
   if (fieldDef.field_type === "textarea") {
     return (
-      <label className={styles.wide}>
+      <label className={styles["wide"]}>
         {fieldDef.label}
         <textarea
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
           rows={4}
-          className={styles.input}
+          className={styles["input"]}
         />
       </label>
     );
   }
   if (fieldDef.field_type === "boolean") {
     return (
-      <label className={styles.checkboxField}>
+      <label className={styles["checkbox-field"]}>
         <input
           type="checkbox"
           checked={!!value}
           onChange={(e) => onChange(e.target.checked)}
-          className={styles.checkbox}
+          className={styles["checkbox"]}
         />
         {fieldDef.label}
       </label>
@@ -135,12 +135,12 @@ export default function FieldInput({ fieldDef, value, onChange, tripNights }: Fi
   if (fieldDef.field_type === "select") {
     const choices = fieldDef.options?.choices || [];
     return (
-      <label className={styles.field}>
+      <label className={styles["field"]}>
         {fieldDef.label}
         <select
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
-          className={styles.input}
+          className={styles["input"]}
         >
           <option value="">--</option>
           {choices.map((c) => (
@@ -159,13 +159,13 @@ export default function FieldInput({ fieldDef, value, onChange, tripNights }: Fi
         ? "date"
         : "text";
   return (
-    <label className={styles.field}>
+    <label className={styles["field"]}>
       {fieldDef.label}
       <input
         type={inputType}
         value={(value as string) ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        className={styles.input}
+        className={styles["input"]}
       />
     </label>
   );

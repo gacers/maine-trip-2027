@@ -33,18 +33,18 @@ export default function EntryMedia({
 }: EntryMediaProps) {
   if (!entry.posterImage) return null;
   const headerClass = compact
-    ? styles.mediaHeaderCompact
+    ? styles["root-compact"]
     : large
-      ? styles.mediaHeaderLarge
+      ? styles["root-large"]
       : medium
-        ? styles.mediaHeaderMedium
-        : styles.mediaHeader;
+        ? styles["root-medium"]
+        : styles["root"];
   return (
     <div className={headerClass}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={entry.posterImage} alt={entry.title ?? ""} className={styles.mediaImg} loading="lazy" />
+      <img src={entry.posterImage} alt={entry.title ?? ""} className={styles["media-img"]} loading="lazy" />
       {showRatings && !!entry.ratingCount && entry.averageScore != null && (
-        <div className={styles.scoreBadge} title={`${entry.averageScore.toFixed(1)} avg (${entry.ratingCount})`}>
+        <div className={styles["score-badge"]} title={`${entry.averageScore.toFixed(1)} avg (${entry.ratingCount})`}>
           {entry.averageScore.toFixed(1)}
         </div>
       )}

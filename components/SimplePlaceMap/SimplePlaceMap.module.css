@@ -1,10 +1,10 @@
-.wrapper {
+.root {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.errorBox {
+.error-box {
   font-size: var(--text-sm);
   color: var(--color-amber-700);
   background: var(--color-amber-50);
@@ -13,26 +13,26 @@
   padding: 0.5rem;
 }
 
-.mapCanvas {
+.map-canvas {
   width: 100%;
   height: 12rem;
   border-radius: var(--radius-lg);
   background: var(--color-zinc-100);
 }
 @media (min-width: 640px) {
-  .mapCanvas {
+  .map-canvas {
     height: 14rem;
   }
 }
 
-.placeList {
+.place-list {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   font-size: var(--text-sm);
 }
 
-.placeLink {
+.place-link {
   color: var(--color-blue-600);
 
   &:hover {

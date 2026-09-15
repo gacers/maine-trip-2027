@@ -2,6 +2,7 @@
 
 import { type ComponentPropsWithoutRef, forwardRef } from "react";
 import * as RadixDropdownMenu from "@radix-ui/react-dropdown-menu";
+import classNames from "classnames";
 import styles from "./DropdownMenu.module.css";
 
 // A styled wrapper around Radix's DropdownMenu primitive — Radix owns
@@ -44,7 +45,7 @@ export const DropdownMenuContent = forwardRef<HTMLDivElement, ContentProps>(func
         ref={ref}
         align={align}
         sideOffset={sideOffset}
-        className={[styles.content, className].filter(Boolean).join(" ")}
+        className={classNames(styles["content"], className)}
         {...props}
       />
     </RadixDropdownMenu.Portal>
@@ -60,10 +61,10 @@ export const DropdownMenuCheckboxItem = forwardRef<HTMLDivElement, CheckboxItemP
   return (
     <RadixDropdownMenu.CheckboxItem
       ref={ref}
-      className={[styles.checkboxItem, className].filter(Boolean).join(" ")}
+      className={classNames(styles["checkbox-item"], className)}
       {...props}
     >
-      <span className={styles.indicator}>
+      <span className={styles["indicator"]}>
         <RadixDropdownMenu.ItemIndicator>
           <CheckIcon />
         </RadixDropdownMenu.ItemIndicator>
@@ -82,10 +83,10 @@ export const DropdownMenuRadioItem = forwardRef<HTMLDivElement, RadioItemProps>(
   return (
     <RadixDropdownMenu.RadioItem
       ref={ref}
-      className={[styles.checkboxItem, className].filter(Boolean).join(" ")}
+      className={classNames(styles["checkbox-item"], className)}
       {...props}
     >
-      <span className={styles.indicatorRound}>
+      <span className={styles["indicator-round"]}>
         <RadixDropdownMenu.ItemIndicator>
           <DotIcon />
         </RadixDropdownMenu.ItemIndicator>
@@ -101,7 +102,7 @@ export const DropdownMenuItem = forwardRef<HTMLDivElement, ItemProps>(function D
   { className, ...props },
   ref
 ) {
-  return <RadixDropdownMenu.Item ref={ref} className={[styles.item, className].filter(Boolean).join(" ")} {...props} />;
+  return <RadixDropdownMenu.Item ref={ref} className={classNames(styles["item"], className)} {...props} />;
 });
 
 type LabelProps = ComponentPropsWithoutRef<typeof RadixDropdownMenu.Label>;
@@ -110,7 +111,7 @@ export const DropdownMenuLabel = forwardRef<HTMLDivElement, LabelProps>(function
   { className, ...props },
   ref
 ) {
-  return <RadixDropdownMenu.Label ref={ref} className={[styles.label, className].filter(Boolean).join(" ")} {...props} />;
+  return <RadixDropdownMenu.Label ref={ref} className={classNames(styles["label"], className)} {...props} />;
 });
 
 type SeparatorProps = ComponentPropsWithoutRef<typeof RadixDropdownMenu.Separator>;
@@ -120,6 +121,6 @@ export const DropdownMenuSeparator = forwardRef<HTMLDivElement, SeparatorProps>(
   ref
 ) {
   return (
-    <RadixDropdownMenu.Separator ref={ref} className={[styles.separator, className].filter(Boolean).join(" ")} {...props} />
+    <RadixDropdownMenu.Separator ref={ref} className={classNames(styles["separator"], className)} {...props} />
   );
 });

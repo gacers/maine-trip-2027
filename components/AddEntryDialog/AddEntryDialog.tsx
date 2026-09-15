@@ -55,7 +55,7 @@ export default function AddEntryDialog({
           + Add to {section.label}
         </Button>
       </DialogTrigger>
-      <DialogContent className={styles.content}>
+      <DialogContent className={styles["content"]}>
         <DialogTitle>Add to {section.label}</DialogTitle>
         <AddEntryForm
           trip={trip}

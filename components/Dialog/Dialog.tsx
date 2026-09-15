@@ -2,6 +2,7 @@
 
 import { type ComponentPropsWithoutRef, forwardRef } from "react";
 import * as RadixDialog from "@radix-ui/react-dialog";
+import classNames from "classnames";
 import styles from "./Dialog.module.css";
 
 // A styled wrapper around Radix's Dialog primitive — Radix owns the
@@ -22,8 +23,8 @@ export const DialogContent = forwardRef<HTMLDivElement, ContentProps>(function D
 ) {
   return (
     <RadixDialog.Portal>
-      <RadixDialog.Overlay className={styles.overlay} />
-      <RadixDialog.Content ref={ref} className={[styles.content, className].filter(Boolean).join(" ")} {...props}>
+      <RadixDialog.Overlay className={styles["overlay"]} />
+      <RadixDialog.Content ref={ref} className={classNames(styles["content"], className)} {...props}>
         {children}
       </RadixDialog.Content>
     </RadixDialog.Portal>
@@ -36,7 +37,7 @@ export const DialogTitle = forwardRef<HTMLHeadingElement, TitleProps>(function D
   { className, ...props },
   ref
 ) {
-  return <RadixDialog.Title ref={ref} className={[styles.title, className].filter(Boolean).join(" ")} {...props} />;
+  return <RadixDialog.Title ref={ref} className={classNames(styles["title"], className)} {...props} />;
 });
 
 type DescriptionProps = ComponentPropsWithoutRef<typeof RadixDialog.Description>;
@@ -45,7 +46,5 @@ export const DialogDescription = forwardRef<HTMLParagraphElement, DescriptionPro
   { className, ...props },
   ref
 ) {
-  return (
-    <RadixDialog.Description ref={ref} className={[styles.description, className].filter(Boolean).join(" ")} {...props} />
-  );
+  return <RadixDialog.Description ref={ref} className={classNames(styles["description"], className)} {...props} />;
 });

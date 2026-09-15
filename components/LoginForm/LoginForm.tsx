@@ -55,40 +55,35 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className={styles.form}>
-      <label className={styles.field}>
+    <form onSubmit={handleSubmit} className={styles["root"]}>
+      <label className={styles["field"]}>
         Email
         <input
           type="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className={styles.input}
+          className={styles["input"]}
         />
       </label>
-      <label className={styles.field}>
+      <label className={styles["field"]}>
         Password
         <input
           type="password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className={styles.input}
+          className={styles["input"]}
         />
       </label>
-      {error && <p className={styles.error}>{error}</p>}
+      {error && <p className={styles["error"]}>{error}</p>}
       {resetSent && (
-        <p className={styles.success}>If that email has an account, a reset link was just sent to it.</p>
+        <p className={styles["success"]}>If that email has an account, a reset link was just sent to it.</p>
       )}
-      <button type="submit" disabled={loading} className={styles.submitButton}>
+      <button type="submit" disabled={loading} className={styles["submit-button"]}>
         {loading ? "Signing in..." : "Sign in"}
       </button>
-      <button
-        type="button"
-        onClick={handleForgotPassword}
-        disabled={resetting}
-        className={styles.forgotButton}
-      >
+      <button type="button" onClick={handleForgotPassword} disabled={resetting} className={styles["forgot-button"]}>
         {resetting ? "Sending..." : "Forgot password?"}
       </button>
     </form>

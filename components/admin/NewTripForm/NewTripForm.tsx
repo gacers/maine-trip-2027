@@ -56,18 +56,18 @@ export default function NewTripForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className={styles.form}>
-      <label className={styles.field}>
+    <form onSubmit={handleSubmit} className={styles["root"]}>
+      <label className={styles["field"]}>
         Name
         <input
           required
           value={name}
           onChange={(e) => handleNameChange(e.target.value)}
           placeholder="Iceland 2028"
-          className={styles.input}
+          className={styles["input"]}
         />
       </label>
-      <label className={styles.field}>
+      <label className={styles["field"]}>
         URL slug
         <input
           required
@@ -76,26 +76,31 @@ export default function NewTripForm() {
             setSlugTouched(true);
             setSlug(e.target.value);
           }}
-          className={styles.input}
+          className={styles["input"]}
         />
-        <span className={styles.hint}>yoursite.com/{slug || "..."}</span>
+        <span className={styles["hint"]}>yoursite.com/{slug || "..."}</span>
       </label>
-      <div className={styles.dateRow}>
-        <label className={styles.field}>
+      <div className={styles["date-row"]}>
+        <label className={styles["field"]}>
           Start date (optional — used to sort the trips list)
           <input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className={styles.input}
+            className={styles["input"]}
           />
         </label>
-        <label className={styles.field}>
+        <label className={styles["field"]}>
           End date (optional)
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={styles.input} />
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className={styles["input"]}
+          />
         </label>
       </div>
-      <label className={styles.field}>
+      <label className={styles["field"]}>
         Estimated length in nights (optional — used to estimate a price/night if exact dates aren&apos;t known yet)
         <input
           type="number"
@@ -103,25 +108,25 @@ export default function NewTripForm() {
           value={nightsEstimate}
           onChange={(e) => setNightsEstimate(e.target.value)}
           placeholder="e.g. 7"
-          className={styles.input}
+          className={styles["input"]}
         />
       </label>
-      <label className={styles.checkboxField}>
+      <label className={styles["checkbox-field"]}>
         <input
           type="checkbox"
           checked={pastTrip}
           onChange={(e) => setPastTrip(e.target.checked)}
-          className={styles.checkbox}
+          className={styles["checkbox"]}
         />
         This documents a trip that already happened — mark it Completed now, so anything you add to a plain list
         (not a still-deciding &quot;Options&quot; section) comes in already checked off as Stayed/Visited instead of
         needing that clicked one by one.
       </label>
-      {error && <p className={styles.error}>{error}</p>}
-      <button type="submit" disabled={saving} className={styles.submitButton}>
+      {error && <p className={styles["error"]}>{error}</p>}
+      <button type="submit" disabled={saving} className={styles["submit-button"]}>
         {saving ? "Creating..." : "Create trip"}
       </button>
-      <p className={styles.hintCentered}>
+      <p className={styles["hint-centered"]}>
         You&apos;ll add its sections (Houses, Food &amp; Drink, whatever you want) next.
       </p>
     </form>

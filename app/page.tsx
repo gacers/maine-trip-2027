@@ -60,17 +60,17 @@ export default async function TripsIndexPage() {
     .sort((a, b) => (b.end_date || b.start_date || "").localeCompare(a.end_date || a.start_date || ""));
 
   return (
-    <main className={styles.main}>
-      <h1 className={styles.heading}>Trips</h1>
+    <main className={styles["root"]}>
+      <h1 className={styles["heading"]}>Trips</h1>
 
       {trips.length === 0 ? (
-        <p className={styles.emptyHint}>No trips yet.</p>
+        <p className={styles["empty-hint"]}>No trips yet.</p>
       ) : (
         <>
           {pending.length > 0 && (
-            <section className={styles.tripSection}>
-              <h2 className={styles.sectionHeading}>Pending Trips</h2>
-              <div className={styles.tripGrid}>
+            <section className={styles["trip-section"]}>
+              <h2 className={styles["section-heading"]}>Pending Trips</h2>
+              <div className={styles["trip-grid"]}>
                 {pending.map((trip) => (
                   <TripCard key={trip.id} trip={trip} dateLabel={tripDateLabel(trip.start_date, trip.end_date)} />
                 ))}
@@ -79,9 +79,9 @@ export default async function TripsIndexPage() {
           )}
 
           {past.length > 0 && (
-            <section className={styles.tripSection}>
-              <h2 className={styles.sectionHeading}>Past Trips</h2>
-              <div className={styles.tripGrid}>
+            <section className={styles["trip-section"]}>
+              <h2 className={styles["section-heading"]}>Past Trips</h2>
+              <div className={styles["trip-grid"]}>
                 {past.map((trip) => (
                   <TripCard key={trip.id} trip={trip} dateLabel={tripDateLabel(trip.start_date, trip.end_date)} />
                 ))}
@@ -91,11 +91,11 @@ export default async function TripsIndexPage() {
         </>
       )}
 
-      <div className={styles.actionsRow}>
-        <Link href="/trips/new" className={styles.newTripButton}>
+      <div className={styles["actions-row"]}>
+        <Link href="/trips/new" className={styles["new-trip-button"]}>
           + New trip
         </Link>
-        <Link href="/settings" className={styles.settingsLink}>
+        <Link href="/settings" className={styles["settings-link"]}>
           Settings
         </Link>
       </div>

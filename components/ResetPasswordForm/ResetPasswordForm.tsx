@@ -32,12 +32,12 @@ export default function ResetPasswordForm() {
   }
 
   if (success) {
-    return <p className={styles.success}>Password set — redirecting...</p>;
+    return <p className={styles["success"]}>Password set — redirecting...</p>;
   }
 
   return (
-    <form onSubmit={handleSubmit} className={styles.form}>
-      <label className={styles.field}>
+    <form onSubmit={handleSubmit} className={styles["root"]}>
+      <label className={styles["field"]}>
         New password
         <input
           type="password"
@@ -45,11 +45,11 @@ export default function ResetPasswordForm() {
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className={styles.input}
+          className={styles["input"]}
         />
       </label>
-      {error && <p className={styles.error}>{error}</p>}
-      <button type="submit" disabled={loading} className={styles.submitButton}>
+      {error && <p className={styles["error"]}>{error}</p>}
+      <button type="submit" disabled={loading} className={styles["submit-button"]}>
         {loading ? "Saving..." : "Set password"}
       </button>
     </form>

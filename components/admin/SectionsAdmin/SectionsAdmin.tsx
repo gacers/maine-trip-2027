@@ -143,24 +143,24 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   }
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Sections</h1>
-        <Link href={`/${trip.slug}/admin/sections/new`} className={styles.newSectionButton}>
+    <div className={styles["root"]}>
+      <div className={styles["header"]}>
+        <h1 className={styles["title"]}>Sections</h1>
+        <Link href={`/${trip.slug}/admin/sections/new`} className={styles["new-section-button"]}>
           + New section
         </Link>
       </div>
 
-      {error && <p className={styles.error}>{error}</p>}
+      {error && <p className={styles["error"]}>{error}</p>}
 
-      <div className={styles.templatesSection}>
-        <h2 className={styles.sectionHeading}>Add from a template</h2>
-        <p className={styles.templatesHint}>
+      <div className={styles["templates-section"]}>
+        <h2 className={styles["section-heading"]}>Add from a template</h2>
+        <p className={styles["templates-hint"]}>
           {trip.completed
             ? "This trip is marked Completed, so each template creates just one plain section (e.g. \"Stays\", not a Stay Options / Stayed Before pair) — there's nothing left to decide, so anything added comes in already checked off Visited."
             : 'Each creates a ready-made "Options" / "Before" pair (e.g. House Options / Stayed Before) — fully editable or deletable afterward, this is just a fast starting point.'}
         </p>
-        <div className={styles.templateList}>
+        <div className={styles["template-list"]}>
           {SECTION_TEMPLATES.map((t) => {
             const exists = existingGroupLabels.has(t.navGroupLabel);
             return (
@@ -169,7 +169,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                 type="button"
                 disabled={exists || addingTemplate === t.key}
                 onClick={() => addTemplate(t)}
-                className={styles.templateButton}
+                className={styles["template-button"]}
                 title={exists ? `${t.navGroupLabel} already exists` : undefined}
               >
                 {addingTemplate === t.key ? "Adding..." : exists ? `${t.navGroupLabel} ✓` : `+ ${t.navGroupLabel}`}
@@ -180,37 +180,40 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       </div>
 
       {nav.every((g) => g.sections.length === 0) && (
-        <p className={styles.emptyHint}>No sections yet — add one from a template above, or create a custom one.</p>
+        <p className={styles["empty-hint"]}>No sections yet — add one from a template above, or create a custom one.</p>
       )}
 
       {nav.map(
         (group) =>
           group.sections.length > 0 && (
-            <div key={group.id} className={styles.groupSection}>
-              <h2 className={styles.sectionHeading}>{group.label}</h2>
-              <div className={styles.sectionList}>
+            <div key={group.id} className={styles["group-section"]}>
+              <h2 className={styles["section-heading"]}>{group.label}</h2>
+              <div className={styles["section-list"]}>
                 {group.sections.map((section) => (
-                  <div key={section.id} className={section.enabled ? styles.sectionCard : styles.sectionCardDisabled}>
+                  <div
+                    key={section.id}
+                    className={section.enabled ? styles["section-card"] : styles["section-card-disabled"]}
+                  >
                     <div>
-                      <div className={styles.sectionLabel}>{section.label}</div>
-                      <div className={styles.sectionMeta}>
+                      <div className={styles["section-label"]}>{section.label}</div>
+                      <div className={styles["section-meta"]}>
                         /{trip.slug}/{group.slug}/{section.slug}
                         {!section.enabled && " · disabled"}
                       </div>
                     </div>
-                    <div className={styles.sectionActions}>
-                      <label className={styles.enabledCheckboxLabel}>
+                    <div className={styles["section-actions"]}>
+                      <label className={styles["enabled-checkbox-label"]}>
                         <input
                           type="checkbox"
                           checked={section.enabled}
                           onChange={(e) => toggleEnabled(section, group.slug, e.target.checked)}
-                          className={styles.enabledCheckbox}
+                          className={styles["enabled-checkbox"]}
                         />
                         Enabled
                       </label>
                       <Link
                         href={`/${trip.slug}/admin/sections/${group.slug}/${section.slug}/edit`}
-                        className={styles.editLink}
+                        className={styles["edit-link"]}
                       >
                         Edit
                       </Link>

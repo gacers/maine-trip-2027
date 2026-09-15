@@ -1,4 +1,4 @@
-.main {
+.root {
   max-width: 72rem;
   margin-inline: auto;
   padding: 3rem 1rem;
@@ -20,47 +20,47 @@
   }
 }
 
-.emptyHint {
+.empty-hint {
   color: var(--color-zinc-500);
   font-size: var(--text-sm);
   text-align: center;
 }
 
-.tripSection {
+.trip-section {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.sectionHeading {
+.section-heading {
   font-size: var(--text-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--color-zinc-700);
 }
 
-.tripGrid {
+.trip-grid {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
   gap: 1.25rem;
 }
 @media (min-width: 640px) {
-  .tripGrid {
+  .trip-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (min-width: 1024px) {
-  .tripGrid {
+  .trip-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-.actionsRow {
+.actions-row {
   display: flex;
   justify-content: center;
   gap: 1rem;
 }
 
-.newTripButton {
+.new-trip-button {
   border-radius: var(--radius-full);
   border: 1px solid var(--color-zinc-300);
   background: var(--color-white);
@@ -75,7 +75,7 @@
   }
 }
 
-.settingsLink {
+.settings-link {
   align-self: center;
   font-size: var(--text-sm);
   color: var(--color-zinc-500);

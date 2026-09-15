@@ -39,25 +39,25 @@ export default function SimplePlaceMap({ places }: SimplePlaceMapProps) {
   }
 
   return (
-    <div className={styles.wrapper}>
+    <div className={styles["root"]}>
       {status === "error" ? (
-        <p className={styles.errorBox}>Couldn&apos;t load the map ({errorMsg}).</p>
+        <p className={styles["error-box"]}>Couldn&apos;t load the map ({errorMsg}).</p>
       ) : (
-        <div ref={mapDivRef} className={styles.mapCanvas} />
+        <div ref={mapDivRef} className={styles["map-canvas"]} />
       )}
 
       {/* A solo place just needs the one link — a list (and repeating
           its own label, already shown as this card's title) is only
           worth it once there's more than one to tell apart. */}
       {places.length === 1 ? (
-        <a href={mapsUrl(places[0])} target="_blank" rel="noopener noreferrer" className={styles.placeLink}>
+        <a href={mapsUrl(places[0])} target="_blank" rel="noopener noreferrer" className={styles["place-link"]}>
           Open in Google Maps
         </a>
       ) : (
-        <ul className={styles.placeList}>
+        <ul className={styles["place-list"]}>
           {places.map((p) => (
             <li key={p.label}>
-              <a href={mapsUrl(p)} target="_blank" rel="noopener noreferrer" className={styles.placeLink}>
+              <a href={mapsUrl(p)} target="_blank" rel="noopener noreferrer" className={styles["place-link"]}>
                 {p.label} — Open in Google Maps
               </a>
             </li>

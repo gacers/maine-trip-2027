@@ -41,27 +41,27 @@ export default function StarRating({ value, onChange, size = 20 }: StarRatingPro
   const editable = typeof onChange === "function";
 
   return (
-    <span className={styles.wrapper}>
+    <span className={styles["root"]}>
       {stars.map((i) => {
         const fillPercent = Math.max(0, Math.min(1, (value ?? 0) - i)) * 100;
         return (
-          <span key={i} className={styles.starBox} style={{ width: size, height: size }}>
-            <StarIcon size={size} filled={false} className={styles.outline} />
-            <span className={styles.fillClip} style={{ width: `${fillPercent}%` }}>
-              <StarIcon size={size} filled className={styles.fill} />
+          <span key={i} className={styles["star-box"]} style={{ width: size, height: size }}>
+            <StarIcon size={size} filled={false} className={styles["outline"]} />
+            <span className={styles["fill-clip"]} style={{ width: `${fillPercent}%` }}>
+              <StarIcon size={size} filled className={styles["fill"]} />
             </span>
             {editable && (
               <>
                 <button
                   type="button"
                   aria-label={`Rate ${i + 0.5} out of 5`}
-                  className={styles.halfButton}
+                  className={styles["half-button"]}
                   onClick={() => onChange(i + 0.5)}
                 />
                 <button
                   type="button"
                   aria-label={`Rate ${i + 1} out of 5`}
-                  className={styles.wholeButton}
+                  className={styles["whole-button"]}
                   onClick={() => onChange(i + 1)}
                 />
               </>

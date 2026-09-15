@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import styles from "./Spinner.module.css";
 
 export interface SpinnerProps {
@@ -17,7 +18,7 @@ export default function Spinner({ size = 32, className }: SpinnerProps) {
     <span
       role="status"
       aria-label="Loading"
-      className={[styles.spinner, className].filter(Boolean).join(" ")}
+      className={classNames(styles["root"], className)}
       style={{ width: size, height: size }}
     />
   );

@@ -92,16 +92,19 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
   const showRequestAccess = accessChecked && !canContribute && activeSection;
 
   return (
-    <header ref={barRef} className={styles.bar}>
-      <div className={styles.topRow}>
-        <Link href={nav[0] ? sectionPath(nav[0].slug, nav[0].sections[0].slug) : `/${trip.slug}`} className={styles.brand}>
+    <header ref={barRef} className={styles["root"]}>
+      <div className={styles["top-row"]}>
+        <Link
+          href={nav[0] ? sectionPath(nav[0].slug, nav[0].sections[0].slug) : `/${trip.slug}`}
+          className={styles["brand"]}
+        >
           {trip.name}
         </Link>
 
-        <div className={styles.actions}>
+        <div className={styles["actions"]}>
           {isAdmin ? (
             <>
-              <Link href="/" className={styles.actionLink}>
+              <Link href="/" className={styles["action-link"]}>
                 All trips
               </Link>
               {/* This row's own set of buttons stays fixed regardless of
@@ -111,7 +114,7 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
                   and every other one. It lives on the Trip Settings
                   page instead now, right by the Completed checkbox that
                   gates it (see TripSettingsPage). */}
-              <Link href={`/${trip.slug}/admin/sections`} className={styles.manageLink}>
+              <Link href={`/${trip.slug}/admin/sections`} className={styles["manage-link"]}>
                 Manage
               </Link>
             </>
@@ -121,7 +124,7 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
                 trip={trip}
                 section={activeSection!}
                 contactEmail={contactEmail}
-                triggerClassName={styles.requestAccessTrigger}
+                triggerClassName={styles["request-access-trigger"]}
               />
             )
           )}
@@ -130,8 +133,8 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
 
       {nav.length > 0 && (
         <>
-          <div className={styles.navRow}>
-            <NavigationMenu className={styles.menuDesktop} aria-label="Trip categories">
+          <div className={styles["nav-row"]}>
+            <NavigationMenu className={styles["menu-desktop"]} aria-label="Trip categories">
               <NavigationMenuList>
                 {nav.map((g) => (
                   <NavigationMenuItem key={g.id}>
@@ -143,10 +146,10 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
               </NavigationMenuList>
             </NavigationMenu>
 
-            <div className={styles.menuMobile}>
+            <div className={styles["menu-mobile"]}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" aria-label="Sections menu" className={styles.hamburgerButton}>
+                  <Button variant="ghost" size="sm" aria-label="Sections menu" className={styles["hamburger-button"]}>
                     <MenuIcon />
                   </Button>
                 </DropdownMenuTrigger>
@@ -186,9 +189,9 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
               empty during server rendering no matter what will
               eventually render into it once hydrated). */}
           {activeGroup && (
-            <div className={styles.subNavRow}>
+            <div className={styles["sub-nav-row"]}>
               {activeGroup.sections.length > 1 && (
-                <NavigationMenu className={styles.subNavMenu} aria-label={`${activeGroup.label} sections`}>
+                <NavigationMenu className={styles["sub-nav-menu"]} aria-label={`${activeGroup.label} sections`}>
                   <NavigationMenuList>
                     {activeGroup.sections.map((s) => (
                       <NavigationMenuItem key={s.id}>
@@ -200,7 +203,7 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
                   </NavigationMenuList>
                 </NavigationMenu>
               )}
-              <div ref={(el) => navSlot?.setSlot(el)} className={styles.navSlotTarget} />
+              <div ref={(el) => navSlot?.setSlot(el)} className={styles["nav-slot-target"]} />
             </div>
           )}
         </>

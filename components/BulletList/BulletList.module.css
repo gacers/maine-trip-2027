@@ -1,4 +1,4 @@
-.bulletList {
+.root {
   list-style-type: disc;
   padding-left: 1.25rem;
   font-size: var(--text-sm);

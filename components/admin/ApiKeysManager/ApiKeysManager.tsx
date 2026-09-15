@@ -80,40 +80,40 @@ export default function ApiKeysManager({ trip }: ApiKeysManagerProps) {
   }
 
   return (
-    <div className={styles.wrapper}>
-      <p className={styles.intro}>
+    <div className={styles["root"]}>
+      <p className={styles["intro"]}>
         Full-access keys — for Claude Desktop or other automation. Can add, edit, delete, and archive. To share a
         limited add-only link with a friend, use Invite Links instead.
       </p>
 
-      {error && <p className={styles.error}>{error}</p>}
+      {error && <p className={styles["error"]}>{error}</p>}
 
       {newToken && (
-        <div className={styles.newTokenBox}>
-          <p className={styles.newTokenNote}>
+        <div className={styles["new-token-box"]}>
+          <p className={styles["new-token-note"]}>
             Save this now, or come back and click &quot;Show&quot; on it later — it&apos;s never emailed or texted
             to you.
           </p>
-          <code className={styles.tokenCode}>{newToken}</code>
-          <button onClick={() => setNewToken(null)} className={styles.dismissButton}>
+          <code className={styles["token-code"]}>{newToken}</code>
+          <button onClick={() => setNewToken(null)} className={styles["dismiss-button"]}>
             Dismiss
           </button>
         </div>
       )}
 
-      <form onSubmit={handleCreate} className={styles.createForm}>
-        <div className={styles.createRow}>
+      <form onSubmit={handleCreate} className={styles["create-form"]}>
+        <div className={styles["create-row"]}>
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="Label (e.g. Claude Desktop)"
-            className={styles.labelInput}
+            className={styles["label-input"]}
           />
-          <button type="submit" className={styles.generateButton}>
+          <button type="submit" className={styles["generate-button"]}>
             Generate key
           </button>
         </div>
-        <label className={styles.globalCheckboxLabel}>
+        <label className={styles["global-checkbox-label"]}>
           <input type="checkbox" checked={global} onChange={(e) => setGlobal(e.target.checked)} />
           Valid for all trips, not just this one — generate this once and reuse it everywhere instead of making a
           new key per trip.
@@ -121,39 +121,39 @@ export default function ApiKeysManager({ trip }: ApiKeysManagerProps) {
       </form>
 
       {loading ? (
-        <p className={styles.mutedText}>Loading...</p>
+        <p className={styles["muted-text"]}>Loading...</p>
       ) : keys.length === 0 ? (
-        <p className={styles.mutedText}>No keys yet.</p>
+        <p className={styles["muted-text"]}>No keys yet.</p>
       ) : (
-        <div className={styles.keyList}>
+        <div className={styles["key-list"]}>
           {keys.map((k) => (
-            <div key={k.id} className={k.revoked ? styles.keyCardRevoked : styles.keyCard}>
-              <div className={styles.keyCardTop}>
+            <div key={k.id} className={k.revoked ? styles["key-card-revoked"] : styles["key-card"]}>
+              <div className={styles["key-card-top"]}>
                 <div>
-                  <div className={styles.keyLabel}>
+                  <div className={styles["key-label"]}>
                     {k.label}
-                    {!k.trip_id && <span className={styles.keyLabelSuffix}>(all trips)</span>}
+                    {!k.trip_id && <span className={styles["key-label-suffix"]}>(all trips)</span>}
                   </div>
-                  <div className={styles.keyMeta}>
+                  <div className={styles["key-meta"]}>
                     Created {new Date(k.created_at).toLocaleDateString()}
                     {k.last_used_at && ` · last used ${new Date(k.last_used_at).toLocaleDateString()}`}
                     {k.revoked && " · revoked"}
                   </div>
                 </div>
                 {!k.revoked && (
-                  <div className={styles.keyActions}>
+                  <div className={styles["key-actions"]}>
                     {k.hasStoredToken && !revealed[k.id] && (
-                      <button onClick={() => handleReveal(k.id)} className={styles.showButton}>
+                      <button onClick={() => handleReveal(k.id)} className={styles["show-button"]}>
                         Show
                       </button>
                     )}
-                    <button onClick={() => handleRevoke(k.id)} className={styles.revokeButton}>
+                    <button onClick={() => handleRevoke(k.id)} className={styles["revoke-button"]}>
                       Revoke
                     </button>
                   </div>
                 )}
               </div>
-              {revealed[k.id] && <code className={styles.tokenCode}>{revealed[k.id]}</code>}
+              {revealed[k.id] && <code className={styles["token-code"]}>{revealed[k.id]}</code>}
             </div>
           ))}
         </div>

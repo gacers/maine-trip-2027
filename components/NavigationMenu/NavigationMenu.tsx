@@ -2,6 +2,7 @@
 
 import { type ComponentPropsWithoutRef, forwardRef } from "react";
 import * as RadixNavigationMenu from "@radix-ui/react-navigation-menu";
+import classNames from "classnames";
 import styles from "./NavigationMenu.module.css";
 
 // A styled wrapper around Radix's NavigationMenu primitive — Radix owns
@@ -21,11 +22,7 @@ export const NavigationMenu = forwardRef<HTMLElement, RootProps>(function Naviga
   ref
 ) {
   return (
-    <RadixNavigationMenu.Root
-      ref={ref}
-      className={[styles.root, className].filter(Boolean).join(" ")}
-      {...props}
-    />
+    <RadixNavigationMenu.Root ref={ref} className={classNames(styles["root"], className)} {...props} />
   );
 });
 
@@ -36,13 +33,13 @@ export const NavigationMenuList = forwardRef<HTMLUListElement, ListProps>(functi
   ref
 ) {
   return (
-    <RadixNavigationMenu.List ref={ref} className={[styles.list, className].filter(Boolean).join(" ")} {...props} />
+    <RadixNavigationMenu.List ref={ref} className={classNames(styles["list"], className)} {...props} />
   );
 });
 
 export const NavigationMenuItem = RadixNavigationMenu.Item;
 
-export type NavigationMenuLinkSize = "md" | "sm" | "menuItem";
+export type NavigationMenuLinkSize = "md" | "sm" | "menu-item";
 
 type LinkProps = ComponentPropsWithoutRef<typeof RadixNavigationMenu.Link> & { size?: NavigationMenuLinkSize };
 
@@ -53,7 +50,7 @@ export const NavigationMenuLink = forwardRef<HTMLAnchorElement, LinkProps>(funct
   return (
     <RadixNavigationMenu.Link
       ref={ref}
-      className={[styles.link, styles[size], className].filter(Boolean).join(" ")}
+      className={classNames(styles["link"], styles[size], className)}
       {...props}
     />
   );
@@ -61,7 +58,15 @@ export const NavigationMenuLink = forwardRef<HTMLAnchorElement, LinkProps>(funct
 
 function ChevronIcon() {
   return (
-    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={styles.chevron}>
+    <svg
+      width={12}
+      height={12}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      className={styles["chevron"]}
+    >
       <path d="m6 9 6 6 6-6" />
     </svg>
   );
@@ -77,7 +82,7 @@ export const NavigationMenuTrigger = forwardRef<HTMLButtonElement, TriggerProps>
     <RadixNavigationMenu.Trigger
       ref={ref}
       data-active={active ? "" : undefined}
-      className={[styles.trigger, className].filter(Boolean).join(" ")}
+      className={classNames(styles["trigger"], className)}
       {...props}
     >
       {children}
@@ -92,15 +97,13 @@ export const NavigationMenuContent = forwardRef<HTMLDivElement, ContentProps>(fu
   { className, ...props },
   ref
 ) {
-  return (
-    <RadixNavigationMenu.Content ref={ref} className={[styles.content, className].filter(Boolean).join(" ")} {...props} />
-  );
+  return <RadixNavigationMenu.Content ref={ref} className={classNames(styles["content"], className)} {...props} />;
 });
 
 export function NavigationMenuViewportWrapper() {
   return (
-    <div className={styles.viewportWrapper}>
-      <RadixNavigationMenu.Viewport className={styles.viewport} />
+    <div className={styles["viewport-wrapper"]}>
+      <RadixNavigationMenu.Viewport className={styles["viewport"]} />
     </div>
   );
 }

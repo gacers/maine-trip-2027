@@ -22,19 +22,19 @@ export default async function TripAdminLayout({
   if (!user) redirect(`/login?next=/${tripSlug}/admin/sections`);
 
   return (
-    <main className={styles.main}>
-      <div className={styles.header}>
-        <Link href={`/${trip.slug}`} className={styles.backLink}>
+    <main className={styles["root"]}>
+      <div className={styles["header"]}>
+        <Link href={`/${trip.slug}`} className={styles["back-link"]}>
           &larr; Back to {trip.name}
         </Link>
-        <nav className={styles.nav}>
-          <Link href={`/${tripSlug}/admin/sections`} className={styles.navLink}>
+        <nav className={styles["nav"]}>
+          <Link href={`/${tripSlug}/admin/sections`} className={styles["nav-link"]}>
             Sections
           </Link>
-          <Link href={`/${tripSlug}/admin/api-keys`} className={styles.navLink}>
+          <Link href={`/${tripSlug}/admin/api-keys`} className={styles["nav-link"]}>
             Invites &amp; API Keys
           </Link>
-          <Link href={`/${tripSlug}/admin/settings`} className={styles.navLink}>
+          <Link href={`/${tripSlug}/admin/settings`} className={styles["nav-link"]}>
             Trip Settings
           </Link>
         </nav>

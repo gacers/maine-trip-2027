@@ -29,10 +29,10 @@ export default async function TripDefaultPage({
 
   if (!firstGroup || !firstSection) {
     return (
-      <main className={styles.emptyMain}>
-        <h1 className={styles.tripName}>{trip.name}</h1>
-        <p className={styles.emptyHint}>This trip doesn&apos;t have any sections yet.</p>
-        <Link href={`/${tripSlug}/admin/sections/new`} className={styles.addSectionButton}>
+      <main className={styles["root"]}>
+        <h1 className={styles["trip-name"]}>{trip.name}</h1>
+        <p className={styles["empty-hint"]}>This trip doesn&apos;t have any sections yet.</p>
+        <Link href={`/${tripSlug}/admin/sections/new`} className={styles["add-section-button"]}>
           + Add a section
         </Link>
       </main>

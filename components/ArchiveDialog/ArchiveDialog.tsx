@@ -43,25 +43,30 @@ export default function ArchiveDialog({ open, onOpenChange, onConfirm }: Archive
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogTitle>Why archive this?</DialogTitle>
-        <div className={styles.presetList}>
+        <div className={styles["preset-list"]}>
           {PRESET_REASONS.map((reason) => (
-            <label key={reason} className={styles.presetLabel}>
-              <input type="checkbox" checked={selected.has(reason)} onChange={() => toggle(reason)} className={styles.checkbox} />
+            <label key={reason} className={styles["preset-label"]}>
+              <input
+                type="checkbox"
+                checked={selected.has(reason)}
+                onChange={() => toggle(reason)}
+                className={styles["checkbox"]}
+              />
               {reason}
             </label>
           ))}
         </div>
-        <label className={styles.otherLabel}>
+        <label className={styles["other-label"]}>
           Other (optional)
           <textarea
             value={other}
             onChange={(e) => setOther(e.target.value)}
             rows={2}
             placeholder="Any other reason..."
-            className={styles.otherTextarea}
+            className={styles["other-textarea"]}
           />
         </label>
-        <div className={styles.actions}>
+        <div className={styles["actions"]}>
           <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

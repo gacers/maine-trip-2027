@@ -55,9 +55,9 @@ export default function RequestAccess({ trip, section, contactEmail, triggerClas
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Anything you want to mention (optional)"
           rows={3}
-          className={styles.textarea}
+          className={styles["textarea"]}
         />
-        <div className={styles.actions}>
+        <div className={styles["actions"]}>
           <Button variant="primary" size="sm" asChild>
             <a href={mailtoHref}>Open email to request access</a>
           </Button>

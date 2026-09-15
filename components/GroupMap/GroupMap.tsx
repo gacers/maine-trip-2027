@@ -56,11 +56,11 @@ export default function GroupMap({ listings, mapConfig }: GroupMapProps) {
 
   return (
     <>
-      <div className={styles.section}>
+      <div className={styles["section"]}>
         <ListingMapView {...listingMapData} />
       </div>
       {(listingMapData.closestTown || listingMapData.showReferencePoints) && (
-        <div className={styles.section}>
+        <div className={styles["section"]}>
           <ListingMapDetails {...listingMapData} />
         </div>
       )}

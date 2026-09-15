@@ -1,10 +1,10 @@
-.wrapper {
+.root {
   display: inline-flex;
   align-items: center;
   gap: 0.125rem;
 }
 
-.starBox {
+.star-box {
   position: relative;
   display: inline-block;
 }
@@ -15,7 +15,7 @@
   color: var(--color-zinc-300);
 }
 
-.fillClip {
+.fill-clip {
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -26,7 +26,7 @@
   color: var(--color-amber-400);
 }
 
-.halfButton {
+.half-button {
   position: absolute;
   inset-block: 0;
   left: 0;
@@ -39,8 +39,8 @@
   padding: 0;
 }
 
-.wholeButton {
-  composes: halfButton;
+.whole-button {
+  composes: half-button;
   left: auto;
   right: 0;
 }

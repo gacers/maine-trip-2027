@@ -1,4 +1,4 @@
-.main {
+.root {
   max-width: 48rem;
   margin-inline: auto;
   padding: 1.5rem 1rem 4rem;
@@ -15,7 +15,7 @@
   gap: 0.5rem;
 }
 
-.backLink {
+.back-link {
   font-size: var(--text-xs);
   color: var(--color-zinc-500);
 
@@ -29,7 +29,7 @@
   gap: 0.5rem;
 }
 
-.navLink {
+.nav-link {
   border-radius: var(--radius-full);
   border: 1px solid var(--color-zinc-300);
   background: var(--color-white);

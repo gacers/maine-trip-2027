@@ -77,14 +77,14 @@ export default function OverviewMap({ pins }: OverviewMapProps) {
   if (validPins.length === 0) return null;
 
   return (
-    <div className={styles.card}>
-      <h2 className={styles.heading}>All Locations</h2>
+    <div className={styles["root"]}>
+      <h2 className={styles["heading"]}>All Locations</h2>
       {status === "error" ? (
-        <p className={styles.errorBox}>Couldn&apos;t load the map ({errorMsg}).</p>
+        <p className={styles["error-box"]}>Couldn&apos;t load the map ({errorMsg}).</p>
       ) : (
-        <div ref={mapDivRef} className={styles.mapCanvas} />
+        <div ref={mapDivRef} className={styles["map-canvas"]} />
       )}
-      <p className={styles.hint}>Click a pin to jump to that listing.</p>
+      <p className={styles["hint"]}>Click a pin to jump to that listing.</p>
     </div>
   );
 }

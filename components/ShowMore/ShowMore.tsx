@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import classNames from "classnames";
 import styles from "./ShowMore.module.css";
 
 export interface ShowMoreProps {
@@ -51,18 +52,20 @@ export default function ShowMore({ children, maxHeight = 320, fadeColor = "var(-
   const style: CSSProperties | undefined = overflowing ? { maxHeight: expanded ? contentHeight! : maxHeight } : undefined;
 
   return (
-    <div className={[styles.wrapper, className].filter(Boolean).join(" ")}>
-      <div ref={contentRef} className={styles.content} style={style}>
+    <div className={classNames(styles["root"], className)}>
+      <div ref={contentRef} className={styles["content"]} style={style}>
         {children}
         {/* Lives inside .content (not as a sibling) so it always sits
             flush against the real bottom edge of the clipped box,
             whatever the toggle button's own height happens to be —
             .content's own overflow:hidden only clips what's outside
             that box, not this. */}
-        {overflowing && !expanded && <div className={styles.fade} style={{ ["--show-more-fade-color" as string]: fadeColor }} />}
+        {overflowing && !expanded && (
+          <div className={styles["fade"]} style={{ ["--show-more-fade-color" as string]: fadeColor }} />
+        )}
       </div>
       {overflowing && (
-        <button type="button" onClick={() => setExpanded((v) => !v)} className={styles.toggleButton}>
+        <button type="button" onClick={() => setExpanded((v) => !v)} className={styles["toggle-button"]}>
           {expanded ? "Show less" : "Show more"}
         </button>
       )}

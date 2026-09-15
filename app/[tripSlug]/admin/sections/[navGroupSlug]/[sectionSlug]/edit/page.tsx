@@ -19,8 +19,8 @@ export default async function EditSectionPage({
   const navGroups = nav.map(({ sections, ...g }) => g);
 
   return (
-    <div className={styles.wrapper}>
-      <h1 className={styles.heading}>Edit {section.label}</h1>
+    <div className={styles["root"]}>
+      <h1 className={styles["heading"]}>Edit {section.label}</h1>
       <SectionForm trip={trip} navGroups={navGroups} section={section} />
     </div>
   );

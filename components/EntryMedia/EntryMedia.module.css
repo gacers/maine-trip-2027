@@ -5,7 +5,7 @@
    photo's own dimensions — object-fit: cover + object-position: center
    below crops whatever comes in around its middle rather than
    stretching or letterboxing it. */
-.mediaHeader {
+.root {
   position: relative;
   width: 100%;
   height: 13rem;
@@ -13,29 +13,29 @@
   flex-shrink: 0;
 }
 
-.mediaHeaderCompact {
-  composes: mediaHeader;
+.root-compact {
+  composes: root;
   height: 11rem;
 }
 
-.mediaHeaderLarge {
-  composes: mediaHeader;
+.root-large {
+  composes: root;
   height: 20rem;
 }
 
-.mediaHeaderMedium {
-  composes: mediaHeader;
+.root-medium {
+  composes: root;
   height: 15rem;
 }
 
-.mediaImg {
+.media-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
 }
 
-.scoreBadge {
+.score-badge {
   position: absolute;
   z-index: 1;
   top: 0.75rem;

@@ -1,4 +1,4 @@
-.spinner {
+.root {
   display: inline-block;
   box-sizing: border-box;
   border-radius: var(--radius-full);

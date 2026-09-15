@@ -65,7 +65,7 @@
 /* A Link used as a row inside an open dropdown Content, instead of a
    top-level flat nav item — block, full width, its own padding/hover
    background rather than the top row's plain color-change treatment. */
-.menuItem {
+.menu-item {
   display: block;
   width: 100%;
   border-radius: var(--radius);
@@ -103,7 +103,7 @@
   gap: 0.125rem;
 }
 
-.viewportWrapper {
+.viewport-wrapper {
   position: absolute;
   top: 100%;
   left: 0;

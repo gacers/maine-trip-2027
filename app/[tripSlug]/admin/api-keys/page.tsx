@@ -12,15 +12,15 @@ export default async function ApiKeysPage({ params }: { params: Promise<{ tripSl
   if (!trip) notFound();
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.section}>
-        <h1 className={styles.heading}>Invite links</h1>
+    <div className={styles["root"]}>
+      <div className={styles["section"]}>
+        <h1 className={styles["heading"]}>Invite links</h1>
         <InviteLinksManager trip={trip} />
       </div>
 
-      <div className={styles.divider}>
-        <h1 className={styles.heading}>API Keys</h1>
-        <p className={styles.intro}>
+      <div className={styles["divider"]}>
+        <h1 className={styles["heading"]}>API Keys</h1>
+        <p className={styles["intro"]}>
           Used by Claude Desktop (or any other automation) to add/edit entries in this trip without signing in —
           see docs/claude-desktop-add-prompts.md for how to wire one up.
         </p>

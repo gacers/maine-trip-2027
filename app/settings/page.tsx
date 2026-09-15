@@ -13,8 +13,8 @@ export default async function SettingsPage() {
   const settings = await getAppSettings();
 
   return (
-    <main className={styles.main}>
-      <h1 className={styles.heading}>Settings</h1>
+    <main className={styles["root"]}>
+      <h1 className={styles["heading"]}>Settings</h1>
       <SettingsForm settings={settings} />
     </main>
   );

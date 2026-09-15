@@ -12,8 +12,8 @@ import styles from "./page.module.css";
 // a Suspense boundary or the build fails on prerendering this page.
 export default function LoginPage() {
   return (
-    <main className={styles.main}>
-      <h1 className={styles.heading}>Sign in</h1>
+    <main className={styles["root"]}>
+      <h1 className={styles["heading"]}>Sign in</h1>
       <Suspense fallback={null}>
         <LoginForm />
       </Suspense>

@@ -15,18 +15,18 @@ export interface TripCardProps {
 // rather than being skipped or looking broken.
 export default function TripCard({ trip, dateLabel }: TripCardProps) {
   return (
-    <Link href={`/${trip.slug}`} className={styles.card}>
-      <div className={styles.photoFrame}>
+    <Link href={`/${trip.slug}`} className={styles["root"]}>
+      <div className={styles["photo-frame"]}>
         {trip.cover_image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={trip.cover_image} alt="" className={styles.photo} />
+          <img src={trip.cover_image} alt="" className={styles["photo"]} />
         ) : (
-          <div className={styles.photoFallback} />
+          <div className={styles["photo-fallback"]} />
         )}
-        <div className={styles.scrim} />
-        <div className={styles.textBlock}>
-          <div className={styles.name}>{trip.name}</div>
-          <div className={styles.dateRow}>
+        <div className={styles["scrim"]} />
+        <div className={styles["text-block"]}>
+          <div className={styles["name"]}>{trip.name}</div>
+          <div className={styles["date-row"]}>
             <Calendar size={14} />
             <span>{dateLabel || "Dates TBD"}</span>
           </div>

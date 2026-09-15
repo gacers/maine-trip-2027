@@ -10,8 +10,8 @@ export default async function NewTripPage() {
   if (!user) redirect("/login?next=/trips/new");
 
   return (
-    <main className={styles.main}>
-      <h1 className={styles.heading}>New trip</h1>
+    <main className={styles["root"]}>
+      <h1 className={styles["heading"]}>New trip</h1>
       <NewTripForm />
     </main>
   );

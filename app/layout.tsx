@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={styles.html}>
-      <body className={styles.body}>
+    <html lang="en" className={styles["html"]}>
+      <body className={styles["body"]}>
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>

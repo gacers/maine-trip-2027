@@ -42,7 +42,7 @@ export default function PairEntryDialog({
 }: PairEntryDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={styles.content}>
+      <DialogContent className={styles["content"]}>
         <DialogTitle>Add a paired option</DialogTitle>
         <AddEntryForm
           trip={trip}

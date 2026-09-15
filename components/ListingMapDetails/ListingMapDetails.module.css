@@ -1,4 +1,4 @@
-.wrapper {
+.root {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -21,6 +21,6 @@
   }
 }
 
-.loadingRow {
+.loading-row {
   color: var(--color-zinc-400);
 }

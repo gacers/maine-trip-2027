@@ -13,8 +13,8 @@ export default async function NewSectionPage({ params }: { params: Promise<{ tri
   const navGroups = nav.map(({ sections, ...g }) => g);
 
   return (
-    <div className={styles.wrapper}>
-      <h1 className={styles.heading}>New section</h1>
+    <div className={styles["root"]}>
+      <h1 className={styles["heading"]}>New section</h1>
       <SectionForm trip={trip} navGroups={navGroups} />
     </div>
   );

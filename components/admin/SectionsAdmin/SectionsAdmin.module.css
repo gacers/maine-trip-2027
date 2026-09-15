@@ -1,4 +1,4 @@
-.wrapper {
+.root {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -16,7 +16,7 @@
   color: var(--color-zinc-900);
 }
 
-.newSectionButton {
+.new-section-button {
   border-radius: var(--radius);
   background: var(--color-zinc-900);
   color: var(--color-white);
@@ -35,13 +35,13 @@
   padding: 0.5rem;
 }
 
-.templatesSection {
+.templates-section {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.sectionHeading {
+.section-heading {
   font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -49,18 +49,18 @@
   font-weight: var(--font-weight-medium);
 }
 
-.templatesHint {
+.templates-hint {
   font-size: var(--text-xs);
   color: var(--color-zinc-500);
 }
 
-.templateList {
+.template-list {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.templateButton {
+.template-button {
   border-radius: var(--radius-full);
   border: 1px solid var(--color-zinc-300);
   background: var(--color-white);
@@ -79,24 +79,24 @@
   }
 }
 
-.emptyHint {
+.empty-hint {
   color: var(--color-zinc-500);
   font-size: var(--text-sm);
 }
 
-.groupSection {
+.group-section {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.sectionList {
+.section-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.sectionCard {
+.section-card {
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-zinc-200);
   background: var(--color-white);
@@ -106,29 +106,29 @@
   justify-content: space-between;
 }
 
-.sectionCardDisabled {
-  composes: sectionCard;
+.section-card-disabled {
+  composes: section-card;
   background: var(--color-zinc-50);
   opacity: 0.6;
 }
 
-.sectionLabel {
+.section-label {
   font-weight: var(--font-weight-medium);
   color: var(--color-zinc-900);
 }
 
-.sectionMeta {
+.section-meta {
   font-size: var(--text-xs);
   color: var(--color-zinc-500);
 }
 
-.sectionActions {
+.section-actions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
-.enabledCheckboxLabel {
+.enabled-checkbox-label {
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -136,12 +136,12 @@
   color: var(--color-zinc-600);
 }
 
-.enabledCheckbox {
+.enabled-checkbox {
   height: 0.875rem;
   width: 0.875rem;
 }
 
-.editLink {
+.edit-link {
   font-size: var(--text-sm);
   color: var(--color-blue-600);
 
