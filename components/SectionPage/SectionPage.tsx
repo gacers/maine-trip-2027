@@ -452,6 +452,21 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     );
   const pins = activeUnits.map(pinFor);
 
+  // A paired option counts as visited if either half does — practically,
+  // marking either listing means "we did this option," not that only
+  // one specific half happened.
+  function unitIsVisited(unit: EntryUnit): boolean {
+    return unit.listings.some((l) => l.visited);
+  }
+  // Once a trip is completed, the active list splits into "what we
+  // actually did" and "researched, didn't get to" — a pure display
+  // grouping (keeps activeUnits' own sortBy order within each group),
+  // nothing archived to produce it. A still-Pending trip keeps the
+  // single flat list (visited isn't even shown yet — see EntryCard's
+  // showVisitedControl).
+  const visitedUnits = trip.completed ? activeUnits.filter(unitIsVisited) : [];
+  const notVisitedUnits = trip.completed ? activeUnits.filter((u) => !unitIsVisited(u)) : activeUnits;
+
   function renderUnit(unit: EntryUnit) {
     if (unit.type === "group") {
       return (
@@ -691,7 +706,24 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
           {activeUnits.length === 0 && (
             <p className={styles.emptyText}>{active.length === 0 ? section.empty_message : "Nothing matches the selected filters."}</p>
           )}
-          <div className={listClassName}>{activeUnits.map(renderUnit)}</div>
+          {trip.completed ? (
+            <>
+              {visitedUnits.length > 0 && (
+                <div className={styles.completionGroup}>
+                  <h2 className={styles.groupHeading}>{section.supports_pairing ? "Where You Stayed" : "Visited"}</h2>
+                  <div className={listClassName}>{visitedUnits.map(renderUnit)}</div>
+                </div>
+              )}
+              {notVisitedUnits.length > 0 && (
+                <div className={styles.completionGroup}>
+                  <h2 className={styles.groupHeading}>Researched — Not Visited</h2>
+                  <div className={listClassName}>{notVisitedUnits.map(renderUnit)}</div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className={listClassName}>{activeUnits.map(renderUnit)}</div>
+          )}
 
           {archived.length > 0 && (
             <div className={styles.archivedSection}>

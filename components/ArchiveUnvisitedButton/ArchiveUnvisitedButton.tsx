@@ -28,14 +28,18 @@ interface PreviewState {
   totalArchived: number;
 }
 
-// Admin-only, deliberately a separate explicit action from the
-// Completed checkbox itself (see TripSettingsForm) rather than
-// something that fires the moment Completed is saved — nothing gets
-// archived by a stray click before there's been a chance to check off
-// what was actually stayed at/visited (see EntryCard's own Stayed/
-// Visited control). Lives in the nav bar (not tucked into Trip
-// Settings) so it's visible right where you're looking at the trip's
-// own sections, not off on a settings page.
+// Admin-only, and purely optional — a completed trip's own sections
+// already split into "what you did" vs. "researched, not visited" in
+// the normal view (see SectionPage) without archiving anything, so
+// this isn't needed just to see that distinction. It's for whoever
+// wants the unused research actually tidied away into the archived
+// list permanently once they're done looking at it — still
+// restorable from there afterward, never truly gone. Deliberately a
+// separate explicit action from the Completed checkbox itself (see
+// TripSettingsForm), not something that fires the moment Completed is
+// saved, and lives on the Settings page (not the nav bar) right next
+// to that checkbox — see TripNavHeader's own comment on why it isn't
+// there.
 export default function ArchiveUnvisitedButton({ trip, nav, triggerClassName }: ArchiveUnvisitedButtonProps) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -91,14 +95,15 @@ export default function ArchiveUnvisitedButton({ trip, nav, triggerClassName }: 
   return (
     <>
       <Button variant="ghost" size="sm" onClick={openAndPreview} className={triggerClassName}>
-        Archive unvisited
+        Tidy up unvisited research
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogTitle>Archive everything not stayed/visited?</DialogTitle>
+          <DialogTitle>Archive the research you didn&apos;t end up using?</DialogTitle>
           <DialogDescription>
-            Anything still unchecked gets archived (not deleted — restorable from each section&apos;s own archived
-            list afterward). Nothing checked Stayed/Visited is touched.
+            Optional — each section already shows what you did vs. what you just researched, nothing hidden. This
+            moves anything still unchecked into the archived list (not deleted — still restorable there afterward).
+            Nothing checked Stayed/Visited is touched.
           </DialogDescription>
 
           {loading && <p className={styles.status}>Loading…</p>}

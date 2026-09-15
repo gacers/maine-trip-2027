@@ -156,7 +156,13 @@ export async function exportSectionOrThrow(
   const showRank = !!section.supports_ranking;
   const showRatings = !!section.supports_ratings;
   const showRankColumn = showRank || showRatings;
-  const header = buildHeader(overviewFields, showRankColumn, showRatings);
+  // A plain log-style section (no Status column of its own) still
+  // needs some way to show "did this actually happen" once the trip
+  // is over — a Status-flavored section instead just enriches its
+  // existing "Active" label to "Visited" (see statusLabelFor), so the
+  // two never both apply to the same section.
+  const showVisitedColumn = trip.completed && !showRankColumn;
+  const header = buildHeader(overviewFields, showRankColumn, showRatings, showVisitedColumn);
   const tabName = sanitizeTabName(section.label);
   const { sheetId, lastCol } = await ensureTab(sheets, spreadsheetId!, tabName, header);
 
@@ -204,27 +210,32 @@ export async function exportSectionOrThrow(
     }));
   }
 
-  // Only sections that show archived rows at all (showRankColumn —
-  // everywhere else drops them from the export entirely, above) have
-  // anything worth reordering here: active rows first, archived ones
-  // pushed down after, each group keeping its own existing relative
-  // order (a stable partition, not a re-sort) so the highlighted block
-  // is exactly "everything still on the list."
-  if (showRankColumn) {
-    const activeUnits = units.filter((u) => !unitIsArchived(u));
-    const archivedUnits = units.filter((u) => unitIsArchived(u));
-    units = [...activeUnits, ...archivedUnits];
+  // Reordered into up to 3 tiers — visited (once the trip is
+  // completed), then everything else still active, then archived —
+  // each tier keeping its own existing relative order (Array#sort is
+  // stable; this is a partition, not a re-sort within a tier). Skipped
+  // entirely pre-completion for a section with no Status column at
+  // all (nothing archived ever reaches `units` there to begin with,
+  // and visited isn't a meaningful distinction yet — see
+  // showVisitedControl on the site itself).
+  if (showRankColumn || trip.completed) {
+    units = [...units].sort((a, b) => unitTier(a, trip.completed) - unitTier(b, trip.completed));
   }
 
   const rows = units.map((u) =>
-    buildRow(u, overviewFields, trip, section, navGroupSlug, siteUrl, inviteToken, showRankColumn, showRatings)
+    buildRow(u, overviewFields, trip, section, navGroupSlug, siteUrl, inviteToken, showRankColumn, showRatings, trip.completed, showVisitedColumn)
   );
 
   await syncTabData(sheets, spreadsheetId!, tabName, lastCol, rows);
 
-  if (showRankColumn) {
-    const activeRowCount = units.filter((u) => !unitIsArchived(u)).length;
-    await applyActiveRowHighlight(sheets, spreadsheetId!, sheetId, activeRowCount);
+  // Same tiering as above: highlight means "not archived" before the
+  // trip is completed (still a live option), and narrows to "visited"
+  // specifically once it is (an active-but-unvisited row no longer
+  // gets the same treatment as one that's actually part of the
+  // record) — reset every export either way, see the function itself.
+  if (showRankColumn || trip.completed) {
+    const highlightCount = units.filter((u) => unitTier(u, trip.completed) === 0).length;
+    await applyActiveRowHighlight(sheets, spreadsheetId!, sheetId, highlightCount);
   }
 
   return { spreadsheetId: spreadsheetId!, spreadsheetUrl: spreadsheetUrl! };
@@ -252,6 +263,24 @@ function unitIsArchived(unit: EntryUnit): boolean {
   return unit.listings.every((l) => l.status === "archived");
 }
 
+// A paired option counts as visited if either half does — same
+// reasoning as EntryCard's own per-entry control: checking either
+// listing means "we did this option," not that only one specific half
+// happened.
+function unitIsVisited(unit: EntryUnit): boolean {
+  return unit.listings.some((l) => l.visited);
+}
+
+// Reduces to the exact pre-completion 2-tier ordering (active, then
+// archived) when the trip isn't completed yet — visited isn't a
+// meaningful distinction before then. Once it is, splits the active
+// tier in two: visited first, then everything still just researched.
+function unitTier(unit: EntryUnit, tripCompleted: boolean): number {
+  if (unitIsArchived(unit)) return tripCompleted ? 2 : 1;
+  if (tripCompleted) return unitIsVisited(unit) ? 0 : 1;
+  return 0;
+}
+
 function sanitizeTabName(label: string): string {
   // Sheets tab names can't contain [ ] * ? : / \ and top out at 100
   // chars — leave headroom since Google may append its own suffix on a
@@ -276,7 +305,9 @@ function splitOverviewFields(overviewFields: FieldDef[]): { plain: FieldDef[]; t
 // reason, so it's the only one that gets a Status column at all —
 // everywhere else, exportSection filters archived entries out
 // entirely rather than showing them with nothing to explain why.
-function buildHeader(overviewFields: FieldDef[], stillDeciding: boolean, showRatings: boolean): string[] {
+// showVisitedColumn is that same section's own stand-in for Status
+// once the trip's completed — see exportSectionOrThrow.
+function buildHeader(overviewFields: FieldDef[], stillDeciding: boolean, showRatings: boolean, showVisitedColumn: boolean): string[] {
   const { plain, typeFields } = splitOverviewFields(overviewFields);
   const header = stillDeciding ? ["Rank", "Property"] : ["Property"];
   for (const f of plain) {
@@ -286,6 +317,7 @@ function buildHeader(overviewFields: FieldDef[], stillDeciding: boolean, showRat
   if (typeFields.length > 0) header.push("Type");
   if (showRatings) header.push("Average Score");
   if (stillDeciding) header.push("Status");
+  if (showVisitedColumn) header.push("Visited");
   header.push("Description", "Concerns", "Notes");
   return header;
 }
@@ -300,8 +332,14 @@ function colLetter(n: number): string {
   return s;
 }
 
-function statusLabelFor(item: ClientEntry): string {
-  return item.status === "archived" ? `Archived${item.archiveReason ? ` (${item.archiveReason})` : ""}` : "Active";
+// Once the trip is completed, an active row's own label narrows from
+// generic "Active" to "Visited"/"Active" depending on whether it's
+// actually part of what happened — same distinction showVisitedColumn
+// gives a plain log-style section its own column for.
+function statusLabelFor(item: ClientEntry, tripCompleted: boolean): string {
+  if (item.status === "archived") return `Archived${item.archiveReason ? ` (${item.archiveReason})` : ""}`;
+  if (tripCompleted) return item.visited ? "Visited" : "Active";
+  return "Active";
 }
 
 // "Closed" is the one true boolean type worth leading with — everything
@@ -324,7 +362,9 @@ function buildRow(
   siteUrl: string,
   inviteToken: string,
   stillDeciding: boolean,
-  showRatings: boolean
+  showRatings: boolean,
+  tripCompleted: boolean,
+  showVisitedColumn: boolean
 ): (string | number)[] {
   const anchor = unit.listings.length > 1 ? `group-${unit.listings[0].id}` : `listing-${unit.listings[0].id}`;
   // The invite param comes before the #anchor (query strings precede
@@ -357,7 +397,10 @@ function buildRow(
     row.push(unit.listings.map((l) => (l.averageScore != null ? l.averageScore.toFixed(1) : "")).join("\n"));
   }
   if (stillDeciding) {
-    row.push(unit.listings.map(statusLabelFor).join("\n"));
+    row.push(unit.listings.map((l) => statusLabelFor(l, tripCompleted)).join("\n"));
+  }
+  if (showVisitedColumn) {
+    row.push(unit.listings.map((l) => (l.visited ? "Yes" : "")).join("\n"));
   }
   row.push(unit.listings.map((l) => l.description || "").join("\n---\n"));
   row.push(unit.listings.map((l) => l.concerns || "").join("\n---\n"));
@@ -514,19 +557,20 @@ async function syncTabData(
   }
 }
 
-// A light green background on every still-active row (rows.length may
-// shrink between exports as things get archived, so this always resets
-// the whole data range to no fill first — otherwise a row that was
-// green because it was active on a previous export stays green forever
-// even after being archived, since clearing cell *values* doesn't
-// touch formatting). Same "non-fatal" philosophy as the rest of this
-// file's formatting calls — a coloring hiccup can't break the export
-// itself.
+// A light green background on the first `highlightRowCount` data
+// rows — whatever unitTier already sorted to the top (still-active
+// before the trip's completed, visited specifically once it is; see
+// exportSectionOrThrow). Always resets the whole data range to no fill
+// first (row counts shift between exports as things change status),
+// otherwise a row that was highlighted on a previous export stays that
+// way forever, since clearing cell *values* doesn't touch formatting.
+// Same "non-fatal" philosophy as the rest of this file's formatting
+// calls — a coloring hiccup can't break the export itself.
 async function applyActiveRowHighlight(
   sheets: sheets_v4.Sheets,
   spreadsheetId: string,
   sheetId: number,
-  activeRowCount: number
+  highlightRowCount: number
 ): Promise<void> {
   try {
     const requests: sheets_v4.Schema$Request[] = [
@@ -538,10 +582,10 @@ async function applyActiveRowHighlight(
         },
       },
     ];
-    if (activeRowCount > 0) {
+    if (highlightRowCount > 0) {
       requests.push({
         repeatCell: {
-          range: { sheetId, startRowIndex: 1, endRowIndex: 1 + activeRowCount },
+          range: { sheetId, startRowIndex: 1, endRowIndex: 1 + highlightRowCount },
           cell: { userEnteredFormat: { backgroundColor: { red: 0.85, green: 0.94, blue: 0.83 } } },
           fields: "userEnteredFormat.backgroundColor",
         },
