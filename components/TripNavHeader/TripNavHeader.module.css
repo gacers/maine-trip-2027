@@ -30,6 +30,17 @@
   gap: 0.5rem 1rem;
   background: var(--color-zinc-50);
   border-top: 1px solid var(--color-zinc-200);
+
+  /* A single-section group (no .subNavMenu rendered) with nothing
+     portaled into .navSlotTarget either (no filterable fields, no
+     ratings, no Sheet access yet) has nothing to actually show here —
+     collapsed to zero visible size instead of an empty gray bar. Pure
+     CSS: the browser re-evaluates :has() live as the portal's real DOM
+     content is added/removed, no React state needed to track it. */
+  &:not(:has(.subNavMenu)):not(:has(.navSlotTarget > *)) {
+    padding-block: 0;
+    border-top: none;
+  }
 }
 
 /* Hidden below 1024px — the hamburger menu already lists these nested

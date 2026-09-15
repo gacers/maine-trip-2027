@@ -643,7 +643,7 @@ export default function EntryCard({
               )}
 
               <label className={styles.field}>
-                House latitude
+                Latitude
                 <input
                   value={draft.lat}
                   onChange={(e) => setDraft({ ...draft, lat: e.target.value })}
@@ -651,7 +651,7 @@ export default function EntryCard({
                 />
               </label>
               <label className={styles.field}>
-                House longitude
+                Longitude
                 <input
                   value={draft.lng}
                   onChange={(e) => setDraft({ ...draft, lng: e.target.value })}

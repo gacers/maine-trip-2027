@@ -116,11 +116,20 @@ for (const template of SECTION_TEMPLATES) {
   }
 }
 
-// Extra Food & Drink type tags, alongside whatever an admin already
-// added by hand via the Section Designer (e.g. Restaurant/Bar/Cafe) —
-// same generic boolean-field-as-filter/eyebrow mechanism as Closed
-// above, just specific to places that make their own alcohol.
+// Food & Drink's own type tags — same generic boolean-field-as-filter/
+// eyebrow mechanism as Closed above. Matches every type tag Maine 2027
+// actually ended up using (added by hand over time, one at a time, as
+// real listings needed them) except Seafood Shack and Oyster Farm —
+// specific enough to a coastal Maine trip that they don't belong in
+// every new trip's starting point; add them by hand via the Section
+// Designer if a trip actually needs them.
 const FOOD_DRINK_TYPE_FIELD_DEFS: TemplateFieldDef[] = [
+  { key: "restaurant", label: "Restaurant", field_type: "boolean", show_on_overview: true },
+  { key: "bar", label: "Bar", field_type: "boolean", show_on_overview: true },
+  { key: "cafe", label: "Cafe", field_type: "boolean", show_on_overview: true },
+  { key: "breakfast", label: "Breakfast", field_type: "boolean", show_on_overview: true },
+  { key: "lunch", label: "Lunch", field_type: "boolean", show_on_overview: true },
+  { key: "dinner", label: "Dinner", field_type: "boolean", show_on_overview: true },
   { key: "winery", label: "Winery", field_type: "boolean", show_on_overview: true },
   { key: "distillery", label: "Distillery", field_type: "boolean", show_on_overview: true },
   { key: "brewery", label: "Brewery", field_type: "boolean", show_on_overview: true },

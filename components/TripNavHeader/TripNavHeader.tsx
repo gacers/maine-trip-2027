@@ -166,8 +166,18 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
               these nested under their group — plus a slot on the right
               that SectionPage portals its filter/sort controls into
               (see NavSlot), so they visually live in this bar instead
-              of their own separate row. Always rendered (even with a
-              single-section group) so that slot always has a home. */}
+              of their own separate row. Always mounted, even with a
+              single-section group and nothing to portal in, so the
+              slot always has a stable home the moment either shows up.
+              Collapses to zero visible size on its own (a pure CSS
+              :has() rule below) rather than an empty gray bar whenever
+              there's genuinely nothing to show — no JS/context needed:
+              a portal's content is real DOM the browser's own :has()
+              matching reacts to directly the moment it's added,
+              without the SSR/hydration-timing mismatch a React-state
+              version of this would have (the portal target is always
+              empty during server rendering no matter what will
+              eventually render into it once hydrated). */}
           {activeGroup && (
             <div className={styles.subNavRow}>
               {activeGroup.sections.length > 1 && (

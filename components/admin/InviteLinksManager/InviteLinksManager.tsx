@@ -24,6 +24,12 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
   const [rotating, setRotating] = useState(false);
   const [rotateMsg, setRotateMsg] = useState("");
   const [revealed, setRevealed] = useState<Record<string, string>>({});
+  // Mirrors trip.google_sheet_url, updated locally once a fresh export
+  // creates it — the server-fetched `trip` prop otherwise wouldn't
+  // reflect that until the next page load.
+  const [sheetUrl, setSheetUrl] = useState(trip.google_sheet_url ?? null);
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState("");
   const apiBase = `/api/trips/${trip.slug}/api-keys`;
 
   async function load() {
@@ -100,6 +106,32 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
     }
   }
 
+  // The Sheet is otherwise created lazily — the first time any
+  // section's entries actually get written to (see
+  // lib/sheetsExport.ts's exportSection) — which leaves a brand-new
+  // trip with no Sheet, and nothing on the page saying so or offering
+  // a way to get one sooner. This triggers a real export of every
+  // section right now, whether that's the very first one (creating
+  // the spreadsheet from scratch, even with nothing in it yet) or a
+  // manual re-sync of a Sheet that already exists.
+  async function handleExportSheet() {
+    setExporting(true);
+    setExportMsg("");
+    setError("");
+    try {
+      const res = await fetch(`/api/trips/${trip.slug}/sheet-export`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Export failed");
+      const wasAlreadyLinked = !!sheetUrl;
+      setSheetUrl(data.spreadsheetUrl);
+      setExportMsg(wasAlreadyLinked ? "Done — every section re-exported." : "Done — the Sheet is ready.");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function handleRotateSheetInvite() {
     setRotating(true);
     setRotateMsg("");
@@ -125,23 +157,33 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
 
       <div className={styles.sheetAccessBox}>
         <p className={styles.sheetAccessText}>
-          <span className={styles.sheetAccessLabel}>Google Sheet access:</span>{" "}
-          {trip.sheet_invite_token ? (
+          <span className={styles.sheetAccessLabel}>Google Sheet:</span>{" "}
+          {sheetUrl ? (
             <>
-              every link inside the Sheet already carries its own standing invite — anyone you share the Sheet with
-              can click through and add things, no separate invite link needed.
+              <a href={sheetUrl} target="_blank" rel="noopener noreferrer">
+                open it
+              </a>{" "}
+              — every link inside already carries its own standing invite, so anyone you share it with can click
+              through and add things, no separate invite link needed.
             </>
           ) : (
-            <>set up automatically the first time this trip&apos;s Sheet exports.</>
+            <>
+              not created yet — it&apos;s created automatically the first time anyone adds an item to any section.
+              You don&apos;t have to wait for that.
+            </>
           )}
         </p>
-        {trip.sheet_invite_token && (
-          <div className={styles.rotateRow}>
+        <div className={styles.rotateRow}>
+          <button onClick={handleExportSheet} disabled={exporting} className={styles.rotateButton}>
+            {exporting ? (sheetUrl ? "Re-exporting..." : "Creating...") : sheetUrl ? "Re-export all sections now" : "Create the Sheet now"}
+          </button>
+          {sheetUrl && (
             <button onClick={handleRotateSheetInvite} disabled={rotating} className={styles.rotateButton}>
               {rotating ? "Rotating..." : "Rotate (invalidate the Sheet's current links)"}
             </button>
-          </div>
-        )}
+          )}
+        </div>
+        {exportMsg && <p className={styles.rotateMsg}>{exportMsg}</p>}
         {rotateMsg && <p className={styles.rotateMsg}>{rotateMsg}</p>}
       </div>
 

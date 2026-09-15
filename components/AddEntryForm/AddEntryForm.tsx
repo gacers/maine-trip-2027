@@ -162,6 +162,22 @@ export default function AddEntryForm({
     cancelPair();
   }
 
+  // Skips the URL/scrape step entirely — jumps straight to the same
+  // manual-entry fields a failed/partial scrape would leave you with,
+  // for something that was never a URL to begin with (a place you're
+  // adding purely from memory, or one you'd rather just type in by
+  // hand). Uses this section's own field_defs the same as everything
+  // else here, so there's nothing section-specific to wire up.
+  function startBlank() {
+    setUrl("");
+    setFields(initialCoreFields());
+    setData(initialData());
+    setWarnings([]);
+    setCookieWarning(null);
+    setErrorMsg("");
+    setPhase("editing");
+  }
+
   function cancelPair() {
     setPairUrl("");
     setPairPhase("none");
@@ -422,6 +438,11 @@ export default function AddEntryForm({
             work. A share.google link usually can&apos;t be read automatically — type the name instead if it
             doesn&apos;t work.
           </p>
+          {phase === "idle" && (
+            <button type="button" onClick={startBlank} className={styles.startBlankButton}>
+              Or start with a blank entry instead
+            </button>
+          )}
         </form>
       ) : null}
 

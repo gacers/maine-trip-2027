@@ -57,6 +57,20 @@
   color: var(--color-zinc-500);
 }
 
+.startBlankButton {
+  align-self: flex-start;
+  font-size: var(--text-xs);
+  color: var(--color-blue-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .errorMsg {
   font-size: var(--text-sm);
   color: var(--color-red-600);
