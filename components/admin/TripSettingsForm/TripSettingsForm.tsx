@@ -160,7 +160,8 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
         on becomes one plain section instead of an Options/Previously pair, and anything added to a section with no
         ranking/ratings/pairing comes in already checked off Stayed/Visited. Every section now also splits into what
         you actually did vs. what you just researched, right there in the normal view — nothing archived, so your
-        research never disappears just for not being used.
+        research never disappears just for not being used. Turning this back off just hides that split again — any
+        Visited checks and dates already recorded stay saved and come right back if you turn it on again.
       </label>
 
       <div className={styles.poiSection}>
