@@ -1,0 +1,13 @@
+.heading {
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-zinc-500);
+  font-weight: var(--font-weight-medium);
+}
+
+.empty {
+  font-size: var(--text-sm);
+  color: var(--color-zinc-400);
+  font-style: italic;
+}

@@ -1,0 +1,50 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.link {
+  color: var(--color-blue-600);
+  text-decoration: underline;
+  text-decoration-color: var(--color-blue-400);
+  overflow-wrap: break-word;
+
+  &:hover {
+    color: var(--color-blue-700);
+  }
+}
+
+.removable-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.remove-button {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.1s;
+
+  .removable-row:hover & {
+    opacity: 1;
+  }
+}
+
+.add-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.add-input {
+  flex: 1 1 auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-zinc-300);
+  padding: 0.25rem 0.5rem;
+  font-size: var(--text-sm);
+}
+
+.add-trigger {
+  align-self: flex-start;
+}

@@ -1,0 +1,19 @@
+/* Qualified with the element type (not just the class) so this
+   reliably beats BulletList's own flex-direction: column at equal
+   specificity, regardless of which CSS Module's rules happen to load
+   first. */
+ul.list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: var(--text-sm);
+  color: var(--color-zinc-700);
+  white-space: nowrap;
+}

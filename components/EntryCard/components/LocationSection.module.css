@@ -1,0 +1,18 @@
+/* Same shape as every other card section (padding + a divider below) —
+   duplicated locally rather than shared from the parent since this
+   component can render one or two of these blocks on its own. */
+.map,
+.details {
+  padding: 1rem 1.125rem;
+  border-bottom: 1px solid var(--color-zinc-200);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+@media (min-width: 640px) {
+  .map,
+  .details {
+    padding-inline: 1.25rem;
+  }
+}

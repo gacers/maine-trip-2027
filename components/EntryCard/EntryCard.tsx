@@ -1,203 +1,27 @@
 "use client";
 
-import { useEffect, useState, type ReactNode, type FormEvent } from "react";
-import { BedDouble, BedSingle, Bath, Hash } from "lucide-react";
-import { ListingMapView, useListingMap } from "@/components/ListingMap";
-import ListingMapDetails from "@/components/ListingMapDetails";
-import SimplePlaceMap from "@/components/SimplePlaceMap";
-import ArchiveDialog from "@/components/ArchiveDialog";
+import { useEffect, useState } from "react";
+import classNames from "classnames";
 import StarRating from "@/components/StarRating";
 import Button from "@/components/Button";
-import Badge, { assignBadgeVariants } from "@/components/Badge";
+import { assignBadgeVariants } from "@/components/Badge";
 import EntryMedia from "@/components/EntryMedia";
-import BulletList from "@/components/BulletList";
-import ShowMore from "@/components/ShowMore";
+import { useListingMap } from "@/components/ListingMap";
 import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
-import { computeBadge as computePriceBadge, formatPriceDisplay } from "@/lib/fieldTypes/price";
-import FieldInput from "@/components/FieldInput";
+import { toBullets } from "@/lib/fieldTypes/textarea";
+import { isAddressLike } from "./helpers";
+import EntryBadgesRow from "./components/EntryBadgesRow";
+import PriceDisplay from "./components/PriceDisplay";
+import CountsRow, { type CountRow } from "./components/CountsRow";
+import EntryDescription from "./components/EntryDescription";
+import VisitedControl from "./components/VisitedControl";
+import LocationSection from "./components/LocationSection";
+import EntryEditForm, { type EntryDraft } from "./components/EntryEditForm";
+import EditableNoteList from "./components/EditableNoteList";
+import EntryFooter from "./components/EntryFooter";
 import type { ClientEntry, FieldDef, MapConfig, MapReferencePoint } from "@/lib/types";
 import styles from "./EntryCard.module.css";
-
-function toBullets(text: string | null | undefined): string[] {
-  return (text || "")
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-// A raw street address ("9 Thurston Rd, Bernard, ME 04612, USA") ending
-// up as the whole description — the Google Places fallback used to do
-// exactly this whenever a place had no editorial summary (see
-// AddEntryForm's choosePlace) — isn't real descriptive content; the
-// address is already covered by the address line below the title, so a
-// line that's just that reads as a broken/duplicated field, not a
-// description. Filtered out here (rather than at save time) so it also
-// catches entries added before that fallback was fixed.
-const US_ADDRESS_RE = /,\s*[A-Z]{2}\s*\d{5}(-\d{4})?(,\s*(USA|United States))?\s*$/;
-function isAddressLike(line: string): boolean {
-  return US_ADDRESS_RE.test(line.trim());
-}
-
-const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#616161"];
-
-// A count field's label is stored plural ("Bedrooms", "Beds",
-// "Bathrooms") since that's how it reads in the field-defs admin UI and
-// in the count summary for the common >1 case — singularized here only
-// for display when the actual value is exactly 1 ("1 Bedroom", not
-// "1 Bedrooms"). Simple heuristic covers every count field in use today;
-// good enough for whatever an admin invents later too.
-function singularizeCountLabel(label: string, value: unknown): string {
-  if (Number(value) !== 1) return label;
-  if (/ies$/i.test(label)) return label.replace(/ies$/i, "y");
-  if (/s$/i.test(label)) return label.replace(/s$/i, "");
-  return label;
-}
-
-// Picks a purpose-built icon by matching words in the field's own label —
-// generic count fields with an unrecognized label (anything an admin
-// might invent later) still get a sensible fallback rather than nothing.
-function countFieldIcon(label: string) {
-  const l = label.toLowerCase();
-  if (l.includes("bath")) return <Bath size={17} className={styles.countIcon} />;
-  if (l.includes("bedroom")) return <BedDouble size={17} className={styles.countIcon} />;
-  if (l.includes("bed")) return <BedSingle size={17} className={styles.countIcon} />;
-  return <Hash size={17} className={styles.countIcon} />;
-}
-
-// Renders plain text with any http(s) URL inside it turned into a real
-// clickable link — used for Notes/Concerns, where someone jotting down
-// "check availability: https://..." expects that to be clickable rather
-// than sitting there as dead text. Trailing punctuation (a period
-// ending the sentence, a closing paren, ...) is kept out of the link
-// itself so "see https://example.com." doesn't swallow the period.
-function Linkified({ text }: { text: string }) {
-  const re = /https?:\/\/[^\s]+/g;
-  const parts: ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text)) !== null) {
-    let url = match[0];
-    let end = match.index + url.length;
-    const trailingPunct = url.match(/[.,;:!?)\]}'"]+$/);
-    if (trailingPunct) {
-      url = url.slice(0, -trailingPunct[0].length);
-      end -= trailingPunct[0].length;
-    }
-    if (!url) continue;
-    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
-    parts.push(
-      <a key={match.index} href={url} target="_blank" rel="noopener noreferrer" className={styles.linkifiedLink}>
-        {url}
-      </a>
-    );
-    lastIndex = end;
-  }
-  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
-  return <>{parts}</>;
-}
-
-interface EditableNoteListProps {
-  items: string[];
-  onAdd: ((text: string) => void) | null;
-  onRemove: ((i: number) => void) | null;
-  addLabel: string;
-  placeholder: string;
-}
-
-// A BulletList whose items are removable on hover, plus a "+ Add ..."
-// affordance that appends a new one via onAdd — used for Notes/
-// Concerns. Appending goes through the entries PATCH route's
-// appendNote/appendConcern (see that route), the same operation
-// whether it's triggered by this button or by asking Claude Desktop to
-// add one to an existing entry. `onAdd`/`onRemove` are omitted
-// (undefined/null) to drop that capability entirely — used to gate
-// add-only invite-link contributors (can add, can't remove) and
-// read-only visitors (can't do either) down to the same shared markup.
-function EditableNoteList({ items, onAdd, onRemove, addLabel, placeholder }: EditableNoteListProps) {
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState("");
-
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    if (!draft.trim()) return;
-    onAdd?.(draft.trim());
-    setDraft("");
-  }
-
-  return (
-    <div className={styles.noteListWrapper}>
-      {items.length > 0 && (
-        <BulletList>
-          {items.map((item, i) => (
-            <li key={i}>
-              {onRemove ? (
-                <span className={styles.removableNoteRow}>
-                  <span>
-                    <Linkified text={item} />
-                  </span>
-                  <Button variant="ghost" size="sm" onClick={() => onRemove(i)} className={styles.removeNoteButton}>
-                    Remove
-                  </Button>
-                </span>
-              ) : (
-                <Linkified text={item} />
-              )}
-            </li>
-          ))}
-        </BulletList>
-      )}
-      {onAdd &&
-        (adding ? (
-          <form onSubmit={submit} className={styles.addNoteForm}>
-            <input
-              autoFocus
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder={placeholder}
-              className={styles.addNoteInput}
-            />
-            <Button type="submit" variant="link" size="sm">
-              Add
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setAdding(false);
-                setDraft("");
-              }}
-            >
-              Cancel
-            </Button>
-          </form>
-        ) : (
-          <Button variant="link" size="sm" className={styles.addNoteTrigger} onClick={() => setAdding(true)}>
-            + {addLabel}
-          </Button>
-        ))}
-    </div>
-  );
-}
-
-interface DraftMarker {
-  label: string;
-  color: string;
-  lat: string | number;
-  lng: string | number;
-}
-
-interface EntryDraft {
-  title: string;
-  url: string;
-  posterImage: string;
-  description: string;
-  lat: string | number;
-  lng: string | number;
-  groupLabel: string;
-  extraMarkers: DraftMarker[];
-  data: Record<string, string>;
-}
 
 export interface EntryCardProps {
   entry: ClientEntry;
@@ -232,9 +56,10 @@ export interface EntryCardProps {
    * badge on this card's own photo either way. */
   showRatingControl?: boolean;
   /** Whether this section supports 2-item pairing at all (section.
-   * supports_pairing) — gates the "+ Add paired option" button below,
-   * only ever shown on a solo card (hideMedia is only ever true for an
-   * already-paired card, which doesn't need this). */
+   * supports_pairing) — gates the "+ Add paired option" button and the
+   * edit form's Group label field, only ever shown on a solo card
+   * (hideMedia is only ever true for an already-paired card, which
+   * doesn't need this). */
   supportsPairing?: boolean;
   /** Opens SectionPage's PairEntryDialog for this entry specifically. */
   onAddPaired?: () => void;
@@ -276,8 +101,6 @@ export default function EntryCard({
   showVisitedControl = false,
 }: EntryCardProps) {
   const [rankDraft, setRankDraft] = useState<string | number>(entry.rank ?? "");
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<EntryDraft | null>(null);
   const [address, setAddress] = useState("");
@@ -298,10 +121,7 @@ export default function EntryCard({
   // Called unconditionally (Rules of Hooks) — `enabled` lets it no-op
   // entirely (skip loading Google Maps, skip every effect) for a card
   // that won't actually show a comparison map (editing, no coords, or a
-  // section that just wants the plain SimplePlaceMap instead). Feeds
-  // both ListingMapView and ListingMapDetails below so there's still
-  // only one Google Maps instance/Directions calls behind both of this
-  // card's map sections.
+  // section that just wants the plain SimplePlaceMap instead).
   const listingMapData = useListingMap({
     houses: hasHouse ? [{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }] : [],
     extraMarkers,
@@ -341,7 +161,7 @@ export default function EntryCard({
 
   const priceFields = fieldDefs.filter((f) => f.field_type === "price");
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
-  const countRows = countFields
+  const countRows: CountRow[] = countFields
     .map((f) => ({ fieldDef: f, value: entry[f.key] }))
     .filter(({ value }) => value !== "" && value !== null && value !== undefined);
   const descriptionBullets = toBullets(entry.description).filter((line) => !isAddressLike(line));
@@ -354,22 +174,11 @@ export default function EntryCard({
   // Colors are assigned from the section's full boolean field list (not
   // just this entry's active ones), in that list's own defined order —
   // so a given type always lands on the same color everywhere it shows
-  // up, and two different types in the same section never collide the
-  // way an independent per-key hash could. "closed" is excluded here
-  // since it always gets its own dedicated variant below, never one of
-  // the arbitrary rotation colors.
+  // up. "closed" is excluded since it always gets its own dedicated
+  // variant, never one of the arbitrary rotation colors.
   const badgeVariants = assignBadgeVariants(
     fieldDefs.filter((f) => f.field_type === "boolean" && f.key !== "closed").map((f) => f.key)
   );
-
-  function archive(reason: string) {
-    onPatch(entry.id, { archiveReason: reason, status: "archived" });
-    setShowArchiveDialog(false);
-  }
-
-  function restore() {
-    onPatch(entry.id, { archiveReason: "", status: "active" });
-  }
 
   function commitRank() {
     const n = Number(rankDraft);
@@ -383,8 +192,7 @@ export default function EntryCard({
   }
 
   function removeNoteAt(i: number) {
-    const remaining = toBullets(entry.notes).filter((_, idx) => idx !== i);
-    onPatch(entry.id, { notes: remaining.join("\n") });
+    onPatch(entry.id, { notes: toBullets(entry.notes).filter((_, idx) => idx !== i).join("\n") });
   }
 
   function addConcern(text: string) {
@@ -392,8 +200,7 @@ export default function EntryCard({
   }
 
   function removeConcernAt(i: number) {
-    const remaining = toBullets(entry.concerns).filter((_, idx) => idx !== i);
-    onPatch(entry.id, { concerns: remaining.join("\n") });
+    onPatch(entry.id, { concerns: toBullets(entry.concerns).filter((_, idx) => idx !== i).join("\n") });
   }
 
   function startEdit() {
@@ -409,7 +216,7 @@ export default function EntryCard({
       lat: entry.lat ?? "",
       lng: entry.lng ?? "",
       groupLabel: entry.groupLabel || "",
-      extraMarkers: extraMarkers.length ? (extraMarkers as unknown as DraftMarker[]) : [],
+      extraMarkers: extraMarkers.length ? (extraMarkers as unknown as EntryDraft["extraMarkers"]) : [],
       data: dataDraft,
     });
     setAddress("");
@@ -430,26 +237,6 @@ export default function EntryCard({
     } finally {
       setGeocoding(false);
     }
-  }
-
-  function updateDraftMarker(i: number, field: keyof DraftMarker, value: string) {
-    if (!draft) return;
-    const next = draft.extraMarkers.map((m, idx) => (idx === i ? { ...m, [field]: value } : m));
-    setDraft({ ...draft, extraMarkers: next });
-  }
-
-  function addDraftMarker() {
-    if (!draft) return;
-    const color = MARKER_COLORS[draft.extraMarkers.length % MARKER_COLORS.length];
-    setDraft({
-      ...draft,
-      extraMarkers: [...draft.extraMarkers, { label: "", color, lat: "", lng: "" }],
-    });
-  }
-
-  function removeDraftMarker(i: number) {
-    if (!draft) return;
-    setDraft({ ...draft, extraMarkers: draft.extraMarkers.filter((_, idx) => idx !== i) });
   }
 
   function saveEdit() {
@@ -479,11 +266,19 @@ export default function EntryCard({
     setDraft(null);
   }
 
-  const rootClassName = [styles.article, !bare && styles.framed, isArchived && styles.archived].filter(Boolean).join(" ");
+  function archive(reason: string) {
+    onPatch(entry.id, { archiveReason: reason, status: "archived" });
+  }
+
+  function restore() {
+    onPatch(entry.id, { archiveReason: "", status: "active" });
+  }
+
+  const rootClassName = classNames(styles["root"], !bare && styles["framed"], isArchived && styles["archived"]);
   // On a split/paired card (bare + hideMedia, inside GroupMap's own
   // ListingSection), this top border would just double up whatever
   // divider that wrapping context already draws above it.
-  const sectionsClassName = [styles.sections, bare && styles.sectionsBare].filter(Boolean).join(" ");
+  const sectionsClassName = classNames(styles["sections"], bare && styles["sections-bare"]);
   const mapsSearchUrl = hasHouse ? `https://www.google.com/maps/search/?api=1&query=${entry.lat},${entry.lng}` : undefined;
 
   return (
@@ -493,90 +288,39 @@ export default function EntryCard({
       )}
 
       <div className={sectionsClassName}>
-        <div className={styles.section}>
+        <div className={styles["section"]}>
           {(activeBooleanFields.length > 0 || (showRank && canManage)) && (
-            <div className={styles.utilityRow}>
-              {activeBooleanFields.length > 0 && (
-                <div className={styles.eyebrows}>
-                  {activeBooleanFields.map((f) => (
-                    <Badge key={f.key} variant={f.key === "closed" ? "closed" : badgeVariants[f.key]}>
-                      {f.label}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              {showRank && canManage && (
-                <div className={styles.rankControl}>
-                  <label className={styles.rankLabel}>Rank</label>
-                  <input
-                    type="number"
-                    value={rankDraft}
-                    onChange={(e) => setRankDraft(e.target.value)}
-                    onBlur={commitRank}
-                    className={styles.rankInput}
-                  />
-                </div>
-              )}
-            </div>
+            <EntryBadgesRow
+              activeBooleanFields={activeBooleanFields}
+              badgeVariants={badgeVariants}
+              showRank={showRank}
+              canManage={canManage}
+              rankDraft={rankDraft}
+              onRankDraftChange={setRankDraft}
+              onCommitRank={commitRank}
+            />
           )}
 
-          <div className={styles.headerGrid}>
-            <div className={styles.titleColumn}>
-              <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles.titleLink}>
+          <div className={styles["header-grid"]}>
+            <div className={styles["title-column"]}>
+              <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles["title-link"]}>
                 {entry.title}
               </a>
               {hasHouse && (
-                <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles.addressLink}>
+                <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles["address-link"]}>
                   {addressLabel || "View on map"}
                 </a>
               )}
             </div>
-
-            {priceFields.length > 0 && (
-              <div className={styles.priceStack}>
-                {priceFields.map((f) => {
-                  const value = entry[f.key] as string;
-                  if (!value) {
-                    return (
-                      <div key={f.key} className={styles.noPriceLine}>
-                        No {f.label.toLowerCase()} yet
-                      </div>
-                    );
-                  }
-                  // A badge only ever appears when the value already
-                  // states its own breakdown ("/night" or "for N
-                  // nights") — a bare number ("$3,500", or a plain
-                  // "3500") is shown as-is (formatted as real currency
-                  // either way) with no computed avg/night guessed
-                  // under it. That guess used to run off whatever the
-                  // trip's length happened to be, which actively
-                  // produced a wrong reading the moment it guessed
-                  // wrong (confirmed live: a real $273/night price,
-                  // with the trip's real length known, got divided
-                  // down to "~$30/night"). FieldInput's own per-night/
-                  // total-for-stay toggle is what resolves a bare
-                  // number now, at the moment it's entered, not here.
-                  const badge = computePriceBadge(value);
-                  return (
-                    <div key={f.key} className={styles.priceGroup}>
-                      {/* The total is what actually matters when
-                          comparing options — the per-night average is
-                          useful context, not the headline number. */}
-                      <span className={styles.priceTotal}>{formatPriceDisplay(value)}</span>
-                      {badge && <span className={styles.priceAvg}>{badge}</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <PriceDisplay entry={entry} priceFields={priceFields} />
           </div>
 
           {showRatingControl && showRatings && canContribute && onRate && (
-            <div className={styles.userRatingRow}>
-              <span className={styles.ratingCaption}>Your score</span>
+            <div className={styles["user-rating-row"]}>
+              <span className={styles["rating-caption"]}>Your score</span>
               <StarRating value={entry.myScore ?? 0} size={18} onChange={(v) => onRate(entry.id, v)} />
               {entry.myScore != null && (
-                <Button variant="ghost" size="sm" onClick={() => onRate(entry.id, null)} className={styles.clearScoreButton}>
+                <Button variant="ghost" size="sm" onClick={() => onRate(entry.id, null)} className={styles["clear-score"]}>
                   Clear
                 </Button>
               )}
@@ -586,261 +330,51 @@ export default function EntryCard({
 
         {/* Its own section, horizontal — bedrooms/beds/bathrooms read as
             a quick-scan strip rather than being crammed into the price
-            column or a slash-joined sentence. Skipped entirely when the
-            section has no count-type fields defined or none are filled in. */}
+            column or a slash-joined sentence. */}
         {countRows.length > 0 && (
-          <div className={styles.section}>
-            <BulletList bulleted={false} className={styles.countsRow}>
-              {countRows.map(({ fieldDef, value }) => (
-                <li key={fieldDef.key} className={styles.countItem}>
-                  {countFieldIcon(fieldDef.label)}
-                  <span>
-                    {value as ReactNode} {singularizeCountLabel(fieldDef.options?.shortLabel || fieldDef.label, value)}
-                  </span>
-                </li>
-              ))}
-            </BulletList>
+          <div className={styles["section"]}>
+            <CountsRow countRows={countRows} />
           </div>
         )}
 
         {!isEditing && (
-          <div className={styles.section}>
-            <h3 className={styles.sectionHeading}>Description</h3>
-            {descriptionBullets.length > 0 ? (
-              <ShowMore maxHeight={320}>
-                <BulletList>
-                  {descriptionBullets.map((item, i) => (
-                    <li key={i}>{item}</li>
-                  ))}
-                </BulletList>
-              </ShowMore>
-            ) : (
-              <p className={styles.noDescription}>No description</p>
-            )}
+          <div className={styles["section"]}>
+            <EntryDescription bullets={descriptionBullets} />
           </div>
         )}
 
-        {/* Universal across every section, not just Stay Options —
-            "Stayed here" for a pairing (Stay Options) section,
-            "Visited" everywhere else, same visited/visitedDate fields
-            either way. Not gated on the trip being marked Completed —
-            checking this off can happen any time, during the trip or
-            after; Completed only gates the separate "Archive
-            unvisited" sweep (see ArchiveUnvisitedButton) that treats
-            whatever's still unchecked at that point as never having
-            happened. The date is opt-in (a "+ Add date" link, not a
-            date box shown by default) — it only really matters once
-            there's more than one visited item in a section to put in
-            order; a single one doesn't need it. */}
         {canManage && !isArchived && showVisitedControl && (
-          <div className={styles.section}>
-            <div className={styles.visitedDetailRow}>
-              {entry.visited ? (
-                <>
-                  <span className={styles.visitedCheck}>✓ {supportsPairing ? "Stayed here" : "Visited"}</span>
-                  {entry.visitedDate ? (
-                    <input
-                      type="date"
-                      value={entry.visitedDate as string}
-                      onChange={(e) => onPatch(entry.id, { visitedDate: e.target.value || null })}
-                      className={styles.visitedDateInputSmall}
-                    />
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onPatch(entry.id, { visitedDate: new Date().toISOString().slice(0, 10) })}
-                    >
-                      + Add date
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => onPatch(entry.id, { visited: false, visitedDate: null })}>
-                    Undo
-                  </Button>
-                </>
-              ) : (
-                <Button variant="ghost" size="sm" onClick={() => onPatch(entry.id, { visited: true })}>
-                  Mark {supportsPairing ? "stayed here" : "visited"}
-                </Button>
-              )}
-            </div>
+          <div className={styles["section"]}>
+            <VisitedControl entry={entry} supportsPairing={supportsPairing} onPatch={onPatch} />
           </div>
         )}
 
         {!isEditing && showMap && hasHouse && (
-          <>
-            <div className={styles.section}>
-              {comparisonMode ? (
-                <ListingMapView {...listingMapData} />
-              ) : (
-                <SimplePlaceMap places={[{ lat: entry.lat as number, lng: entry.lng as number, label: entry.title || "Location" }]} />
-              )}
-            </div>
-            {/* Its own section, not bundled into the map's — Closest
-                Town/Driving Times are a distinct concern from "here's
-                the map". Skipped entirely (not just left empty) when
-                there's genuinely nothing to show, e.g. a non-ranking
-                section with no resolved closest town yet either. */}
-            {comparisonMode && (listingMapData.closestTown || listingMapData.showReferencePoints) && (
-              <div className={styles.section}>
-                <ListingMapDetails {...listingMapData} />
-              </div>
-            )}
-          </>
+          <LocationSection entry={entry} comparisonMode={comparisonMode} listingMapData={listingMapData} />
         )}
 
         {isEditing && draft && (
-          <div className={styles.section}>
-            <div className={styles.editGrid}>
-              <label className={styles.field}>
-                Title
-                <input
-                  value={draft.title}
-                  onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                  className={styles.input}
-                />
-              </label>
-              <label className={styles.field}>
-                Link (optional — leave blank if it doesn&apos;t have one)
-                <input
-                  value={draft.url}
-                  onChange={(e) => setDraft({ ...draft, url: e.target.value })}
-                  placeholder="https://..."
-                  className={styles.input}
-                />
-              </label>
-              <label className={styles.field}>
-                Photo URL
-                <input
-                  value={draft.posterImage}
-                  onChange={(e) => setDraft({ ...draft, posterImage: e.target.value })}
-                  className={styles.input}
-                />
-              </label>
-              <label className={styles.wideField}>
-                Description (one bullet per line)
-                <textarea
-                  value={draft.description}
-                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                  rows={4}
-                  className={styles.input}
-                />
-              </label>
-
-              {fieldDefs.length > 0 && (
-                <div className={styles.fieldDefsGrid}>
-                  {fieldDefs.map((f) => (
-                    <FieldInput
-                      key={f.key}
-                      fieldDef={f}
-                      value={draft.data[f.key]}
-                      onChange={(v) => setDraft({ ...draft, data: { ...draft.data, [f.key]: String(v) } })}
-                      tripNights={nightsEstimate}
-                    />
-                  ))}
-                  {countFields.length > 0 && (
-                    <p className={styles.countHint}>Count fields auto-fill from the description when left blank.</p>
-                  )}
-                </div>
-              )}
-
-              <label className={styles.field}>
-                Latitude
-                <input
-                  value={draft.lat}
-                  onChange={(e) => setDraft({ ...draft, lat: e.target.value })}
-                  className={styles.input}
-                />
-              </label>
-              <label className={styles.field}>
-                Longitude
-                <input
-                  value={draft.lng}
-                  onChange={(e) => setDraft({ ...draft, lng: e.target.value })}
-                  className={styles.input}
-                />
-              </label>
-              <div className={styles.wideField}>
-                <label>Or find lat/lng from an address</label>
-                <div className={styles.geocodeRow}>
-                  <input
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="e.g. 45 Ocean Ave, Jonesport, ME"
-                    className={styles.geocodeInput}
-                  />
-                  <Button variant="secondary" size="sm" onClick={handleFindCoords} disabled={geocoding || !address.trim()}>
-                    {geocoding ? "Finding..." : "Find"}
-                  </Button>
-                </div>
-                {geocodeMsg && <p className={styles.geocodeMsg}>{geocodeMsg}</p>}
-              </div>
-              {/* Pairing (2-item options) is a Houses/Stays-only
-                  concept — showing this on a section that doesn't
-                  support it at all would just be a confusing field
-                  with no visible effect. */}
-              {supportsPairing && (
-                <label className={styles.wideField}>
-                  Group label (optional — only if this is a 2-item option)
-                  <input
-                    value={draft.groupLabel}
-                    onChange={(e) => setDraft({ ...draft, groupLabel: e.target.value })}
-                    placeholder='e.g. "Jonesport - 2 House Option" (use the exact same text on both)'
-                    className={styles.input}
-                  />
-                </label>
-              )}
-            </div>
-
-            <div>
-              <div className={styles.markersHeader}>
-                <h4 className={styles.markersTitle}>Extra map points (restaurants, hikes, puffin tour, nearest town, etc.)</h4>
-                <Button variant="link" size="sm" onClick={addDraftMarker}>
-                  + Add point
-                </Button>
-              </div>
-              <div className={styles.markerRowList}>
-                {draft.extraMarkers.map((m, i) => (
-                  <div key={i} className={styles.markerRow}>
-                    <input
-                      placeholder="Label"
-                      value={m.label}
-                      onChange={(e) => updateDraftMarker(i, "label", e.target.value)}
-                      className={styles.markerInput}
-                    />
-                    <input
-                      placeholder="Latitude"
-                      value={m.lat}
-                      onChange={(e) => updateDraftMarker(i, "lat", e.target.value)}
-                      className={styles.markerInput}
-                    />
-                    <input
-                      placeholder="Longitude"
-                      value={m.lng}
-                      onChange={(e) => updateDraftMarker(i, "lng", e.target.value)}
-                      className={styles.markerInput}
-                    />
-                    <input
-                      type="color"
-                      value={m.color}
-                      onChange={(e) => updateDraftMarker(i, "color", e.target.value)}
-                      className={styles.markerColorInput}
-                    />
-                    <Button variant="danger" size="sm" onClick={() => removeDraftMarker(i)}>
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className={styles["section"]}>
+            <EntryEditForm
+              draft={draft}
+              onChange={setDraft}
+              fieldDefs={fieldDefs}
+              nightsEstimate={nightsEstimate}
+              supportsPairing={supportsPairing}
+              address={address}
+              onAddressChange={setAddress}
+              geocoding={geocoding}
+              geocodeMsg={geocodeMsg}
+              onFindCoords={handleFindCoords}
+            />
           </div>
         )}
 
         {/* Its own section, same as every other content block — not
             bundled with Concerns under one shared heading-pair anymore. */}
         {(hasNotes || canContribute) && (
-          <div className={styles.section}>
-            <h3 className={styles.sectionHeading}>Notes</h3>
+          <div className={styles["section"]}>
+            <h3 className={styles["section-heading"]}>Notes</h3>
             <EditableNoteList
               items={toBullets(entry.notes)}
               onAdd={canContribute ? addNote : null}
@@ -854,8 +388,8 @@ export default function EntryCard({
         {/* The whole section gets the amber tint now, not just a box
             wrapped around the list inside a plain section. */}
         {(hasConcerns || canContribute) && (
-          <div className={styles.concernsSection}>
-            <h3 className={styles.concernsHeading}>Concerns</h3>
+          <div className={styles["concerns-section"]}>
+            <h3 className={styles["concerns-heading"]}>Concerns</h3>
             <EditableNoteList
               items={toBullets(entry.concerns)}
               onAdd={canContribute ? addConcern : null}
@@ -867,97 +401,23 @@ export default function EntryCard({
         )}
 
         {canManage && (
-          <div className={styles.section}>
-            <div className={styles.footer}>
-              {/* Archive-with-a-reason is worth it for a still-deciding
-                  Stay Option (the reason is the whole point — "why did
-                  we rule this out"). Everywhere else, ruling something
-                  out isn't really a decision worth remembering — a
-                  flat delete instead, same confirm pattern as an
-                  already-archived entry's own "Delete for good" below. */}
-              {!isArchived &&
-                (supportsPairing ? (
-                  // No wrapping div needed here — ArchiveDialog is a
-                  // real modal (portals to <body>), not an anchored
-                  // popup, so there's nothing left needing a
-                  // positioning context. A wrapping div would just be
-                  // one more item for .footer's flex/align-items:center
-                  // to size, throwing off vertical centering against
-                  // the plain <Button> siblings around it.
-                  <>
-                    <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog(true)}>
-                      Delete
-                    </Button>
-                    <ArchiveDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog} onConfirm={archive} />
-                  </>
-                ) : confirmingDelete ? (
-                  <span className={styles.confirmDeleteRow}>
-                    Delete for good?
-                    <Button variant="danger" size="sm" onClick={() => onDelete(entry.id)}>
-                      Yes
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(false)}>
-                      No
-                    </Button>
-                  </span>
-                ) : (
-                  <Button variant="danger" size="sm" onClick={() => setConfirmingDelete(true)}>
-                    Delete
-                  </Button>
-                ))}
-
-              {!isEditing ? (
-                <Button variant="ghost" size="sm" onClick={startEdit}>
-                  Edit details
-                </Button>
-              ) : (
-                <>
-                  <Button variant="primary" size="sm" onClick={saveEdit}>
-                    Save
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setIsEditing(false);
-                      setDraft(null);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </>
-              )}
-
-              {!hideMedia && !isArchived && !isEditing && supportsPairing && onAddPaired && (
-                <Button variant="ghost" size="sm" onClick={onAddPaired}>
-                  + Add paired option
-                </Button>
-              )}
-
-              {isArchived && (
-                <div className={styles.archivedActions}>
-                  {entry.archiveReason && <span className={styles.archiveReason}>{entry.archiveReason}</span>}
-                  <Button variant="link" size="sm" onClick={restore}>
-                    Restore
-                  </Button>
-                  {confirmingDelete ? (
-                    <span className={styles.confirmDeleteRow}>
-                      Delete for good?
-                      <Button variant="danger" size="sm" onClick={() => onDelete(entry.id)}>
-                        Yes
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(false)}>
-                        No
-                      </Button>
-                    </span>
-                  ) : (
-                    <Button variant="danger" size="sm" onClick={() => setConfirmingDelete(true)}>
-                      Delete
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
+          <div className={styles["section"]}>
+            <EntryFooter
+              entry={entry}
+              supportsPairing={supportsPairing}
+              isEditing={isEditing}
+              hideMedia={hideMedia}
+              onArchive={archive}
+              onDelete={onDelete}
+              onRestore={restore}
+              onStartEdit={startEdit}
+              onSaveEdit={saveEdit}
+              onCancelEdit={() => {
+                setIsEditing(false);
+                setDraft(null);
+              }}
+              onAddPaired={onAddPaired}
+            />
           </div>
         )}
       </div>
