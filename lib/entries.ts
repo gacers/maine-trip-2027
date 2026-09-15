@@ -110,6 +110,7 @@ export function toClientEntry(row: EntryRow | null | undefined): ClientEntry | n
     section_id,
     trip_id,
     extra_markers,
+    visited_date,
     data,
     ...rest
   } = row;
@@ -123,6 +124,7 @@ export function toClientEntry(row: EntryRow | null | undefined): ClientEntry | n
     sectionId: section_id,
     tripId: trip_id,
     extraMarkers: extra_markers || [],
+    visitedDate: visited_date,
     ...(data || {}),
   } as ClientEntry;
 }

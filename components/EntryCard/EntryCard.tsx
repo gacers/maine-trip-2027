@@ -489,7 +489,7 @@ export default function EntryCard({
 
       <div className={sectionsClassName}>
         <div className={styles.section}>
-          {(activeBooleanFields.length > 0 || (showRank && canManage)) && (
+          {(activeBooleanFields.length > 0 || (showRank && canManage) || (canManage && !isArchived)) && (
             <div className={styles.utilityRow}>
               {activeBooleanFields.length > 0 && (
                 <div className={styles.eyebrows}>
@@ -498,6 +498,44 @@ export default function EntryCard({
                       {f.label}
                     </Badge>
                   ))}
+                </div>
+              )}
+              {/* Universal across every section, not just Stay Options —
+                  "Stayed here" for a pairing (Stay Options) section,
+                  "Visited" everywhere else, same visited/visitedDate
+                  fields either way. Not gated on the trip being marked
+                  Completed — checking these off can happen any time,
+                  during the trip or after; Completed only gates the
+                  separate "Archive unvisited" sweep (see
+                  ArchiveUnvisitedButton) that treats whatever's still
+                  unchecked at that point as never having happened. */}
+              {canManage && !isArchived && (
+                <div className={styles.visitedRow}>
+                  <label className={styles.visitedLabel}>
+                    <input
+                      type="checkbox"
+                      checked={!!entry.visited}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        onPatch(
+                          entry.id,
+                          checked
+                            ? { visited: true, visitedDate: entry.visitedDate || new Date().toISOString().slice(0, 10) }
+                            : { visited: false, visitedDate: null }
+                        );
+                      }}
+                      className={styles.checkbox}
+                    />
+                    {supportsPairing ? "Stayed here" : "Visited"}
+                  </label>
+                  {entry.visited && (
+                    <input
+                      type="date"
+                      value={(entry.visitedDate as string) || ""}
+                      onChange={(e) => onPatch(entry.id, { visitedDate: e.target.value || null })}
+                      className={styles.visitedDateInput}
+                    />
+                  )}
                 </div>
               )}
               {showRank && canManage && (

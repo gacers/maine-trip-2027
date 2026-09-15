@@ -1,10 +1,10 @@
 .main {
-  max-width: 42rem;
+  max-width: 72rem;
   margin-inline: auto;
   padding: 3rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2.5rem;
   width: 100%;
 }
 
@@ -26,44 +26,32 @@
   text-align: center;
 }
 
-.tripList {
-  list-style: none;
-  padding: 0;
+.tripSection {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
-.tripLink {
-  display: block;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--color-zinc-200);
-  background: var(--color-white);
-  padding: 1rem;
-  box-shadow: var(--shadow-sm);
-  text-decoration: none;
-  transition: border-color 0.15s;
+.sectionHeading {
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-zinc-700);
+}
 
-  &:hover {
-    border-color: var(--color-zinc-400);
+.tripGrid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+@media (min-width: 640px) {
+  .tripGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-
-.tripName {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-zinc-900);
-}
-
-.tripSubtitle {
-  font-size: var(--text-sm);
-  color: var(--color-zinc-500);
-  margin-top: 0.125rem;
-}
-
-.tripDate {
-  font-size: var(--text-xs);
-  color: var(--color-zinc-400);
-  margin-top: 0.25rem;
+@media (min-width: 1024px) {
+  .tripGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .actionsRow {

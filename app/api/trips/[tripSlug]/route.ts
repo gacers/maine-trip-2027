@@ -30,6 +30,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if ("endDate" in body) patch.end_date = body.endDate || null;
   if ("nightsEstimate" in body) patch.nights_estimate = body.nightsEstimate || null;
   if ("mapConfig" in body) patch.map_config = body.mapConfig;
+  if ("coverImage" in body) patch.cover_image = body.coverImage || null;
+  if ("completed" in body) patch.completed = !!body.completed;
 
   const { data, error } = await supabase!.from("trips").update(patch).eq("id", trip.id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

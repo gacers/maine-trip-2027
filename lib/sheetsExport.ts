@@ -204,11 +204,28 @@ export async function exportSectionOrThrow(
     }));
   }
 
+  // Only sections that show archived rows at all (showRankColumn —
+  // everywhere else drops them from the export entirely, above) have
+  // anything worth reordering here: active rows first, archived ones
+  // pushed down after, each group keeping its own existing relative
+  // order (a stable partition, not a re-sort) so the highlighted block
+  // is exactly "everything still on the list."
+  if (showRankColumn) {
+    const activeUnits = units.filter((u) => !unitIsArchived(u));
+    const archivedUnits = units.filter((u) => unitIsArchived(u));
+    units = [...activeUnits, ...archivedUnits];
+  }
+
   const rows = units.map((u) =>
     buildRow(u, overviewFields, trip, section, navGroupSlug, siteUrl, inviteToken, showRankColumn, showRatings)
   );
 
   await syncTabData(sheets, spreadsheetId!, tabName, lastCol, rows);
+
+  if (showRankColumn) {
+    const activeRowCount = units.filter((u) => !unitIsArchived(u)).length;
+    await applyActiveRowHighlight(sheets, spreadsheetId!, sheetId, activeRowCount);
+  }
 
   return { spreadsheetId: spreadsheetId!, spreadsheetUrl: spreadsheetUrl! };
 }
@@ -223,6 +240,16 @@ function unitScoreForSort(unit: EntryUnit): number {
 
 function unitTitleForSort(unit: EntryUnit): string {
   return (unit.listings[0].groupLabel || unit.listings[0].title || "").toLowerCase();
+}
+
+// A group's two listings are always both active or both archived in
+// practice (pairing only ever exists among active entries — archiving
+// one half breaks the pair, see lib/groupUnits.ts), but treating a
+// mixed pair as archived only if *every* listing is would still be the
+// right call either way: a unit with any active listing left in it is
+// still really "on the list."
+function unitIsArchived(unit: EntryUnit): boolean {
+  return unit.listings.every((l) => l.status === "archived");
 }
 
 function sanitizeTabName(label: string): string {
@@ -484,5 +511,44 @@ async function syncTabData(
       valueInputOption: "USER_ENTERED",
       requestBody: { values: rows },
     });
+  }
+}
+
+// A light green background on every still-active row (rows.length may
+// shrink between exports as things get archived, so this always resets
+// the whole data range to no fill first — otherwise a row that was
+// green because it was active on a previous export stays green forever
+// even after being archived, since clearing cell *values* doesn't
+// touch formatting). Same "non-fatal" philosophy as the rest of this
+// file's formatting calls — a coloring hiccup can't break the export
+// itself.
+async function applyActiveRowHighlight(
+  sheets: sheets_v4.Sheets,
+  spreadsheetId: string,
+  sheetId: number,
+  activeRowCount: number
+): Promise<void> {
+  try {
+    const requests: sheets_v4.Schema$Request[] = [
+      {
+        repeatCell: {
+          range: { sheetId, startRowIndex: 1, endRowIndex: 1000 },
+          cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 1, blue: 1 } } },
+          fields: "userEnteredFormat.backgroundColor",
+        },
+      },
+    ];
+    if (activeRowCount > 0) {
+      requests.push({
+        repeatCell: {
+          range: { sheetId, startRowIndex: 1, endRowIndex: 1 + activeRowCount },
+          cell: { userEnteredFormat: { backgroundColor: { red: 0.85, green: 0.94, blue: 0.83 } } },
+          fields: "userEnteredFormat.backgroundColor",
+        },
+      });
+    }
+    await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+  } catch {
+    // non-fatal
   }
 }

@@ -7,6 +7,7 @@ import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuL
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from "@/components/DropdownMenu";
 import Button from "@/components/Button";
 import RequestAccess from "@/components/RequestAccess";
+import ArchiveUnvisitedButton from "@/components/ArchiveUnvisitedButton";
 import { captureInviteToken } from "@/lib/inviteClient";
 import { useNavSlot } from "./NavSlot";
 import type { PublicTrip, NavGroup } from "@/lib/types";
@@ -104,6 +105,12 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
               <Link href="/" className={styles.actionLink}>
                 All trips
               </Link>
+              {/* Visible right here (not tucked into Trip Settings) once
+                  there's actually something a completed trip could
+                  still need archiving — see TripSettingsForm's
+                  Completed checkbox and EntryCard's own Stayed/Visited
+                  control. */}
+              {trip.completed && <ArchiveUnvisitedButton trip={trip} nav={allNav} triggerClassName={styles.actionLink} />}
               <Link href={`/${trip.slug}/admin/sections`} className={styles.manageLink}>
                 Manage
               </Link>

@@ -25,6 +25,18 @@
   gap: 0.75rem;
 }
 
+.checkboxField {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+}
+
+.checkbox {
+  height: 1rem;
+  width: 1rem;
+}
+
 .poiSection {
   border-top: 1px solid var(--color-zinc-200);
   padding-top: 1rem;

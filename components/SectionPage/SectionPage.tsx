@@ -31,12 +31,13 @@ import { captureInviteToken, getOrCreateDeviceId } from "@/lib/inviteClient";
 import type { PublicTrip, Section, ClientEntry, EntryUnit, OverviewPin } from "@/lib/types";
 import styles from "./SectionPage.module.css";
 
-type SortBy = "rank" | "myScore" | "averageScore";
+type SortBy = "rank" | "myScore" | "averageScore" | "visitedDate";
 
 const SORT_BY_LABELS: Record<SortBy, string> = {
   rank: "Rank",
   myScore: "My Score",
   averageScore: "Average Score",
+  visitedDate: "Date",
 };
 
 // Admins just name the pair itself ("Gouldsboro") — this appends the
@@ -47,6 +48,15 @@ const GROUP_SUFFIX = "2 House Option";
 function groupTitle(label: string | null | undefined): string {
   const base = (label || "").trim();
   return base.toLowerCase().endsWith(GROUP_SUFFIX.toLowerCase()) ? base : `${base} - ${GROUP_SUFFIX}`;
+}
+
+// Once a trip is marked completed, what's left to look at is "what did
+// we actually do, in what order" rather than "which of these should we
+// pick" — Date (visitedDate) reads better as the default than whatever
+// this section used for deciding beforehand.
+function defaultSortBy(trip: PublicTrip, section: Section): SortBy {
+  if (trip.completed) return "visitedDate";
+  return section.supports_ranking ? "rank" : "averageScore";
 }
 
 function pinFor(unit: EntryUnit): OverviewPin {
@@ -88,7 +98,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // rank | myScore | averageScore — defaults to whichever concept this
   // section actually has; Rank only exists as an option at all once
   // supports_ranking is on.
-  const [sortBy, setSortBy] = useState<SortBy>(section.supports_ranking ? "rank" : "averageScore");
+  const [sortBy, setSortBy] = useState<SortBy>(defaultSortBy(trip, section));
   const [contributorToken, setContributorToken] = useState<string | null>(null);
   // Which solo entry (if any) is currently mid-"+ Add paired option" —
   // see requestPair below and PairEntryDialog.
@@ -243,8 +253,9 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // (e.g. "Bar" checked) into one that doesn't even have that field.
   useEffect(() => {
     setActiveFilters(new Set());
-    setSortBy(section.supports_ranking ? "rank" : "averageScore");
-  }, [section.id, section.supports_ranking]);
+    setSortBy(defaultSortBy(trip, section));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section.id, section.supports_ranking, trip.completed]);
 
   function toggleFilter(key: string) {
     setActiveFilters((prev) => {
@@ -413,19 +424,31 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
 
   // A 2-item group has two separate scores (one per listing) — sorting by
   // either takes the better of the two, same "at least this good" idea
-  // as picking a representative rank for the pair.
+  // as picking a representative rank for the pair. Date instead takes
+  // the earliest of the two (a pair's stay/visit "started" then), and
+  // sorts unset last regardless of direction (an unchecked item has no
+  // place in a chronological list).
   function unitSortValue(unit: EntryUnit, key: SortBy): number {
     if (key === "rank") return unit.listings[0]?.rank ?? 999999;
+    if (key === "visitedDate") {
+      const dates = unit.listings
+        .map((l) => (l.visitedDate ? new Date(l.visitedDate).getTime() : null))
+        .filter((v): v is number => v != null && !Number.isNaN(v));
+      return dates.length > 0 ? Math.min(...dates) : Infinity;
+    }
     const values = unit.listings.map((l) => l[key] as number | null | undefined).filter((v): v is number => v != null);
     return values.length > 0 ? Math.max(...values) : -Infinity;
   }
 
+  // Rank and Date both sort ascending (lowest/earliest first) — score-
+  // based sorts want the highest first instead.
+  const ascendingSort = sortBy === "rank" || sortBy === "visitedDate";
   const activeUnits = groupUnits(active)
     .filter(unitMatchesFilters)
     .sort((a, b) =>
-      sortBy === "rank"
-        ? unitSortValue(a, "rank") - unitSortValue(b, "rank")
-        : unitSortValue(b, sortBy) - unitSortValue(a, sortBy) // higher score first
+      ascendingSort
+        ? unitSortValue(a, sortBy) - unitSortValue(b, sortBy)
+        : unitSortValue(b, sortBy) - unitSortValue(a, sortBy)
     );
   const pins = activeUnits.map(pinFor);
 
@@ -534,7 +557,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // still right-aligned) if that slot isn't available for some reason.
   // The Google Sheet link lives here too now, alongside Filter/Sort,
   // instead of its own centered row further down the page.
-  const utilityControls = (canContribute || filterFieldDefs.length > 0 || showRatings) && (
+  const utilityControls = (canContribute || filterFieldDefs.length > 0 || showRatings || trip.completed) && (
     <>
       {canContribute && (
         <AddEntryDialog
@@ -592,7 +615,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         </DropdownMenu>
       )}
 
-      {showRatings && (
+      {(showRatings || trip.completed) && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="sm">
@@ -603,8 +626,11 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
             <DropdownMenuLabel>Sort by</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
               {showRanking && <DropdownMenuRadioItem value="rank">Rank</DropdownMenuRadioItem>}
-              <DropdownMenuRadioItem value="myScore">My Score</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="averageScore">Average Score</DropdownMenuRadioItem>
+              {showRatings && <DropdownMenuRadioItem value="myScore">My Score</DropdownMenuRadioItem>}
+              {showRatings && <DropdownMenuRadioItem value="averageScore">Average Score</DropdownMenuRadioItem>}
+              {/* Only meaningful once a trip is completed — beforehand
+                  nothing has a visitedDate to sort by yet. */}
+              {trip.completed && <DropdownMenuRadioItem value="visitedDate">Date</DropdownMenuRadioItem>}
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>

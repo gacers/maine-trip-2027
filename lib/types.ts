@@ -113,6 +113,15 @@ export interface Trip {
    * night" or "for N nights") still resolve to a useful avg/night
    * instead of being ambiguous (see lib/fieldTypes/price.ts). */
   nights_estimate?: number | null;
+  /** The trips-index card's own full-bleed background photo (see
+   * TripSettingsForm) — a plain pasted URL, not derived from any
+   * entry's own photo. */
+  cover_image?: string | null;
+  /** Set once the trip has actually happened and been reviewed — drives
+   * the trips index's Pending/Past split (past = completed OR its own
+   * dates have already passed, see app/page.tsx) and gates the
+   * "Archive unvisited" nav action (see ArchiveUnvisitedButton). */
+  completed: boolean;
   map_config: MapConfig;
   google_sheet_id?: string | null;
   google_sheet_url?: string | null;
@@ -153,6 +162,13 @@ export interface ClientEntry {
   groupLabel: string;
   createdAt: string;
   updatedAt: string;
+  /** "Stayed here" (Stay Options) / "Visited" (everywhere else) — set
+   * once a trip is completed and this entry is checked off as an
+   * actual part of what happened, as opposed to an option that never
+   * got used (see ArchiveUnvisitedButton). Universal across every
+   * section, not just Stay Options. */
+  visited: boolean;
+  visitedDate: string | null;
   averageScore?: number | null;
   ratingCount?: number;
   myScore?: number | null;
@@ -186,6 +202,8 @@ export interface EntryRow {
   lng: number | null;
   extra_markers: MapReferencePoint[] | null;
   group_label: string | null;
+  visited: boolean;
+  visited_date: string | null;
   data: Record<string, unknown>;
   created_at: string;
   updated_at: string;

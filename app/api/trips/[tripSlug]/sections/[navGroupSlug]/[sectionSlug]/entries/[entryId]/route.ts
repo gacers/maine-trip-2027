@@ -22,6 +22,8 @@ const CORE_TO_COLUMN: Record<string, keyof EntryRow> = {
   notes: "notes",
   concerns: "concerns",
   groupLabel: "group_label",
+  visited: "visited",
+  visitedDate: "visited_date",
 };
 
 async function resolveTripAndSection(

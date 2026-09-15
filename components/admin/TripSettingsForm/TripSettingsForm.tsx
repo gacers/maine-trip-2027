@@ -33,6 +33,8 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
   const [startDate, setStartDate] = useState(trip.start_date || "");
   const [endDate, setEndDate] = useState(trip.end_date || "");
   const [nightsEstimate, setNightsEstimate] = useState(trip.nights_estimate ? String(trip.nights_estimate) : "");
+  const [coverImage, setCoverImage] = useState(trip.cover_image || "");
+  const [completed, setCompleted] = useState(trip.completed);
   const [pois, setPois] = useState<DraftPoi[]>(toDraftPois(trip.map_config?.alwaysShown));
   const [poiQuery, setPoiQuery] = useState("");
   const [findingPoi, setFindingPoi] = useState(false);
@@ -96,6 +98,8 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
           startDate: startDate || null,
           endDate: endDate || null,
           nightsEstimate: nightsEstimate ? Number(nightsEstimate) : null,
+          coverImage: coverImage || null,
+          completed,
           mapConfig: { ...trip.map_config, alwaysShown },
         }),
       });
@@ -119,6 +123,15 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
         Subtitle (optional)
         <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={styles.input} />
       </label>
+      <label className={styles.field}>
+        Cover image (optional — shown full-bleed behind the name/dates on the trips list)
+        <input
+          value={coverImage}
+          onChange={(e) => setCoverImage(e.target.value)}
+          placeholder="https://..."
+          className={styles.input}
+        />
+      </label>
       <div className={styles.dateRow}>
         <label className={styles.field}>
           Start date
@@ -140,6 +153,12 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
           placeholder="e.g. 7"
           className={styles.input}
         />
+      </label>
+      <label className={styles.checkboxField}>
+        <input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} className={styles.checkbox} />
+        Completed — the trip already happened. Moves it to Past Trips on the trips list; each entry can then be
+        checked off as Stayed/Visited (see its own card) and, once you&apos;re ready, the &quot;Archive unvisited&quot;
+        button in the nav bar archives everything you didn&apos;t check.
       </label>
 
       <div className={styles.poiSection}>
