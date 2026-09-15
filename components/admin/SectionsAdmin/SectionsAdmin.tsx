@@ -48,11 +48,11 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     // better in the tighter 3-across compact grid — both tiers of a
     // category share this.
     const cardLayout: Section["card_layout"] = template.key !== "houses" ? "grid-3" : "list";
-    // Pairing (2-item options), manual ranking, and the full comparison
-    // map (pins/legend/reference points, vs. just a plain marker) only
-    // make sense for a still-deciding house-options list — Food & Drink/
-    // Activities never want any of them, and a "previous" list has
-    // nothing left to decide either way.
+    // Pairing (2-item options) and the full comparison map (pins/
+    // legend/reference points, vs. just a plain marker) only make sense
+    // for a still-deciding house-options list — Food & Drink/Activities
+    // never want either, and a "previous" list has nothing left to
+    // decide either way.
     const isHouses = template.key === "houses";
     try {
       // A completed trip (see TripSettingsForm — set at creation via
@@ -61,8 +61,8 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       // happened. One plain section instead of the Possible/Previously
       // pair, named for the category itself rather than "Options"/
       // "Previously ..." wording that only makes sense when something's
-      // still being weighed — and with no ranking/ratings/pairing, its
-      // entries auto-mark Visited on add (see the entries POST route).
+      // still being weighed — and with no ratings/pairing, its entries
+      // auto-mark Visited on add (see the entries POST route).
       if (trip.completed) {
         const res = await fetch(apiBase, {
           method: "POST",
@@ -74,7 +74,6 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
             emptyMessage: "Nothing here yet — paste a link above.",
             supportsPairing: false,
             hasMap: false,
-            supportsRanking: false,
             supportsRatings: false,
             cardLayout,
             newNavGroupLabel: template.navGroupLabel,
@@ -97,7 +96,6 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           emptyMessage: template.possible.emptyMessage,
           supportsPairing: isHouses,
           hasMap: isHouses,
-          supportsRanking: isHouses,
           supportsRatings: isHouses,
           cardLayout,
           newNavGroupLabel: template.navGroupLabel,
@@ -117,10 +115,9 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           emptyMessage: template.previous.emptyMessage,
           // Pairing is specifically for a still-deciding Possible Houses
           // list — a "previous" list (already decided) doesn't need it,
-          // any more than it needs ranking or driving-times/map.
+          // any more than it needs driving-times/map.
           supportsPairing: false,
           hasMap: false,
-          supportsRanking: false,
           supportsRatings: false,
           cardLayout,
           navGroupId: possibleData.section.nav_group_id,

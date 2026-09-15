@@ -6,24 +6,20 @@ export interface SectionOptionsFieldsProps {
   onSupportsPairingChange: (v: boolean) => void;
   hasMap: boolean;
   onHasMapChange: (v: boolean) => void;
-  supportsRanking: boolean;
-  onSupportsRankingChange: (v: boolean) => void;
   supportsRatings: boolean;
   onSupportsRatingsChange: (v: boolean) => void;
   cardLayout: Section["card_layout"];
   onCardLayoutChange: (v: Section["card_layout"]) => void;
 }
 
-// Pairing/map/ranking/ratings/card-layout — every behavioral toggle a
-// section has. Grid items (not its own wrapper), since these sit
-// alongside the parent's own Label/slug/etc. fields in the same grid.
+// Pairing/map/ratings/card-layout — every behavioral toggle a section
+// has. Grid items (not its own wrapper), since these sit alongside the
+// parent's own Label/slug/etc. fields in the same grid.
 export default function SectionOptionsFields({
   supportsPairing,
   onSupportsPairingChange,
   hasMap,
   onHasMapChange,
-  supportsRanking,
-  onSupportsRankingChange,
   supportsRatings,
   onSupportsRatingsChange,
   cardLayout,
@@ -48,22 +44,12 @@ export default function SectionOptionsFields({
       <label className={styles["checkbox-field"]}>
         <input
           type="checkbox"
-          checked={supportsRanking}
-          onChange={(e) => onSupportsRankingChange(e.target.checked)}
-          className={styles["checkbox"]}
-        />
-        Show the manual Rank input — only for a still-deciding-among-options list (e.g. Possible Houses), not a
-        &quot;previous&quot; list or lighter sections like Food &amp; Drink/Activities.
-      </label>
-      <label className={styles["checkbox-field"]}>
-        <input
-          type="checkbox"
           checked={supportsRatings}
           onChange={(e) => onSupportsRatingsChange(e.target.checked)}
           className={styles["checkbox"]}
         />
-        Show 5-star ratings (each visitor&apos;s own score, plus everyone&apos;s average) — same
-        still-deciding-among-options sections as ranking.
+        Show 5-star ratings (each visitor&apos;s own score, plus everyone&apos;s average) — only for a
+        still-deciding-among-options list, same as pairing/the map above.
       </label>
       <label className={styles["field"]}>
         Card layout

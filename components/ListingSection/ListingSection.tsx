@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import Button from "@/components/Button";
 import StarRating from "@/components/StarRating";
@@ -15,16 +15,12 @@ export interface ListingSectionProps {
    * EntryMedia directly so each EntryCard below can skip its own copy
    * (hideMedia). Edge-to-edge, no padding, same as a solo card's photo. */
   media?: ReactNode;
-  /** Only passed for a 2-house-option group, where the pair shares a
-   * single rank instead of each card having its own. */
-  rank?: number;
-  onRankChange?: (rank: number) => void;
   canManage?: boolean;
   onDeleteGroup?: ((reason: string) => void) | null;
   /** A 2-house-option group is rated as one option, not twice — one
-   * shared "Your score" control here (mirroring the shared rank above)
-   * instead of each half's own EntryCard rendering its own (see
-   * EntryCard's showRatingControl, off for a group's own members). */
+   * shared "Your score" control here instead of each half's own
+   * EntryCard rendering its own (see EntryCard's showRatingControl,
+   * off for a group's own members). */
   showRatings?: boolean;
   canContribute?: boolean;
   myScore?: number | null;
@@ -33,21 +29,19 @@ export interface ListingSectionProps {
 
 // The shared frame around a 2-house-option group: both houses' photos
 // first (edge-to-edge, like a solo card), then this group's own title
-// section (label, shared rank, shared score, "Delete group"), then two
-// otherwise-bare EntryCards in its body, each with its own title/
-// eyebrows/price below that — matching a solo card's own image-then-
-// title order exactly. `onDeleteGroup` archives both listings in the
-// pair at once with one shared reason, via the same ArchiveDialog each
-// individual EntryCard already uses for its own per-listing Delete —
-// that per-listing control still works too, this is just a faster path
-// when the whole pair is out.
+// section (label, shared score, "Delete group"), then two otherwise-
+// bare EntryCards in its body, each with its own title/eyebrows/price
+// below that — matching a solo card's own image-then-title order
+// exactly. `onDeleteGroup` archives both listings in the pair at once
+// with one shared reason, via the same ArchiveDialog each individual
+// EntryCard already uses for its own per-listing Delete — that per-
+// listing control still works too, this is just a faster path when the
+// whole pair is out.
 export default function ListingSection({
   title,
   children,
   id,
   media,
-  rank,
-  onRankChange,
   canManage,
   onDeleteGroup,
   showRatings,
@@ -55,23 +49,7 @@ export default function ListingSection({
   myScore,
   onRate,
 }: ListingSectionProps) {
-  const [rankDraft, setRankDraft] = useState(rank ?? "");
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
-
-  // `rank` can change for reasons other than this exact input's own edit
-  // (e.g. the group's "representative" listing shifting after a
-  // re-fetch) — without this, the box would keep showing whatever was
-  // last typed/mounted with instead of following the real value.
-  useEffect(() => {
-    setRankDraft(rank ?? "");
-  }, [rank]);
-
-  function commitRank() {
-    const n = Number(rankDraft);
-    if (!Number.isNaN(n) && n !== rank && onRankChange) {
-      onRankChange(n);
-    }
-  }
 
   function archiveGroup(reason: string) {
     onDeleteGroup?.(reason);
@@ -97,18 +75,6 @@ export default function ListingSection({
           )}
         </div>
         <div className={styles["controls"]}>
-          {rank !== undefined && (
-            <div className={styles["rank-control"]}>
-              <label className={styles["rank-label"]}>Rank</label>
-              <input
-                type="number"
-                value={rankDraft}
-                onChange={(e) => setRankDraft(e.target.value)}
-                onBlur={commitRank}
-                className={styles["rank-input"]}
-              />
-            </div>
-          )}
           {canManage && onDeleteGroup && (
             <div className={styles["delete-group-wrapper"]}>
               <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog(true)}>

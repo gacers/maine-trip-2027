@@ -13,10 +13,9 @@ import {
 } from "@/components/DropdownMenu";
 import type { PublicTrip, Section, ClientEntry, FieldDef } from "@/lib/types";
 
-export type SortBy = "rank" | "myScore" | "averageScore" | "visitedDate";
+export type SortBy = "myScore" | "averageScore" | "visitedDate";
 
 export const SORT_BY_LABELS: Record<SortBy, string> = {
-  rank: "Rank",
   myScore: "My Score",
   averageScore: "Average Score",
   visitedDate: "Date",
@@ -36,7 +35,6 @@ export interface UtilityControlsProps {
   onToggleFilter: (key: string) => void;
   onClearFilters: () => void;
   showRatings: boolean;
-  showRanking: boolean;
   sortBy: SortBy;
   onSortByChange: (v: SortBy) => void;
 }
@@ -59,7 +57,6 @@ export default function UtilityControls({
   onToggleFilter,
   onClearFilters,
   showRatings,
-  showRanking,
   sortBy,
   onSortByChange,
 }: UtilityControlsProps) {
@@ -131,7 +128,6 @@ export default function UtilityControls({
           <DropdownMenuContent>
             <DropdownMenuLabel>Sort by</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => onSortByChange(v as SortBy)}>
-              {showRanking && <DropdownMenuRadioItem value="rank">Rank</DropdownMenuRadioItem>}
               {showRatings && <DropdownMenuRadioItem value="myScore">My Score</DropdownMenuRadioItem>}
               {showRatings && <DropdownMenuRadioItem value="averageScore">Average Score</DropdownMenuRadioItem>}
               {/* Only meaningful once a trip is completed — beforehand

@@ -40,7 +40,6 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
   const [emptyMessage, setEmptyMessage] = useState(section?.empty_message || "");
   const [supportsPairing, setSupportsPairing] = useState(section?.supports_pairing ?? false);
   const [hasMap, setHasMap] = useState(section?.has_map ?? true);
-  const [supportsRanking, setSupportsRanking] = useState(section?.supports_ranking ?? false);
   const [supportsRatings, setSupportsRatings] = useState(section?.supports_ratings ?? false);
   const [cardLayout, setCardLayout] = useState<Section["card_layout"]>(section?.card_layout ?? "list");
   const [navGroupId, setNavGroupId] = useState(section?.nav_group_id || navGroups[0]?.id || "");
@@ -75,7 +74,6 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
       emptyMessage,
       supportsPairing,
       hasMap,
-      supportsRanking,
       supportsRatings,
       cardLayout,
       fieldDefs: fields.map(rowToFieldDef),
@@ -108,7 +106,7 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
       // group the primary section just landed in (reusing its
       // nav_group_id rather than resolving newNavGroupLabel a second
       // time, which would create a duplicate group) — same fields, but
-      // never pairing/map/ranking (see below).
+      // never pairing/map/ratings (see below).
       if (!isEdit && addCounterpart) {
         const counterpartPayload = {
           slug: `${slug}-visited`,
@@ -117,11 +115,9 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
           addPlaceholder: `Paste a link for a ${label.toLowerCase()} you've already been to...`,
           emptyMessage: `No previous ${label.toLowerCase()} yet — paste a link above.`,
           // A "previous"/already-decided list never needs pairing, a map,
-          // ranking, or ratings, regardless of what the primary section
-          // is set to.
+          // or ratings, regardless of what the primary section is set to.
           supportsPairing: false,
           hasMap: false,
-          supportsRanking: false,
           supportsRatings: false,
           cardLayout,
           navGroupId: data.section.nav_group_id,
@@ -243,8 +239,6 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
           onSupportsPairingChange={setSupportsPairing}
           hasMap={hasMap}
           onHasMapChange={setHasMap}
-          supportsRanking={supportsRanking}
-          onSupportsRankingChange={setSupportsRanking}
           supportsRatings={supportsRatings}
           onSupportsRatingsChange={setSupportsRatings}
           cardLayout={cardLayout}

@@ -63,7 +63,6 @@ export async function PATCH(
     emptyMessage,
     supportsPairing,
     hasMap,
-    supportsRanking,
     supportsRatings,
     cardLayout,
     navGroupId,
@@ -82,7 +81,6 @@ export async function PATCH(
   if (emptyMessage !== undefined) patch.empty_message = emptyMessage;
   if (supportsPairing !== undefined) patch.supports_pairing = !!supportsPairing;
   if (hasMap !== undefined) patch.has_map = !!hasMap;
-  if (supportsRanking !== undefined) patch.supports_ranking = !!supportsRanking;
   if (supportsRatings !== undefined) patch.supports_ratings = !!supportsRatings;
   if (cardLayout !== undefined) patch.card_layout = cardLayout;
   if (navGroupId !== undefined) patch.nav_group_id = navGroupId;

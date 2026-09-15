@@ -22,9 +22,8 @@ import styles from "./SectionPage.module.css";
 // we actually do, in what order" rather than "which of these should we
 // pick" — Date (visitedDate) reads better as the default than whatever
 // this section used for deciding beforehand.
-function defaultSortBy(trip: PublicTrip, section: Section): SortBy {
-  if (trip.completed) return "visitedDate";
-  return section.supports_ranking ? "rank" : "averageScore";
+function defaultSortBy(trip: PublicTrip): SortBy {
+  return trip.completed ? "visitedDate" : "averageScore";
 }
 
 function pinFor(unit: EntryUnit): OverviewPin {
@@ -57,10 +56,9 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   const navSlot = useNavSlot();
   const [showArchived, setShowArchived] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(() => new Set());
-  // rank | myScore | averageScore | visitedDate — defaults to
-  // whichever concept this section actually has; Rank only exists as
-  // an option at all once supports_ranking is on.
-  const [sortBy, setSortBy] = useState<SortBy>(defaultSortBy(trip, section));
+  // myScore | averageScore | visitedDate — defaults to whichever
+  // concept this section actually has.
+  const [sortBy, setSortBy] = useState<SortBy>(defaultSortBy(trip));
   const [contributorToken, setContributorToken] = useState<string | null>(null);
   // Which solo entry (if any) is currently mid-"+ Add paired option" —
   // see requestPair below and PairEntryDialog.
@@ -69,20 +67,15 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   const fieldDefs = section.field_defs || [];
   const mapConfig = trip.map_config;
   // `has_map` doubles as "this is a still-deciding-among-options list" —
-  // ranking and driving times/Closest Town exist to help pick a winner,
-  // which a "previous"/already-done section (nothing left to decide) has
-  // no use for. It still gets a map, just the plain SimplePlaceMap
-  // version (marker + a link to open real Google Maps, no Directions API
-  // calls) instead of ListingMap's full comparison tooling — see
-  // EntryCard's comparisonMode prop. Off by default for "previous"
-  // sections in the Section Designer/starter templates; still a
-  // per-section admin toggle either way.
+  // driving times/Closest Town exist to help pick a winner, which a
+  // "previous"/already-done section (nothing left to decide) has no use
+  // for. It still gets a map, just the plain SimplePlaceMap version
+  // (marker + a link to open real Google Maps, no Directions API calls)
+  // instead of ListingMap's full comparison tooling — see EntryCard's
+  // comparisonMode prop. Off by default for "previous" sections in the
+  // Section Designer/starter templates; still a per-section admin
+  // toggle either way.
   const comparisonMode = !!section.has_map;
-  // Whether to show the manual Rank input/reordering at all — its own
-  // toggle, decoupled from comparisonMode/has_map (which is about map
-  // complexity, not ranking). Only a still-deciding-among-options list
-  // like Possible Houses needs it; per-section admin toggle either way.
-  const showRanking = !!section.supports_ranking;
   // Two-score star ratings (My Score / Average Score) — same opt-in
   // pattern, only meaningful for a still-deciding list.
   const showRatings = !!section.supports_ratings;
@@ -161,9 +154,9 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // (e.g. "Bar" checked) into one that doesn't even have that field.
   useEffect(() => {
     setActiveFilters(new Set());
-    setSortBy(defaultSortBy(trip, section));
+    setSortBy(defaultSortBy(trip));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section.id, section.supports_ranking, trip.completed]);
+  }, [section.id, trip.completed]);
 
   function toggleFilter(key: string) {
     setActiveFilters((prev) => {
@@ -203,13 +196,11 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   }
 
   // A 2-item group has two separate scores (one per listing) — sorting by
-  // either takes the better of the two, same "at least this good" idea
-  // as picking a representative rank for the pair. Date instead takes
-  // the earliest of the two (a pair's stay/visit "started" then), and
-  // sorts unset last regardless of direction (an unchecked item has no
-  // place in a chronological list).
+  // either takes the better of the two, same "at least this good" idea.
+  // Date instead takes the earliest of the two (a pair's stay/visit
+  // "started" then), and sorts unset last regardless of direction (an
+  // unchecked item has no place in a chronological list).
   function unitSortValue(unit: EntryUnit, key: SortBy): number {
-    if (key === "rank") return unit.listings[0]?.rank ?? 999999;
     if (key === "visitedDate") {
       const dates = unit.listings
         .map((l) => (l.visitedDate ? new Date(l.visitedDate).getTime() : null))
@@ -220,9 +211,9 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     return values.length > 0 ? Math.max(...values) : -Infinity;
   }
 
-  // Rank and Date both sort ascending (lowest/earliest first) — score-
-  // based sorts want the highest first instead.
-  const ascendingSort = sortBy === "rank" || sortBy === "visitedDate";
+  // Date sorts ascending (earliest first) — score-based sorts want the
+  // highest first instead.
+  const ascendingSort = sortBy === "visitedDate";
   const activeUnits = groupUnits(active)
     .filter(unitMatchesFilters)
     .sort((a, b) =>
@@ -260,7 +251,6 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
           onRate={handleRate}
           canManage={canManage}
           canContribute={canContribute}
-          showRanking={showRanking}
           showRatings={showRatings}
           comparisonMode={comparisonMode}
           isCompactMedia={isCompactMedia}
@@ -287,7 +277,6 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         onRate={handleRate}
         canManage={canManage}
         canContribute={canContribute}
-        showRank={showRanking}
         showRatings={showRatings}
         comparisonMode={comparisonMode}
         compact={isCompactMedia}
@@ -320,7 +309,6 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
       onToggleFilter={toggleFilter}
       onClearFilters={() => setActiveFilters(new Set())}
       showRatings={showRatings}
-      showRanking={showRanking}
       sortBy={sortBy}
       onSortByChange={setSortBy}
     />

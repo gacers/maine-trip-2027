@@ -33,7 +33,6 @@ export interface EntryCardProps {
   canManage?: boolean;
   canContribute?: boolean;
   bare?: boolean;
-  showRank?: boolean;
   showRatings?: boolean;
   showMap?: boolean;
   comparisonMode?: boolean;
@@ -86,7 +85,6 @@ export default function EntryCard({
   canManage = true,
   canContribute = true,
   bare = false,
-  showRank = true,
   showRatings = false,
   showMap = true,
   comparisonMode = true,
@@ -100,7 +98,6 @@ export default function EntryCard({
   nightsEstimate = null,
   showVisitedControl = false,
 }: EntryCardProps) {
-  const [rankDraft, setRankDraft] = useState<string | number>(entry.rank ?? "");
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<EntryDraft | null>(null);
   const [address, setAddress] = useState("");
@@ -111,13 +108,9 @@ export default function EntryCard({
   const extraMarkers = parseExtraMarkers(entry.extraMarkers);
   const hasHouse = hasCoords(entry);
   // Reference points/Closest Town/Driving Times are for a still-
-  // deciding-among-house-options list — today that's identified by
-  // *either* scoring mechanism being on (showRank for a manual-rank
-  // section, showRatings for Possible Houses' now-retired-ranking/
-  // ratings-driven one), not showRank alone: that went stale the
-  // moment manual ranking got retired here in favor of ratings, which
-  // silently turned this whole section off for House Options.
-  const showHouseDetails = showRank || showRatings;
+  // deciding-among-house-options list — identified by ratings being on
+  // (the manual Rank toggle this used to also key off of is retired).
+  const showHouseDetails = showRatings;
   // Called unconditionally (Rules of Hooks) — `enabled` lets it no-op
   // entirely (skip loading Google Maps, skip every effect) for a card
   // that won't actually show a comparison map (editing, no coords, or a
@@ -129,14 +122,6 @@ export default function EntryCard({
     showReferencePoints: showHouseDetails,
     enabled: comparisonMode && hasHouse && showMap && !isEditing,
   });
-
-  // entry.rank can change for reasons other than this exact input's own
-  // edit (another card's edit, a re-fetch after sorting, etc.) — without
-  // this, the box would keep showing whatever was last typed/mounted
-  // with instead of following the real value.
-  useEffect(() => {
-    setRankDraft(entry.rank ?? "");
-  }, [entry.rank]);
 
   // Reverse-geocoded once per location for the address line below the
   // title — falls back to a plain "View on map" link (rather than
@@ -179,13 +164,6 @@ export default function EntryCard({
   const badgeVariants = assignBadgeVariants(
     fieldDefs.filter((f) => f.field_type === "boolean" && f.key !== "closed").map((f) => f.key)
   );
-
-  function commitRank() {
-    const n = Number(rankDraft);
-    if (!Number.isNaN(n) && n !== entry.rank) {
-      onPatch(entry.id, { rank: n });
-    }
-  }
 
   function addNote(text: string) {
     onPatch(entry.id, { appendNote: text });
@@ -289,16 +267,8 @@ export default function EntryCard({
 
       <div className={sectionsClassName}>
         <div className={styles["section"]}>
-          {(activeBooleanFields.length > 0 || (showRank && canManage)) && (
-            <EntryBadgesRow
-              activeBooleanFields={activeBooleanFields}
-              badgeVariants={badgeVariants}
-              showRank={showRank}
-              canManage={canManage}
-              rankDraft={rankDraft}
-              onRankDraftChange={setRankDraft}
-              onCommitRank={commitRank}
-            />
+          {activeBooleanFields.length > 0 && (
+            <EntryBadgesRow activeBooleanFields={activeBooleanFields} badgeVariants={badgeVariants} />
           )}
 
           <div className={styles["header-grid"]}>

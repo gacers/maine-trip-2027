@@ -175,17 +175,16 @@ async function doExportSection(supabase: SupabaseClient, trip: Trip, section: Se
   const sheets = await getSheetsClient();
   const overviewFields = (section.field_defs || []).filter((f) => f.show_on_overview);
   // Only a still-deciding-among-options list (e.g. Possible Houses) has
-  // a meaningful Rank/ratings — matches supports_ranking/
-  // supports_ratings on the site itself. No "My Score" column here —
-  // a shared spreadsheet has no single "viewer" for that to mean
-  // anything to; only the Average Score is a real, static fact worth
-  // exporting. The Rank column itself shows up for either toggle —
-  // ratings now fully drive it in practice (Possible Houses turned the
-  // manual one off), but a future section could still want a plain
-  // manual Rank with no ratings at all.
-  const showRank = !!section.supports_ranking;
+  // a meaningful Rank/ratings — matches supports_ratings on the site
+  // itself (the manual Rank toggle this used to also key off of is
+  // retired; ratings fully drive this now). No "My Score" column
+  // here — a shared spreadsheet has no single "viewer" for that to
+  // mean anything to; only the Average Score is a real, static fact
+  // worth exporting. The Rank column itself is computed fresh from
+  // Average Score below (see the showRatings branch further down),
+  // not read from entries.rank.
   const showRatings = !!section.supports_ratings;
-  const showRankColumn = showRank || showRatings;
+  const showRankColumn = showRatings;
   // A plain log-style section (no Status column of its own) still
   // needs some way to show "did this actually happen" once the trip
   // is over — a Status-flavored section instead just enriches its
@@ -222,10 +221,10 @@ async function doExportSection(supabase: SupabaseClient, trip: Trip, section: Se
 
   let units: RankedUnit[];
   if (showRatings) {
-    // Rank here is computed fresh from Average Score, not the site's
-    // manual Rank field — highest average is 1, next is 2, etc.; a tie
-    // goes alphabetically by title. The manual Rank field still exists
-    // and still drives the site itself, just not this column anymore.
+    // Rank here is computed fresh from Average Score, not entries.rank
+    // (the site's own insertion-order sort key, no longer manually
+    // editable) — highest average is 1, next is 2, etc.; a tie goes
+    // alphabetically by title.
     units = groupUnits(entries)
       .sort((a, b) => {
         const scoreDiff = unitScoreForSort(b) - unitScoreForSort(a);

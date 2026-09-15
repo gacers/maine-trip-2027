@@ -25,7 +25,6 @@ export interface PairedEntryGroupProps {
   onRate: (id: string, score: number | null) => void;
   canManage: boolean;
   canContribute: boolean;
-  showRanking: boolean;
   showRatings: boolean;
   comparisonMode: boolean;
   isCompactMedia: boolean;
@@ -47,7 +46,6 @@ export default function PairedEntryGroup({
   onRate,
   canManage,
   canContribute,
-  showRanking,
   showRatings,
   comparisonMode,
   isCompactMedia,
@@ -70,8 +68,6 @@ export default function PairedEntryGroup({
           ))}
         </div>
       }
-      rank={canManage && showRanking ? unit.listings[0].rank ?? undefined : undefined}
-      onRankChange={(newRank) => unit.listings.forEach((e) => onPatch(e.id, { rank: newRank }))}
       canManage={canManage}
       showRatings={showRatings}
       canContribute={canContribute}
@@ -97,7 +93,6 @@ export default function PairedEntryGroup({
               canContribute={canContribute}
               bare
               hideMedia
-              showRank={false}
               showRatings={showRatings}
               showRatingControl={false}
               showMap={false}

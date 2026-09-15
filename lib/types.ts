@@ -39,7 +39,6 @@ export interface Section {
   empty_message: string | null;
   supports_pairing: boolean;
   has_map: boolean;
-  supports_ranking: boolean;
   supports_ratings: boolean;
   /** @deprecated superseded by card_layout (migration 0017) — left in
    * place on the row/type but no longer read anywhere in the app. */
