@@ -118,12 +118,13 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // How this section's entries lay out — one full-width card per row,
   // a "small card" two-up, or the tighter "compact card" three-across
   // — a plain per-section choice (see Section Designer), unrelated to
-  // comparisonMode. Only the compact 3-across grid also switches
-  // EntryMedia to its smaller photo height; both "list" and "grid-2"
-  // get the bigger, richer one — "small" there describes the card
-  // (half the row width instead of the full row), not a shrunk photo.
+  // comparisonMode. Each also gets its own EntryMedia photo height:
+  // list's is the tallest (bigger still for Houses/Stays, see isHouses
+  // below), grid-2's own "medium" height sits in between, and grid-3's
+  // compact height is the shortest.
   const cardLayout = section.card_layout || "list";
   const isCompactMedia = cardLayout === "grid-3";
+  const isMediumMedia = cardLayout === "grid-2";
   const layoutClassName =
     cardLayout === "grid-3" ? styles.entryGrid : cardLayout === "grid-2" ? styles.entryGrid2 : styles.entryList;
   // Houses/Stays specifically (identified by nav group, not the card
@@ -398,7 +399,13 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
             <div className={styles.groupMediaRow}>
               {unit.listings.map((entry) => (
                 <div key={entry.id} className={styles.groupMediaHalf}>
-                  <EntryMedia entry={entry} compact={isCompactMedia} large={isHouses} showRatings={showRatings} />
+                  <EntryMedia
+                    entry={entry}
+                    compact={isCompactMedia}
+                    large={isHouses}
+                    medium={isMediumMedia}
+                    showRatings={showRatings}
+                  />
                 </div>
               ))}
             </div>
@@ -435,6 +442,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
                   showRatingControl={false}
                   showMap={false}
                   compact={isCompactMedia}
+                  mediumMedia={isMediumMedia}
                   nightsEstimate={nightsEstimate}
                 />
               </div>
@@ -471,6 +479,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         comparisonMode={comparisonMode}
         compact={isCompactMedia}
         largeMedia={isHouses}
+        mediumMedia={isMediumMedia}
         supportsPairing={!!section.supports_pairing}
         onAddPaired={canContribute ? () => requestPair(entry) : undefined}
         nightsEstimate={nightsEstimate}

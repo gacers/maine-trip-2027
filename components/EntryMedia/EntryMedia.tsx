@@ -10,6 +10,10 @@ export interface EntryMediaProps {
    * compact is also set (compact always wins, e.g. a paired option's
    * shared media row). */
   large?: boolean;
+  /** The "small card, two per row" layout's own in-between photo
+   * height — shorter than a full-width list card, taller than the
+   * compact 3-across grid. Ignored when compact or large is also set. */
+  medium?: boolean;
   showRatings?: boolean;
 }
 
@@ -20,9 +24,21 @@ export interface EntryMediaProps {
 // continues below that. EntryCard itself renders this exact same
 // component for a solo/compact card (hideMedia lets it skip its own
 // copy when a caller like SectionPage is placing this separately).
-export default function EntryMedia({ entry, compact = false, large = false, showRatings = false }: EntryMediaProps) {
+export default function EntryMedia({
+  entry,
+  compact = false,
+  large = false,
+  medium = false,
+  showRatings = false,
+}: EntryMediaProps) {
   if (!entry.posterImage) return null;
-  const headerClass = compact ? styles.mediaHeaderCompact : large ? styles.mediaHeaderLarge : styles.mediaHeader;
+  const headerClass = compact
+    ? styles.mediaHeaderCompact
+    : large
+      ? styles.mediaHeaderLarge
+      : medium
+        ? styles.mediaHeaderMedium
+        : styles.mediaHeader;
   return (
     <div className={headerClass}>
       {/* eslint-disable-next-line @next/next/no-img-element */}

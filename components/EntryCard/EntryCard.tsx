@@ -217,6 +217,9 @@ export interface EntryCardProps {
   /** Houses' own cards get a taller photo — see EntryMedia's own
    * `large` prop, which this just forwards to. */
   largeMedia?: boolean;
+  /** The "small card, two per row" layout's own photo height — see
+   * EntryMedia's own `medium` prop, which this just forwards to. */
+  mediumMedia?: boolean;
   /** Skip rendering this card's own photo — used for a 2-house-option
    * group, where SectionPage lays both houses' photos out as their own
    * row (via EntryMedia directly) above the group's shared title
@@ -260,6 +263,7 @@ export default function EntryCard({
   comparisonMode = true,
   compact = false,
   largeMedia = false,
+  mediumMedia = false,
   hideMedia = false,
   showRatingControl = true,
   supportsPairing = false,
@@ -479,7 +483,9 @@ export default function EntryCard({
 
   return (
     <article id={`listing-${entry.id}`} className={rootClassName}>
-      {!hideMedia && <EntryMedia entry={entry} compact={compact} large={largeMedia} showRatings={showRatings} />}
+      {!hideMedia && (
+        <EntryMedia entry={entry} compact={compact} large={largeMedia} medium={mediumMedia} showRatings={showRatings} />
+      )}
 
       <div className={sectionsClassName}>
         <div className={styles.section}>
