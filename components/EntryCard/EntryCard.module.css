@@ -133,30 +133,29 @@
   gap: 0.375rem;
 }
 
-.visitedRow {
+/* Deliberately quiet — a detail alongside Notes/Concerns, not a
+   header-level status pill (an earlier version put the checkbox/date
+   up in .utilityRow, which read as far more prominent than "did we
+   actually do this" needs to be). */
+.visitedDetailRow {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   font-size: var(--text-sm);
-  color: var(--color-zinc-700);
+  color: var(--color-zinc-600);
 }
 
-.visitedLabel {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
+.visitedCheck {
+  color: var(--color-green-700);
+  font-weight: var(--font-weight-medium);
 }
 
-.checkbox {
-  height: 1rem;
-  width: 1rem;
-}
-
-.visitedDateInput {
+.visitedDateInputSmall {
   border-radius: var(--radius);
   border: 1px solid var(--color-zinc-300);
-  padding: 0.25rem 0.5rem;
-  font-size: var(--text-sm);
+  padding: 0.125rem 0.375rem;
+  font-size: var(--text-xs);
 }
 
 .rankControl {

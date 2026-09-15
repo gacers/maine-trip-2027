@@ -7,7 +7,6 @@ import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuL
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from "@/components/DropdownMenu";
 import Button from "@/components/Button";
 import RequestAccess from "@/components/RequestAccess";
-import ArchiveUnvisitedButton from "@/components/ArchiveUnvisitedButton";
 import { captureInviteToken } from "@/lib/inviteClient";
 import { useNavSlot } from "./NavSlot";
 import type { PublicTrip, NavGroup } from "@/lib/types";
@@ -105,12 +104,13 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
               <Link href="/" className={styles.actionLink}>
                 All trips
               </Link>
-              {/* Visible right here (not tucked into Trip Settings) once
-                  there's actually something a completed trip could
-                  still need archiving — see TripSettingsForm's
-                  Completed checkbox and EntryCard's own Stayed/Visited
-                  control. */}
-              {trip.completed && <ArchiveUnvisitedButton trip={trip} nav={allNav} triggerClassName={styles.actionLink} />}
+              {/* This row's own set of buttons stays fixed regardless of
+                  trip state — a conditional third item here (an earlier
+                  version put Archive Unvisited in this same row) made
+                  the header's structure shift between a completed trip
+                  and every other one. It lives on the Trip Settings
+                  page instead now, right by the Completed checkbox that
+                  gates it (see TripSettingsPage). */}
               <Link href={`/${trip.slug}/admin/sections`} className={styles.manageLink}>
                 Manage
               </Link>

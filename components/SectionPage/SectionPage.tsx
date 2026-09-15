@@ -508,6 +508,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
                   compact={isCompactMedia}
                   mediumMedia={isMediumMedia}
                   nightsEstimate={nightsEstimate}
+                  showVisitedControl={trip.completed}
                 />
               </div>
             ))}
@@ -547,6 +548,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         supportsPairing={!!section.supports_pairing}
         onAddPaired={canContribute ? () => requestPair(entry) : undefined}
         nightsEstimate={nightsEstimate}
+        showVisitedControl={trip.completed}
       />
     );
   }
