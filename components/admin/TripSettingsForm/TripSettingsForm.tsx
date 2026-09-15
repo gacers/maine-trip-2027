@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Button from "@/components/Button";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
+import DangerZone from "./components/DangerZone";
 import type { Trip, MapReferencePoint } from "@/lib/types";
 import styles from "./TripSettingsForm.module.css";
 
@@ -35,6 +36,7 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
   const [nightsEstimate, setNightsEstimate] = useState(trip.nights_estimate ? String(trip.nights_estimate) : "");
   const [coverImage, setCoverImage] = useState(trip.cover_image || "");
   const [completed, setCompleted] = useState(trip.completed);
+  const [archived, setArchived] = useState(trip.archived);
   const [pois, setPois] = useState<DraftPoi[]>(toDraftPois(trip.map_config?.alwaysShown));
   const [poiQuery, setPoiQuery] = useState("");
   const [findingPoi, setFindingPoi] = useState(false);
@@ -100,6 +102,7 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
           nightsEstimate: nightsEstimate ? Number(nightsEstimate) : null,
           coverImage: coverImage || null,
           completed,
+          archived,
           mapConfig: { ...trip.map_config, alwaysShown },
         }),
       });
@@ -178,6 +181,18 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
         research never disappears just for not being used. Turning this back off just hides that split again — any
         Visited checks and dates already recorded stay saved and come right back if you turn it on again.
       </label>
+      <label className={styles["checkbox-field"]}>
+        <input
+          type="checkbox"
+          checked={archived}
+          onChange={(e) => setArchived(e.target.checked)}
+          className={styles["checkbox"]}
+        />
+        Archived — hides this trip from the trips list entirely, without touching any of its data. Reversible:
+        uncheck this (you&apos;ll need this trip&apos;s direct URL, since it won&apos;t be listed) to bring it back.
+        For a duplicate or a trip you decided not to take, not one that already happened — that&apos;s Completed
+        above.
+      </label>
 
       <div className={styles["poi-section"]}>
         <h2 className={styles["poi-heading"]}>Points of interest</h2>
@@ -240,6 +255,8 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
       <Button type="submit" variant="primary" size="sm" disabled={saving} className={styles["submit-button"]}>
         {saving ? "Saving..." : "Save changes"}
       </Button>
+
+      <DangerZone trip={trip} />
     </form>
   );
 }

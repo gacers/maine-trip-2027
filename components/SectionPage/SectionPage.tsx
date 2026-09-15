@@ -56,6 +56,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   const navSlot = useNavSlot();
   const [showArchived, setShowArchived] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(() => new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   // myScore | averageScore | visitedDate — defaults to whichever
   // concept this section actually has.
   const [sortBy, setSortBy] = useState<SortBy>(defaultSortBy(trip));
@@ -149,11 +150,13 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     showRatings,
   });
 
-  // Filters are per-section, not global — clear them when navigating to a
-  // different section rather than silently carrying a stale selection
-  // (e.g. "Bar" checked) into one that doesn't even have that field.
+  // Filters/search are per-section, not global — clear them when
+  // navigating to a different section rather than silently carrying a
+  // stale selection (e.g. "Bar" checked, or a search term) into one
+  // that doesn't even have that field/those results.
   useEffect(() => {
     setActiveFilters(new Set());
+    setSearchQuery("");
     setSortBy(defaultSortBy(trip));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section.id, trip.completed]);
@@ -195,6 +198,18 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     return unit.listings.some((entry) => [...activeFilters].some((key) => !!entry[key]));
   }
 
+  // Matches on title (either half of a pair) or the pair's own shared
+  // group label — the two things a unit actually reads as "named" by
+  // on the page. Case-insensitive, plain substring — no need for
+  // anything fancier at this list size.
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  function unitMatchesSearch(unit: EntryUnit): boolean {
+    if (!trimmedQuery) return true;
+    return unit.listings.some(
+      (entry) => entry.title?.toLowerCase().includes(trimmedQuery) || entry.groupLabel?.toLowerCase().includes(trimmedQuery)
+    );
+  }
+
   // A 2-item group has two separate scores (one per listing) — sorting by
   // either takes the better of the two, same "at least this good" idea.
   // Date instead takes the earliest of the two (a pair's stay/visit
@@ -215,7 +230,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // highest first instead.
   const ascendingSort = sortBy === "visitedDate";
   const activeUnits = groupUnits(active)
-    .filter(unitMatchesFilters)
+    .filter((u) => unitMatchesFilters(u) && unitMatchesSearch(u))
     .sort((a, b) =>
       ascendingSort
         ? unitSortValue(a, sortBy) - unitSortValue(b, sortBy)
@@ -294,25 +309,32 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // as part of that sticky bar instead of its own separate row further
   // down the page — falls back to rendering right here (still sticky,
   // still right-aligned) if that slot isn't available for some reason.
-  const utilityControls = (canContribute || filterFieldDefs.length > 0 || showRatings || trip.completed) && (
-    <UtilityControls
-      trip={trip}
-      section={section}
-      navGroupSlug={navGroupSlug}
-      authToken={authToken}
-      canContribute={canContribute}
-      onAdded={handleAdded}
-      onRequestPairExisting={section.supports_pairing ? requestPair : undefined}
-      sheetUrl={sheetUrl}
-      filterFieldDefs={filterFieldDefs}
-      activeFilters={activeFilters}
-      onToggleFilter={toggleFilter}
-      onClearFilters={() => setActiveFilters(new Set())}
-      showRatings={showRatings}
-      sortBy={sortBy}
-      onSortByChange={setSortBy}
-    />
-  );
+  // Search is useful on any section with more than a couple of entries
+  // (even a plain "previous"/log list a read-only visitor is browsing),
+  // unlike Filter/Sort which only mean anything once the section itself
+  // opts into a real field/ratings to drive them.
+  const utilityControls =
+    (canContribute || filterFieldDefs.length > 0 || showRatings || trip.completed || entries.length > 0) && (
+      <UtilityControls
+        trip={trip}
+        section={section}
+        navGroupSlug={navGroupSlug}
+        authToken={authToken}
+        canContribute={canContribute}
+        onAdded={handleAdded}
+        onRequestPairExisting={section.supports_pairing ? requestPair : undefined}
+        sheetUrl={sheetUrl}
+        filterFieldDefs={filterFieldDefs}
+        activeFilters={activeFilters}
+        onToggleFilter={toggleFilter}
+        onClearFilters={() => setActiveFilters(new Set())}
+        showRatings={showRatings}
+        sortBy={sortBy}
+        onSortByChange={setSortBy}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+      />
+    );
 
   return (
     <main className={classNames(styles["root"], isHouses && styles["root-houses"])}>
@@ -371,7 +393,9 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
           {!loading && activeUnits.length > 0 && <OverviewMap pins={pins} />}
 
           {activeUnits.length === 0 && (
-            <p className={styles["empty-text"]}>{active.length === 0 ? section.empty_message : "Nothing matches the selected filters."}</p>
+            <p className={styles["empty-text"]}>
+              {active.length === 0 ? section.empty_message : "Nothing matches the selected filters/search."}
+            </p>
           )}
           {trip.completed ? (
             <>
@@ -399,7 +423,9 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
               </Button>
               {showArchived && (
                 <div className={classNames(listClassName, styles["archived-list"])}>
-                  {groupUnits(archived).filter(unitMatchesFilters).map(renderUnit)}
+                  {groupUnits(archived)
+                    .filter((u) => unitMatchesFilters(u) && unitMatchesSearch(u))
+                    .map(renderUnit)}
                 </div>
               )}
             </div>

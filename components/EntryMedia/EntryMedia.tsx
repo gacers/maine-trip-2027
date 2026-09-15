@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { ClientEntry } from "@/lib/types";
 import styles from "./EntryMedia.module.css";
 
@@ -31,7 +34,12 @@ export default function EntryMedia({
   medium = false,
   showRatings = false,
 }: EntryMediaProps) {
-  if (!entry.posterImage) return null;
+  // A pasted URL (there's no real upload — see TripSettingsForm) can go
+  // stale after the fact (a listing taken down, a hosting site
+  // rotating its CDN links) — treated the same as never having had a
+  // photo at all, rather than showing a broken-image icon.
+  const [failed, setFailed] = useState(false);
+  if (!entry.posterImage || failed) return null;
   const headerClass = compact
     ? styles["root-compact"]
     : large
@@ -42,7 +50,13 @@ export default function EntryMedia({
   return (
     <div className={headerClass}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={entry.posterImage} alt={entry.title ?? ""} className={styles["media-img"]} loading="lazy" />
+      <img
+        src={entry.posterImage}
+        alt={entry.title ?? ""}
+        className={styles["media-img"]}
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
       {showRatings && !!entry.ratingCount && entry.averageScore != null && (
         <div className={styles["score-badge"]} title={`${entry.averageScore.toFixed(1)} avg (${entry.ratingCount})`}>
           {entry.averageScore.toFixed(1)}

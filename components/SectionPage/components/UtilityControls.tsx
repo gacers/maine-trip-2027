@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/DropdownMenu";
 import type { PublicTrip, Section, ClientEntry, FieldDef } from "@/lib/types";
+import styles from "./UtilityControls.module.css";
 
 export type SortBy = "myScore" | "averageScore" | "visitedDate";
 
@@ -37,6 +38,8 @@ export interface UtilityControlsProps {
   showRatings: boolean;
   sortBy: SortBy;
   onSortByChange: (v: SortBy) => void;
+  searchQuery: string;
+  onSearchQueryChange: (v: string) => void;
 }
 
 // Add / Google Sheet link / Filter / Sort — everything that isn't the
@@ -59,6 +62,8 @@ export default function UtilityControls({
   showRatings,
   sortBy,
   onSortByChange,
+  searchQuery,
+  onSearchQueryChange,
 }: UtilityControlsProps) {
   return (
     <>
@@ -88,6 +93,15 @@ export default function UtilityControls({
           </a>
         </Button>
       )}
+
+      <input
+        type="search"
+        value={searchQuery}
+        onChange={(e) => onSearchQueryChange(e.target.value)}
+        placeholder="Search..."
+        aria-label="Search this list"
+        className={styles["search-input"]}
+      />
 
       {filterFieldDefs.length > 0 && (
         <DropdownMenu>

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
-import { requireWriteAccess } from "@/lib/auth";
+import { requireWriteAccess, getAdminUser } from "@/lib/auth";
+import { supabaseServiceRole } from "@/lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +33,37 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if ("mapConfig" in body) patch.map_config = body.mapConfig;
   if ("coverImage" in body) patch.cover_image = body.coverImage || null;
   if ("completed" in body) patch.completed = !!body.completed;
+  // Hides the trip from the public trips index (getAllTrips filters on
+  // this) without touching any of its data — reversible, unlike
+  // DELETE below. For a trip you don't want cluttering the list
+  // anymore (a duplicate, one you decided not to take) but might
+  // still want to look back at.
+  if ("archived" in body) patch.archived = !!body.archived;
 
   const { data, error } = await supabase!.from("trips").update(patch).eq("id", trip.id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ trip: data });
+}
+
+// Admin session only — deliberately NOT reachable via an API key/bearer
+// token the way PATCH is (see requireWriteAccess): those exist for
+// Claude Desktop/automation to manage entries, not to permanently wipe
+// an entire trip. Cascades through nav_groups/sections/field_defs/
+// entries/api_keys (all `on delete cascade` — see
+// supabase/migrations/0001_init.sql) but does NOT touch the trip's
+// Google Sheet/Drive file, if it has one — that's a separate Google
+// resource this app doesn't own the lifecycle of; deleting it here
+// would need the OAuth Drive client and could fail independently of
+// the actual trip deletion, which shouldn't be held hostage to that.
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
+  const { tripSlug } = await params;
+  const trip = await getTripBySlug(tripSlug);
+  if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
+
+  const admin = await getAdminUser();
+  if (!admin) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+
+  const { error } = await supabaseServiceRole().from("trips").delete().eq("id", trip.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }
