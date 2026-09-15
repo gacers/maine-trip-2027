@@ -67,14 +67,18 @@ export function computeBadge(rawValue: string | null | undefined): string | null
 // else ("500", "3,500.50") still deserves to look like real money, not
 // a stray unlabeled number — reformats it as currency for display.
 // Anything that already has a "$", or any other text at all (a stated
-// rate, "for 7 nights", ...), is left exactly as typed/stored.
+// rate, "for 7 nights", ...), is left exactly as typed/stored, aside
+// from spelling "/night" out as " per night" (display only — the
+// stored text and the editor's own parsing both still match either
+// spelling, see priceModeFor in FieldInput).
 export function formatPriceDisplay(rawValue: string | null | undefined): string {
   if (!rawValue) return "";
   const trimmed = rawValue.trim();
-  if (!PLAIN_NUMBER_RE.test(trimmed)) return rawValue;
-  const amount = Number(trimmed.replace(/,/g, ""));
-  if (Number.isNaN(amount)) return rawValue;
-  return `$${amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  if (PLAIN_NUMBER_RE.test(trimmed)) {
+    const amount = Number(trimmed.replace(/,/g, ""));
+    if (!Number.isNaN(amount)) return `$${amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  }
+  return rawValue.replace(/\s*\/\s?night/i, " per night");
 }
 
 export interface TripLengthSource {
