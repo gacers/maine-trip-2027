@@ -156,9 +156,10 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
       </label>
       <label className={styles.checkboxField}>
         <input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} className={styles.checkbox} />
-        Completed — the trip already happened. Moves it to Past Trips on the trips list; each entry can then be
-        checked off as Stayed/Visited (see its own card) and, once you&apos;re ready, the &quot;Archive unvisited&quot;
-        button in the nav bar archives everything you didn&apos;t check.
+        Completed — the trip already happened. Moves it to Past Trips on the trips list; a template added from here
+        on becomes one plain section instead of an Options/Previously pair, and anything added to a section with no
+        ranking/ratings/pairing comes in already checked off Stayed/Visited. Anything you don&apos;t check off
+        yourself can be swept up with the &quot;Archive unvisited&quot; button in the nav bar once you&apos;re ready.
       </label>
 
       <div className={styles.poiSection}>

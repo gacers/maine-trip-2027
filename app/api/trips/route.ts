@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { slug, name, subtitle, startDate, endDate, nightsEstimate, mapConfig } = body;
+  const { slug, name, subtitle, startDate, endDate, nightsEstimate, mapConfig, completed } = body;
   if (!slug || !name) {
     return NextResponse.json({ error: "slug and name are required" }, { status: 400 });
   }
@@ -51,6 +51,11 @@ export async function POST(request: NextRequest) {
         end_date: endDate || null,
         nights_estimate: nightsEstimate || null,
         map_config: mapConfig || {},
+        // Setting this at creation (see NewTripForm's "documenting a
+        // past trip" checkbox) is what makes every entry subsequently
+        // added to a non-options section come in pre-marked Visited —
+        // see the entries POST route.
+        completed: !!completed,
       })
       .select()
       .single();

@@ -55,6 +55,38 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     // nothing left to decide either way.
     const isHouses = template.key === "houses";
     try {
+      // A completed trip (see TripSettingsForm — set at creation via
+      // NewTripForm's "documenting a past trip" checkbox, or toggled on
+      // later) has nothing left to decide: everything in it already
+      // happened. One plain section instead of the Possible/Previously
+      // pair, named for the category itself rather than "Options"/
+      // "Previously ..." wording that only makes sense when something's
+      // still being weighed — and with no ranking/ratings/pairing, its
+      // entries auto-mark Visited on add (see the entries POST route).
+      if (trip.completed) {
+        const res = await fetch(apiBase, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug: template.previous.slug,
+            label: template.navGroupLabel,
+            addPlaceholder: "Paste a link...",
+            emptyMessage: "Nothing here yet — paste a link above.",
+            supportsPairing: false,
+            hasMap: false,
+            supportsRanking: false,
+            supportsRatings: false,
+            cardLayout,
+            newNavGroupLabel: template.navGroupLabel,
+            fieldDefs: template.fieldDefs,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to create section");
+        refresh();
+        return;
+      }
+
       const possibleRes = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -124,8 +156,9 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       <div className={styles.templatesSection}>
         <h2 className={styles.sectionHeading}>Add from a template</h2>
         <p className={styles.templatesHint}>
-          Each creates a ready-made &quot;Options&quot; / &quot;Before&quot; pair (e.g. House Options / Stayed
-          Before) — fully editable or deletable afterward, this is just a fast starting point.
+          {trip.completed
+            ? "This trip is marked Completed, so each template creates just one plain section (e.g. \"Stays\", not a Stay Options / Stayed Before pair) — there's nothing left to decide, so anything added comes in already checked off Visited."
+            : 'Each creates a ready-made "Options" / "Before" pair (e.g. House Options / Stayed Before) — fully editable or deletable afterward, this is just a fast starting point.'}
         </p>
         <div className={styles.templateList}>
           {SECTION_TEMPLATES.map((t) => {

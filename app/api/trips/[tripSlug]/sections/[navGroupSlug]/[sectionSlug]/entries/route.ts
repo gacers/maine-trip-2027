@@ -8,6 +8,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { normalizeListingUrl } from "@/lib/scrape";
 import { extractCount } from "@/lib/fieldTypes/count";
 import { exportSection } from "@/lib/sheetsExport";
+import { sectionHasOptionsTraits } from "@/lib/tripCompletion";
 import type { Trip, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -122,6 +123,16 @@ export async function POST(
       }
     }
 
+    // A completed trip's own non-options sections (no ranking/ratings/
+    // pairing — see sectionHasOptionsTraits) are pure documentation:
+    // whatever gets added is something that actually happened, not a
+    // candidate to weigh, so it comes in already checked off instead of
+    // needing a manual Stayed/Visited click for every single entry.
+    // Still-deciding sections (an "options" section a documented trip
+    // happens to keep around) are left alone — those genuinely need a
+    // human decision either way.
+    const autoVisited = trip.completed && !sectionHasOptionsTraits(section);
+
     const entry = await createEntry(supabase!, {
       id: nanoid(8),
       section_id: section.id,
@@ -136,6 +147,7 @@ export async function POST(
       notes: notes || null,
       concerns: concerns || null,
       group_label: groupLabel || null,
+      visited: autoVisited,
       data: filledData,
     });
     await exportSection(supabase!, trip, section);

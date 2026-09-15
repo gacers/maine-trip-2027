@@ -20,6 +20,7 @@ export default function NewTripForm() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [nightsEstimate, setNightsEstimate] = useState("");
+  const [pastTrip, setPastTrip] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -42,6 +43,7 @@ export default function NewTripForm() {
           startDate: startDate || undefined,
           endDate: endDate || undefined,
           nightsEstimate: nightsEstimate ? Number(nightsEstimate) : undefined,
+          completed: pastTrip,
         }),
       });
       const data = await res.json();
@@ -103,6 +105,17 @@ export default function NewTripForm() {
           placeholder="e.g. 7"
           className={styles.input}
         />
+      </label>
+      <label className={styles.checkboxField}>
+        <input
+          type="checkbox"
+          checked={pastTrip}
+          onChange={(e) => setPastTrip(e.target.checked)}
+          className={styles.checkbox}
+        />
+        This documents a trip that already happened — mark it Completed now, so anything you add to a plain list
+        (not a still-deciding &quot;Options&quot; section) comes in already checked off as Stayed/Visited instead of
+        needing that clicked one by one.
       </label>
       {error && <p className={styles.error}>{error}</p>}
       <button type="submit" disabled={saving} className={styles.submitButton}>
