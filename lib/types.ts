@@ -41,7 +41,13 @@ export interface Section {
   has_map: boolean;
   supports_ranking: boolean;
   supports_ratings: boolean;
+  /** @deprecated superseded by card_layout (migration 0017) — left in
+   * place on the row/type but no longer read anywhere in the app. */
   compact_cards: boolean;
+  /** How this section's entries lay out: one full-width card per row,
+   * two full-width cards per row, or the tighter 3-across compact grid
+   * (the old compact_cards=true). */
+  card_layout: "list" | "grid-2" | "grid-3";
   enabled: boolean;
   sort_order: number;
   /** This section's own tab's Google-assigned numeric sheetId within

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
-import { exportSection } from "@/lib/sheetsExport";
+import { exportSectionOrThrow } from "@/lib/sheetsExport";
 import type { Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -28,19 +28,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (sectionsError) return NextResponse.json({ error: sectionsError.message }, { status: 500 });
 
   let result: { spreadsheetId: string; spreadsheetUrl: string } | null = null;
-  for (const section of (sections as Section[]) || []) {
-    const r = await exportSection(supabase, trip, section);
-    if (r) {
-      result = r;
-      // exportSection reads trip.google_sheet_id/_url but doesn't
-      // mutate the object it was passed — without this, every section
-      // after the first would still see it as null and each try to
-      // create its own spreadsheet.
-      trip.google_sheet_id = r.spreadsheetId;
-      trip.google_sheet_url = r.spreadsheetUrl;
+  try {
+    // exportSectionOrThrow, not exportSection — this is the one place
+    // a real failure needs to actually reach the person who clicked
+    // the button, instead of silently logging server-side where they
+    // have no way to look (confirmed live: a brand-new trip's export
+    // failed with nothing but "Export failed — check server logs" to
+    // go on, no logs the admin could actually see).
+    for (const section of (sections as Section[]) || []) {
+      const r = await exportSectionOrThrow(supabase, trip, section);
+      if (r) {
+        result = r;
+        // exportSectionOrThrow reads trip.google_sheet_id/_url but
+        // doesn't mutate the object it was passed — without this,
+        // every section after the first would still see it as null
+        // and each try to create its own spreadsheet.
+        trip.google_sheet_id = r.spreadsheetId;
+        trip.google_sheet_url = r.spreadsheetUrl;
+      }
     }
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message || "Export failed" }, { status: 500 });
   }
 
-  if (!result) return NextResponse.json({ error: "Export failed — check server logs" }, { status: 500 });
+  if (!result) {
+    return NextResponse.json(
+      { error: "Nothing to export yet — every section is either disabled or has no items in it." },
+      { status: 400 }
+    );
+  }
   return NextResponse.json(result);
 }

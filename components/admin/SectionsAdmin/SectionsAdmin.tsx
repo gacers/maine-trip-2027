@@ -45,8 +45,9 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     setAddingTemplate(template.key);
     // Houses get one full-width card per row (a lot to show: photos,
     // price, bed/bath counts, a map); Food & Drink and Activities read
-    // better two to a row — both tiers of a category share this.
-    const compactCards = template.key !== "houses";
+    // better in the tighter 3-across compact grid — both tiers of a
+    // category share this.
+    const cardLayout: Section["card_layout"] = template.key !== "houses" ? "grid-3" : "list";
     // Pairing (2-item options), manual ranking, and the full comparison
     // map (pins/legend/reference points, vs. just a plain marker) only
     // make sense for a still-deciding house-options list — Food & Drink/
@@ -66,7 +67,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           hasMap: isHouses,
           supportsRanking: isHouses,
           supportsRatings: isHouses,
-          compactCards,
+          cardLayout,
           newNavGroupLabel: template.navGroupLabel,
           fieldDefs: template.fieldDefs,
         }),
@@ -89,7 +90,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           hasMap: false,
           supportsRanking: false,
           supportsRatings: false,
-          compactCards,
+          cardLayout,
           navGroupId: possibleData.section.nav_group_id,
           fieldDefs: template.fieldDefs,
         }),

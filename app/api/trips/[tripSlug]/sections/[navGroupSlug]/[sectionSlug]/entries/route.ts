@@ -80,21 +80,29 @@ export async function POST(
   }
 
   const { url, title, posterImage, description, lat, lng, notes, concerns, groupLabel, data } = body;
-  if (!url || !title) {
-    return NextResponse.json({ error: "url and title are required" }, { status: 400 });
+  if (!title) {
+    return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
-  let normalizedUrl;
-  try {
-    normalizedUrl = normalizeListingUrl(url);
-  } catch {
-    return NextResponse.json({ error: "That doesn't look like a valid URL" }, { status: 400 });
+  // A "Start blank" entry (see AddEntryForm) has no URL at all, and
+  // that's a fine, permanent state for it, not just a placeholder —
+  // this route used to require one outright. No normalizing/duplicate-
+  // checking to do without a URL either.
+  let normalizedUrl: string | null = null;
+  if (url) {
+    try {
+      normalizedUrl = normalizeListingUrl(url);
+    } catch {
+      return NextResponse.json({ error: "That doesn't look like a valid URL" }, { status: 400 });
+    }
   }
 
   try {
-    const existing = await findEntryByUrl(supabase!, section.id, normalizedUrl);
-    if (existing) {
-      return NextResponse.json({ error: "duplicate", existing: toClientEntry(existing) }, { status: 409 });
+    if (normalizedUrl) {
+      const existing = await findEntryByUrl(supabase!, section.id, normalizedUrl);
+      if (existing) {
+        return NextResponse.json({ error: "duplicate", existing: toClientEntry(existing) }, { status: 409 });
+      }
     }
 
     const all = await getAllEntries(supabase!, section.id);

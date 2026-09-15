@@ -115,22 +115,26 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // Two-score star ratings (My Score / Average Score) — same opt-in
   // pattern, only meaningful for a still-deciding list.
   const showRatings = !!section.supports_ratings;
-  // Houses get one full-width card per row; lighter entries (food &
-  // drink, activities) read better two to a row — a plain per-section
-  // layout toggle, unrelated to comparisonMode.
-  const compactCards = !!section.compact_cards;
-  // Houses/Stays specifically (identified by nav group, not
-  // compactCards — always uses the single-column .entryList) get a
-  // larger photo, more breathing room between cards, and a narrower
-  // page overall than the wide 3-across grid other sections use.
-  // "stays" is the slug a *new* trip's version of this group gets now
-  // (see lib/sectionTemplates.ts) — "houses" stays checked too since
-  // existing trips keep their original slug (renaming a nav group's
-  // label doesn't change its URL out from under anyone).
+  // How this section's entries lay out — one full-width card per row,
+  // a "small card" two-up, or the tighter "compact card" three-across
+  // — a plain per-section choice (see Section Designer), unrelated to
+  // comparisonMode. Only the compact 3-across grid also switches
+  // EntryMedia to its smaller photo height; both "list" and "grid-2"
+  // get the bigger, richer one — "small" there describes the card
+  // (half the row width instead of the full row), not a shrunk photo.
+  const cardLayout = section.card_layout || "list";
+  const isCompactMedia = cardLayout === "grid-3";
+  const layoutClassName =
+    cardLayout === "grid-3" ? styles.entryGrid : cardLayout === "grid-2" ? styles.entryGrid2 : styles.entryList;
+  // Houses/Stays specifically (identified by nav group, not the card
+  // layout) get a larger photo, more breathing room between cards, and
+  // a narrower page overall than the wide 3-across grid other sections
+  // use. "stays" is the slug a *new* trip's version of this group gets
+  // now (see lib/sectionTemplates.ts) — "houses" stays checked too
+  // since existing trips keep their original slug (renaming a nav
+  // group's label doesn't change its URL out from under anyone).
   const isHouses = navGroupSlug === "houses" || navGroupSlug === "stays";
-  const listClassName = [compactCards ? styles.entryGrid : styles.entryList, isHouses && styles.entryListHouses]
-    .filter(Boolean)
-    .join(" ");
+  const listClassName = [layoutClassName, isHouses && styles.entryListHouses].filter(Boolean).join(" ");
   // Real date range if the trip has one, else its estimated length
   // (see lib/fieldTypes/price.ts) — passed down so a price field's own
   // "total for stay" editor (FieldInput) can bake a real "for N
@@ -394,7 +398,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
             <div className={styles.groupMediaRow}>
               {unit.listings.map((entry) => (
                 <div key={entry.id} className={styles.groupMediaHalf}>
-                  <EntryMedia entry={entry} compact={compactCards} large={isHouses} showRatings={showRatings} />
+                  <EntryMedia entry={entry} compact={isCompactMedia} large={isHouses} showRatings={showRatings} />
                 </div>
               ))}
             </div>
@@ -430,7 +434,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
                   showRatings={showRatings}
                   showRatingControl={false}
                   showMap={false}
-                  compact={compactCards}
+                  compact={isCompactMedia}
                   nightsEstimate={nightsEstimate}
                 />
               </div>
@@ -465,7 +469,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         showRank={showRanking}
         showRatings={showRatings}
         comparisonMode={comparisonMode}
-        compact={compactCards}
+        compact={isCompactMedia}
         largeMedia={isHouses}
         supportsPairing={!!section.supports_pairing}
         onAddPaired={canContribute ? () => requestPair(entry) : undefined}

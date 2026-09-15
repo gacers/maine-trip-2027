@@ -98,7 +98,7 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
   const [hasMap, setHasMap] = useState(section?.has_map ?? true);
   const [supportsRanking, setSupportsRanking] = useState(section?.supports_ranking ?? false);
   const [supportsRatings, setSupportsRatings] = useState(section?.supports_ratings ?? false);
-  const [compactCards, setCompactCards] = useState(section?.compact_cards ?? false);
+  const [cardLayout, setCardLayout] = useState<Section["card_layout"]>(section?.card_layout ?? "list");
   const [navGroupId, setNavGroupId] = useState(section?.nav_group_id || navGroups[0]?.id || "");
   const [newGroupLabel, setNewGroupLabel] = useState("");
   const [fields, setFields] = useState<FieldRow[]>((section?.field_defs || []).map(fieldDefToRow));
@@ -148,7 +148,7 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
       hasMap,
       supportsRanking,
       supportsRatings,
-      compactCards,
+      cardLayout,
       fieldDefs: fields.map(rowToFieldDef),
     };
     if (!isEdit) {
@@ -194,7 +194,7 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
           hasMap: false,
           supportsRanking: false,
           supportsRatings: false,
-          compactCards,
+          cardLayout,
           navGroupId: data.section.nav_group_id,
           fieldDefs: fields.map(rowToFieldDef),
         };
@@ -343,15 +343,17 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
           Show 5-star ratings (each visitor&apos;s own score, plus everyone&apos;s average) — same
           still-deciding-among-options sections as ranking.
         </label>
-        <label className={styles.checkboxField}>
-          <input
-            type="checkbox"
-            checked={compactCards}
-            onChange={(e) => setCompactCards(e.target.checked)}
-            className={styles.checkbox}
-          />
-          Compact cards, two per row — for lighter entries (food & drink, activities). Leave off for houses, which
-          need the full width.
+        <label className={styles.field}>
+          Card layout
+          <select
+            value={cardLayout}
+            onChange={(e) => setCardLayout(e.target.value as Section["card_layout"])}
+            className={styles.input}
+          >
+            <option value="list">One full-width card per row — best for houses/stays</option>
+            <option value="grid-2">Small card, two per row</option>
+            <option value="grid-3">Compact card, three per row — best for lighter entries</option>
+          </select>
         </label>
       </div>
 

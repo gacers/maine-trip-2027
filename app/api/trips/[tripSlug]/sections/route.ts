@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug, getTripNav } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
-import type { FieldType } from "@/lib/types";
+import type { FieldType, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,6 +18,8 @@ const VALID_FIELD_TYPES: FieldType[] = [
   "boolean",
   "date",
 ];
+
+const VALID_CARD_LAYOUTS: Section["card_layout"][] = ["list", "grid-2", "grid-3"];
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     hasMap,
     supportsRanking,
     supportsRatings,
-    compactCards,
+    cardLayout,
     navGroupId,
     newNavGroupLabel,
     fieldDefs,
@@ -71,6 +73,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
   if (!navGroupId && !newNavGroupLabel) {
     return NextResponse.json({ error: "Pick an existing nav group or name a new one" }, { status: 400 });
+  }
+  if (cardLayout !== undefined && !VALID_CARD_LAYOUTS.includes(cardLayout)) {
+    return NextResponse.json({ error: `Invalid cardLayout: ${cardLayout}` }, { status: 400 });
   }
   for (const f of fieldDefs || []) {
     if (!f.key || !f.label || !VALID_FIELD_TYPES.includes(f.field_type)) {
@@ -109,7 +114,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         has_map: !!hasMap,
         supports_ranking: !!supportsRanking,
         supports_ratings: !!supportsRatings,
-        compact_cards: !!compactCards,
+        card_layout: cardLayout || "list",
         sort_order: 999,
       })
       .select()

@@ -76,131 +76,141 @@ export interface ExportResult {
 // (auto-created + shared on first use, see lib/drive.ts), one tab per
 // section. Never throws: a hiccup here can't break the actual write
 // that triggered it, same philosophy as the old single-trip app's
-// syncOverviewSheet.
-export async function exportSection(
-  supabase: SupabaseClient,
-  trip: Trip,
-  section: Section
-): Promise<ExportResult | null> {
+// syncOverviewSheet. Swallows (and only logs server-side) whatever
+// exportSectionOrThrow below actually failed with — fine for this
+// silent, automatic-on-every-write caller, but exactly the problem for
+// an admin who just clicked "Create the Sheet now" and got a bare
+// "Export failed — check server logs" with no way to see those logs
+// (confirmed live) — see the /sheet-export route, which calls
+// exportSectionOrThrow directly instead so the real error reaches them.
+export async function exportSection(supabase: SupabaseClient, trip: Trip, section: Section): Promise<ExportResult | null> {
   try {
-    const rawEntries = await getAllEntries(supabase, section.id);
-
-    // A disabled section, or one nobody's ever added anything to yet,
-    // doesn't belong in a shared Sheet at all — it'd just read as a
-    // real, empty category worth wondering about, instead of what it
-    // actually is (turned off, or simply untouched so far). If it
-    // already has a stale tab from before it was disabled/emptied out
-    // (or from before this check existed at all), remove it.
-    if (!section.enabled || rawEntries.length === 0) {
-      if (trip.google_sheet_id) {
-        await deleteTabIfExists(await getSheetsClient(), trip.google_sheet_id, sanitizeTabName(section.label));
-      }
-      // The site's own "Google Sheet" link builds #gid=<sheet_gid> —
-      // leaving a stale value here after the tab itself is gone would
-      // point that link at a tab that no longer exists.
-      if (section.sheet_gid != null) {
-        await supabase.from("sections").update({ sheet_gid: null }).eq("id", section.id);
-        section.sheet_gid = null;
-      }
-      return null;
-    }
-
-    const { data: settings } = await supabase
-      .from("app_settings")
-      .select("google_drive_folder_id, site_url")
-      .eq("id", true)
-      .maybeSingle();
-
-    let spreadsheetId = trip.google_sheet_id;
-    let spreadsheetUrl = trip.google_sheet_url;
-
-    if (!spreadsheetId) {
-      const created = await createSheetInDrive(trip.name, settings?.google_drive_folder_id);
-      spreadsheetId = created.id;
-      spreadsheetUrl = created.url;
-      await supabase.from("trips").update({ google_sheet_id: spreadsheetId, google_sheet_url: spreadsheetUrl }).eq("id", trip.id);
-    }
-
-    const inviteToken = await ensureSheetInviteToken(trip);
-    const siteUrl = (settings?.site_url || "").replace(/\/$/, "");
-    // A section's slug is only unique within its own nav group now (see
-    // migration 0014) — the site link this builds needs both slugs:
-    // /{tripSlug}/{navGroupSlug}/{sectionSlug}.
-    const { data: navGroup } = await supabase.from("nav_groups").select("slug").eq("id", section.nav_group_id).maybeSingle();
-    const navGroupSlug = navGroup?.slug || "";
-    const sheets = await getSheetsClient();
-    const overviewFields = (section.field_defs || []).filter((f) => f.show_on_overview);
-    // Only a still-deciding-among-options list (e.g. Possible Houses) has
-    // a meaningful Rank/ratings — matches supports_ranking/
-    // supports_ratings on the site itself. No "My Score" column here —
-    // a shared spreadsheet has no single "viewer" for that to mean
-    // anything to; only the Average Score is a real, static fact worth
-    // exporting. The Rank column itself shows up for either toggle —
-    // ratings now fully drive it in practice (Possible Houses turned the
-    // manual one off), but a future section could still want a plain
-    // manual Rank with no ratings at all.
-    const showRank = !!section.supports_ranking;
-    const showRatings = !!section.supports_ratings;
-    const showRankColumn = showRank || showRatings;
-    const header = buildHeader(overviewFields, showRankColumn, showRatings);
-    const tabName = sanitizeTabName(section.label);
-    const { sheetId, lastCol } = await ensureTab(sheets, spreadsheetId!, tabName, header);
-
-    // Lets the site's own "Google Sheet" link jump straight to this
-    // section's tab (see Section.sheet_gid) — cheap to just always
-    // write, rather than tracking whether it actually changed.
-    if (section.sheet_gid !== sheetId) {
-      await supabase.from("sections").update({ sheet_gid: sheetId }).eq("id", section.id);
-      section.sheet_gid = sheetId;
-    }
-
-    let entries: ClientEntry[] = rawEntries.map((row) => toClientEntry(row));
-    // Status only means anything for a still-deciding-among-options
-    // list (showRankColumn above) — everywhere else, an archived row
-    // with no Status column to explain it would just look like a
-    // mistake, so it's dropped from the export entirely instead.
-    if (!showRankColumn) {
-      entries = entries.filter((e) => e.status !== "archived");
-    }
-    if (showRatings) {
-      const ratingsByEntry = await getRatingsForEntries(
-        supabase,
-        rawEntries.map((e) => e.id)
-      );
-      entries = entries.map((e) => ({ ...e, ...summarizeRatings(ratingsByEntry[e.id]) }));
-    }
-
-    let units: RankedUnit[];
-    if (showRatings) {
-      // Rank here is computed fresh from Average Score, not the site's
-      // manual Rank field — highest average is 1, next is 2, etc.; a tie
-      // goes alphabetically by title. The manual Rank field still exists
-      // and still drives the site itself, just not this column anymore.
-      units = groupUnits(entries)
-        .sort((a, b) => {
-          const scoreDiff = unitScoreForSort(b) - unitScoreForSort(a);
-          return scoreDiff !== 0 ? scoreDiff : unitTitleForSort(a).localeCompare(unitTitleForSort(b));
-        })
-        .map((u, i) => ({ ...u, rank: i + 1 }));
-    } else {
-      const sorted = [...entries].sort((a, b) => (a.rank ?? 999999) - (b.rank ?? 999999));
-      units = groupUnits(sorted).map((u) => ({
-        ...u,
-        rank: Math.min(...u.listings.map((l) => l.rank ?? 999999)),
-      }));
-    }
-
-    const rows = units.map((u) =>
-      buildRow(u, overviewFields, trip, section, navGroupSlug, siteUrl, inviteToken, showRankColumn, showRatings)
-    );
-
-    await syncTabData(sheets, spreadsheetId!, tabName, lastCol, rows);
-
-    return { spreadsheetId: spreadsheetId!, spreadsheetUrl: spreadsheetUrl! };
+    return await exportSectionOrThrow(supabase, trip, section);
   } catch (err) {
     console.error("exportSection failed:", err);
     return null;
   }
+}
+
+export async function exportSectionOrThrow(
+  supabase: SupabaseClient,
+  trip: Trip,
+  section: Section
+): Promise<ExportResult | null> {
+  const rawEntries = await getAllEntries(supabase, section.id);
+
+  // A disabled section, or one nobody's ever added anything to yet,
+  // doesn't belong in a shared Sheet at all — it'd just read as a
+  // real, empty category worth wondering about, instead of what it
+  // actually is (turned off, or simply untouched so far). If it
+  // already has a stale tab from before it was disabled/emptied out
+  // (or from before this check existed at all), remove it.
+  if (!section.enabled || rawEntries.length === 0) {
+    if (trip.google_sheet_id) {
+      await deleteTabIfExists(await getSheetsClient(), trip.google_sheet_id, sanitizeTabName(section.label));
+    }
+    // The site's own "Google Sheet" link builds #gid=<sheet_gid> —
+    // leaving a stale value here after the tab itself is gone would
+    // point that link at a tab that no longer exists.
+    if (section.sheet_gid != null) {
+      await supabase.from("sections").update({ sheet_gid: null }).eq("id", section.id);
+      section.sheet_gid = null;
+    }
+    return null;
+  }
+
+  const { data: settings } = await supabase
+    .from("app_settings")
+    .select("google_drive_folder_id, site_url")
+    .eq("id", true)
+    .maybeSingle();
+
+  let spreadsheetId = trip.google_sheet_id;
+  let spreadsheetUrl = trip.google_sheet_url;
+
+  if (!spreadsheetId) {
+    const created = await createSheetInDrive(trip.name, settings?.google_drive_folder_id);
+    spreadsheetId = created.id;
+    spreadsheetUrl = created.url;
+    await supabase.from("trips").update({ google_sheet_id: spreadsheetId, google_sheet_url: spreadsheetUrl }).eq("id", trip.id);
+  }
+
+  const inviteToken = await ensureSheetInviteToken(trip);
+  const siteUrl = (settings?.site_url || "").replace(/\/$/, "");
+  // A section's slug is only unique within its own nav group now (see
+  // migration 0014) — the site link this builds needs both slugs:
+  // /{tripSlug}/{navGroupSlug}/{sectionSlug}.
+  const { data: navGroup } = await supabase.from("nav_groups").select("slug").eq("id", section.nav_group_id).maybeSingle();
+  const navGroupSlug = navGroup?.slug || "";
+  const sheets = await getSheetsClient();
+  const overviewFields = (section.field_defs || []).filter((f) => f.show_on_overview);
+  // Only a still-deciding-among-options list (e.g. Possible Houses) has
+  // a meaningful Rank/ratings — matches supports_ranking/
+  // supports_ratings on the site itself. No "My Score" column here —
+  // a shared spreadsheet has no single "viewer" for that to mean
+  // anything to; only the Average Score is a real, static fact worth
+  // exporting. The Rank column itself shows up for either toggle —
+  // ratings now fully drive it in practice (Possible Houses turned the
+  // manual one off), but a future section could still want a plain
+  // manual Rank with no ratings at all.
+  const showRank = !!section.supports_ranking;
+  const showRatings = !!section.supports_ratings;
+  const showRankColumn = showRank || showRatings;
+  const header = buildHeader(overviewFields, showRankColumn, showRatings);
+  const tabName = sanitizeTabName(section.label);
+  const { sheetId, lastCol } = await ensureTab(sheets, spreadsheetId!, tabName, header);
+
+  // Lets the site's own "Google Sheet" link jump straight to this
+  // section's tab (see Section.sheet_gid) — cheap to just always
+  // write, rather than tracking whether it actually changed.
+  if (section.sheet_gid !== sheetId) {
+    await supabase.from("sections").update({ sheet_gid: sheetId }).eq("id", section.id);
+    section.sheet_gid = sheetId;
+  }
+
+  let entries: ClientEntry[] = rawEntries.map((row) => toClientEntry(row));
+  // Status only means anything for a still-deciding-among-options
+  // list (showRankColumn above) — everywhere else, an archived row
+  // with no Status column to explain it would just look like a
+  // mistake, so it's dropped from the export entirely instead.
+  if (!showRankColumn) {
+    entries = entries.filter((e) => e.status !== "archived");
+  }
+  if (showRatings) {
+    const ratingsByEntry = await getRatingsForEntries(
+      supabase,
+      rawEntries.map((e) => e.id)
+    );
+    entries = entries.map((e) => ({ ...e, ...summarizeRatings(ratingsByEntry[e.id]) }));
+  }
+
+  let units: RankedUnit[];
+  if (showRatings) {
+    // Rank here is computed fresh from Average Score, not the site's
+    // manual Rank field — highest average is 1, next is 2, etc.; a tie
+    // goes alphabetically by title. The manual Rank field still exists
+    // and still drives the site itself, just not this column anymore.
+    units = groupUnits(entries)
+      .sort((a, b) => {
+        const scoreDiff = unitScoreForSort(b) - unitScoreForSort(a);
+        return scoreDiff !== 0 ? scoreDiff : unitTitleForSort(a).localeCompare(unitTitleForSort(b));
+      })
+      .map((u, i) => ({ ...u, rank: i + 1 }));
+  } else {
+    const sorted = [...entries].sort((a, b) => (a.rank ?? 999999) - (b.rank ?? 999999));
+    units = groupUnits(sorted).map((u) => ({
+      ...u,
+      rank: Math.min(...u.listings.map((l) => l.rank ?? 999999)),
+    }));
+  }
+
+  const rows = units.map((u) =>
+    buildRow(u, overviewFields, trip, section, navGroupSlug, siteUrl, inviteToken, showRankColumn, showRatings)
+  );
+
+  await syncTabData(sheets, spreadsheetId!, tabName, lastCol, rows);
+
+  return { spreadsheetId: spreadsheetId!, spreadsheetUrl: spreadsheetUrl! };
 }
 
 // A group has two listings, each with its own average — rank the pair by

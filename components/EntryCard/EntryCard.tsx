@@ -189,6 +189,7 @@ interface DraftMarker {
 
 interface EntryDraft {
   title: string;
+  url: string;
   posterImage: string;
   description: string;
   lat: string | number;
@@ -393,6 +394,7 @@ export default function EntryCard({
     });
     setDraft({
       title: entry.title || "",
+      url: entry.url || "",
       posterImage: entry.posterImage || "",
       description: (entry.description || "").split("\n").filter(Boolean).join("\n"),
       lat: entry.lat ?? "",
@@ -455,6 +457,7 @@ export default function EntryCard({
 
     onPatch(entry.id, {
       title: draft.title,
+      url: draft.url || null,
       posterImage: draft.posterImage,
       description: draft.description,
       lat: draft.lat === "" ? "" : Number(draft.lat),
@@ -640,6 +643,15 @@ export default function EntryCard({
                 />
               </label>
               <label className={styles.field}>
+                Link (optional — leave blank if it doesn&apos;t have one)
+                <input
+                  value={draft.url}
+                  onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+                  placeholder="https://..."
+                  className={styles.input}
+                />
+              </label>
+              <label className={styles.field}>
                 Photo URL
                 <input
                   value={draft.posterImage}
@@ -799,14 +811,42 @@ export default function EntryCard({
         {canManage && (
           <div className={styles.section}>
             <div className={styles.footer}>
-              {!isArchived && (
-                <div className={styles.deleteWrapper}>
-                  <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog(true)}>
+              {/* Archive-with-a-reason is worth it for a still-deciding
+                  Stay Option (the reason is the whole point — "why did
+                  we rule this out"). Everywhere else, ruling something
+                  out isn't really a decision worth remembering — a
+                  flat delete instead, same confirm pattern as an
+                  already-archived entry's own "Delete for good" below. */}
+              {!isArchived &&
+                (supportsPairing ? (
+                  // No wrapping div needed here — ArchiveDialog is a
+                  // real modal (portals to <body>), not an anchored
+                  // popup, so there's nothing left needing a
+                  // positioning context. A wrapping div would just be
+                  // one more item for .footer's flex/align-items:center
+                  // to size, throwing off vertical centering against
+                  // the plain <Button> siblings around it.
+                  <>
+                    <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog(true)}>
+                      Delete
+                    </Button>
+                    <ArchiveDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog} onConfirm={archive} />
+                  </>
+                ) : confirmingDelete ? (
+                  <span className={styles.confirmDeleteRow}>
+                    Delete for good?
+                    <Button variant="danger" size="sm" onClick={() => onDelete(entry.id)}>
+                      Yes
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(false)}>
+                      No
+                    </Button>
+                  </span>
+                ) : (
+                  <Button variant="danger" size="sm" onClick={() => setConfirmingDelete(true)}>
                     Delete
                   </Button>
-                  <ArchiveDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog} onConfirm={archive} />
-                </div>
-              )}
+                ))}
 
               {!isEditing ? (
                 <Button variant="ghost" size="sm" onClick={startEdit}>

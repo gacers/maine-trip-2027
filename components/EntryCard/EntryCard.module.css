@@ -433,10 +433,6 @@ ul.countsRow {
   row-gap: 0.5rem;
 }
 
-.deleteWrapper {
-  position: relative;
-}
-
 .archivedActions {
   margin-left: auto;
   display: flex;

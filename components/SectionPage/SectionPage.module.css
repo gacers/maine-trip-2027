@@ -103,6 +103,21 @@
   }
 }
 
+/* "2 cards at full width" — a real two-column grid, capped there
+   forever (unlike .entryGrid, which keeps widening to 3 columns at
+   1024px). Cards here keep the same rich/full-size photo treatment as
+   .entryList, just laid out two to a row. */
+.entryGrid2 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+@media (min-width: 640px) {
+  .entryGrid2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .archivedSection {
   margin-top: 1rem;
 }

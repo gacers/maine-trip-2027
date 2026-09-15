@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
-import type { FieldType } from "@/lib/types";
+import type { FieldType, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,6 +18,8 @@ const VALID_FIELD_TYPES: FieldType[] = [
   "boolean",
   "date",
 ];
+
+const VALID_CARD_LAYOUTS: Section["card_layout"][] = ["list", "grid-2", "grid-3"];
 
 export async function GET(
   request: NextRequest,
@@ -63,11 +65,15 @@ export async function PATCH(
     hasMap,
     supportsRanking,
     supportsRatings,
-    compactCards,
+    cardLayout,
     navGroupId,
     enabled,
     fieldDefs,
   } = body;
+
+  if (cardLayout !== undefined && !VALID_CARD_LAYOUTS.includes(cardLayout)) {
+    return NextResponse.json({ error: `Invalid cardLayout: ${cardLayout}` }, { status: 400 });
+  }
 
   const patch: Record<string, unknown> = {};
   if (label !== undefined) patch.label = label;
@@ -78,7 +84,7 @@ export async function PATCH(
   if (hasMap !== undefined) patch.has_map = !!hasMap;
   if (supportsRanking !== undefined) patch.supports_ranking = !!supportsRanking;
   if (supportsRatings !== undefined) patch.supports_ratings = !!supportsRatings;
-  if (compactCards !== undefined) patch.compact_cards = !!compactCards;
+  if (cardLayout !== undefined) patch.card_layout = cardLayout;
   if (navGroupId !== undefined) patch.nav_group_id = navGroupId;
   if (enabled !== undefined) patch.enabled = !!enabled;
 
