@@ -9,93 +9,6 @@
   color: var(--color-zinc-500);
 }
 
-.sheetAccessBox {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-zinc-200);
-  background: var(--color-zinc-50);
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.sheetAccessText {
-  font-size: var(--text-sm);
-  color: var(--color-zinc-700);
-}
-
-.sheetAccessLabel {
-  font-weight: var(--font-weight-medium);
-}
-
-.rotateRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-/* Neutral action (create/re-export the Sheet, add a collaborator) —
-   .rotateButton below is the same shape but red, reserved for the one
-   genuinely destructive-feeling action (invalidating the Sheet's
-   current links). */
-.actionButton {
-  align-self: flex-start;
-  font-size: var(--text-sm);
-  color: var(--color-blue-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-}
-
-.rotateButton {
-  composes: actionButton;
-  color: var(--color-red-600);
-}
-
-.rotateMsg {
-  font-size: var(--text-xs);
-  color: var(--color-green-700);
-}
-
-.collabForm {
-  border-top: 1px solid var(--color-zinc-200);
-  padding-top: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.collabRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.collabInput {
-  flex: 1 1 12rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-zinc-300);
-  padding: 0.375rem 0.5rem;
-  font-size: var(--text-sm);
-}
-
-.collabSelect {
-  border-radius: var(--radius);
-  border: 1px solid var(--color-zinc-300);
-  padding: 0.375rem 0.5rem;
-  font-size: var(--text-sm);
-}
-
 .error {
   font-size: var(--text-sm);
   color: var(--color-red-600);
@@ -105,7 +18,7 @@
   padding: 0.5rem;
 }
 
-.newInviteBox {
+.new-invite-box {
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-amber-300);
   background: var(--color-amber-50);
@@ -115,18 +28,18 @@
   gap: 0.5rem;
 }
 
-.newInviteNote {
+.new-invite-note {
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-amber-800);
 }
 
-.newInviteRow {
+.new-invite-row {
   display: flex;
   gap: 0.5rem;
 }
 
-.linkCode {
+.link-code {
   flex: 1 1 auto;
   font-size: var(--text-xs);
   background: var(--color-white);
@@ -137,7 +50,7 @@
   user-select: all;
 }
 
-.copyButton {
+.copy-button {
   flex-shrink: 0;
   border-radius: var(--radius);
   background: var(--color-zinc-900);
@@ -149,7 +62,7 @@
   cursor: pointer;
 }
 
-.dismissButton {
+.dismiss-button {
   align-self: flex-start;
   font-size: var(--text-xs);
   color: var(--color-zinc-500);
@@ -163,12 +76,12 @@
   }
 }
 
-.createForm {
+.create-form {
   display: flex;
   gap: 0.5rem;
 }
 
-.labelInput {
+.label-input {
   flex: 1 1 auto;
   border-radius: var(--radius);
   border: 1px solid var(--color-zinc-300);
@@ -176,7 +89,7 @@
   font-size: var(--text-sm);
 }
 
-.createButton {
+.create-button {
   border-radius: var(--radius);
   background: var(--color-zinc-900);
   color: var(--color-white);
@@ -185,81 +98,4 @@
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
-}
-
-.mutedText {
-  font-size: var(--text-sm);
-  color: var(--color-zinc-500);
-}
-
-.keyList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.keyCard {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-zinc-200);
-  background: var(--color-white);
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.keyCardRevoked {
-  composes: keyCard;
-  background: var(--color-zinc-50);
-  opacity: 0.6;
-}
-
-.keyCardTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.keyLabel {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-zinc-900);
-  font-size: var(--text-sm);
-}
-
-.keyMeta {
-  font-size: var(--text-xs);
-  color: var(--color-zinc-500);
-}
-
-.keyActions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-shrink: 0;
-}
-
-.showButton {
-  font-size: var(--text-sm);
-  color: var(--color-blue-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.revokeButton {
-  font-size: var(--text-sm);
-  color: var(--color-red-600);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
