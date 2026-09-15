@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import AddEntryDialog from "@/components/AddEntryDialog";
 import PairEntryDialog from "@/components/PairEntryDialog";
@@ -76,9 +77,12 @@ export interface SectionPageProps {
 // hardcoded showBedBath flag.
 export default function SectionPage({ trip, section, navGroupSlug, isAdmin = false }: SectionPageProps) {
   const navSlot = useNavSlot();
-  const [entries, setEntries] = useState<ClientEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const queryClient = useQueryClient();
+  // Only ever set by a mutation's own catch block below — the entries
+  // query's own fetch error surfaces separately (see `error` further
+  // down), this is just for a patch/delete/rate that failed after
+  // already being applied optimistically.
+  const [mutationError, setMutationError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(() => new Set());
   // rank | myScore | averageScore — defaults to whichever concept this
@@ -86,10 +90,6 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // supports_ranking is on.
   const [sortBy, setSortBy] = useState<SortBy>(section.supports_ranking ? "rank" : "averageScore");
   const [contributorToken, setContributorToken] = useState<string | null>(null);
-  // Fetched separately (not handed down in trip's own props) once access
-  // is confirmed — see /api/trips/[tripSlug]/sheet-url and
-  // sanitizeTripForClient for why this can't just be trip.google_sheet_url.
-  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
   // Which solo entry (if any) is currently mid-"+ Add paired option" —
   // see requestPair below and PairEntryDialog.
   const [pairingEntry, setPairingEntry] = useState<ClientEntry | null>(null);
@@ -176,26 +176,6 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     };
   }, [isHouses]);
 
-  useEffect(() => {
-    if (!canContribute) {
-      setSheetUrl(null);
-      return;
-    }
-    let cancelled = false;
-    fetch(`/api/trips/${trip.slug}/sheet-url`, { headers: authHeaders() })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!cancelled) setSheetUrl(data?.googleSheetUrl || null);
-      })
-      .catch(() => {
-        // Non-fatal — worst case the Google Sheet pill just doesn't show.
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canContribute, trip.slug, authToken]);
-
   function authHeaders(): Record<string, string> {
     // X-Rater-Device always goes along for the ride — harmless for any
     // route that ignores it, and it's what lets a contributor's own
@@ -207,31 +187,56 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     return headers;
   }
 
-  async function load() {
-    setLoading(true);
-    setError("");
-    try {
+  // Fetched separately (not handed down in trip's own props) once access
+  // is confirmed — see /api/trips/[tripSlug]/sheet-url and
+  // sanitizeTripForClient for why this can't just be trip.google_sheet_url.
+  // A real useQuery (not a plain effect) so it's cached across a nav
+  // away and back, same reasoning as the entries query below.
+  const sheetUrlQuery = useQuery({
+    queryKey: ["sheetUrl", trip.slug, authToken] as const,
+    queryFn: async () => {
+      const res = await fetch(`/api/trips/${trip.slug}/sheet-url`, { headers: authHeaders() });
+      if (!res.ok) return null; // non-fatal — worst case the Google Sheet pill just doesn't show
+      const data = await res.json();
+      return (data?.googleSheetUrl as string | undefined) ?? null;
+    },
+    enabled: canContribute,
+  });
+  const sheetUrl = sheetUrlQuery.data ?? null;
+
+  // The entries list itself — the one query on this page that's worth
+  // real caching. A plain per-mount fetch (what this used to be) means
+  // clicking Food & Drink -> Activities -> back to Food & Drink re-hits
+  // the server for data that hasn't changed; this keys the cache by
+  // exactly what identifies "this data" (which trip/group/section, and
+  // which caller — authToken affects each entry's own myScore) so that
+  // round trip is skipped within staleTime (see QueryProvider), while
+  // refetchOnWindowFocus/reconnect (also set there) still catches up on
+  // another contributor's edits within a normal browsing session.
+  const entriesQueryKey = ["entries", trip.slug, navGroupSlug, section.slug, authToken] as const;
+  const entriesQuery = useQuery({
+    queryKey: entriesQueryKey,
+    queryFn: async () => {
       // Needs authHeaders() (not just a plain fetch) so a section with
       // ratings on can resolve *this caller's* myScore, not just the
       // public average.
       const res = await fetch(apiBase, { cache: "no-store", headers: authHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load entries");
-      setEntries(data.entries);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }
+      return data.entries as ClientEntry[];
+    },
+  });
+  const entries = entriesQuery.data ?? [];
+  // isPending (no cached data at all yet) is the only case that should
+  // still show the full-page spinner — a background refetch (isFetching
+  // but already-cached data present) should just quietly swap in when
+  // it resolves, not flash the whole section back to a spinner.
+  const loading = entriesQuery.isPending;
+  const error = mutationError || (entriesQuery.isError ? (entriesQuery.error as Error).message : "");
 
-  useEffect(() => {
-    load();
-    // Reruns once contributorToken resolves (it's still null on the very
-    // first render) so a contributor's myScore shows up without needing
-    // a manual refresh — not just apiBase.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiBase, authToken]);
+  function applyLocalPatch(id: string, patch: Partial<ClientEntry>) {
+    queryClient.setQueryData<ClientEntry[]>(entriesQueryKey, (old) => old?.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  }
 
   // Filters are per-section, not global — clear them when navigating to a
   // different section rather than silently carrying a stale selection
@@ -250,28 +255,49 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     });
   }
 
-  function applyLocalPatch(id: string, patch: Partial<ClientEntry>) {
-    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
-  }
+  // Every mutation below follows the same shape: a plain useMutation
+  // wrapping the fetch itself (no onMutate/onSuccess — the optimistic
+  // write and any rollback live in each mutation's own calling
+  // function, since a couple of these have side effects, like
+  // handlePatch's status-change check, that plain mutation callbacks
+  // don't fit well), and on failure a real invalidateQueries so the
+  // cache gets a fresh server read instead of staying wrong under a
+  // swallowed error.
+  const clearRatingsMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`${apiBase}/${id}/ratings?all=true`, { method: "DELETE", headers: authHeaders() });
+      if (!res.ok) throw new Error("Couldn't clear ratings");
+    },
+  });
 
   // Wipes *every* rater's score for this entry (not just the caller's
-  // own — see handleRate below for that) via the ratings route's
-  // ?all=true. Used whenever an entry's pairing composition just
-  // changed (see handlePatch's status-change check and requestPair): a
-  // house's score as a solo listing and its score as half of a 2-house
-  // option aren't the same thing, so whatever was rated under the old
-  // shape shouldn't silently carry over as if it were rated under the
-  // new one.
+  // own — see handleRate below for that). Used whenever an entry's
+  // pairing composition just changed (see handlePatch's status-change
+  // check and requestPair): a house's score as a solo listing and its
+  // score as half of a 2-house option aren't the same thing, so
+  // whatever was rated under the old shape shouldn't silently carry
+  // over as if it were rated under the new one.
   async function clearAllRatings(id: string) {
     applyLocalPatch(id, { myScore: null, averageScore: null, ratingCount: 0 }); // optimistic
     try {
-      const res = await fetch(`${apiBase}/${id}/ratings?all=true`, { method: "DELETE", headers: authHeaders() });
-      if (!res.ok) throw new Error("Couldn't clear ratings");
+      await clearRatingsMutation.mutateAsync(id);
     } catch (err) {
-      setError((err as Error).message);
-      load(); // re-sync on failure
+      setMutationError((err as Error).message);
+      queryClient.invalidateQueries({ queryKey: entriesQueryKey });
     }
   }
+
+  const patchMutation = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, unknown> }) => {
+      const res = await fetch(`${apiBase}/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      return (await res.json()).entry as ClientEntry;
+    },
+  });
 
   async function handlePatch(id: string, patch: Record<string, unknown>) {
     // Captured before the optimistic update below, so a status change
@@ -279,14 +305,8 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     const beforeEntry = entries.find((e) => e.id === id);
     applyLocalPatch(id, patch as Partial<ClientEntry>); // optimistic
     try {
-      const res = await fetch(`${apiBase}/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) throw new Error("Update failed");
-      const data = await res.json();
-      applyLocalPatch(id, data.entry);
+      const updated = await patchMutation.mutateAsync({ id, patch });
+      applyLocalPatch(id, updated);
 
       // Archiving or restoring `id` may have just broken up a pair (the
       // surviving half goes back to being scored as a solo house) or
@@ -305,28 +325,32 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         }
       }
     } catch (err) {
-      setError((err as Error).message);
-      load(); // re-sync on failure
+      setMutationError((err as Error).message);
+      queryClient.invalidateQueries({ queryKey: entriesQueryKey });
     }
   }
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`${apiBase}/${id}`, { method: "DELETE", headers: authHeaders() });
+      if (!res.ok) throw new Error("Delete failed");
+    },
+  });
 
   async function handleDelete(id: string) {
-    setEntries((prev) => prev.filter((e) => e.id !== id));
+    const previous = entries;
+    queryClient.setQueryData<ClientEntry[]>(entriesQueryKey, (old) => old?.filter((e) => e.id !== id));
     try {
-      const res = await fetch(`${apiBase}/${id}`, {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
-      if (!res.ok) throw new Error("Delete failed");
+      await deleteMutation.mutateAsync(id);
     } catch (err) {
-      setError((err as Error).message);
-      load();
+      setMutationError((err as Error).message);
+      queryClient.setQueryData(entriesQueryKey, previous);
+      queryClient.invalidateQueries({ queryKey: entriesQueryKey });
     }
   }
 
-  async function handleRate(id: string, score: number | null) {
-    applyLocalPatch(id, { myScore: score }); // optimistic
-    try {
+  const rateMutation = useMutation({
+    mutationFn: async ({ id, score }: { id: string; score: number | null }) => {
       const res =
         score == null
           ? await fetch(`${apiBase}/${id}/ratings`, { method: "DELETE", headers: authHeaders() })
@@ -337,15 +361,26 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
             });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Rating failed");
+      return data;
+    },
+  });
+
+  async function handleRate(id: string, score: number | null) {
+    applyLocalPatch(id, { myScore: score }); // optimistic
+    try {
+      const data = await rateMutation.mutateAsync({ id, score });
       applyLocalPatch(id, data);
     } catch (err) {
-      setError((err as Error).message);
-      load(); // re-sync on failure
+      setMutationError((err as Error).message);
+      queryClient.invalidateQueries({ queryKey: entriesQueryKey });
     }
   }
 
+  // AddEntryDialog/PairEntryDialog do their own POST and hand back the
+  // finished entry — this just needs to land it in the same cache the
+  // entries query itself reads from.
   function handleAdded(entry: ClientEntry) {
-    setEntries((prev) => [...prev, entry]);
+    queryClient.setQueryData<ClientEntry[]>(entriesQueryKey, (old) => [...(old ?? []), entry]);
   }
 
   // Opens PairEntryDialog for this solo entry — if it doesn't already
