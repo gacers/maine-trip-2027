@@ -70,6 +70,14 @@ export async function PATCH(
   for (const [key, column] of Object.entries(CORE_TO_COLUMN)) {
     if (key in body) (patch as Record<string, unknown>)[column] = body[key];
   }
+  // EntryCard's own edit form sends "" (not null) for a cleared lat/lng
+  // — sent straight through to a double precision column, that's a
+  // real Postgres error, not a silent no-op. (body's own values are
+  // untyped, so a cleared field really can arrive as "" here despite
+  // patch's own EntryRow-shaped type.)
+  const loosePatch = patch as Record<string, unknown>;
+  if (loosePatch.lat === "") patch.lat = null;
+  if (loosePatch.lng === "") patch.lng = null;
 
   const dataPatch = body.data && typeof body.data === "object" ? (body.data as Record<string, unknown>) : null;
   // appendNote/appendConcern add one more bullet to the existing list

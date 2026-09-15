@@ -19,6 +19,10 @@ export interface PairEntryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdded: (entry: ClientEntry) => void;
+  /** Fires once the whole submission is actually done — see
+   * AddEntryForm's own doc comment on why this (not onAdded) is what
+   * should close the dialog. */
+  onSaveComplete?: () => void;
 }
 
 // Pairs a brand-new listing with an already-saved solo entry — opened
@@ -34,6 +38,7 @@ export default function PairEntryDialog({
   open,
   onOpenChange,
   onAdded,
+  onSaveComplete,
 }: PairEntryDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -44,6 +49,7 @@ export default function PairEntryDialog({
           section={section}
           navGroupSlug={navGroupSlug}
           onAdded={onAdded}
+          onSaveComplete={onSaveComplete}
           authToken={authToken}
           presetGroupLabel={presetGroupLabel}
           bare

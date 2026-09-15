@@ -681,8 +681,8 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
               clearAllRatings(entry.id);
               clearAllRatings(pairingEntry.id);
             }
-            setPairingEntry(null);
           }}
+          onSaveComplete={() => setPairingEntry(null)}
         />
       )}
 

@@ -142,8 +142,13 @@ export async function POST(
       url: normalizedUrl,
       poster_image: posterImage || null,
       description: description || null,
-      lat: lat ?? null,
-      lng: lng ?? null,
+      // A "Start blank"/never-geocoded entry sends these as "" (the
+      // client's own empty-input default), not undefined — `?? null`
+      // alone doesn't catch that, and an empty string sent straight to
+      // a double precision column is a real Postgres error, not a
+      // silent no-op.
+      lat: lat === "" || lat == null ? null : lat,
+      lng: lng === "" || lng == null ? null : lng,
       notes: notes || null,
       concerns: concerns || null,
       group_label: groupLabel || null,

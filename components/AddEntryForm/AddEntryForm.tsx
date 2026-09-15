@@ -64,7 +64,20 @@ export interface AddEntryFormProps {
    * unique within its group (see migration 0014), so the entries API
    * path needs both. */
   navGroupSlug: string;
+  /** Fires once per entry actually saved — twice for a paired add, in
+   * the order they're posted. Purely additive (e.g. append to a list);
+   * a caller that also wants to know when the *whole* submission is
+   * finished (a paired add is two of these) should use onSaveComplete
+   * instead, not this — see its own doc comment for why. */
   onAdded: (entry: ClientEntry) => void;
+  /** Fires exactly once, after every entry in this submission (one for
+   * a solo add, two for a paired one) has actually been saved — right
+   * before this form resets itself back to blank. AddEntryDialog uses
+   * this (not onAdded) to decide when to close itself: closing on the
+   * first onAdded of a paired add unmounts this form (Radix Dialog
+   * content unmounts while closed) mid-save, silently dropping the
+   * second entry — confirmed live, not a hypothetical. */
+  onSaveComplete?: () => void;
   authToken?: string | null;
   /** Skip this form's own card framing (border/shadow/padding) — used
    * when it's already inside its own container, e.g. AddEntryDialog's
@@ -94,6 +107,7 @@ export default function AddEntryForm({
   section,
   navGroupSlug,
   onAdded,
+  onSaveComplete,
   authToken = null,
   bare = false,
   presetGroupLabel = "",
@@ -208,12 +222,19 @@ export default function AddEntryForm({
     setPairError("");
   }
 
-  async function handlePairPreview(e: FormEvent) {
-    e.preventDefault();
-    const raw = pairUrl.trim();
-    if (!raw) return;
-    setPairPhase("loading");
-    setPairError("");
+  // The actual fetch, split out of handlePairPreview's own submit
+  // handler so handleSave can also run it — the small "Fetch" button
+  // next to the second link is easy to miss; typing a second URL and
+  // going straight to Save shouldn't just silently drop it. Updates
+  // the pair state either way (so the form reflects it, and a later
+  // "fix and save again" — see handleSave's own postEntry failure path
+  // — starts from the right place), and returns the fetched fields/
+  // data directly, since a caller that just triggered this itself
+  // can't rely on state having already re-rendered by the time it
+  // needs them.
+  async function fetchPairPreview(
+    raw: string
+  ): Promise<{ ok: true; fields: CoreFields; data: Record<string, unknown> } | { ok: false; message: string }> {
     try {
       const res = await fetch(`${apiBase}/preview`, {
         method: "POST",
@@ -222,32 +243,43 @@ export default function AddEntryForm({
       });
       const resData = await res.json();
       if (!res.ok) {
-        setPairError(resData.error || "Something went wrong.");
-        setPairPhase("input");
-        return;
+        return { ok: false, message: resData.error || "Something went wrong." };
       }
       if (resData.duplicate) {
-        setPairError(`Already on the list as "${resData.existing.title}" — pick a different second link.`);
-        setPairPhase("input");
-        return;
+        return { ok: false, message: `Already on the list as "${resData.existing.title}" — pick a different second link.` };
       }
       const s = resData.scraped;
-      setPairFields({
+      const newFields: CoreFields = {
         ...CORE_INITIAL,
         title: s.title || "",
         posterImage: s.posterImage || "",
         lat: s.lat ?? "",
         lng: s.lng ?? "",
-      });
-      setPairData(initialData());
+      };
+      const newData = initialData();
+      setPairFields(newFields);
+      setPairData(newData);
       setPairWarnings(s.warnings || []);
       setPairCookieWarning(s.cookieWarning || null);
       setPairPhase("ready");
       // Suggest a shared label now that both titles are known — leaves it
       // alone if the admin already typed one in themselves.
       setFields((f) => (f.groupLabel.trim() ? f : { ...f, groupLabel: deriveGroupLabel(f.title, s.title || "") }));
+      return { ok: true, fields: newFields, data: newData };
     } catch (err) {
-      setPairError((err as Error).message);
+      return { ok: false, message: (err as Error).message };
+    }
+  }
+
+  async function handlePairPreview(e: FormEvent) {
+    e.preventDefault();
+    const raw = pairUrl.trim();
+    if (!raw) return;
+    setPairPhase("loading");
+    setPairError("");
+    const result = await fetchPairPreview(raw);
+    if (!result.ok) {
+      setPairError(result.message);
       setPairPhase("input");
     }
   }
@@ -375,15 +407,36 @@ export default function AddEntryForm({
       setErrorMsg("Title is required.");
       return;
     }
-    const paired = pairPhase === "ready";
-    if (paired && !pairFields.title.trim()) {
+
+    let paired = pairPhase === "ready";
+    let pairFieldsToSave = pairFields;
+    let pairDataToSave = pairData;
+    // A second link typed in but never actually fetched (that "Fetch"
+    // button is small and easy to miss) — auto-fetch it now rather
+    // than silently dropping it, same as clicking Fetch yourself.
+    // Whatever comes back can still be edited afterward either way.
+    if (pairPhase === "input" && pairUrl.trim()) {
+      setPhase("saving");
+      const result = await fetchPairPreview(pairUrl.trim());
+      if (!result.ok) {
+        setPairError(result.message);
+        setPairPhase("input");
+        setPhase("editing");
+        return;
+      }
+      paired = true;
+      pairFieldsToSave = result.fields;
+      pairDataToSave = result.data;
+    }
+
+    if (paired && !pairFieldsToSave.title.trim()) {
       setErrorMsg("The second link's title is required.");
       return;
     }
     setPhase("saving");
     setErrorMsg("");
     const groupLabel =
-      fields.groupLabel.trim() || (paired ? deriveGroupLabel(fields.title, pairFields.title) : "") || null;
+      fields.groupLabel.trim() || (paired ? deriveGroupLabel(fields.title, pairFieldsToSave.title) : "") || null;
     try {
       const r1 = await postEntry(url, fields, data, groupLabel);
       let entry1: ClientEntry | null = null;
@@ -408,16 +461,19 @@ export default function AddEntryForm({
       }
 
       if (!paired) {
+        onSaveComplete?.();
         reset();
         return;
       }
 
-      const r2 = await postEntry(pairUrl, pairFields, pairData, groupLabel);
+      const r2 = await postEntry(pairUrl, pairFieldsToSave, pairDataToSave, groupLabel);
       if (r2.ok) {
         onAdded(r2.data.entry);
+        onSaveComplete?.();
         reset();
       } else if (r2.status === 409 && r2.data.error === "duplicate") {
         onAdded(r2.data.existing);
+        onSaveComplete?.();
         reset();
       } else {
         // The first link is already saved (or was already saved) — keep the

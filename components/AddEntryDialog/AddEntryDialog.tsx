@@ -27,10 +27,12 @@ export interface AddEntryDialogProps {
 // modal (same Radix Dialog pattern as RequestAccess) — the page itself
 // stays focused on browsing instead of always showing a paste-a-URL
 // form whether or not anyone's about to use it right now. Closes
-// itself on a successful add (AddEntryForm's own onAdded still fires
-// first, so SectionPage's entry list updates before the modal goes
-// away) — reopening starts the form fresh since Radix unmounts Dialog
-// content while closed.
+// itself once the whole submission is done (AddEntryForm's own
+// onSaveComplete, not onAdded — a paired add fires onAdded twice, and
+// closing on the first one unmounts the form mid-save, since Radix
+// unmounts Dialog content while closed, silently dropping the second
+// entry; confirmed live, not hypothetical) — reopening starts the form
+// fresh either way.
 export default function AddEntryDialog({
   trip,
   section,
@@ -40,11 +42,6 @@ export default function AddEntryDialog({
   onRequestPairExisting,
 }: AddEntryDialogProps) {
   const [open, setOpen] = useState(false);
-
-  function handleAdded(entry: ClientEntry) {
-    onAdded(entry);
-    setOpen(false);
-  }
 
   function handleRequestPairExisting(entry: ClientEntry) {
     setOpen(false);
@@ -64,7 +61,8 @@ export default function AddEntryDialog({
           trip={trip}
           section={section}
           navGroupSlug={navGroupSlug}
-          onAdded={handleAdded}
+          onAdded={onAdded}
+          onSaveComplete={() => setOpen(false)}
           authToken={authToken}
           onRequestPairExisting={onRequestPairExisting ? handleRequestPairExisting : undefined}
           bare
