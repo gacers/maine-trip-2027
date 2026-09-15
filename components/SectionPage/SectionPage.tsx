@@ -135,6 +135,12 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // since existing trips keep their original slug (renaming a nav
   // group's label doesn't change its URL out from under anyone).
   const isHouses = navGroupSlug === "houses" || navGroupSlug === "stays";
+  // The bigger 20rem photo is specifically list layout's own richer
+  // treatment for Houses/Stays — a Houses section explicitly switched
+  // to "small"/"compact" (e.g. Stayed Before set to grid-2) chose that
+  // smaller size on purpose, so isHouses alone can't drive this or it'd
+  // always win out over isMediumMedia/isCompactMedia below.
+  const isLargeMedia = isHouses && cardLayout === "list";
   const listClassName = [layoutClassName, isHouses && styles.entryListHouses].filter(Boolean).join(" ");
   // Real date range if the trip has one, else its estimated length
   // (see lib/fieldTypes/price.ts) — passed down so a price field's own
@@ -402,7 +408,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
                   <EntryMedia
                     entry={entry}
                     compact={isCompactMedia}
-                    large={isHouses}
+                    large={isLargeMedia}
                     medium={isMediumMedia}
                     showRatings={showRatings}
                   />
@@ -478,7 +484,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         showRatings={showRatings}
         comparisonMode={comparisonMode}
         compact={isCompactMedia}
-        largeMedia={isHouses}
+        largeMedia={isLargeMedia}
         mediumMedia={isMediumMedia}
         supportsPairing={!!section.supports_pairing}
         onAddPaired={canContribute ? () => requestPair(entry) : undefined}
