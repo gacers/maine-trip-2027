@@ -1,0 +1,65 @@
+/* Both houses' photos, side by side, ahead of the group's own title
+   section. A thin white seam (not the usual zinc divider — the images
+   already have plenty of their own contrast) separates the two once
+   they're actually side by side; stacked on mobile, there's no shared
+   edge to seam. */
+.media-row {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 640px) {
+  .media-row {
+    flex-direction: row;
+  }
+}
+
+.media-half {
+  min-width: 0;
+}
+@media (min-width: 640px) {
+  .media-half {
+    width: 50%;
+  }
+  .media-half:last-child {
+    border-left: 1px solid #fff;
+  }
+}
+
+.listings {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 640px) {
+  .listings {
+    flex-direction: row;
+  }
+}
+
+.listing-half {
+  min-width: 0;
+}
+@media (min-width: 640px) {
+  .listing-half {
+    width: 50%;
+  }
+  /* The vertical line between the two options — runs the full height of
+     the row (both cards stretch to match each other already) and stops
+     exactly where the shared map section begins, since that sits below
+     this row rather than inside it. */
+  .listing-half:first-child {
+    border-right: 1px solid var(--color-zinc-200);
+  }
+}
+
+/* The shared map (GroupMap/SimpleGroupMap) gets the exact same section
+   treatment as every other section — a divider above it, padding of its
+   own — instead of relying on .body's old blanket padding. */
+.map-section {
+  padding: 0.875rem 1rem;
+  border-top: 1px solid var(--color-zinc-200);
+}
+@media (min-width: 640px) {
+  .map-section {
+    padding-inline: 1.25rem;
+  }
+}
