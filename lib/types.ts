@@ -55,6 +55,13 @@ export interface Section {
    * lib/sheetsExport.ts's ensureTab). Lets the site's own "Google
    * Sheet" link jump straight to the right tab via #gid=<sheet_gid>. */
   sheet_gid: number | null;
+  /** Message from this section's last Sheet-export attempt, or null if
+   * it succeeded (or has never run) — see lib/sheetsExport.ts. Every
+   * write triggers a best-effort export that used to swallow a real
+   * failure with nothing but a server-side console.error; this is what
+   * lets the UI actually show an admin that their Sheet fell out of
+   * sync. */
+  sheet_sync_error: string | null;
   field_defs?: FieldDef[];
 }
 

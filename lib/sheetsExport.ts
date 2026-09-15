@@ -92,11 +92,41 @@ export async function exportSection(supabase: SupabaseClient, trip: Trip, sectio
   }
 }
 
+// Thin wrapper around the real export logic that records whether it
+// worked — regardless of whether it was reached via exportSection
+// (never throws, called on every entry write) or directly by the
+// /sheet-export route (throws so the button click sees the real
+// error). Previously only that explicit path's caller ever surfaced a
+// failure; the everyday auto-sync had nothing but a server-side
+// console.error, invisible to whoever'd actually need to know their
+// Sheet just went silently out of date. Best-effort itself: a failure
+// to persist this can't be allowed to mask the real export error.
 export async function exportSectionOrThrow(
   supabase: SupabaseClient,
   trip: Trip,
   section: Section
 ): Promise<ExportResult | null> {
+  try {
+    const result = await doExportSection(supabase, trip, section);
+    await recordSyncError(supabase, section, null);
+    return result;
+  } catch (err) {
+    await recordSyncError(supabase, section, (err as Error).message || "Export failed");
+    throw err;
+  }
+}
+
+async function recordSyncError(supabase: SupabaseClient, section: Section, message: string | null): Promise<void> {
+  if (section.sheet_sync_error === message) return;
+  try {
+    await supabase.from("sections").update({ sheet_sync_error: message }).eq("id", section.id);
+    section.sheet_sync_error = message;
+  } catch (err) {
+    console.error("Failed to record sheet_sync_error:", err);
+  }
+}
+
+async function doExportSection(supabase: SupabaseClient, trip: Trip, section: Section): Promise<ExportResult | null> {
   const rawEntries = await getAllEntries(supabase, section.id);
 
   // A disabled section, or one nobody's ever added anything to yet,

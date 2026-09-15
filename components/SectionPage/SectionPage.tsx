@@ -362,6 +362,13 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
 
       {error && <p className={styles["error-banner"]}>{error}</p>}
 
+      {isAdmin && section.sheet_sync_error && (
+        <p className={styles["error-banner"]}>
+          This section&apos;s Google Sheet fell out of sync: {section.sheet_sync_error} — try &quot;Re-export all
+          sections now&quot; from the Invite Links admin panel.
+        </p>
+      )}
+
       {loading ? (
         <div className={styles["loading-wrap"]}>
           <Spinner size={48} />
