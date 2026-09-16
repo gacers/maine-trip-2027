@@ -63,10 +63,24 @@
 }
 
 /* Dimmed while being dragged — the actual reordering happens on drop
-   (see reorderGroups/reorderSections), this is purely the "yes, this
-   is the one currently moving" visual feedback in the meantime. */
+   (see reorderGroups), this is purely the "yes, this is the one
+   currently moving" visual feedback in the meantime. */
 .dragging {
   opacity: 0.4;
+}
+
+/* Insertion-line indicator while dragging a group over this one, on
+   whichever half of it the drop would land — without this there was no
+   visible cue of where a drop would go, or that a spot between two
+   groups was even droppable at all (hovering the top/bottom edge of a
+   neighboring group *is* how you drop "between" two groups; there's no
+   separate drop zone in the gap itself). Box-shadow rather than a
+   border so it doesn't shift layout or get clipped by that gap. */
+.drop-before {
+  box-shadow: 0 -3px 0 0 var(--color-blue-600);
+}
+.drop-after {
+  box-shadow: 0 3px 0 0 var(--color-blue-600);
 }
 
 .templates-hint {

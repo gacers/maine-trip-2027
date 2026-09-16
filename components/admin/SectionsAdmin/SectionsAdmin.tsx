@@ -38,6 +38,14 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   // being dragged. Only whole groups are draggable — see reorderGroups
   // below for why sections themselves aren't independently reorderable.
   const [draggingGroupId, setDraggingGroupId] = useState<string | null>(null);
+  // Which group is currently being dragged over, and whether the drop
+  // would land before or after it (based on which half of it the
+  // pointer is over) — drives both the insertion-line indicator and
+  // reorderGroups' own target index, since without this a drop only
+  // ever meant "swap to this exact spot," with no way to land after the
+  // very last group and no visible cue of where it'd land at all.
+  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<"before" | "after">("before");
 
   const apiBase = `/api/trips/${trip.slug}/sections`;
   const existingGroupLabels = new Set(nav.map((g) => g.label));
@@ -92,16 +100,19 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   // guard, but the whole group's own drag area overlapping every
   // section card's own drag area made drops unreliable — simpler and
   // more correct to make the group the only draggable unit.)
-  async function reorderGroups(draggedId: string, targetId: string) {
+  async function reorderGroups(draggedId: string, targetId: string, position: "before" | "after") {
     if (draggedId === targetId) return;
     const ids = nav.map((g) => g.id);
     const fromIndex = ids.indexOf(draggedId);
-    const toIndex = ids.indexOf(targetId);
-    if (fromIndex === -1 || toIndex === -1) return;
+    if (fromIndex === -1 || ids.indexOf(targetId) === -1) return;
 
     const reordered = [...nav];
     const [moved] = reordered.splice(fromIndex, 1);
-    reordered.splice(toIndex, 0, moved);
+    // Re-find the target's index after removing the dragged group —
+    // removing an earlier item shifts everything after it back by one.
+    let insertAt = reordered.findIndex((g) => g.id === targetId);
+    if (position === "after") insertAt += 1;
+    reordered.splice(insertAt, 0, moved);
     setNav(reordered);
 
     setError("");
@@ -393,14 +404,42 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
+                if (!draggingGroupId || draggingGroupId === group.id) return;
+                // Which half of this group the pointer is over decides
+                // whether the drop lands before or after it — this is
+                // also what makes landing after the very last group
+                // possible at all, and what the indicator line below
+                // is actually showing.
+                const rect = e.currentTarget.getBoundingClientRect();
+                const position = e.clientY > rect.top + rect.height / 2 ? "after" : "before";
+                setDragOverGroupId(group.id);
+                setDropPosition(position);
+              }}
+              onDragLeave={(e) => {
+                // dragenter/dragleave fire on every child too, not just
+                // this element — only clear the indicator once the
+                // pointer has actually left this whole group, not just
+                // moved from one of its children to another.
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  setDragOverGroupId((id) => (id === group.id ? null : id));
+                }
               }}
               onDrop={(e) => {
                 e.preventDefault();
-                if (draggingGroupId) reorderGroups(draggingGroupId, group.id);
+                if (draggingGroupId) reorderGroups(draggingGroupId, group.id, dropPosition);
                 setDraggingGroupId(null);
+                setDragOverGroupId(null);
               }}
-              onDragEnd={() => setDraggingGroupId(null)}
-              className={classNames(styles["group-section"], draggingGroupId === group.id && styles["dragging"])}
+              onDragEnd={() => {
+                setDraggingGroupId(null);
+                setDragOverGroupId(null);
+              }}
+              className={classNames(
+                styles["group-section"],
+                draggingGroupId === group.id && styles["dragging"],
+                dragOverGroupId === group.id && dropPosition === "before" && styles["drop-before"],
+                dragOverGroupId === group.id && dropPosition === "after" && styles["drop-after"]
+              )}
             >
               <h2 className={styles["section-heading"]}>
                 <span className={styles["drag-handle"]} aria-hidden="true">
