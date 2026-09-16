@@ -9,6 +9,14 @@ export interface EntryFooterProps {
   supportsPairing: boolean;
   isEditing: boolean;
   hideMedia: boolean;
+  /** A contributor (invite-link) gets everything else this footer can
+   * do — edit, archive-with-a-reason (the pairing section's own
+   * "Delete", which is really an archive), restore — but never a real
+   * permanent delete, which stays owner-only. Only gates the two real
+   * "Delete for good" spots below (the non-pairing flat-delete case,
+   * and an already-archived entry's own delete); everything else here
+   * renders whenever the footer itself does. */
+  canDelete: boolean;
   onArchive: (reason: string) => void;
   onDelete: (id: string) => void;
   onRestore: () => void;
@@ -26,6 +34,7 @@ export default function EntryFooter({
   supportsPairing,
   isEditing,
   hideMedia,
+  canDelete,
   onArchive,
   onDelete,
   onRestore,
@@ -67,21 +76,23 @@ export default function EntryFooter({
               }}
             />
           </>
-        ) : confirmingDelete ? (
-          <span className={styles["confirm-row"]}>
-            Delete for good?
-            <Button variant="danger" size="sm" onClick={() => onDelete(entry.id)}>
-              Yes
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(false)}>
-              No
-            </Button>
-          </span>
         ) : (
-          <Button variant="danger" size="sm" onClick={() => setConfirmingDelete(true)}>
-            Delete
-          </Button>
-        ))}
+          canDelete &&
+          (confirmingDelete ? (
+            <span className={styles["confirm-row"]}>
+              Delete for good?
+              <Button variant="danger" size="sm" onClick={() => onDelete(entry.id)}>
+                Yes
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(false)}>
+                No
+              </Button>
+            </span>
+          ) : (
+            <Button variant="danger" size="sm" onClick={() => setConfirmingDelete(true)}>
+              Delete
+            </Button>
+          ))))}
 
       {!isEditing ? (
         <Button variant="ghost" size="sm" onClick={onStartEdit}>
@@ -110,21 +121,22 @@ export default function EntryFooter({
           <Button variant="link" size="sm" onClick={onRestore}>
             Restore
           </Button>
-          {confirmingDelete ? (
-            <span className={styles["confirm-row"]}>
-              Delete for good?
-              <Button variant="danger" size="sm" onClick={() => onDelete(entry.id)}>
-                Yes
+          {canDelete &&
+            (confirmingDelete ? (
+              <span className={styles["confirm-row"]}>
+                Delete for good?
+                <Button variant="danger" size="sm" onClick={() => onDelete(entry.id)}>
+                  Yes
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(false)}>
+                  No
+                </Button>
+              </span>
+            ) : (
+              <Button variant="danger" size="sm" onClick={() => setConfirmingDelete(true)}>
+                Delete
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(false)}>
-                No
-              </Button>
-            </span>
-          ) : (
-            <Button variant="danger" size="sm" onClick={() => setConfirmingDelete(true)}>
-              Delete
-            </Button>
-          )}
+            ))}
         </div>
       )}
     </div>

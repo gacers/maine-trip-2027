@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { SECTION_TEMPLATES, type SectionTemplate } from "@/lib/sectionTemplates";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionsAdmin.module.css";
@@ -12,6 +13,7 @@ export interface SectionsAdminProps {
 }
 
 export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminProps) {
+  const router = useRouter();
   const [nav, setNav] = useState(initialNav);
   const [error, setError] = useState("");
   const [addingTemplate, setAddingTemplate] = useState<string | null>(null);
@@ -23,6 +25,13 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     const res = await fetch(apiBase, { cache: "no-store" });
     const data = await res.json();
     if (res.ok) setNav(data.nav);
+    // TripNavHeader lives in this trip's own layout.tsx, a server
+    // component Next.js otherwise keeps cached across client-side
+    // navigation — without this, clicking "Back to <trip>" (or any
+    // other nav to a page under it) can serve a stale nav built before
+    // this section existed, showing a blank/broken-looking bar until a
+    // hard refresh. Cheap to always call, even when nothing changed.
+    router.refresh();
   }
 
   async function toggleEnabled(section: Section, navGroupSlug: string, enabled: boolean) {
@@ -43,6 +52,13 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   async function addTemplate(template: SectionTemplate) {
     setError("");
     setAddingTemplate(template.key);
+    // A brand new trip has nothing to look at yet — once its first
+    // section actually exists, jump straight to it instead of leaving
+    // the admin on this template-picker page needing a manual "Back to
+    // <trip>" click. A trip that already has sections stays here after
+    // adding another (matches deliberately setting up several in one
+    // sitting rather than adding one at a time).
+    const isFirstSection = nav.every((g) => g.sections.length === 0);
     // Houses get one full-width card per row (a lot to show: photos,
     // price, bed/bath counts, a map); Food & Drink and Activities read
     // better in the tighter 3-across compact grid — both tiers of a
@@ -82,7 +98,12 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to create section");
-        refresh();
+        if (isFirstSection) {
+          router.push(`/${trip.slug}`);
+          router.refresh();
+        } else {
+          refresh();
+        }
         return;
       }
 
@@ -131,7 +152,12 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
         );
       }
 
-      refresh();
+      if (isFirstSection) {
+        router.push(`/${trip.slug}`);
+        router.refresh();
+      } else {
+        refresh();
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {

@@ -15,7 +15,11 @@ export interface ListingSectionProps {
    * EntryMedia directly so each EntryCard below can skip its own copy
    * (hideMedia). Edge-to-edge, no padding, same as a solo card's photo. */
   media?: ReactNode;
-  canManage?: boolean;
+  /** Gates "Delete group" below — really an archive-with-a-reason (see
+   * PairedEntryGroup's onDeleteGroup), not a permanent delete, so this
+   * is the same "admin or contributor" capability as editing/archiving
+   * an individual entry, not admin-only. */
+  canArchiveGroup?: boolean;
   onDeleteGroup?: ((reason: string) => void) | null;
   /** A 2-house-option group is rated as one option, not twice — one
    * shared "Your score" control here instead of each half's own
@@ -42,7 +46,7 @@ export default function ListingSection({
   children,
   id,
   media,
-  canManage,
+  canArchiveGroup,
   onDeleteGroup,
   showRatings,
   canContribute,
@@ -75,7 +79,7 @@ export default function ListingSection({
           )}
         </div>
         <div className={styles["controls"]}>
-          {canManage && onDeleteGroup && (
+          {canArchiveGroup && onDeleteGroup && (
             <div className={styles["delete-group-wrapper"]}>
               <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog(true)}>
                 Delete group

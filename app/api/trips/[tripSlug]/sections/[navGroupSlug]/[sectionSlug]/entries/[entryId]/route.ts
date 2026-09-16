@@ -53,16 +53,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  // A contributor (invite-link) token may ONLY add a note/concern — any
-  // other field in the same request (rank, a core-field edit, a data
-  // change, archiving, ...) means this isn't a pure append and needs a
-  // full owner/admin credential instead.
-  const bodyKeys = Object.keys(body);
-  const isPureAppend =
-    bodyKeys.length > 0 && bodyKeys.every((k) => k === "appendNote" || k === "appendConcern");
-
+  // A contributor (invite-link) token can edit any field here, archive
+  // an entry (status + archiveReason), and append a note/concern — the
+  // full range of what PATCH itself can do. It stops short of DELETE
+  // (see below), which stays owner-only: archiving is reversible and
+  // still leaves the entry in the archived list, permanent delete
+  // isn't.
   const { error: authError, supabase } = await requireWriteAccess(request, trip.id, {
-    allowContributor: isPureAppend,
+    allowContributor: true,
   });
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 

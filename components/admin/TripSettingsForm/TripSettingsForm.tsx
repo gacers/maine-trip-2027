@@ -3,12 +3,14 @@
 import { useState, type FormEvent } from "react";
 import Button from "@/components/Button";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
+import ArchiveUnvisitedButton from "@/components/ArchiveUnvisitedButton";
 import DangerZone from "./components/DangerZone";
-import type { Trip, MapReferencePoint } from "@/lib/types";
+import type { Trip, NavGroup, MapReferencePoint } from "@/lib/types";
 import styles from "./TripSettingsForm.module.css";
 
 export interface TripSettingsFormProps {
   trip: Trip;
+  nav: NavGroup[];
 }
 
 const POI_COLORS = ["#2E7D32", "#8E24AA", "#F57C00", "#1976D2", "#C2185B", "#00897B"];
@@ -28,7 +30,7 @@ function toDraftPois(points: MapReferencePoint[] | undefined): DraftPoi[] {
 // Times section computes its distance to each of these) could only
 // ever be set by hand directly in the database. One PATCH
 // (/api/trips/[tripSlug]) backs all of it.
-export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
+export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
   const [name, setName] = useState(trip.name);
   const [subtitle, setSubtitle] = useState(trip.subtitle || "");
   const [startDate, setStartDate] = useState(trip.start_date || "");
@@ -181,6 +183,17 @@ export default function TripSettingsForm({ trip }: TripSettingsFormProps) {
         research never disappears just for not being used. Turning this back off just hides that split again — any
         Visited checks and dates already recorded stay saved and come right back if you turn it on again.
       </label>
+      {/* Right by the Completed checkbox that gates it, not the nav bar
+          (see TripNavHeader's own comment on why) — wrapped in a plain
+          block div, not left bare, since a bare Button here would get
+          stretched to this form's full width by the flex column's
+          default align-items and end up with its own label centered
+          instead of left-aligned like every field around it. */}
+      {trip.completed && (
+        <div>
+          <ArchiveUnvisitedButton trip={trip} nav={nav} />
+        </div>
+      )}
       <label className={styles["checkbox-field"]}>
         <input
           type="checkbox"

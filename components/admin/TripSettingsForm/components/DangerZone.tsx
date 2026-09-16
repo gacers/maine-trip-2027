@@ -49,9 +49,15 @@ export default function DangerZone({ trip }: DangerZoneProps) {
     <div className={styles["root"]}>
       <h2 className={styles["heading"]}>Danger zone</h2>
       {!confirming ? (
-        <Button variant="danger" size="sm" onClick={() => setConfirming(true)}>
-          Delete this trip
-        </Button>
+        // Wrapped, not bare — a bare Button here gets stretched to
+        // .root's full width by the flex column's default
+        // align-items, centering its own label instead of sitting
+        // left-aligned like the "Danger zone" heading above it.
+        <div>
+          <Button variant="danger" size="sm" onClick={() => setConfirming(true)}>
+            Delete this trip
+          </Button>
+        </div>
       ) : (
         <div className={styles["confirm-box"]}>
           <p className={styles["warning"]}>

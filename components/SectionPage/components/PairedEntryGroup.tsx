@@ -68,7 +68,7 @@ export default function PairedEntryGroup({
           ))}
         </div>
       }
-      canManage={canManage}
+      canArchiveGroup={canContribute}
       showRatings={showRatings}
       canContribute={canContribute}
       myScore={unit.listings[0].myScore ?? null}

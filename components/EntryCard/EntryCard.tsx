@@ -348,7 +348,7 @@ export default function EntryCard({
             <EditableNoteList
               items={toBullets(entry.notes)}
               onAdd={canContribute ? addNote : null}
-              onRemove={canManage ? removeNoteAt : null}
+              onRemove={canContribute ? removeNoteAt : null}
               addLabel="Add note"
               placeholder="Add a note..."
             />
@@ -363,20 +363,26 @@ export default function EntryCard({
             <EditableNoteList
               items={toBullets(entry.concerns)}
               onAdd={canContribute ? addConcern : null}
-              onRemove={canManage ? removeConcernAt : null}
+              onRemove={canContribute ? removeConcernAt : null}
               addLabel="Add concern"
               placeholder="Anything that gives you pause..."
             />
           </div>
         )}
 
-        {canManage && (
+        {/* A contributor (invite-link) gets edit/archive/restore here
+            too, not just admins — canManage (admin-only) instead just
+            gates the real permanent-delete actions inside, via
+            canDelete. See requireWriteAccess's allowContributor on the
+            entries PATCH route for the matching server-side check. */}
+        {canContribute && (
           <div className={styles["section"]}>
             <EntryFooter
               entry={entry}
               supportsPairing={supportsPairing}
               isEditing={isEditing}
               hideMedia={hideMedia}
+              canDelete={canManage}
               onArchive={archive}
               onDelete={onDelete}
               onRestore={restore}

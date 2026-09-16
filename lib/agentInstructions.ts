@@ -30,18 +30,21 @@ export function buildAgentInstructions({ trip, section, navGroupSlug, siteUrl, t
     ? `- Add a brand new item (a house, restaurant, activity — whatever this
   trip's sections are for) by POSTing to that section's entries endpoint.
 - Edit any existing item's fields (title, url, photo, description,
-  coordinates, notes, concerns, rank, ...) by PATCHing it.
+  coordinates, notes, concerns, ...) by PATCHing it.
 - Add a note or a concern to an item without replacing the whole list.
 - Archive or delete an item.`
     : `- Add a brand new item (a house, restaurant, activity — whatever this
   trip's sections are for) by POSTing to that section's entries endpoint.
-- Add a note or a concern to an item that's already on the list.
+- Edit any existing item's fields (title, url, photo, description,
+  coordinates, notes, concerns, ...) by PATCHing it.
+- Add a note or a concern to an item without replacing the whole list.
+- Archive an item (with a reason) if it's off the list — not a delete,
+  it stays in the archived list and can be restored.
 
-You can NOT edit an existing item's other details, remove a note/concern,
-rank it, or delete/archive it — only the trip owner can do that.`;
+You can NOT permanently delete an item — only the trip owner can do
+that.`;
 
-  const editSection = isOwner
-    ? `
+  const editSection = `
 
 ## Editing an existing item
 
@@ -57,17 +60,19 @@ Body (JSON) — send only the fields you want to change:
   "description": "<one idea per line>",
   "lat": <latitude>,
   "lng": <longitude>,
-  "rank": <number>,
   "status": "active" | "archived",
   "archiveReason": "<optional, if archiving>",
   "data": { "<section-specific field key>": "<value>" }
-}
+}${
+    isOwner
+      ? `
 
 ## Deleting an item
 
 DELETE ${base}/<id>
 Header: Authorization: Bearer ${token}`
-    : "";
+      : ""
+  }`;
 
   return `# Adding to "${trip.name}" with your own AI agent
 
