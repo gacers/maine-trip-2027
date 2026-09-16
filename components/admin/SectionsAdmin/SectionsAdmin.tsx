@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SECTION_TEMPLATES, type SectionTemplate } from "@/lib/sectionTemplates";
+import type { CustomSectionTemplate } from "@/lib/customSectionTemplates";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionsAdmin.module.css";
 
@@ -17,9 +18,20 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   const [nav, setNav] = useState(initialNav);
   const [error, setError] = useState("");
   const [addingTemplate, setAddingTemplate] = useState<string | null>(null);
+  const [customTemplates, setCustomTemplates] = useState<CustomSectionTemplate[]>([]);
 
   const apiBase = `/api/trips/${trip.slug}/sections`;
   const existingGroupLabels = new Set(nav.map((g) => g.label));
+
+  // Every custom nav group any trip has ever built — see
+  // lib/customSectionTemplates.ts. Not trip-scoped, so this loads once
+  // regardless of which trip's admin page it's rendered on.
+  useEffect(() => {
+    fetch("/api/section-templates", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => setCustomTemplates(data.templates || []))
+      .catch(() => {});
+  }, []);
 
   async function refresh() {
     const res = await fetch(apiBase, { cache: "no-store" });
@@ -94,6 +106,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
             cardLayout,
             newNavGroupLabel: template.navGroupLabel,
             fieldDefs: template.fieldDefs,
+            skipTemplateCapture: true,
           }),
         });
         const data = await res.json();
@@ -121,6 +134,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           cardLayout,
           newNavGroupLabel: template.navGroupLabel,
           fieldDefs: template.fieldDefs,
+          skipTemplateCapture: true,
         }),
       });
       const possibleData = await possibleRes.json();
@@ -143,6 +157,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           cardLayout,
           navGroupId: possibleData.section.nav_group_id,
           fieldDefs: template.fieldDefs,
+          skipTemplateCapture: true,
         }),
       });
       const previousData = await previousRes.json();
@@ -150,6 +165,54 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
         throw new Error(
           `Created "${template.possible.label}", but "${template.previous.label}" failed: ${previousData.error || "unknown error"}`
         );
+      }
+
+      if (isFirstSection) {
+        router.push(`/${trip.slug}`);
+        router.refresh();
+      } else {
+        refresh();
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setAddingTemplate(null);
+    }
+  }
+
+  // Recreates a custom template's whole nav group — one, two, or
+  // however many sections it was captured with (see
+  // lib/customSectionTemplates.ts) — in the same one-nav-group-per-call
+  // shape the built-in templates use above: the first section names the
+  // new nav group, every one after reuses the id that came back.
+  async function addCustomTemplate(template: CustomSectionTemplate) {
+    setError("");
+    setAddingTemplate(template.template_key);
+    const isFirstSection = nav.every((g) => g.sections.length === 0);
+    try {
+      let navGroupId: string | undefined;
+      for (const s of template.sections) {
+        const res = await fetch(apiBase, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug: s.slug,
+            label: s.label,
+            subNavLabel: s.subNavLabel,
+            addPlaceholder: s.addPlaceholder,
+            emptyMessage: s.emptyMessage,
+            supportsPairing: s.supportsPairing,
+            hasMap: s.hasMap,
+            supportsRatings: s.supportsRatings,
+            cardLayout: s.cardLayout,
+            fieldDefs: s.fieldDefs,
+            skipTemplateCapture: true,
+            ...(navGroupId ? { navGroupId } : { newNavGroupLabel: template.nav_group_label }),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Failed to create "${s.label}"`);
+        if (!navGroupId) navGroupId = data.section.nav_group_id;
       }
 
       if (isFirstSection) {
@@ -183,6 +246,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
             ? "Trip is Completed, so each template creates one plain section — new entries come in already checked off Visited."
             : 'Each creates an "Options" / "Before" pair — fully editable afterward.'}
         </p>
+        <div className={styles["template-subheading"]}>Defaults</div>
         <div className={styles["template-list"]}>
           {SECTION_TEMPLATES.map((t) => {
             const exists = existingGroupLabels.has(t.navGroupLabel);
@@ -200,6 +264,36 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
             );
           })}
         </div>
+
+        {customTemplates.length > 0 && (
+          <>
+            <div className={styles["template-subheading"]}>
+              Custom sections{" "}
+              <span className={styles["template-subheading-hint"]}>— built on another trip, reusable here</span>
+            </div>
+            <div className={styles["template-list"]}>
+              {customTemplates.map((t) => {
+                const exists = existingGroupLabels.has(t.nav_group_label);
+                return (
+                  <button
+                    key={t.template_key}
+                    type="button"
+                    disabled={exists || addingTemplate === t.template_key}
+                    onClick={() => addCustomTemplate(t)}
+                    className={styles["template-button"]}
+                    title={exists ? `${t.nav_group_label} already exists` : undefined}
+                  >
+                    {addingTemplate === t.template_key
+                      ? "Adding..."
+                      : exists
+                        ? `${t.nav_group_label} ✓`
+                        : `+ ${t.nav_group_label}`}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {nav.every((g) => g.sections.length === 0) && (

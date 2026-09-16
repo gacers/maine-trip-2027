@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug, getTripNav } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
+import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
 import type { FieldType, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +63,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     navGroupId,
     newNavGroupLabel,
     fieldDefs,
+    // Set by the template-buttons flow (both the 3 built-ins and any
+    // custom template picked from the list below them) — instantiating
+    // a template shouldn't re-capture itself back into the templates
+    // table, only genuinely new "New section" submissions should.
+    skipTemplateCapture,
   } = body;
 
   if (!slug || !label) {
@@ -84,6 +90,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   try {
     let resolvedNavGroupId = navGroupId || null;
+    let resolvedNavGroupLabel = newNavGroupLabel || null;
     if (!resolvedNavGroupId && newNavGroupLabel) {
       const groupSlug = newNavGroupLabel
         .toLowerCase()
@@ -97,6 +104,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .single();
       if (groupError) throw new Error(groupError.message);
       resolvedNavGroupId = group.id;
+    } else if (resolvedNavGroupId && !resolvedNavGroupLabel) {
+      // Only needed for template capture below (e.g. a counterpart
+      // section landing in the nav group its primary just created) —
+      // skip the lookup whenever capture wouldn't run anyway.
+      if (!skipTemplateCapture) {
+        const { data: group } = await supabase!.from("nav_groups").select("label").eq("id", resolvedNavGroupId).maybeSingle();
+        resolvedNavGroupLabel = group?.label || null;
+      }
     }
 
     const { data: section, error: sectionError } = await supabase!
@@ -133,6 +148,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }));
       const { error: fieldError } = await supabase!.from("field_defs").insert(rows);
       if (fieldError) throw new Error(fieldError.message);
+    }
+
+    // Best-effort — a custom nav group's usefulness on THIS trip never
+    // depends on it, so a failure here shouldn't fail the section it
+    // was capturing.
+    if (!skipTemplateCapture && resolvedNavGroupLabel) {
+      upsertCustomSectionTemplate(supabase!, resolvedNavGroupLabel, trip.id, {
+        slug: section.slug,
+        label: section.label,
+        subNavLabel: section.sub_nav_label,
+        addPlaceholder: section.add_placeholder,
+        emptyMessage: section.empty_message,
+        supportsPairing: section.supports_pairing,
+        hasMap: section.has_map,
+        supportsRatings: section.supports_ratings,
+        cardLayout: section.card_layout,
+        fieldDefs: (fieldDefs || []).map((f: Record<string, unknown>) => ({
+          key: f.key,
+          label: f.label,
+          field_type: f.field_type,
+          show_on_overview: !!f.show_on_overview,
+          options: f.options || undefined,
+        })),
+      }).catch((err) => console.error("Template capture failed:", err));
     }
 
     return NextResponse.json({ section }, { status: 201 });
