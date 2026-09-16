@@ -5,7 +5,9 @@
 // wording for the 3 built-in categories (lib/sectionTemplates.ts) was
 // renamed to "Stay Options"/"Stayed Before" at some point, but nothing
 // there needed touching here since it was already each category's own
-// single source of truth — the actual duplication was this "Previously
-// Visited" prefix, hand-typed in more than one place for a brand-new
-// custom section's own counterpart.
-export const PREVIOUSLY_VISITED_PREFIX = "Previously Visited";
+// single source of truth — the actual duplication was this prefix,
+// hand-typed in more than one place for a brand-new custom section's
+// own counterpart. "Visited" (not "Previously Visited") — shorter, and
+// "Visited" is already this app's own established word for the same
+// idea everywhere else (see EntryCard's VisitedControl).
+export const VISITED_PREFIX = "Visited";

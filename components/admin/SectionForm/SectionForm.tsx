@@ -6,7 +6,7 @@ import FieldDefsEditor, { fieldDefToRow, rowToFieldDef, type FieldRow } from "./
 import SectionOptionsFields from "./components/SectionOptionsFields";
 import CounterpartOption from "./components/CounterpartOption";
 import PrefillPanel from "./components/PrefillPanel";
-import { PREVIOUSLY_VISITED_PREFIX } from "@/lib/sectionLabels";
+import { VISITED_PREFIX } from "@/lib/sectionLabels";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionForm.module.css";
 
@@ -124,8 +124,8 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
       if (!isEdit && addCounterpart) {
         const counterpartPayload = {
           slug: `${slug}-visited`,
-          label: counterpartLabel || `${PREVIOUSLY_VISITED_PREFIX} ${label}`,
-          subNavLabel: PREVIOUSLY_VISITED_PREFIX,
+          label: counterpartLabel || `${VISITED_PREFIX} ${label}`,
+          subNavLabel: VISITED_PREFIX,
           addPlaceholder: `Paste a link for a ${label.toLowerCase()} you've already been to...`,
           emptyMessage: `No previous ${label.toLowerCase()} yet — paste a link above.`,
           // A "previous"/already-decided list never needs pairing, a map,

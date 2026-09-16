@@ -1,4 +1,4 @@
-import { PREVIOUSLY_VISITED_PREFIX } from "@/lib/sectionLabels";
+import { VISITED_PREFIX } from "@/lib/sectionLabels";
 import styles from "./CounterpartOption.module.css";
 
 export interface CounterpartOptionProps {
@@ -7,12 +7,12 @@ export interface CounterpartOptionProps {
   counterpartLabel: string;
   onCounterpartLabelChange: (v: string) => void;
   /** The primary section's own label, for the placeholder suggestion
-   * ("Previously Visited {label}") — just cosmetic, the real default
+   * ("Visited {label}") — just cosmetic, the real default
    * is computed at submit time in the parent. */
   primaryLabel: string;
 }
 
-// "Also create a Previously Visited counterpart" — offered only at
+// "Also create a Visited counterpart" — offered only at
 // creation time (the parent gates this on !isEdit), same pattern as
 // Stay Options/Stayed Before: a second section in the same nav group,
 // sharing the same fields, for things already done.
@@ -32,7 +32,7 @@ export default function CounterpartOption({
           onChange={(e) => onAddCounterpartChange(e.target.checked)}
           className={styles["checkbox"]}
         />
-        Also create a &quot;Previously Visited&quot; counterpart
+        Also create a &quot;Visited&quot; counterpart
       </label>
       <p className={styles["hint"]}>
         Same pattern as Stay Options / Stayed Before — a second section in the same nav group, sharing the same
@@ -45,7 +45,7 @@ export default function CounterpartOption({
           <input
             value={counterpartLabel}
             onChange={(e) => onCounterpartLabelChange(e.target.value)}
-            placeholder={`${PREVIOUSLY_VISITED_PREFIX} ${primaryLabel || "..."}`}
+            placeholder={`${VISITED_PREFIX} ${primaryLabel || "..."}`}
             className={styles["input"]}
           />
         </label>
