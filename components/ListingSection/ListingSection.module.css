@@ -43,13 +43,23 @@
 .title {
   font-weight: var(--font-weight-semibold);
   color: var(--color-zinc-900);
-  overflow-wrap: break-word;
+  /* `anywhere` (not `break-word`) specifically because this can be a
+     single run with no natural break point (a label with no spaces) —
+     `break-word` only wraps at an existing soft-wrap opportunity and,
+     confirmed live, isn't even considered part of this flex item's
+     *intrinsic* min-content width, so the row below refused to shrink
+     past the whole unbroken title's width and pushed "Edit"/"Delete
+     group" out to the side instead of wrapping under it. `anywhere` is
+     honored in that min-content calculation, which is what actually
+     lets min-width: 0 below do anything for a title shaped like this. */
+  overflow-wrap: anywhere;
 }
 
 .title-row {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .edit-title-button {
@@ -70,6 +80,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .title-input {
