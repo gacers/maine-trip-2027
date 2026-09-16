@@ -5,12 +5,32 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SECTION_TEMPLATES, type SectionTemplate } from "@/lib/sectionTemplates";
 import type { CustomSectionTemplate } from "@/lib/customSectionTemplates";
+import type { CandidateSection } from "@/lib/entries";
+import PrefillPicker from "./components/PrefillPicker";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionsAdmin.module.css";
 
 export interface SectionsAdminProps {
   trip: PublicTrip;
   nav: NavGroup[];
+}
+
+// A "-visited" tier and its own primary section are the same concept
+// as far as prefilling goes — either one, on any other trip, counts as
+// "this already exists somewhere" (see lib/entries.ts's
+// findCandidateSectionsForConceptSlug).
+function conceptSlugFor(sectionSlug: string): string {
+  return sectionSlug.replace(/-visited$/, "");
+}
+
+// The section's own slug alone isn't a safe cache/lookup key — every
+// built-in category's two tiers are always literally "options"/
+// "previously-visited" regardless of which category they're actually
+// in, so this pairs it with the nav group's own slug (see
+// findCandidateSectionsForConceptSlug for why that's what actually
+// disambiguates them).
+function cacheKeyFor(navGroupSlug: string, sectionSlug: string): string {
+  return `${navGroupSlug}::${conceptSlugFor(sectionSlug)}`;
 }
 
 export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminProps) {
@@ -23,24 +43,33 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   // checkbox below a single-section custom template — see
   // addCustomTemplate. Keyed by template_key.
   const [addPastVersion, setAddPastVersion] = useState<Set<string>>(new Set());
-  // Once a template's past-version checkbox is on, lazily fetched: what
-  // else already exists for this same concept on other trips (e.g. a
-  // 2022 Scotland trip's own already-curated Distilleries list) — see
-  // the import-candidates route. Keyed by template_key; undefined means
-  // "not fetched yet", null means "fetched, nothing found".
-  const [importCandidates, setImportCandidates] = useState<Record<string, { count: number; tripNames: string[] } | null>>({});
-  const [importSelected, setImportSelected] = useState<Set<string>>(new Set());
-  // Same idea as the two above, for a nav group that ALREADY exists on
-  // THIS trip with just one tier so far (e.g. a custom "Distilleries"
-  // section added before it ever needed a Previously Visited half) —
-  // see addPastVersionToExistingGroup. Keyed by section.id.
-  const [existingImportCandidates, setExistingImportCandidates] = useState<
-    Record<string, { count: number; tripNames: string[] } | null>
-  >({});
-  const [existingImportSelected, setExistingImportSelected] = useState<Set<string>>(new Set());
+  // Every real candidate section to prefill from, for a given concept
+  // slug (e.g. "distilleries") — see the import-candidates route.
+  // Shared across every picker on the page keyed to the same concept,
+  // rather than re-fetching per row. Undefined means "not fetched yet".
+  const [candidatesByConceptSlug, setCandidatesByConceptSlug] = useState<Record<string, CandidateSection[] | undefined>>(
+    {}
+  );
+  // The currently-selected source section id in each PrefillPicker on
+  // the page — keyed by whatever identifies that picker's own target
+  // (a template_key or an existing single-tier group's primary section
+  // id for a not-yet-created past section; the section's own id once
+  // it's a real, already-existing row — see applyPrefill). "" means
+  // "don't prefill"/"not prefilled".
+  const [pendingSourceByKey, setPendingSourceByKey] = useState<Record<string, string>>({});
 
   const apiBase = `/api/trips/${trip.slug}/sections`;
   const existingGroupLabels = new Set(nav.map((g) => g.label));
+
+  function ensureCandidates(navGroupSlug: string, sectionSlug: string) {
+    const key = cacheKeyFor(navGroupSlug, sectionSlug);
+    if (candidatesByConceptSlug[key] !== undefined) return;
+    const params = new URLSearchParams({ navGroupSlug, slug: conceptSlugFor(sectionSlug) });
+    fetch(`/api/trips/${trip.slug}/import-candidates?${params}`)
+      .then((res) => res.json())
+      .then((data) => setCandidatesByConceptSlug((prev) => ({ ...prev, [key]: data.candidates || [] })))
+      .catch(() => setCandidatesByConceptSlug((prev) => ({ ...prev, [key]: [] })));
+  }
 
   // Every custom nav group any trip has ever built — see
   // lib/customSectionTemplates.ts. Not trip-scoped, so this loads once
@@ -52,33 +81,30 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       .catch(() => {});
   }, []);
 
-  // What already exists elsewhere for this same concept, for EVERY
-  // section already on this trip — not just a single-tier group's own
-  // primary (see addPastVersionToExistingGroup) but any section at all,
-  // so "copy in existing entries" (see copyIntoExistingSection) is
-  // always available to run again later, not just at the moment a past
-  // tier is first created. Strips a "-visited" suffix so a section's
-  // own slug always resolves to the shared concept both tiers use (see
-  // findEntriesForConceptSlug). Re-runs whenever `nav` changes; cheap,
+  // Up-front candidates for every section already on this trip — not
+  // just a single-tier group's own primary (used by "+ Add a
+  // Previously Visited version") but any section at all, so the "copy
+  // in existing entries" picker on an already-existing section is
+  // never a beat behind a click. Re-runs whenever `nav` changes; cheap,
   // this trip usually has a handful of sections at most.
   useEffect(() => {
-    for (const g of nav) {
-      for (const section of g.sections) {
-        if (existingImportCandidates[section.id] !== undefined) continue;
-        const conceptSlug = section.slug.replace(/-visited$/, "");
-        fetch(`/api/trips/${trip.slug}/import-candidates?slug=${encodeURIComponent(conceptSlug)}`)
-          .then((res) => res.json())
-          .then((data) =>
-            setExistingImportCandidates((prev) => ({
-              ...prev,
-              [section.id]: data.count > 0 ? { count: data.count, tripNames: data.tripNames } : null,
-            }))
-          )
-          .catch(() => setExistingImportCandidates((prev) => ({ ...prev, [section.id]: null })));
-      }
-    }
+    for (const g of nav) for (const section of g.sections) ensureCandidates(g.slug, section.slug);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nav]);
+
+  // Same idea for every custom template on offer — its own candidates
+  // are fetched as soon as the template list itself loads (not gated
+  // behind first checking "+ Previously Visited version too"), so that
+  // checkbox's own picker never has to wait on a fetch either.
+  // template_key IS this template's own nav group slug (see
+  // lib/customSectionTemplates.ts's slugifyTemplateKey — the same
+  // algorithm the sections POST route uses for a real newNavGroupLabel),
+  // so it's exactly what identifies "the same nav group concept"
+  // wherever this template's already been used for real.
+  useEffect(() => {
+    for (const t of customTemplates) ensureCandidates(t.template_key, t.sections[0].slug);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customTemplates]);
 
   async function refresh() {
     const res = await fetch(apiBase, { cache: "no-store" });
@@ -106,6 +132,21 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     } catch (err) {
       setError((err as Error).message);
     }
+  }
+
+  // Shared by every "copy in existing entries" call site below — POSTs
+  // to the entries/import route and throws with its real error message
+  // on failure, so each caller's own try/catch can prefix it with
+  // whatever context makes sense there.
+  async function runImport(destSectionId: string, sourceSectionId: string | null, overwrite: boolean): Promise<number> {
+    const res = await fetch(`/api/trips/${trip.slug}/entries/import`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sectionId: destSectionId, sourceSectionId: sourceSectionId || undefined, overwrite }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Copy failed");
+    return data.imported as number;
   }
 
   async function addTemplate(template: SectionTemplate) {
@@ -227,30 +268,13 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     }
   }
 
-  // Checking a template's "also add a Previously Visited version"
-  // fires off a one-time lookup of what already exists for this same
-  // concept elsewhere, so the nested "also copy in" checkbox can show a
-  // real count instead of a blind guess. Unchecking doesn't re-fetch —
-  // the count doesn't need to disappear along with the option to use it.
-  function togglePastVersion(template: CustomSectionTemplate, checked: boolean) {
+  function togglePastVersion(key: string, checked: boolean) {
     setAddPastVersion((prev) => {
       const next = new Set(prev);
-      if (checked) next.add(template.template_key);
-      else next.delete(template.template_key);
+      if (checked) next.add(key);
+      else next.delete(key);
       return next;
     });
-    if (checked && importCandidates[template.template_key] === undefined) {
-      const slug = template.sections[0].slug;
-      fetch(`/api/trips/${trip.slug}/import-candidates?slug=${encodeURIComponent(slug)}`)
-        .then((res) => res.json())
-        .then((data) =>
-          setImportCandidates((prev) => ({
-            ...prev,
-            [template.template_key]: data.count > 0 ? { count: data.count, tripNames: data.tripNames } : null,
-          }))
-        )
-        .catch(() => setImportCandidates((prev) => ({ ...prev, [template.template_key]: null })));
-    }
   }
 
   // Recreates a custom template's whole nav group — one, two, or
@@ -322,19 +346,12 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           throw new Error(`Created "${template.nav_group_label}", but its Previously Visited version failed: ${pastData.error || "unknown error"}`);
         }
 
-        // "Also copy in existing entries" — pulls in every matching
-        // entry from every OTHER trip's same-concept section (see the
-        // entries/import route), straight into the tier that's meant to
-        // hold exactly this kind of thing.
-        if (importSelected.has(template.template_key)) {
-          const importRes = await fetch(`/api/trips/${trip.slug}/entries/import`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sectionId: pastData.section.id, conceptSlug: primary.slug }),
-          });
-          const importData = await importRes.json();
-          if (!importRes.ok) {
-            throw new Error(`Created "Previously Visited ${primary.label}", but copying in existing entries failed: ${importData.error || "unknown error"}`);
+        const sourceSectionId = pendingSourceByKey[template.template_key];
+        if (sourceSectionId) {
+          try {
+            await runImport(pastData.section.id, sourceSectionId, false);
+          } catch (err) {
+            throw new Error(`Created "Previously Visited ${primary.label}", but copying in existing entries failed: ${(err as Error).message}`);
           }
         }
       }
@@ -393,15 +410,12 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       const pastData = await pastRes.json();
       if (!pastRes.ok) throw new Error(pastData.error || "Failed to create Previously Visited version");
 
-      if (existingImportSelected.has(primary.id)) {
-        const importRes = await fetch(`/api/trips/${trip.slug}/entries/import`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sectionId: pastData.section.id, conceptSlug: primary.slug }),
-        });
-        const importData = await importRes.json();
-        if (!importRes.ok) {
-          throw new Error(`Created the Previously Visited version, but copying in existing entries failed: ${importData.error || "unknown error"}`);
+      const sourceSectionId = pendingSourceByKey[primary.id];
+      if (sourceSectionId) {
+        try {
+          await runImport(pastData.section.id, sourceSectionId, false);
+        } catch (err) {
+          throw new Error(`Created the Previously Visited version, but copying in existing entries failed: ${(err as Error).message}`);
         }
       }
 
@@ -413,15 +427,18 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     }
   }
 
-  // "Copy in existing entries," runnable on ANY section at any time —
-  // not just at the moment a past tier is first created, since
-  // forgetting to check that box then otherwise left no way back in to
-  // do it later. Warns and overwrites rather than just appending
-  // whenever the section already has something in it: appending would
-  // leave duplicates sitting next to whatever's already there, and
-  // silently doing that without asking first isn't OK for something
-  // this destructive-if-wrong.
-  async function copyIntoExistingSection(group: NavGroup, section: Section) {
+  // Applies (or changes, or clears) an already-existing section's own
+  // prefill — runnable at any time, not just at the moment a past tier
+  // is first created, since forgetting to pick a source then otherwise
+  // left no way back in to do it later. Warns before touching anything
+  // the section already has in it, whether that's replacing it with a
+  // freshly-picked source or clearing it out entirely (picking "— Don't
+  // prefill —" after it was already populated this way) — appending
+  // instead would just leave duplicates sitting next to whatever's
+  // already there, and silently doing either without asking isn't OK
+  // for something this destructive-if-wrong.
+  async function applyPrefill(group: NavGroup, section: Section) {
+    const sourceSectionId = pendingSourceByKey[section.id] || "";
     setError("");
     setAddingTemplate(section.id);
     try {
@@ -430,23 +447,17 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       });
       const entriesData = await entriesRes.json();
       const existingCount = (entriesData.entries || []).length;
+      if (!sourceSectionId && existingCount === 0) return;
       if (existingCount > 0) {
         const confirmed = window.confirm(
-          `This section already has ${existingCount} ${existingCount === 1 ? "entry" : "entries"}. Copying in ` +
-            `existing entries from other trips will replace ${existingCount === 1 ? "it" : "them"} with fresh ` +
-            `copies from elsewhere — continue?`
+          sourceSectionId
+            ? `This section already has ${existingCount} ${existingCount === 1 ? "entry" : "entries"}. Picking a new source will replace ${existingCount === 1 ? "it" : "them"} with fresh copies from there — continue?`
+            : `Remove the ${existingCount} ${existingCount === 1 ? "entry" : "entries"} currently in this section?`
         );
         if (!confirmed) return;
       }
 
-      const conceptSlug = section.slug.replace(/-visited$/, "");
-      const importRes = await fetch(`/api/trips/${trip.slug}/entries/import`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sectionId: section.id, conceptSlug, overwrite: existingCount > 0 }),
-      });
-      const importData = await importRes.json();
-      if (!importRes.ok) throw new Error(importData.error || "Copy failed");
+      await runImport(section.id, sourceSectionId || null, existingCount > 0);
       refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -522,33 +533,18 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                         <input
                           type="checkbox"
                           checked={addPastVersion.has(t.template_key)}
-                          onChange={(e) => togglePastVersion(t, e.target.checked)}
+                          onChange={(e) => togglePastVersion(t.template_key, e.target.checked)}
                         />
                         + Previously Visited version too
                       </label>
                     )}
-                    {canAddPastVersion &&
-                      !exists &&
-                      addPastVersion.has(t.template_key) &&
-                      importCandidates[t.template_key] && (
-                        <label className={styles["past-version-checkbox"]}>
-                          <input
-                            type="checkbox"
-                            checked={importSelected.has(t.template_key)}
-                            onChange={(e) =>
-                              setImportSelected((prev) => {
-                                const next = new Set(prev);
-                                if (e.target.checked) next.add(t.template_key);
-                                else next.delete(t.template_key);
-                                return next;
-                              })
-                            }
-                          />
-                          Also copy in {importCandidates[t.template_key]!.count} existing{" "}
-                          {importCandidates[t.template_key]!.count === 1 ? "entry" : "entries"} from{" "}
-                          {importCandidates[t.template_key]!.tripNames.join(", ")}
-                        </label>
-                      )}
+                    {canAddPastVersion && !exists && addPastVersion.has(t.template_key) && (
+                      <PrefillPicker
+                        candidates={candidatesByConceptSlug[cacheKeyFor(t.template_key, t.sections[0].slug)] || []}
+                        value={pendingSourceByKey[t.template_key] || ""}
+                        onChange={(v) => setPendingSourceByKey((prev) => ({ ...prev, [t.template_key]: v }))}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -567,50 +563,58 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
             <div key={group.id} className={styles["group-section"]}>
               <h2 className={styles["section-heading"]}>{group.label}</h2>
               <div className={styles["section-list"]}>
-                {group.sections.map((section) => (
-                  <div
-                    key={section.id}
-                    className={section.enabled ? styles["section-card"] : styles["section-card-disabled"]}
-                  >
-                    <div>
-                      <div className={styles["section-label"]}>{section.label}</div>
-                      <div className={styles["section-meta"]}>
-                        /{trip.slug}/{group.slug}/{section.slug}
-                        {!section.enabled && " · disabled"}
+                {group.sections.map((section) => {
+                  const candidates = candidatesByConceptSlug[cacheKeyFor(group.slug, section.slug)] || [];
+                  return (
+                    <div
+                      key={section.id}
+                      className={section.enabled ? styles["section-card"] : styles["section-card-disabled"]}
+                    >
+                      <div>
+                        <div className={styles["section-label"]}>{section.label}</div>
+                        <div className={styles["section-meta"]}>
+                          /{trip.slug}/{group.slug}/{section.slug}
+                          {!section.enabled && " · disabled"}
+                        </div>
+                      </div>
+                      <div className={styles["section-actions"]}>
+                        <label className={styles["enabled-checkbox-label"]}>
+                          <input
+                            type="checkbox"
+                            checked={section.enabled}
+                            onChange={(e) => toggleEnabled(section, group.slug, e.target.checked)}
+                            className={styles["enabled-checkbox"]}
+                          />
+                          Enabled
+                        </label>
+                        <Link
+                          href={`/${trip.slug}/admin/sections/${group.slug}/${section.slug}/edit`}
+                          className={styles["edit-link"]}
+                        >
+                          Edit
+                        </Link>
+                        {candidates.length > 0 && (
+                          <>
+                            <PrefillPicker
+                              candidates={candidates}
+                              value={pendingSourceByKey[section.id] || ""}
+                              onChange={(v) => setPendingSourceByKey((prev) => ({ ...prev, [section.id]: v }))}
+                              disabled={addingTemplate === section.id}
+                            />
+                            <button
+                              type="button"
+                              disabled={addingTemplate === section.id}
+                              onClick={() => applyPrefill(group, section)}
+                              className={styles["edit-button"]}
+                            >
+                              {addingTemplate === section.id ? "Applying..." : "Apply"}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
-                    <div className={styles["section-actions"]}>
-                      <label className={styles["enabled-checkbox-label"]}>
-                        <input
-                          type="checkbox"
-                          checked={section.enabled}
-                          onChange={(e) => toggleEnabled(section, group.slug, e.target.checked)}
-                          className={styles["enabled-checkbox"]}
-                        />
-                        Enabled
-                      </label>
-                      <Link
-                        href={`/${trip.slug}/admin/sections/${group.slug}/${section.slug}/edit`}
-                        className={styles["edit-link"]}
-                      >
-                        Edit
-                      </Link>
-                      {existingImportCandidates[section.id] && (
-                        <button
-                          type="button"
-                          disabled={addingTemplate === section.id}
-                          onClick={() => copyIntoExistingSection(group, section)}
-                          className={styles["edit-button"]}
-                          title={`Copy in ${existingImportCandidates[section.id]!.count} existing entries from ${existingImportCandidates[section.id]!.tripNames.join(", ")}`}
-                        >
-                          {addingTemplate === section.id
-                            ? "Copying..."
-                            : `Copy in ${existingImportCandidates[section.id]!.count} entries`}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               {group.sections.length === 1 && !trip.completed && (
                 <div className={styles["custom-template-item"]}>
@@ -622,25 +626,11 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                   >
                     {addingTemplate === group.sections[0].id ? "Adding..." : "+ Add a Previously Visited version"}
                   </button>
-                  {existingImportCandidates[group.sections[0].id] && (
-                    <label className={styles["past-version-checkbox"]}>
-                      <input
-                        type="checkbox"
-                        checked={existingImportSelected.has(group.sections[0].id)}
-                        onChange={(e) =>
-                          setExistingImportSelected((prev) => {
-                            const next = new Set(prev);
-                            if (e.target.checked) next.add(group.sections[0].id);
-                            else next.delete(group.sections[0].id);
-                            return next;
-                          })
-                        }
-                      />
-                      Also copy in {existingImportCandidates[group.sections[0].id]!.count} existing{" "}
-                      {existingImportCandidates[group.sections[0].id]!.count === 1 ? "entry" : "entries"} from{" "}
-                      {existingImportCandidates[group.sections[0].id]!.tripNames.join(", ")}
-                    </label>
-                  )}
+                  <PrefillPicker
+                    candidates={candidatesByConceptSlug[cacheKeyFor(group.slug, group.sections[0].slug)] || []}
+                    value={pendingSourceByKey[group.sections[0].id] || ""}
+                    onChange={(v) => setPendingSourceByKey((prev) => ({ ...prev, [group.sections[0].id]: v }))}
+                  />
                 </div>
               )}
             </div>

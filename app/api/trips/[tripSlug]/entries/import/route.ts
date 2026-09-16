@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
-import { findEntriesForConceptSlug, copyEntriesToSection } from "@/lib/entries";
+import { getAllEntries, copyEntriesToSection } from "@/lib/entries";
 import { requireWriteAccess } from "@/lib/auth";
 import { exportSection } from "@/lib/sheetsExport";
 import type { Section } from "@/lib/types";
@@ -8,14 +8,13 @@ import type { Section } from "@/lib/types";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Bulk-populates a section (identified directly by id, not by nav
-// group/section slug — the caller just created it and already has the
-// id from that response, no need to re-derive its nav group's own
-// slug) from every matching same-concept section on every OTHER trip —
-// see lib/entries.ts's findEntriesForConceptSlug/copyEntriesToSection.
-// Admin-only (same default as creating the section itself); there's no
-// contributor/editor use case for pulling in another trip's whole list
-// at once.
+// Copies one specific source section's entries (chosen from
+// SectionsAdmin's own candidate picker — see the import-candidates
+// route) into a destination section on this trip, identified directly
+// by id (the caller already has it — either just created, or an
+// existing row from this trip's own admin list). Admin-only (same
+// default as creating the section itself); there's no contributor/
+// editor use case for pulling in another trip's whole list at once.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
@@ -31,17 +30,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const sectionId = (body.sectionId as string | undefined)?.trim();
-  const conceptSlug = (body.conceptSlug as string | undefined)?.trim();
+  // Omitted entirely means "just clear" — the "toggle off"/undo case in
+  // SectionsAdmin's own picker, only meaningful alongside `overwrite`.
+  const sourceSectionId = (body.sourceSectionId as string | undefined)?.trim() || null;
   // Set by the client when it already warned the admin this would
-  // replace what's currently in the section (see SectionsAdmin's
-  // copyIntoExistingSection) — running this again later, after
-  // forgetting to check the box the first time, is exactly the point,
-  // but re-running it against a section that's since had real entries
-  // added by hand needs to actually clear those first or the result is
-  // just duplicates sitting next to them, not a clean re-import.
+  // replace what's currently in the section (see SectionsAdmin's own
+  // picker) — re-running this later, after forgetting to pick a source
+  // the first time, switching to a different one, or clearing it out
+  // entirely, is exactly the point, but doing any of that against a
+  // section that's since had real entries in it needs to actually
+  // clear those first, or the result is just duplicates sitting next
+  // to them, not a clean re-import.
   const overwrite = body.overwrite === true;
-  if (!sectionId || !conceptSlug) {
-    return NextResponse.json({ error: "sectionId and conceptSlug are required" }, { status: 400 });
+  if (!sectionId) return NextResponse.json({ error: "sectionId is required" }, { status: 400 });
+  if (sectionId === sourceSectionId) {
+    return NextResponse.json({ error: "Source and destination can't be the same section" }, { status: 400 });
+  }
+  if (!sourceSectionId && !overwrite) {
+    return NextResponse.json({ error: "Nothing to do — pass a sourceSectionId, or overwrite to just clear" }, { status: 400 });
   }
 
   try {
@@ -62,8 +68,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (deleteError) throw new Error(deleteError.message);
     }
 
-    const sourceEntries = await findEntriesForConceptSlug(supabase!, conceptSlug, trip.id);
-    const imported = await copyEntriesToSection(supabase!, sourceEntries, sectionId);
+    let imported = 0;
+    if (sourceSectionId) {
+      const sourceEntries = await getAllEntries(supabase!, sourceSectionId);
+      imported = await copyEntriesToSection(supabase!, sourceEntries, sectionId);
+    }
     await exportSection(supabase!, trip, section as Section);
     return NextResponse.json({ imported });
   } catch (err) {

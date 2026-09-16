@@ -169,46 +169,96 @@ export function toClientEntry(row: EntryRow | null | undefined): ClientEntry | n
   } as ClientEntry;
 }
 
-export interface ImportableEntry extends EntryRow {
-  tripName: string;
+export interface CandidateSection {
+  sectionId: string;
   sectionLabel: string;
+  tripId: string;
+  tripName: string;
+  tripCompleted: boolean;
+  entryCount: number;
 }
 
-// Every entry that already exists for this same concept on ANY other
-// trip — backs SectionsAdmin's "also copy in N existing entries" option
-// when adding a custom template's Previously Visited counterpart (e.g.
-// a brand-new Scotland trip's own "Distilleries" past tier, populated
-// straight from a 2022 trip's already-curated Distilleries list — see
-// the entries/import route). Matches both a plain concept slug and its
-// own "-visited" counterpart (either tier, on any other trip, counts as
-// "the same kind of place already documented somewhere").
-export async function findEntriesForConceptSlug(
+// Every OTHER trip's section that plausibly holds "the same kind of
+// place" — backs SectionsAdmin's own picker for what to copy into a
+// Previously Visited section (see the entries/import route), so an
+// admin can see and choose exactly which trip's list they're pulling
+// from instead of a single opaque blended count across everything
+// (confirmed live as genuinely confusing: e.g. "Food & Drink" matching
+// 113 entries blended in from every other trip's own Food & Drink,
+// with no way to tell whose was whose). Scoped by NAV GROUP slug, not
+// just the section's own slug — every built-in category's own two tiers
+// are always literally slugged "options"/"previously-visited"
+// regardless of which category they're actually in (confirmed live as
+// a real bug: Scotland's own "Food & Drink Options" matched Maine's
+// "Stay Options" and "Activity Options" too, since all 3 happen to
+// share that same bare section slug — the nav group they live in
+// is what actually tells them apart, e.g. "food-drink" vs "houses"). A
+// custom nav group's own slug is already unique to its concept, so
+// this scoping is a no-op there. Matches both a plain concept slug and
+// its own "-visited" counterpart (either tier counts as "documented
+// somewhere"); completed trips sort first since a "previously visited"
+// list is only really meaningful pulled from a trip that's actually
+// already happened, but an in-progress trip's own version still shows
+// further down rather than being hidden outright (a trip like an old
+// undocumented reference trip that was never formally marked Completed
+// shouldn't just disappear from the list).
+export async function findCandidateSectionsForConceptSlug(
   supabase: SupabaseClient,
-  conceptSlug: string,
+  navGroupSlug: string,
+  sectionSlug: string,
   excludeTripId: string
-): Promise<ImportableEntry[]> {
+): Promise<CandidateSection[]> {
+  const conceptSlug = sectionSlug.replace(/-visited$/, "");
+
+  const { data: groups, error: groupsError } = await supabase
+    .from("nav_groups")
+    .select("id")
+    .eq("slug", navGroupSlug)
+    .neq("trip_id", excludeTripId);
+  if (groupsError) throw new Error(groupsError.message);
+  if (!groups || groups.length === 0) return [];
+
   const { data: sections, error: sectionsError } = await supabase
     .from("sections")
-    .select("id, label, trip_id, trips!inner(name)")
-    .in("slug", [conceptSlug, `${conceptSlug}-visited`])
-    .neq("trip_id", excludeTripId);
+    .select("id, label, trip_id, trips!inner(name, completed)")
+    .in(
+      "nav_group_id",
+      groups.map((g) => g.id)
+    )
+    .in("slug", [conceptSlug, `${conceptSlug}-visited`]);
   if (sectionsError) throw new Error(sectionsError.message);
   if (!sections || sections.length === 0) return [];
 
-  const sectionMeta = new Map(sections.map((s) => [s.id, s as unknown as { label: string; trips: { name: string } }]));
-  const { data: entries, error } = await supabase
+  const { data: counts, error: countError } = await supabase
     .from("entries")
-    .select("*")
+    .select("section_id")
     .in(
       "section_id",
       sections.map((s) => s.id)
-    )
-    .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
-  return (entries || []).map((e) => {
-    const meta = sectionMeta.get(e.section_id)!;
-    return { ...e, tripName: meta.trips.name, sectionLabel: meta.label };
-  });
+    );
+  if (countError) throw new Error(countError.message);
+  const countBySection = new Map<string, number>();
+  for (const row of counts || []) {
+    countBySection.set(row.section_id, (countBySection.get(row.section_id) || 0) + 1);
+  }
+
+  return sections
+    .map((s) => {
+      const trip = s.trips as unknown as { name: string; completed: boolean };
+      return {
+        sectionId: s.id,
+        sectionLabel: s.label,
+        tripId: s.trip_id,
+        tripName: trip.name,
+        tripCompleted: trip.completed,
+        entryCount: countBySection.get(s.id) || 0,
+      };
+    })
+    .filter((c) => c.entryCount > 0)
+    .sort((a, b) => {
+      if (a.tripCompleted !== b.tripCompleted) return a.tripCompleted ? -1 : 1;
+      return a.tripName.localeCompare(b.tripName);
+    });
 }
 
 // Clones the given entries into `destSectionId` as brand-new,
