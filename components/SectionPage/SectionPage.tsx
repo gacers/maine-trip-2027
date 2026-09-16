@@ -97,14 +97,14 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   const isMediumMedia = cardLayout === "grid-2";
   const layoutClassName =
     cardLayout === "grid-3" ? styles["entry-grid"] : cardLayout === "grid-2" ? styles["entry-grid-2"] : styles["entry-list"];
-  // Houses/Stays specifically (identified by nav group, not the card
-  // layout) get a larger photo, more breathing room between cards, and
-  // a narrower page overall than the wide 3-across grid other sections
-  // use. "stays" is the slug a *new* trip's version of this group gets
-  // now (see lib/sectionTemplates.ts) — "houses" stays checked too
-  // since existing trips keep their original slug (renaming a nav
-  // group's label doesn't change its URL out from under anyone).
-  const isHouses = navGroupSlug === "houses" || navGroupSlug === "stays";
+  // Stays specifically (identified by nav group, not the card layout)
+  // gets a larger photo, more breathing room between cards, and a
+  // narrower page overall than the wide 3-across grid other sections
+  // use. Every trip's Stays nav group now shares this one slug (a
+  // handful of older trips used to carry "houses" instead, from before
+  // the category was renamed — normalized directly in the database
+  // since nothing else referenced that legacy slug).
+  const isHouses = navGroupSlug === "stays";
   // The bigger 20rem photo is specifically list layout's own richer
   // treatment for Houses/Stays — a Houses section explicitly switched
   // to "small"/"compact" (e.g. Stayed Before set to grid-2) chose that
