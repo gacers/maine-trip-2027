@@ -28,6 +28,10 @@ export interface MobileNavDrawerProps {
   sectionPath: (navGroupSlug: string, sectionSlug: string) => string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** A fixed link outside the nav_groups/sections data model — the
+   * Itinerary page, currently the only one — shown above the trip's
+   * own category groups. */
+  extraLink?: { href: string; label: string };
 }
 
 // Replaces the old anchored Radix DropdownMenu — a small popover reads
@@ -40,7 +44,7 @@ export interface MobileNavDrawerProps {
 // live as more annoying than useful (it disappeared from the header
 // the moment the drawer closed, on top of "go up a level, not into the
 // hamburger" being the more obviously useful shape for it anyway).
-export default function MobileNavDrawer({ nav, pathname, sectionPath, open, onOpenChange }: MobileNavDrawerProps) {
+export default function MobileNavDrawer({ nav, pathname, sectionPath, open, onOpenChange, extraLink }: MobileNavDrawerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
@@ -59,6 +63,13 @@ export default function MobileNavDrawer({ nav, pathname, sectionPath, open, onOp
         </div>
 
         <nav className={styles["nav-groups"]} aria-label="Trip categories">
+          {extraLink && (
+            <DialogClose asChild>
+              <Link href={extraLink.href} className={pathname === extraLink.href ? styles["nav-link-active"] : styles["nav-link"]}>
+                {extraLink.label}
+              </Link>
+            </DialogClose>
+          )}
           {nav.map((g) => (
             <div key={g.id} className={styles["nav-group"]}>
               <div className={styles["nav-group-label"]}>{g.label}</div>

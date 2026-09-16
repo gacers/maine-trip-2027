@@ -69,6 +69,7 @@ export default function TripNavHeader({
   // {sectionSlug} — since a section's slug is only unique within its own
   // group (see migration 0014), not trip-wide.
   const sectionPath = (navGroupSlug: string, sectionSlug: string) => `/${trip.slug}/${navGroupSlug}/${sectionSlug}`;
+  const itineraryPath = `/${trip.slug}/itinerary`;
 
   useEffect(() => {
     const token = captureInviteToken(trip.slug);
@@ -214,6 +215,14 @@ export default function TripNavHeader({
                     </NavigationMenuLink>
                   </NavigationMenuItem>
                 ))}
+                {/* A fixed built-in page, not part of the nav_groups/
+                    sections data model Section Designer manages — a
+                    peer to the category tabs, not nested under one. */}
+                <NavigationMenuItem>
+                  <NavigationMenuLink asChild active={pathname === itineraryPath}>
+                    <Link href={itineraryPath}>Itinerary</Link>
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
               </NavigationMenuList>
             </NavigationMenu>
 
@@ -222,6 +231,7 @@ export default function TripNavHeader({
                 nav={nav}
                 pathname={pathname}
                 sectionPath={sectionPath}
+                extraLink={{ href: itineraryPath, label: "Itinerary" }}
                 open={drawerOpen}
                 onOpenChange={setDrawerOpen}
               />
