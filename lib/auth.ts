@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { supabaseServer, supabaseServiceRole } from "@/lib/supabaseServer";
 import { isDevBypassEnabled, DEV_ADMIN_COOKIE, DEV_CONTRIBUTOR_TOKEN } from "@/lib/devAuth";
+import { checkEditorForTrip } from "@/lib/tripEditors";
 
 export function hashApiKey(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -55,25 +56,33 @@ export type WriteAccessResult = WriteAccessSuccess | WriteAccessFailure;
 //    to carry either way). Hashed and looked up in api_keys; valid means
 //    either a global key (trip_id null — owner keys only) or one scoped
 //    to this exact trip. A `role: 'contributor'` key (an invite link) is
-//    only accepted when the caller explicitly opts in via
-//    `allowContributor` — every write route defaults to owner-only,
-//    only the entries-create route opts in. On success, returns the
-//    service-role client (RLS is bypassed deliberately here — the
-//    bearer token itself was the access check, already done above).
-// 2. Otherwise, the interactive Supabase session cookie. Returns the
-//    request-scoped client acting as that user — RLS's app_admins
-//    policy is the real enforcement here, so even a bug in this check
-//    can't grant a write the database itself would refuse.
+//    only accepted when the caller allows at least `minRole: "editor"`
+//    — every write route defaults to "admin", only the routes a
+//    contributor/editor can genuinely use (add, edit, archive — never
+//    delete or trip config) opt in. On success, returns the service-role
+//    client (RLS is bypassed deliberately here — the bearer token itself
+//    was the access check, already done above).
+// 2. Otherwise, the interactive Supabase session cookie. For a
+//    "editor"-eligible route, first checks trip_editors explicitly (same
+//    as the bearer-contributor path — see checkEditorForTrip) and, if it
+//    matches, ALSO returns the service-role client: RLS itself only
+//    knows about app_admins, so an editor's own RLS-scoped session
+//    client would be refused the exact same write RLS refuses anyone
+//    else non-admin. Otherwise returns the plain request-scoped client
+//    acting as that user — RLS's app_admins policy is the real
+//    enforcement for every "admin"-only route, so even a bug in this
+//    function can't grant a write the database itself would refuse.
 //
 // Returns { supabase, raterKey } on success, { error: { status, message } }
 // on failure — callers should check `error` first. `raterKey` identifies
 // *who* just authenticated ("key:<api_keys.id>" for a bearer token,
-// "admin:<user.id>" for a session) — used by entry_ratings to tell one
-// rater's own score apart from another's; every other caller ignores it.
+// "admin:<user.id>" for an admin session, "editor:<user.id>" for an
+// editor session) — used by entry_ratings to tell one rater's own score
+// apart from another's; every other caller ignores it.
 export async function requireWriteAccess(
   request: Request,
   tripId: string | null = null,
-  { allowContributor = false }: { allowContributor?: boolean } = {}
+  { minRole = "admin" }: { minRole?: "editor" | "admin" } = {}
 ): Promise<WriteAccessResult> {
   const authHeader = request.headers.get("authorization") || "";
   const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
@@ -82,10 +91,10 @@ export async function requireWriteAccess(
     const token = bearerMatch[1].trim();
 
     // See lib/devAuth.ts — a fixed token standing in for a real invite
-    // link's api_keys row, recognized only in `next dev`. Same
-    // allowContributor gate a real contributor key gets below.
+    // link's api_keys row, recognized only in `next dev`. Same minRole
+    // gate a real contributor key gets below.
     if (isDevBypassEnabled && token === DEV_CONTRIBUTOR_TOKEN) {
-      if (!allowContributor) {
+      if (minRole !== "editor") {
         return { error: { status: 403, message: "This invite link can only add new items, not edit or delete" } };
       }
       return { supabase: supabaseServiceRole(), raterKey: "key:dev-contributor" };
@@ -103,7 +112,7 @@ export async function requireWriteAccess(
     if (key.trip_id && tripId && key.trip_id !== tripId) {
       return { error: { status: 403, message: "This key isn't valid for this trip" } };
     }
-    if (key.role === "contributor" && !allowContributor) {
+    if (key.role === "contributor" && minRole !== "editor") {
       return { error: { status: 403, message: "This invite link can only add new items, not edit or delete" } };
     }
     // Best-effort — don't block the actual request on this.
@@ -129,6 +138,25 @@ export async function requireWriteAccess(
     }
     return { error: { status: 401, message: "Sign in required" } };
   }
+
+  // A real editor session for this exact trip gets the same treatment
+  // as a contributor's bearer token above — checked explicitly (not
+  // left to RLS, which has no concept of trip_editors) before falling
+  // through to the plain admin-or-bust session path below.
+  if (minRole === "editor" && tripId) {
+    const { data: adminRow } = await supabase.from("app_admins").select("user_id").eq("user_id", user.id).maybeSingle();
+    if (!adminRow && (await checkEditorForTrip(supabase, user.id, tripId))) {
+      const service = supabaseServiceRole();
+      service
+        .from("trip_editors")
+        .update({ last_active_at: new Date().toISOString() })
+        .eq("trip_id", tripId)
+        .eq("user_id", user.id)
+        .then(() => {});
+      return { supabase: service, raterKey: `editor:${user.id}` };
+    }
+  }
+
   return { supabase, raterKey: `admin:${user.id}` };
 }
 

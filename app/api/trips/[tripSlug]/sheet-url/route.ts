@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError } = await requireWriteAccess(request, trip.id, { allowContributor: true });
+  const { error: authError } = await requireWriteAccess(request, trip.id, { minRole: "editor" });
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   return NextResponse.json({ googleSheetUrl: trip.google_sheet_url || null });

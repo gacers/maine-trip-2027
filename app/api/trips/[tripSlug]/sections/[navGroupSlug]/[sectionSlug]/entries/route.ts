@@ -46,7 +46,7 @@ export async function GET(
       );
       // Best-effort — a visitor with no access at all just gets averages,
       // myScore stays null rather than the request failing.
-      const { raterKey: accessKey } = await requireWriteAccess(request, trip.id, { allowContributor: true });
+      const { raterKey: accessKey } = await requireWriteAccess(request, trip.id, { minRole: "editor" });
       const raterKey = resolveRaterKey(accessKey, request);
       clientEntries = clientEntries.map((e) => ({
         ...e,
@@ -69,7 +69,7 @@ export async function POST(
   if (notFound) return notFound;
 
   const { error: authError, supabase } = await requireWriteAccess(request, trip.id, {
-    allowContributor: true,
+    minRole: "editor",
   });
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 

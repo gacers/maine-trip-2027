@@ -40,7 +40,7 @@ export async function PUT(
   }
 
   const { error: authError, raterKey: accessKey } = await requireWriteAccess(request, trip.id, {
-    allowContributor: true,
+    minRole: "editor",
   });
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
   const raterKey = resolveRaterKey(accessKey, request);
@@ -98,7 +98,7 @@ export async function DELETE(
   }
 
   const { error: authError, raterKey: accessKey } = await requireWriteAccess(request, trip.id, {
-    allowContributor: true,
+    minRole: "editor",
   });
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
   const raterKey = resolveRaterKey(accessKey, request);

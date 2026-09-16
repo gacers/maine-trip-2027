@@ -5,7 +5,7 @@ import { rotateSheetInviteToken, exportSection } from "@/lib/sheetsExport";
 
 export const dynamic = "force-dynamic";
 
-// Owner/admin only (no allowContributor) — revokes the invite token
+// Owner/admin only (default minRole) — revokes the invite token
 // currently embedded in this trip's Sheet and bakes a fresh one into
 // every tab immediately, so any copy of the old link (screenshotted,
 // forwarded outside the group it was meant for, etc.) stops working

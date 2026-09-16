@@ -60,7 +60,7 @@ export async function PATCH(
   // still leaves the entry in the archived list, permanent delete
   // isn't.
   const { error: authError, supabase } = await requireWriteAccess(request, trip.id, {
-    allowContributor: true,
+    minRole: "editor",
   });
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 

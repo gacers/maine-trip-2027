@@ -88,8 +88,19 @@ export async function updateEntry(
 }
 
 export async function deleteEntry(supabase: SupabaseClient, id: string): Promise<void> {
-  const { error } = await supabase.from("entries").delete().eq("id", id);
+  // A plain DELETE that RLS blocks doesn't error — Postgres just filters
+  // the row out of the operation entirely, so a delete with 0 rows
+  // actually affected still reports "success" with nothing to show for
+  // it, and this call would silently do nothing while callers believed
+  // it worked (confirmed live: a signed-in-but-unauthorized session got
+  // a 200 back from the DELETE route with the entry still there
+  // afterward). Asking for the deleted row back and checking it's
+  // actually present catches both that and a plain "no such id".
+  const { data, error } = await supabase.from("entries").delete().eq("id", id).select("id");
   if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error("Delete failed — not found, or you don't have permission to delete this");
+  }
 }
 
 // Flattens a raw Supabase row into the shape the UI (and the generic,
