@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { geocodeAddress } from "@/lib/loadGoogleMaps";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import {
@@ -17,7 +17,7 @@ import PlacePicker from "./components/PlacePicker";
 import DuplicateNotice from "./components/DuplicateNotice";
 import CoreFieldsGrid, { type CoreFields } from "./components/CoreFieldsGrid";
 import PairFieldsBox, { type PairPhase } from "./components/PairFieldsBox";
-import type { PublicTrip, Section, ClientEntry, PlaceResult } from "@/lib/types";
+import type { PublicTrip, Section, ClientEntry, PlaceResult, TitleMatch } from "@/lib/types";
 import styles from "./AddEntryForm.module.css";
 
 const CORE_INITIAL: CoreFields = {
@@ -131,6 +131,13 @@ export default function AddEntryForm({
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
 
+  // Live "already on another trip?" suggestions as you type into the
+  // idle-phase input — see lib/entries.ts's searchEntriesByTitle. Set
+  // back to [] on every keystroke change of `url` (below) rather than
+  // only on a successful fetch, so a fast typist never sees a dropdown
+  // that's actually answering an already-stale, shorter query.
+  const [titleMatches, setTitleMatches] = useState<TitleMatch[]>([]);
+
   // Pairing a second link into this same "2-item option" — the manual-input
   // equivalent of the AI agent's paired-URL add (both entries get the same
   // groupLabel; groupUnits.ts renders any two entries sharing one as a
@@ -154,6 +161,63 @@ export default function AddEntryForm({
       d[f.key] = "";
     });
     return d;
+  }
+
+  // Debounced live search of every trip's existing entries by title —
+  // only while still on the idle "paste a link or type a name" step,
+  // and only for actual typed text, not something that already looks
+  // like a URL (pasting a link means the visitor already knows exactly
+  // what they're adding; searching a raw URL string against titles
+  // would never match anything anyway).
+  useEffect(() => {
+    const q = url.trim();
+    const shouldSearch = phase === "idle" && q.length >= 2 && !isPlainUrl(q);
+    let cancelled = false;
+    // Not-yet-searchable input still clears any stale list from before
+    // — deferred into the same timer-callback shape as the real fetch
+    // below (rather than called straight from the effect body) so a
+    // fast typist backspacing through a query doesn't cascade a render
+    // per keystroke.
+    if (!shouldSearch) {
+      const timer = setTimeout(() => setTitleMatches([]), 0);
+      return () => clearTimeout(timer);
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`${apiBase}/search?q=${encodeURIComponent(q)}`);
+        const resData = await res.json();
+        if (!cancelled && res.ok) setTitleMatches(resData.matches || []);
+      } catch {
+        // Best-effort — a failed suggestion lookup shouldn't block typing.
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, phase]);
+
+  // Same idea as choosePlace below (a Google Places pick) — pre-fills
+  // from an already-documented entry instead of scraping/typing from
+  // scratch, then hands off to the same reused-details notice the
+  // URL-paste flow's own findEntryByUrlAnywhere match shows.
+  function pickTitleMatch(match: TitleMatch) {
+    setFields({
+      ...initialCoreFields(),
+      title: match.title,
+      description: match.description || "",
+      posterImage: match.posterImage || "",
+      lat: match.lat ?? "",
+      lng: match.lng ?? "",
+    });
+    setUrl(match.url || "");
+    setData(initialData());
+    setWarnings([]);
+    setCookieWarning(null);
+    setReusedFrom({ tripName: match.tripName, sectionLabel: match.sectionLabel });
+    setTitleMatches([]);
+    setPhase("editing");
   }
 
   async function handleFindCoords() {
@@ -493,6 +557,8 @@ export default function AddEntryForm({
           placeholder={section.add_placeholder}
           onSubmit={handlePreview}
           onStartBlank={startBlank}
+          titleMatches={titleMatches}
+          onPickTitleMatch={pickTitleMatch}
         />
       )}
 

@@ -68,6 +68,34 @@ export async function findEntryByUrlAnywhere(
   return { entry: entry as EntryRow, tripName: sections.trips.name, sectionLabel: sections.label };
 }
 
+// Live search-as-you-type across every trip/section's entries by title
+// — same "suggestion to reuse" idea as findEntryByUrlAnywhere above,
+// just keyed by name instead of a pasted link (for someone typing a
+// place from memory rather than pasting its URL). Same public-read
+// posture, same "never blocks, just offers" semantics: picking a match
+// still creates a genuinely independent row (see the preview route's
+// own comment on why notes/rank/section-specific fields are never
+// carried over either way).
+export async function searchEntriesByTitle(
+  supabase: SupabaseClient,
+  query: string,
+  excludeSectionId: string,
+  limit = 8
+): Promise<ReusableEntryMatch[]> {
+  const { data, error } = await supabase
+    .from("entries")
+    .select("*, sections!inner(label, trips!inner(name))")
+    .ilike("title", `%${query}%`)
+    .neq("section_id", excludeSectionId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return (data as (EntryRow & { sections: { label: string; trips: { name: string } } })[]).map((row) => {
+    const { sections, ...entry } = row;
+    return { entry: entry as EntryRow, tripName: sections.trips.name, sectionLabel: sections.label };
+  });
+}
+
 export async function createEntry(
   supabase: SupabaseClient,
   entry: Partial<EntryRow> & { id: string; section_id: string }

@@ -245,3 +245,17 @@ export interface PlaceResult {
   mapsUrl: string | null;
   photoUrl: string | null;
 }
+
+// One row of AddEntryForm's live "already on another trip?" dropdown —
+// see lib/entries.ts's searchEntriesByTitle and the entries/search route.
+export interface TitleMatch {
+  id: string;
+  title: string;
+  description: string | null;
+  posterImage: string | null;
+  lat: number | null;
+  lng: number | null;
+  url: string | null;
+  tripName: string;
+  sectionLabel: string;
+}
