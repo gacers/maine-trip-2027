@@ -193,7 +193,12 @@ async function doExportSection(supabase: SupabaseClient, trip: Trip, section: Se
   const showVisitedColumn = trip.completed && !showRankColumn;
   const header = buildHeader(overviewFields, showRankColumn, showRatings, showVisitedColumn);
   const tabName = sanitizeTabName(section.label);
-  const { sheetId, lastCol } = await ensureTab(sheets, spreadsheetId!, tabName, header);
+  // Links this tab's own title banner (see ensureTab) back to the exact
+  // trip/section it came from — same URL shape as each row's own
+  // HYPERLINK in buildRow, just without a specific entry anchor.
+  const titleUrl = `${siteUrl}/${trip.slug}/${navGroupSlug}/${section.slug}?invite=${inviteToken}`;
+  const titleLabel = `${trip.name} - ${section.label}`;
+  const { sheetId, lastCol } = await ensureTab(sheets, spreadsheetId!, tabName, header, titleLabel, titleUrl);
 
   // Lets the site's own "Google Sheet" link jump straight to this
   // section's tab (see Section.sheet_gid) — cheap to just always
@@ -467,14 +472,18 @@ async function deleteTabIfExists(sheets: sheets_v4.Sheets, spreadsheetId: string
 // Ensures a section's tab exists with the right header (creating it, or
 // rewriting just the header if a field was added/removed/renamed since
 // last export), and (re)applies formatting that's cheap to redo every
-// time: bold header on creation, top-aligned cells always — the same
-// grouped-row-Rank-looks-detached fix from the old single-sheet
-// Overview, since a paired option's cells here are multi-line too.
+// time: bold header, top-aligned cells always — the same grouped-row-
+// Rank-looks-detached fix from the old single-sheet Overview, since a
+// paired option's cells here are multi-line too. Row 1 is now a merged
+// title banner (see below) rather than the header itself — the header
+// moved down to row 2, data to row 3.
 async function ensureTab(
   sheets: sheets_v4.Sheets,
   spreadsheetId: string,
   tabName: string,
-  header: string[]
+  header: string[],
+  titleLabel: string,
+  titleUrl: string
 ): Promise<{ sheetId: number; lastCol: string }> {
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
   const existing = meta.data.sheets?.find((s) => s.properties?.title === tabName);
@@ -485,7 +494,7 @@ async function ensureTab(
     const addRes = await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: {
-        requests: [{ addSheet: { properties: { title: tabName, gridProperties: { frozenRowCount: 1 } } } }],
+        requests: [{ addSheet: { properties: { title: tabName, gridProperties: { frozenRowCount: 2 } } } }],
       },
     });
     sheetId = addRes.data.replies![0].addSheet!.properties!.sheetId!;
@@ -509,44 +518,92 @@ async function ensureTab(
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${tabName}!A1`,
+      range: `${tabName}!A2`,
       valueInputOption: "RAW",
       requestBody: { values: [header] },
     });
-    try {
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: [
-            {
-              repeatCell: {
-                range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
-                cell: { userEnteredFormat: { textFormat: { bold: true } } },
-                fields: "userEnteredFormat.textFormat.bold",
-              },
-            },
-          ],
-        },
-      });
-    } catch {
-      // non-fatal
-    }
   } else {
     sheetId = existing.properties!.sheetId!;
     const headerRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${tabName}!A1:${lastCol}1`,
+      range: `${tabName}!A2:${lastCol}2`,
     });
     const currentHeader = headerRes.data.values ? headerRes.data.values[0] : [];
     if (currentHeader.join("|") !== header.join("|")) {
-      await sheets.spreadsheets.values.clear({ spreadsheetId, range: `${tabName}!A1:ZZ` });
+      // Clearing from row 2 down (not row 1) leaves the title banner
+      // alone — it's rewritten separately below regardless, but no
+      // reason to blow it away and redo it here too.
+      await sheets.spreadsheets.values.clear({ spreadsheetId, range: `${tabName}!A2:ZZ` });
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${tabName}!A1`,
+        range: `${tabName}!A2`,
         valueInputOption: "RAW",
         requestBody: { values: [header] },
       });
     }
+  }
+
+  // Row 1: a merged, left-aligned title banner linking back to this
+  // exact trip/section on the site — "<Trip> - <Section>" instead of
+  // diving straight into the column header, so anyone who opens the
+  // Sheet cold (a friend it was shared with, not just the trip owner)
+  // can immediately tell what they're looking at and click straight
+  // back to the live page. Rewritten on every export rather than only
+  // on tab creation — the trip name or URL could change (a rename, a
+  // rotated invite token) and this should never drift out of date. Also
+  // self-heals any pre-existing tab from before this row existed at
+  // all: writing fresh content into row 1 (previously the header) and
+  // row 2 (previously the first data row) here, followed by
+  // syncTabData's own full clear-and-rewrite of everything from row 3
+  // down, leaves nothing stale behind — no separate migration needed.
+  try {
+    const titleFormula = `=HYPERLINK("${titleUrl.replace(/"/g, '""')}", "${titleLabel.replace(/"/g, '""')}")`;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${tabName}!A1`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [[titleFormula]] },
+    });
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            unmergeCells: {
+              range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: header.length },
+            },
+          },
+          {
+            mergeCells: {
+              mergeType: "MERGE_ALL",
+              range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: header.length },
+            },
+          },
+          {
+            repeatCell: {
+              range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: header.length },
+              cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 12 }, horizontalAlignment: "LEFT" } },
+              fields: "userEnteredFormat.textFormat,userEnteredFormat.horizontalAlignment",
+            },
+          },
+          {
+            repeatCell: {
+              range: { sheetId, startRowIndex: 1, endRowIndex: 2 },
+              cell: { userEnteredFormat: { textFormat: { bold: true } } },
+              fields: "userEnteredFormat.textFormat.bold",
+            },
+          },
+          {
+            updateSheetProperties: {
+              properties: { sheetId, gridProperties: { frozenRowCount: 2 } },
+              fields: "gridProperties.frozenRowCount",
+            },
+          },
+        ],
+      },
+    });
+  } catch {
+    // non-fatal
   }
 
   try {
@@ -578,14 +635,19 @@ async function syncTabData(
   lastCol: string,
   rows: (string | number)[][]
 ): Promise<void> {
+  // Row 1 is the title banner, row 2 the header (see ensureTab) — data
+  // starts at row 3. This clear is open-ended (no end row), so it wipes
+  // every old data row regardless of how many there used to be,
+  // including a pre-existing tab's old row-2 data now that the header
+  // has moved down to make room for the title.
   await sheets.spreadsheets.values.clear({
     spreadsheetId,
-    range: `${tabName}!A2:${lastCol}`,
+    range: `${tabName}!A3:${lastCol}`,
   });
   if (rows.length > 0) {
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${tabName}!A2`,
+      range: `${tabName}!A3`,
       valueInputOption: "USER_ENTERED",
       requestBody: { values: rows },
     });
@@ -608,10 +670,12 @@ async function applyActiveRowHighlight(
   highlightRowCount: number
 ): Promise<void> {
   try {
+    // Data now starts at row index 2 (row 3) — title and header occupy
+    // indices 0 and 1 (see ensureTab).
     const requests: sheets_v4.Schema$Request[] = [
       {
         repeatCell: {
-          range: { sheetId, startRowIndex: 1, endRowIndex: 1000 },
+          range: { sheetId, startRowIndex: 2, endRowIndex: 1000 },
           cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 1, blue: 1 } } },
           fields: "userEnteredFormat.backgroundColor",
         },
@@ -620,7 +684,7 @@ async function applyActiveRowHighlight(
     if (highlightRowCount > 0) {
       requests.push({
         repeatCell: {
-          range: { sheetId, startRowIndex: 1, endRowIndex: 1 + highlightRowCount },
+          range: { sheetId, startRowIndex: 2, endRowIndex: 2 + highlightRowCount },
           cell: { userEnteredFormat: { backgroundColor: { red: 0.85, green: 0.94, blue: 0.83 } } },
           fields: "userEnteredFormat.backgroundColor",
         },

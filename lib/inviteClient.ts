@@ -54,6 +54,33 @@ export function captureInviteToken(tripSlug: string): string | null {
 // already has a stable identity of its own and never needs this.
 const DEVICE_ID_KEY = "rater-device-id";
 
+// Whether this browser has already been shown the "you can create a
+// permanent login" nudge for this trip — checked once, right after a
+// contributor's first real visit via an invite link, so the offer to
+// create a permanent login (see CreateLoginPrompt) is actually
+// surfaced up front instead of sitting as an easy-to-miss small link
+// they'd only find by noticing it. Shown at most once per browser per
+// trip; the small link itself never goes away, so they can still open
+// it deliberately later even after dismissing the nudge.
+const CREATE_LOGIN_NUDGE_KEY_PREFIX = "create-login-nudge-seen:";
+
+export function hasSeenCreateLoginNudge(tripSlug: string): boolean {
+  try {
+    return window.localStorage.getItem(CREATE_LOGIN_NUDGE_KEY_PREFIX + tripSlug) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markCreateLoginNudgeSeen(tripSlug: string): void {
+  try {
+    window.localStorage.setItem(CREATE_LOGIN_NUDGE_KEY_PREFIX + tripSlug, "1");
+  } catch {
+    // Private window / blocked storage — the nudge just shows again
+    // next visit instead of staying dismissed; harmless either way.
+  }
+}
+
 export function getOrCreateDeviceId(): string {
   try {
     let id = window.localStorage.getItem(DEVICE_ID_KEY);

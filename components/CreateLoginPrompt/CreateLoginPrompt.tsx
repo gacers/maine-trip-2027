@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from "@/components/Dialog";
 import Button from "@/components/Button";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
@@ -13,6 +14,13 @@ export interface CreateLoginPromptProps {
    * (see lib/inviteClient.ts) — proof this account should actually be
    * linked here, sent once to /become-editor right after signup. */
   contributorToken: string;
+  /** Open this dialog immediately on mount — used for the one-time
+   * "you can make this permanent" nudge on a contributor's first real
+   * visit (see TripNavHeader + lib/inviteClient.ts's
+   * hasSeenCreateLoginNudge). Only affects the very first render;
+   * changing it later has no effect, same as any other initial-state
+   * seed. */
+  defaultOpen?: boolean;
 }
 
 // Offered to a contributor who's only recognized by this one browser's
@@ -20,8 +28,9 @@ export interface CreateLoginPromptProps {
 // same as today) but follows them across devices, and survives a
 // private/incognito window a token never does. Purely optional: the
 // existing link keeps working exactly as it always has either way.
-export default function CreateLoginPrompt({ trip, contributorToken }: CreateLoginPromptProps) {
-  const [open, setOpen] = useState(false);
+export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen = false }: CreateLoginPromptProps) {
+  const router = useRouter();
+  const [open, setOpen] = useState(defaultOpen);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -53,6 +62,12 @@ export default function CreateLoginPrompt({ trip, contributorToken }: CreateLogi
       if (signInError) throw signInError;
 
       setDone(true);
+      // The layout above this (TripNavHeader's own parent) re-checks
+      // isEditor server-side on every request — without this, the nav
+      // bar kept showing "Create a permanent login" until some
+      // unrelated navigation happened to trigger a refresh, even though
+      // the sign-in above already succeeded and set the session cookie.
+      router.refresh();
     } catch (err) {
       setError((err as Error).message);
     } finally {
