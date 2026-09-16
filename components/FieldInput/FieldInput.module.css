@@ -8,7 +8,15 @@
 .wide {
   composes: field;
 }
-@media (min-width: 640px) {
+/* Keyed off the field grid's own container (CoreFieldsGrid/
+   EntryEditForm's, both container-type: inline-size via their card/
+   dialog ancestor), not the viewport — a plain @media here fired at
+   any wide-viewport desktop regardless of how narrow the actual card
+   was, forcing this textarea's row into 2 columns it didn't have room
+   for (the same squeeze already fixed elsewhere for Title/Link).
+   See EntryCard.module.css and Dialog.module.css for where
+   container-type gets set. */
+@container (min-width: 30rem) {
   .wide {
     grid-column: span 2 / span 2;
   }
