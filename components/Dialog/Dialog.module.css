@@ -3,6 +3,30 @@
   inset: 0;
   background: rgb(0 0 0 / 0.4);
   z-index: 40;
+
+  /* Radix sets data-state itself and waits for this animation to
+     actually finish before unmounting a closed dialog — no extra
+     props needed. A sudden appear/disappear was never wrong exactly,
+     but every dialog gets a small "nice entry/exit" for free from
+     this one shared rule. */
+  &[data-state="open"] {
+    animation: dialog-overlay-fade-in 150ms ease-out;
+  }
+  &[data-state="closed"] {
+    animation: dialog-overlay-fade-out 150ms ease-in;
+  }
+}
+
+@keyframes dialog-overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-overlay-fade-out {
+  to {
+    opacity: 0;
+  }
 }
 
 .content {

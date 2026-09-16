@@ -18,6 +18,29 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+
+  /* See Dialog.module.css's own overlay fade — same "wait for this
+     animation before actually unmounting" Radix behavior, just a slide
+     along the edge this panel actually lives on instead of a fade. */
+  &[data-state="open"] {
+    animation: drawer-slide-in 200ms ease-out;
+  }
+  &[data-state="closed"] {
+    animation: drawer-slide-out 150ms ease-in;
+    animation-fill-mode: forwards;
+  }
+}
+
+@keyframes drawer-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes drawer-slide-out {
+  to {
+    transform: translateX(-100%);
+  }
 }
 
 .drawer-header {
@@ -37,6 +60,15 @@
 .actions-section {
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--color-zinc-200);
+
+  /* A section whose own utility controls don't apply here (see
+     SectionPage's utilityControls gating) still mounts this wrapper —
+     it just never gets anything portaled into it. Same collapse
+     mechanism as TripNavHeader's own .sub-nav-row, so it doesn't show
+     as a stray empty divider with nothing above or below it. */
+  &:not(:has(.actions-target > *)) {
+    display: none;
+  }
 }
 
 /* Whatever UtilityControls portals in here (Add/Google Sheet/Sort/

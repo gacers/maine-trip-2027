@@ -72,6 +72,23 @@ export default function TripNavHeader({
     setAccessChecked(true);
   }, [trip.slug]);
 
+  // The hamburger trigger itself is CSS-hidden past 1024px (.menu-mobile
+  // below), but resizing past that threshold WHILE the drawer is
+  // already open doesn't touch React state on its own — confirmed live
+  // as a full-screen overlay stuck open over what's now a desktop-width
+  // page with no way to have opened it from here. Same 1024px
+  // breakpoint as everywhere else in this file; only listens while
+  // there's actually something to close.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (e.matches) setDrawerOpen(false);
+    };
+    mq.addEventListener("change", handleChange);
+    return () => mq.removeEventListener("change", handleChange);
+  }, [drawerOpen]);
+
   // This bar's own rendered height, published as a CSS variable on the
   // document root so anything sticky further down the tree (SectionPage's
   // filter/sort bar, which isn't a DOM sibling of this component) can
