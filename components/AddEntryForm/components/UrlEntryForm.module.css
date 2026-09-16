@@ -9,7 +9,7 @@
   flex-direction: column;
   gap: 0.5rem;
 }
-@media (min-width: 640px) {
+@container (min-width: 30rem) {
   .row {
     flex-direction: row;
   }

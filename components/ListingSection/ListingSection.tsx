@@ -15,12 +15,20 @@ export interface ListingSectionProps {
    * EntryMedia directly so each EntryCard below can skip its own copy
    * (hideMedia). Edge-to-edge, no padding, same as a solo card's photo. */
   media?: ReactNode;
-  /** Gates "Delete group" below — really an archive-with-a-reason (see
-   * PairedEntryGroup's onDeleteGroup), not a permanent delete, so this
-   * is the same "admin or contributor" capability as editing/archiving
-   * an individual entry, not admin-only. */
+  /** Gates "Delete group"/"Edit" below — really an archive-with-a-
+   * reason (see PairedEntryGroup's onDeleteGroup), not a permanent
+   * delete, so this is the same "admin or contributor" capability as
+   * editing/archiving an individual entry, not admin-only. */
   canArchiveGroup?: boolean;
   onDeleteGroup?: ((reason: string) => void) | null;
+  /** The raw, unformatted group label (see PairedEntryGroup's own
+   * groupTitle) — `title` above is what's actually displayed (with the
+   * "2 House Option" suffix baked in), this is what a text input
+   * actually edits. Both entries in the pair share one groupLabel
+   * (that's what pairs them at all — see lib/groupUnits.ts), so
+   * `onEditTitle` below is expected to update both at once. */
+  editableTitle?: string;
+  onEditTitle?: (newLabel: string) => void;
   /** A 2-house-option group is rated as one option, not twice — one
    * shared "Your score" control here instead of each half's own
    * EntryCard rendering its own (see EntryCard's showRatingControl,
@@ -48,16 +56,31 @@ export default function ListingSection({
   media,
   canArchiveGroup,
   onDeleteGroup,
+  editableTitle,
+  onEditTitle,
   showRatings,
   canContribute,
   myScore,
   onRate,
 }: ListingSectionProps) {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(editableTitle ?? "");
 
   function archiveGroup(reason: string) {
     onDeleteGroup?.(reason);
     setShowArchiveDialog(false);
+  }
+
+  function startEditTitle() {
+    setTitleDraft(editableTitle ?? "");
+    setIsEditingTitle(true);
+  }
+
+  function saveTitle() {
+    const trimmed = titleDraft.trim();
+    if (trimmed) onEditTitle?.(trimmed);
+    setIsEditingTitle(false);
   }
 
   return (
@@ -65,7 +88,32 @@ export default function ListingSection({
       {media}
       <div className={styles["header"]}>
         <div className={styles["title-area"]}>
-          <h2 className={styles["title"]}>{title}</h2>
+          {isEditingTitle ? (
+            <div className={styles["title-edit-row"]}>
+              <input
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && saveTitle()}
+                autoFocus
+                className={styles["title-input"]}
+              />
+              <Button variant="primary" size="sm" onClick={saveTitle}>
+                Save
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setIsEditingTitle(false)}>
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <div className={styles["title-row"]}>
+              <h2 className={styles["title"]}>{title}</h2>
+              {canArchiveGroup && onEditTitle && (
+                <button type="button" onClick={startEditTitle} className={styles["edit-title-button"]}>
+                  Edit
+                </button>
+              )}
+            </div>
+          )}
           {showRatings && canContribute && onRate && (
             <div className={styles["user-rating-row"]}>
               <span className={styles["rating-caption"]}>Your score</span>

@@ -19,6 +19,14 @@
   box-shadow: var(--shadow-lg);
   padding: 1.25rem;
   z-index: 41;
+  /* A field grid inside here (see AddEntryForm's own .grid) needs to
+     react to how wide THIS box actually is, not the browser viewport —
+     a viewport comfortably past a 2-column breakpoint can still leave
+     a capped-width dialog like this one too narrow for two real
+     columns, squeezing a field's input down to a few visible
+     characters (confirmed live: "Link" cut off to "https://...co.u"
+     inside AddEntryDialog's own wider-than-default content). */
+  container-type: inline-size;
 
   &:focus {
     outline: none;

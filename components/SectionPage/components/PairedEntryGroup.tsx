@@ -78,6 +78,8 @@ export default function PairedEntryGroup({
           ? null
           : (reason: string) => unit.listings.forEach((e) => onPatch(e.id, { archiveReason: reason, status: "archived" }))
       }
+      editableTitle={unit.listings[0].groupLabel || ""}
+      onEditTitle={(newLabel) => unit.listings.forEach((e) => onPatch(e.id, { groupLabel: newLabel }))}
     >
       <div className={styles["listings"]}>
         {unit.listings.map((entry: ClientEntry) => (

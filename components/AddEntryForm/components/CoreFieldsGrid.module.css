@@ -8,7 +8,10 @@
 .wide-field {
   composes: field;
 }
-@media (min-width: 640px) {
+/* Same container query as the parent .grid (AddEntryForm.module.css)
+   this is a sibling item of, not a viewport breakpoint — see that
+   file's own comment for why. */
+@container (min-width: 30rem) {
   .wide-field {
     grid-column: span 2 / span 2;
   }
@@ -26,7 +29,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
 }
-@media (min-width: 640px) {
+@container (min-width: 30rem) {
   .field-defs-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-column: span 2 / span 2;

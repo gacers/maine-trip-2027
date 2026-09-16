@@ -46,6 +46,43 @@
   overflow-wrap: break-word;
 }
 
+.title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.edit-title-button {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--color-blue-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.title-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.title-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-zinc-300);
+  padding: 0.25rem 0.5rem;
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
 .controls {
   display: flex;
   align-items: flex-start;
