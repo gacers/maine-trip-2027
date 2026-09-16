@@ -44,6 +44,25 @@ export async function getStopsForTrip(supabase: SupabaseClient, tripId: string):
   return (data as StopRowWithEntry[]).map(toClientStop);
 }
 
+// Re-fetches one stop through the same resolved join getStopsForTrip
+// uses — createStop/updateStop below call this instead of returning
+// their own insert/update result directly, which for a linked stop
+// (entry_id set) is only the *raw* row: title/lat/lng genuinely are
+// null there, the real values live on the entry. Returning that raw
+// shape to the client (confirmed live: it happened here) blanks out a
+// linked stop's title/coordinates in local state — including its
+// drive-time connector, since that needs lat/lng — until the next full
+// page load re-fetches the properly resolved version.
+async function getStopById(supabase: SupabaseClient, stopId: string): Promise<ItineraryStop | null> {
+  const { data, error } = await supabase
+    .from("itinerary_stops")
+    .select("*, entries(title, url, lat, lng, sections(slug, nav_groups(slug)))")
+    .eq("id", stopId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? toClientStop(data as StopRowWithEntry) : null;
+}
+
 export interface CreateStopInput {
   entryId?: string | null;
   title?: string | null;
@@ -66,7 +85,7 @@ export async function createStop(
   supabase: SupabaseClient,
   tripId: string,
   input: CreateStopInput
-): Promise<ItineraryStopRow> {
+): Promise<ItineraryStop> {
   const { data: last } = await supabase
     .from("itinerary_stops")
     .select("sort_order")
@@ -94,10 +113,12 @@ export async function createStop(
       notes: input.notes || null,
       sort_order: nextSortOrder,
     })
-    .select()
+    .select("id")
     .single();
   if (error) throw new Error(error.message);
-  return data;
+  const stop = await getStopById(supabase, data.id);
+  if (!stop) throw new Error("Failed to load the newly created stop");
+  return stop;
 }
 
 // Replaces whichever of these fields are present — same "submit its
@@ -127,7 +148,7 @@ export async function updateStop(
   tripId: string,
   stopId: string,
   input: UpdateStopInput
-): Promise<ItineraryStopRow | null> {
+): Promise<ItineraryStop | null> {
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.title !== undefined) patch.title = input.title;
   if (input.url !== undefined) patch.url = input.url;
@@ -147,10 +168,10 @@ export async function updateStop(
     .update(patch)
     .eq("id", stopId)
     .eq("trip_id", tripId)
-    .select()
+    .select("id")
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return data;
+  return data ? getStopById(supabase, data.id) : null;
 }
 
 export async function deleteStop(supabase: SupabaseClient, tripId: string, stopId: string): Promise<void> {

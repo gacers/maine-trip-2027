@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/Dialog";
 import Button from "@/components/Button";
 import StopScheduleFields, { type StopScheduleValues } from "./StopScheduleFields";
+import { findTimingConflict } from "../lib/validateStopTiming";
 import type { ItineraryStop } from "@/lib/types";
 import styles from "./EditStopDialog.module.css";
 
@@ -11,6 +12,11 @@ export interface EditStopDialogProps {
   tripSlug: string;
   authToken: string | null;
   stop: ItineraryStop;
+  /** Whichever stop currently sits right before this one in the list —
+   * used to sanity-check that the entered date/time is even reachable
+   * from there given the drive/transit time between them. Null for the
+   * first stop, or if there's nothing before it worth checking against. */
+  previousStop: ItineraryStop | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdated: (stop: ItineraryStop) => void;
@@ -22,7 +28,16 @@ export interface EditStopDialogProps {
 // too. A linked stop's title/location come from the entry it points
 // at and aren't re-editable here; delete + re-add to point it
 // somewhere else instead.
-export default function EditStopDialog({ tripSlug, authToken, stop, open, onOpenChange, onUpdated, onDeleted }: EditStopDialogProps) {
+export default function EditStopDialog({
+  tripSlug,
+  authToken,
+  stop,
+  previousStop,
+  open,
+  onOpenChange,
+  onUpdated,
+  onDeleted,
+}: EditStopDialogProps) {
   const [title, setTitle] = useState(stop.title || "");
   const [schedule, setSchedule] = useState<StopScheduleValues>({
     kind: stop.kind,
@@ -36,12 +51,27 @@ export default function EditStopDialog({ tripSlug, authToken, stop, open, onOpen
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [checkingTiming, setCheckingTiming] = useState(false);
 
   const authHeaders: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
   async function handleSave() {
-    setSaving(true);
     setError("");
+    setCheckingTiming(true);
+    const conflict = await findTimingConflict(previousStop, {
+      date: schedule.date,
+      time: schedule.time,
+      lat: stop.lat,
+      lng: stop.lng,
+      travelMode: schedule.travelMode,
+    });
+    setCheckingTiming(false);
+    if (conflict) {
+      setError(conflict);
+      return;
+    }
+
+    setSaving(true);
     try {
       const res = await fetch(`/api/trips/${tripSlug}/itinerary/stops/${stop.id}`, {
         method: "PATCH",
@@ -59,7 +89,10 @@ export default function EditStopDialog({ tripSlug, authToken, stop, open, onOpen
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Update failed");
-      onUpdated({ ...stop, ...data.stop, entryNavGroupSlug: stop.entryNavGroupSlug, entrySectionSlug: stop.entrySectionSlug });
+      // data.stop is now already fully resolved (title/lat/lng/nav
+      // slugs) via the same join getStopsForTrip uses — no need to
+      // patch it back together from the previous `stop` prop.
+      onUpdated(data.stop);
       onOpenChange(false);
     } catch (err) {
       setError((err as Error).message);
@@ -107,8 +140,8 @@ export default function EditStopDialog({ tripSlug, authToken, stop, open, onOpen
         {error && <p className={styles["error"]}>{error}</p>}
 
         <div className={styles["actions"]}>
-          <Button type="button" variant="primary" size="sm" disabled={saving} onClick={handleSave}>
-            {saving ? "Saving..." : "Save"}
+          <Button type="button" variant="primary" size="sm" disabled={saving || checkingTiming} onClick={handleSave}>
+            {checkingTiming ? "Checking..." : saving ? "Saving..." : "Save"}
           </Button>
           <Button type="button" variant="danger" size="sm" disabled={deleting} onClick={handleDelete}>
             {deleting ? "Removing..." : "Remove"}

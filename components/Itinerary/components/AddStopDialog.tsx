@@ -6,6 +6,7 @@ import Button from "@/components/Button";
 import PlacePicker from "@/components/AddEntryForm/components/PlacePicker";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import StopScheduleFields, { type StopScheduleValues } from "./StopScheduleFields";
+import { findTimingConflict } from "../lib/validateStopTiming";
 import type { ItineraryEntryOption, ItineraryStop, PlaceResult } from "@/lib/types";
 import styles from "./AddStopDialog.module.css";
 
@@ -61,6 +62,7 @@ export default function AddStopDialog({ tripSlug, authToken, lastStop, onAdded }
   const [mode, setMode] = useState<Mode>("link");
   const [schedule, setSchedule] = useState<StopScheduleValues>(() => buildDefaultSchedule(lastStop));
   const [saving, setSaving] = useState(false);
+  const [checkingTiming, setCheckingTiming] = useState(false);
   const [error, setError] = useState("");
 
   // Link-an-entry mode — every entry in the trip, fetched once when the
@@ -165,6 +167,23 @@ export default function AddStopDialog({ tripSlug, authToken, lastStop, onAdded }
       setError("Give this stop a name.");
       return;
     }
+
+    const candidateLat = mode === "link" ? (selected?.lat ?? null) : (place?.lat ?? null);
+    const candidateLng = mode === "link" ? (selected?.lng ?? null) : (place?.lng ?? null);
+    setCheckingTiming(true);
+    const conflict = await findTimingConflict(lastStop, {
+      date: schedule.date,
+      time: schedule.time,
+      lat: candidateLat,
+      lng: candidateLng,
+      travelMode: schedule.travelMode,
+    });
+    setCheckingTiming(false);
+    if (conflict) {
+      setError(conflict);
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch(`/api/trips/${tripSlug}/itinerary/stops`, {
@@ -315,8 +334,15 @@ export default function AddStopDialog({ tripSlug, authToken, lastStop, onAdded }
 
         {error && <p className={styles["error"]}>{error}</p>}
 
-        <Button type="button" variant="primary" size="sm" disabled={saving} onClick={handleSubmit} className={styles["submit-button"]}>
-          {saving ? "Adding..." : "Add stop"}
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          disabled={saving || checkingTiming}
+          onClick={handleSubmit}
+          className={styles["submit-button"]}
+        >
+          {checkingTiming ? "Checking..." : saving ? "Adding..." : "Add stop"}
         </Button>
       </DialogContent>
     </Dialog>

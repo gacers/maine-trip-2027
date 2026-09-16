@@ -187,6 +187,10 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
           tripSlug={trip.slug}
           authToken={authToken}
           stop={editingStop}
+          previousStop={(() => {
+            const i = stops.findIndex((s) => s.id === editingStop.id);
+            return i > 0 ? stops[i - 1] : null;
+          })()}
           open={!!editingStop}
           onOpenChange={(open) => !open && setEditingStop(null)}
           onUpdated={handleUpdated}
