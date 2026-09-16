@@ -4,22 +4,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/NavigationMenu";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from "@/components/DropdownMenu";
 import Button from "@/components/Button";
 import RequestAccess from "@/components/RequestAccess";
 import CreateLoginPrompt from "@/components/CreateLoginPrompt";
+import MobileNavDrawer from "./components/MobileNavDrawer";
 import { captureInviteToken } from "@/lib/inviteClient";
 import { useNavSlot } from "./NavSlot";
 import type { PublicTrip, NavGroup } from "@/lib/types";
 import styles from "./TripNavHeader.module.css";
-
-function MenuIcon() {
-  return (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M4 6h16M4 12h16M4 18h16" />
-    </svg>
-  );
-}
 
 export interface TripNavHeaderProps {
   trip: PublicTrip;
@@ -43,8 +35,10 @@ export interface TripNavHeaderProps {
 // on any section in that group, a second row appears underneath with
 // that group's own sections (Possible/Previous), so there's always at
 // most one extra row, never a hover-menu. Collapses to a single
-// hamburger (a Radix DropdownMenu listing every group/section) below
-// 1024px, where the flat row doesn't reliably fit. Utility links are
+// hamburger below 1024px, where the flat row doesn't reliably fit —
+// opens a full-screen drawer (MobileNavDrawer) listing every group/
+// section plus this section's own action row, rather than a small
+// anchored popover. Utility links are
 // gated on who's actually looking: an admin session gets "All trips"/
 // "Manage", a visitor with neither that nor an invite link gets
 // "Request access", and a contributor (has an invite link, isn't the
@@ -61,6 +55,13 @@ export default function TripNavHeader({
   const navSlot = useNavSlot();
   const [contributorToken, setContributorToken] = useState<string | null>(null);
   const [accessChecked, setAccessChecked] = useState(isAdmin);
+  // While the mobile drawer is open, it takes over the NavSlot target
+  // (see the sub-nav-row's own `!drawerOpen` guard below and
+  // MobileNavDrawer itself) — so this section's Add/Sheet/Sort actions
+  // relocate in there together with the nav links, instead of a
+  // separate always-on toolbar row plus a nav-only popover competing
+  // for the same narrow header.
+  const [drawerOpen, setDrawerOpen] = useState(false);
   // Nested under the nav group's own slug now — /{tripSlug}/{navGroupSlug}/
   // {sectionSlug} — since a section's slug is only unique within its own
   // group (see migration 0014), not trip-wide.
@@ -164,25 +165,14 @@ export default function TripNavHeader({
             </NavigationMenu>
 
             <div className={styles["menu-mobile"]}>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" aria-label="Sections menu" className={styles["hamburger-button"]}>
-                    <MenuIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {nav.map((g) => (
-                    <div key={g.id}>
-                      <DropdownMenuLabel>{g.label}</DropdownMenuLabel>
-                      {g.sections.map((s) => (
-                        <DropdownMenuItem key={s.id} asChild>
-                          <Link href={sectionPath(g.slug, s.slug)}>{s.sub_nav_label || s.label}</Link>
-                        </DropdownMenuItem>
-                      ))}
-                    </div>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <MobileNavDrawer
+                nav={nav}
+                activeGroupId={activeGroup?.id}
+                pathname={pathname}
+                sectionPath={sectionPath}
+                open={drawerOpen}
+                onOpenChange={setDrawerOpen}
+              />
             </div>
           </div>
 
@@ -204,7 +194,13 @@ export default function TripNavHeader({
               without the SSR/hydration-timing mismatch a React-state
               version of this would have (the portal target is always
               empty during server rendering no matter what will
-              eventually render into it once hydrated). */}
+              eventually render into it once hydrated).
+
+              The target itself is skipped entirely while the mobile
+              drawer is open — MobileNavDrawer mounts its own copy then,
+              taking over the same NavSlot ref (see useNavSlot), so
+              SectionPage's portal just follows it there and back
+              without either side needing to know the other exists. */}
           {activeGroup && (
             <div className={styles["sub-nav-row"]}>
               {activeGroup.sections.length > 1 && (
@@ -220,7 +216,7 @@ export default function TripNavHeader({
                   </NavigationMenuList>
                 </NavigationMenu>
               )}
-              <div ref={(el) => navSlot?.setSlot(el)} className={styles["nav-slot-target"]} />
+              {!drawerOpen && <div ref={(el) => navSlot?.setSlot(el)} className={styles["nav-slot-target"]} />}
             </div>
           )}
         </>
