@@ -75,7 +75,7 @@ export default function EntryEditForm({
           <input value={draft.title} onChange={(e) => onChange({ ...draft, title: e.target.value })} className={styles["input"]} />
         </label>
         <label className={styles["field"]}>
-          Link (optional — leave blank if it doesn&apos;t have one)
+          Link (optional)
           <input
             value={draft.url}
             onChange={(e) => onChange({ ...draft, url: e.target.value })}
