@@ -61,9 +61,8 @@ export default function DangerZone({ trip }: DangerZoneProps) {
       ) : (
         <div className={styles["confirm-box"]}>
           <p className={styles["warning"]}>
-            This permanently deletes &quot;{trip.name}&quot; and everything in it — every section, entry, note,
-            rating, and invite/API key. Not the same as Archive: there&apos;s no undo. Type the trip&apos;s name to
-            confirm.
+            Permanently deletes &quot;{trip.name}&quot; and everything in it. No undo — unlike Archive. Type the
+            trip&apos;s name to confirm.
           </p>
           <input
             value={nameInput}

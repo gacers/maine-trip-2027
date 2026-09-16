@@ -180,8 +180,8 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
         <h2 className={styles["section-heading"]}>Add from a template</h2>
         <p className={styles["templates-hint"]}>
           {trip.completed
-            ? "This trip is marked Completed, so each template creates just one plain section (e.g. \"Stays\", not a Stay Options / Stayed Before pair) — there's nothing left to decide, so anything added comes in already checked off Visited."
-            : 'Each creates a ready-made "Options" / "Before" pair (e.g. House Options / Stayed Before) — fully editable or deletable afterward, this is just a fast starting point.'}
+            ? "Trip is Completed, so each template creates one plain section — new entries come in already checked off Visited."
+            : 'Each creates an "Options" / "Before" pair — fully editable afterward.'}
         </p>
         <div className={styles["template-list"]}>
           {SECTION_TEMPLATES.map((t) => {

@@ -38,8 +38,7 @@ export default function SectionOptionsFields({
       </label>
       <label className={styles["checkbox-field"]}>
         <input type="checkbox" checked={hasMap} onChange={(e) => onHasMapChange(e.target.checked)} className={styles["checkbox"]} />
-        Show a map with driving times, not just a plain marker. Turn off for a &quot;previous&quot;/already-done list,
-        which has nothing left to compare.
+        Show a map with driving times, not just a plain marker. Off for an already-decided list.
       </label>
       <label className={styles["checkbox-field"]}>
         <input
@@ -48,8 +47,7 @@ export default function SectionOptionsFields({
           onChange={(e) => onSupportsRatingsChange(e.target.checked)}
           className={styles["checkbox"]}
         />
-        Show 5-star ratings (each visitor&apos;s own score, plus everyone&apos;s average) — only for a
-        still-deciding-among-options list, same as pairing/the map above.
+        Show 5-star ratings — each visitor&apos;s score, plus the average.
       </label>
       <label className={styles["field"]}>
         Card layout

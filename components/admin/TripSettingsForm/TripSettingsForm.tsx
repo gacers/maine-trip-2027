@@ -129,7 +129,7 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
         <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={styles["input"]} />
       </label>
       <label className={styles["field"]}>
-        Cover image (optional — shown full-bleed behind the name/dates on the trips list)
+        Cover image (optional — shown on the trips list)
         <input
           value={coverImage}
           onChange={(e) => setCoverImage(e.target.value)}
@@ -158,8 +158,7 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
         </label>
       </div>
       <label className={styles["field"]}>
-        Estimated length in nights (used to estimate a price/night when a listing&apos;s own price doesn&apos;t say —
-        ignored once a real start/end date range is set above)
+        Estimated length in nights (for a price/night estimate — ignored once real dates are set above)
         <input
           type="number"
           min="1"
@@ -176,12 +175,8 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
           onChange={(e) => setCompleted(e.target.checked)}
           className={styles["checkbox"]}
         />
-        Completed — the trip already happened. Moves it to Past Trips on the trips list; a template added from here
-        on becomes one plain section instead of an Options/Previously pair, and anything added to a section with no
-        ranking/ratings/pairing comes in already checked off Stayed/Visited. Every section now also splits into what
-        you actually did vs. what you just researched, right there in the normal view — nothing archived, so your
-        research never disappears just for not being used. Turning this back off just hides that split again — any
-        Visited checks and dates already recorded stay saved and come right back if you turn it on again.
+        Completed — the trip already happened. Moves it to Past Trips, and new entries come in already checked off
+        Visited. Reversible — no Visited data is lost either way.
       </label>
       {/* Right by the Completed checkbox that gates it, not the nav bar
           (see TripNavHeader's own comment on why) — wrapped in a plain
@@ -201,17 +196,14 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
           onChange={(e) => setArchived(e.target.checked)}
           className={styles["checkbox"]}
         />
-        Archived — hides this trip from the trips list entirely, without touching any of its data. Reversible:
-        uncheck this (you&apos;ll need this trip&apos;s direct URL, since it won&apos;t be listed) to bring it back.
-        For a duplicate or a trip you decided not to take, not one that already happened — that&apos;s Completed
-        above.
+        Archived — hides this trip from the list without deleting anything. Reversible, but you&apos;ll need the
+        direct URL to find it again.
       </label>
 
       <div className={styles["poi-section"]}>
         <h2 className={styles["poi-heading"]}>Points of interest</h2>
         <p className={styles["poi-hint"]}>
-          Every Stay Option&apos;s Driving Times section shows the distance to each of these — a national park, a
-          tour dock, anything worth knowing the drive from a house to.
+          Shown in every Stay Option&apos;s Driving Times section.
         </p>
 
         {pois.length > 0 && (

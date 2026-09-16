@@ -508,8 +508,8 @@ export default function AddEntryForm({
         <form onSubmit={handleSave} className={styles["edit-form"]}>
           {reusedFrom && (
             <p className={styles["reused-notice"]}>
-              Reused details from &quot;{reusedFrom.sectionLabel}&quot; in {reusedFrom.tripName} — this is still its
-              own separate entry, edit anything you&apos;d like.
+              Reused details from &quot;{reusedFrom.sectionLabel}&quot; in {reusedFrom.tripName} — edit freely, it&apos;s
+              a separate entry.
             </p>
           )}
           {cookieWarning && <p className={styles["cookie-warning"]}>{cookieWarning}</p>}

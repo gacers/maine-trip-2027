@@ -89,8 +89,7 @@ export default function FieldDefsEditor({ fields, onChange }: FieldDefsEditorPro
       </div>
       {fields.length === 0 && (
         <p className={styles["no-fields-hint"]}>
-          No custom fields yet — this section will still track title/url/photo/description/notes/concerns/rank/status by
-          default.
+          No custom fields yet — title/url/photo/description/notes/concerns are always tracked.
         </p>
       )}
       <div className={styles["row-list"]}>

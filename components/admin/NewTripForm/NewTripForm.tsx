@@ -101,7 +101,7 @@ export default function NewTripForm() {
         </label>
       </div>
       <label className={styles["field"]}>
-        Estimated length in nights (optional — used to estimate a price/night if exact dates aren&apos;t known yet)
+        Estimated length in nights (optional — for a price/night estimate before exact dates are known)
         <input
           type="number"
           min="1"
@@ -118,9 +118,7 @@ export default function NewTripForm() {
           onChange={(e) => setPastTrip(e.target.checked)}
           className={styles["checkbox"]}
         />
-        This documents a trip that already happened — mark it Completed now, so anything you add to a plain list
-        (not a still-deciding &quot;Options&quot; section) comes in already checked off as Stayed/Visited instead of
-        needing that clicked one by one.
+        This trip already happened — new entries come in already checked off Visited.
       </label>
       {error && <p className={styles["error"]}>{error}</p>}
       <button type="submit" disabled={saving} className={styles["submit-button"]}>

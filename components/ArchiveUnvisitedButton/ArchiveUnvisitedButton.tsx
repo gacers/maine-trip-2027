@@ -101,9 +101,8 @@ export default function ArchiveUnvisitedButton({ trip, nav, triggerClassName }: 
         <DialogContent>
           <DialogTitle>Archive the research you didn&apos;t end up using?</DialogTitle>
           <DialogDescription>
-            Optional — each section already shows what you did vs. what you just researched, nothing hidden. This
-            moves anything still unchecked into the archived list (not deleted — still restorable there afterward).
-            Nothing checked Stayed/Visited is touched.
+            Optional. Moves everything unchecked into the archived list — restorable, not deleted. Visited items are
+            untouched.
           </DialogDescription>
 
           {loading && <p className={styles["status"]}>Loading…</p>}

@@ -262,9 +262,18 @@ async function doExportSection(supabase: SupabaseClient, trip: Trip, section: Se
   // specifically once it is (an active-but-unvisited row no longer
   // gets the same treatment as one that's actually part of the
   // record) — reset every export either way, see the function itself.
+  // Pre-completion specifically, "not archived" only means something
+  // once something else on the list HAS been archived — a fresh list
+  // where nothing's been ruled out yet would highlight every single
+  // row, which just reads as "these are all special" instead of "these
+  // are the survivors." Once the trip's completed, "visited" stays
+  // worth highlighting even if that happens to be 100% of the list —
+  // that's a real fact about the trip, not an artifact of nothing
+  // having been decided yet.
   if (showRankColumn || trip.completed) {
     const highlightCount = units.filter((u) => unitTier(u, trip.completed) === 0).length;
-    await applyActiveRowHighlight(sheets, spreadsheetId!, sheetId, highlightCount);
+    const nothingRuledOutYet = !trip.completed && highlightCount === units.length;
+    await applyActiveRowHighlight(sheets, spreadsheetId!, sheetId, nothingRuledOutYet ? 0 : highlightCount);
   }
 
   return { spreadsheetId: spreadsheetId!, spreadsheetUrl: spreadsheetUrl! };

@@ -103,9 +103,8 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
   return (
     <div className={styles["wrapper"]}>
       <p className={styles["intro"]}>
-        Share a link with a friend so they can add houses/food/activities, edit or archive anything on the list
-        (including what you&apos;ve added), and leave notes or concerns — all without signing in. They just can&apos;t
-        permanently delete anything or change trip settings — only you can do that.
+        Share a link so a friend can add, edit, and archive without signing in. They can&apos;t permanently delete
+        anything or change trip settings.
       </p>
 
       <SheetAccessBox trip={trip} />
