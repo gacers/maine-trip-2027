@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from "@/components/Dialog";
 import Button from "@/components/Button";
 import PlacePicker from "@/components/AddEntryForm/components/PlacePicker";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import StopScheduleFields, { type StopScheduleValues } from "./StopScheduleFields";
-import type { ItineraryEntryMatch, ItineraryStop, PlaceResult } from "@/lib/types";
+import type { ItineraryEntryOption, ItineraryStop, PlaceResult } from "@/lib/types";
 import styles from "./AddStopDialog.module.css";
 
 export interface AddStopDialogProps {
@@ -40,11 +40,14 @@ export default function AddStopDialog({ tripSlug, authToken, onAdded }: AddStopD
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // Link-an-entry mode
-  const [query, setQuery] = useState("");
-  const [matches, setMatches] = useState<ItineraryEntryMatch[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [selected, setSelected] = useState<ItineraryEntryMatch | null>(null);
+  // Link-an-entry mode — every entry in the trip, fetched once when the
+  // dialog opens, then narrowed by two dropdowns (which section, then
+  // which entry in it) rather than a name search: you often remember
+  // which list something's on before you remember its exact name.
+  const [entries, setEntries] = useState<ItineraryEntryOption[] | null>(null);
+  const [entriesLoading, setEntriesLoading] = useState(false);
+  const [sectionId, setSectionId] = useState("");
+  const [entryId, setEntryId] = useState("");
 
   // Custom-stop mode
   const [title, setTitle] = useState("");
@@ -53,36 +56,47 @@ export default function AddStopDialog({ tripSlug, authToken, onAdded }: AddStopD
   const [searchingPlaces, setSearchingPlaces] = useState(false);
   const [place, setPlace] = useState<PlaceResult | null>(null);
 
+  useEffect(() => {
+    if (!open || entries !== null) return;
+    setEntriesLoading(true);
+    fetch(`/api/trips/${tripSlug}/itinerary/entries`)
+      .then((res) => res.json())
+      .then((data) => setEntries(data.entries || []))
+      .catch(() => setEntries([]))
+      .finally(() => setEntriesLoading(false));
+  }, [open, entries, tripSlug]);
+
+  // { sectionId, sectionLabel, navGroupLabel } for every section that
+  // actually has at least one entry — the "type" dropdown's options.
+  const sectionOptions = useMemo(() => {
+    const bySectionId = new Map<string, { sectionId: string; sectionLabel: string; navGroupLabel: string }>();
+    for (const e of entries || []) {
+      if (!bySectionId.has(e.sectionId)) {
+        bySectionId.set(e.sectionId, { sectionId: e.sectionId, sectionLabel: e.sectionLabel, navGroupLabel: e.navGroupLabel });
+      }
+    }
+    return [...bySectionId.values()].sort(
+      (a, b) => a.navGroupLabel.localeCompare(b.navGroupLabel) || a.sectionLabel.localeCompare(b.sectionLabel)
+    );
+  }, [entries]);
+
+  const entryOptions = useMemo(
+    () => (entries || []).filter((e) => e.sectionId === sectionId).sort((a, b) => (a.title || "").localeCompare(b.title || "")),
+    [entries, sectionId]
+  );
+
+  const selected = entries?.find((e) => e.id === entryId) || null;
+
   function reset() {
     setMode("link");
     setSchedule(DEFAULT_SCHEDULE);
     setError("");
-    setQuery("");
-    setMatches([]);
-    setSelected(null);
+    setSectionId("");
+    setEntryId("");
     setTitle("");
     setLocationQuery("");
     setPlaces(null);
     setPlace(null);
-  }
-
-  async function handleSearch(q: string) {
-    setQuery(q);
-    setSelected(null);
-    if (q.trim().length < 2) {
-      setMatches([]);
-      return;
-    }
-    setSearching(true);
-    try {
-      const res = await fetch(`/api/trips/${tripSlug}/itinerary/search-entries?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      setMatches(data.matches || []);
-    } catch {
-      // A failed search just shows no results — not worth its own error banner.
-    } finally {
-      setSearching(false);
-    }
   }
 
   async function handleSearchPlaces(e: FormEvent) {
@@ -109,7 +123,7 @@ export default function AddStopDialog({ tripSlug, authToken, onAdded }: AddStopD
   async function handleSubmit() {
     setError("");
     if (mode === "link" && !selected) {
-      setError("Search for and pick an entry first.");
+      setError("Pick a type and an entry first.");
       return;
     }
     if (mode === "custom" && !title.trim()) {
@@ -187,35 +201,44 @@ export default function AddStopDialog({ tripSlug, authToken, onAdded }: AddStopD
 
         {mode === "link" ? (
           <div className={styles["section"]}>
-            <input
-              value={query}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search this trip's entries by name..."
-              className={styles["search-input"]}
-            />
-            {searching && <p className={styles["hint"]}>Searching...</p>}
-            {selected ? (
-              <div className={styles["selected-row"]}>
-                <span>
-                  {selected.title} <span className={styles["selected-meta"]}>— {selected.navGroupLabel} / {selected.sectionLabel}</span>
-                </span>
-                <button type="button" onClick={() => setSelected(null)} className={styles["clear-button"]}>
-                  Change
-                </button>
-              </div>
+            {entriesLoading ? (
+              <p className={styles["hint"]}>Loading this trip&apos;s entries...</p>
+            ) : sectionOptions.length === 0 ? (
+              <p className={styles["hint"]}>Nothing documented in this trip yet — use Custom stop instead.</p>
             ) : (
-              matches.length > 0 && (
-                <div className={styles["match-list"]}>
-                  {matches.map((m) => (
-                    <button key={m.id} type="button" onClick={() => setSelected(m)} className={styles["match-button"]}>
-                      <span className={styles["match-title"]}>{m.title}</span>
-                      <span className={styles["match-meta"]}>
-                        {m.navGroupLabel} / {m.sectionLabel}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )
+              <>
+                <label className={styles["field"]}>
+                  Type
+                  <select
+                    value={sectionId}
+                    onChange={(e) => {
+                      setSectionId(e.target.value);
+                      setEntryId("");
+                    }}
+                    className={styles["search-input"]}
+                  >
+                    <option value="">— Pick a type —</option>
+                    {sectionOptions.map((s) => (
+                      <option key={s.sectionId} value={s.sectionId}>
+                        {s.navGroupLabel} — {s.sectionLabel}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {sectionId && (
+                  <label className={styles["field"]}>
+                    Which one
+                    <select value={entryId} onChange={(e) => setEntryId(e.target.value)} className={styles["search-input"]}>
+                      <option value="">— Pick one —</option>
+                      {entryOptions.map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {e.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </>
             )}
           </div>
         ) : (
@@ -249,7 +272,11 @@ export default function AddStopDialog({ tripSlug, authToken, onAdded }: AddStopD
           </div>
         )}
 
-        <StopScheduleFields values={schedule} onChange={setSchedule} showTravelMode={mode === "link" || !!place} />
+        <StopScheduleFields
+          values={schedule}
+          onChange={setSchedule}
+          showTravelMode={mode === "link" ? selected?.lat != null && selected?.lng != null : !!place}
+        />
 
         {error && <p className={styles["error"]}>{error}</p>}
 

@@ -307,16 +307,18 @@ export interface ItineraryStop extends ItineraryStopRow {
   entrySectionSlug: string | null;
 }
 
-// One row of the itinerary's own "link an existing entry" search —
-// scoped to just this trip (unlike lib/entries.ts's cross-trip
+// One entry, as offered by the itinerary's "link an existing entry"
+// picker — scoped to just this trip (unlike lib/entries.ts's cross-trip
 // searchEntriesByTitle, linking a stop to some other trip's entry
-// wouldn't make sense).
-export interface ItineraryEntryMatch {
+// wouldn't make sense). sectionId lets the picker group these into a
+// "type" dropdown (which section) before "which one" within it.
+export interface ItineraryEntryOption {
   id: string;
   title: string | null;
   url: string | null;
   lat: number | null;
   lng: number | null;
+  sectionId: string;
   sectionLabel: string;
   navGroupLabel: string;
 }

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ItineraryStop, ItineraryStopRow, ItineraryEntryMatch } from "@/lib/types";
+import type { ItineraryStop, ItineraryStopRow, ItineraryEntryOption } from "@/lib/types";
 
 // itinerary_stops CRUD — one trip's day-by-day plan. Each row either
 // links to an existing entry (entry_id set — reuses its title/url/
@@ -161,19 +161,18 @@ export async function deleteStop(supabase: SupabaseClient, tripId: string, stopI
 // The itinerary's own "link an existing entry" search — scoped to just
 // this trip, unlike lib/entries.ts's cross-trip searchEntriesByTitle
 // (linking a stop to some other trip's entry wouldn't make sense).
-export async function searchEntriesForItinerary(
-  supabase: SupabaseClient,
-  tripId: string,
-  query: string,
-  limit = 8
-): Promise<ItineraryEntryMatch[]> {
+// Returns every entry in the trip, not search-filtered — the "link an
+// existing entry" picker is a type-then-pick pair of dropdowns (Stays:
+// Stayed Before -> then which one), not a name search: you often
+// remember which *list* something's on before you remember its exact
+// name. The client groups these by sectionId to build both dropdowns
+// from one fetch.
+export async function getAllEntriesForItinerary(supabase: SupabaseClient, tripId: string): Promise<ItineraryEntryOption[]> {
   const { data, error } = await supabase
     .from("entries")
-    .select("id, title, url, lat, lng, sections!inner(label, nav_groups!inner(label))")
+    .select("id, title, url, lat, lng, section_id, sections!inner(label, nav_groups!inner(label))")
     .eq("trip_id", tripId)
-    .ilike("title", `%${query}%`)
-    .order("title", { ascending: true })
-    .limit(limit);
+    .order("title", { ascending: true });
   if (error) throw new Error(error.message);
   return (
     data as unknown as {
@@ -182,10 +181,11 @@ export async function searchEntriesForItinerary(
       url: string | null;
       lat: number | null;
       lng: number | null;
+      section_id: string;
       sections: { label: string; nav_groups: { label: string } };
     }[]
   ).map((row) => {
-    const { sections, ...entry } = row;
-    return { ...entry, sectionLabel: sections.label, navGroupLabel: sections.nav_groups.label };
+    const { sections, section_id, ...entry } = row;
+    return { ...entry, sectionId: section_id, sectionLabel: sections.label, navGroupLabel: sections.nav_groups.label };
   });
 }
