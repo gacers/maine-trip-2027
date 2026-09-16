@@ -30,15 +30,20 @@ export interface TripNavHeaderProps {
 // GROUPS/COLLECTIONS constants. One single sticky bar, full width:
 // trip name + utility links on their own row, then every top-level
 // group (Houses, Food & Drink, Activities, ...) as a plain flat link
-// on the row below — no dropdown/flyout. Landing on a group navigates
-// straight to its first (normally "Possible ...") section; once you're
-// on any section in that group, a second row appears underneath with
-// that group's own sections (Possible/Previous), so there's always at
-// most one extra row, never a hover-menu. Collapses to a single
-// hamburger below 1024px, where the flat row doesn't reliably fit —
-// opens a full-screen drawer (MobileNavDrawer) listing every group/
-// section plus this section's own action row, rather than a small
-// anchored popover. Utility links are
+// alongside this section's own actions (Add/Google Sheet/Sort/filter —
+// see NavSlot) on the row below — no dropdown/flyout. Landing on a
+// group navigates straight to its first (normally "Possible ...")
+// section; once you're on any section in that group, a third row
+// appears underneath with that group's own sections (Possible/
+// Previous), so there's always at most one extra row, never a hover-
+// menu. Collapses to a single hamburger below 1024px, where the flat
+// row doesn't reliably fit — opens a full-screen drawer
+// (MobileNavDrawer) listing every group/section, rather than a small
+// anchored popover; this section's own actions stay right where they
+// are, same row as the hamburger itself, at every width (an earlier
+// version relocated them into the drawer while it was open — confirmed
+// live as more confusing than useful, disappearing the moment the
+// drawer closed). Utility links are
 // gated on who's actually looking: an admin session gets "All trips"/
 // "Manage", a visitor with neither that nor an invite link gets
 // "Request access", and a contributor (has an invite link, isn't the
@@ -55,12 +60,6 @@ export default function TripNavHeader({
   const navSlot = useNavSlot();
   const [contributorToken, setContributorToken] = useState<string | null>(null);
   const [accessChecked, setAccessChecked] = useState(isAdmin);
-  // While the mobile drawer is open, it takes over the NavSlot target
-  // (see the sub-nav-row's own `!drawerOpen` guard below and
-  // MobileNavDrawer itself) — so this section's Add/Sheet/Sort actions
-  // relocate in there together with the nav links, instead of a
-  // separate always-on toolbar row plus a nav-only popover competing
-  // for the same narrow header.
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Nested under the nav group's own slug now — /{tripSlug}/{navGroupSlug}/
   // {sectionSlug} — since a section's slug is only unique within its own
@@ -184,56 +183,45 @@ export default function TripNavHeader({
             <div className={styles["menu-mobile"]}>
               <MobileNavDrawer
                 nav={nav}
-                activeGroupId={activeGroup?.id}
                 pathname={pathname}
                 sectionPath={sectionPath}
                 open={drawerOpen}
                 onOpenChange={setDrawerOpen}
               />
             </div>
+
+            {/* This section's own actions (Add/Google Sheet/Sort/filter
+                — see NavSlot) live right here, same row as the
+                hamburger, at every width — not tucked inside the
+                hamburger menu itself (confirmed live as more useful
+                kept one tap away rather than two), and not a separate
+                row below either. Always mounted, even with nothing to
+                portal in yet, so the slot always has a stable home the
+                moment SectionPage's own utilityControls first appears.
+                Collapses to zero visible size on its own (a pure CSS
+                :has() rule) rather than an empty gap whenever there's
+                genuinely nothing to show. */}
+            <div ref={(el) => navSlot?.setSlot(el)} className={styles["nav-slot-target"]} />
           </div>
 
-          {/* The active group's own sections (e.g. Possible/Previous) on
-              the left — appears once you're actually on one of them,
-              defaulting to the first (normally "Possible ..."), hidden
-              on the mobile hamburger view since that already lists
-              these nested under their group — plus a slot on the right
-              that SectionPage portals its filter/sort controls into
-              (see NavSlot), so they visually live in this bar instead
-              of their own separate row. Always mounted, even with a
-              single-section group and nothing to portal in, so the
-              slot always has a stable home the moment either shows up.
-              Collapses to zero visible size on its own (a pure CSS
-              :has() rule below) rather than an empty gray bar whenever
-              there's genuinely nothing to show — no JS/context needed:
-              a portal's content is real DOM the browser's own :has()
-              matching reacts to directly the moment it's added,
-              without the SSR/hydration-timing mismatch a React-state
-              version of this would have (the portal target is always
-              empty during server rendering no matter what will
-              eventually render into it once hydrated).
-
-              The target itself is skipped entirely while the mobile
-              drawer is open — MobileNavDrawer mounts its own copy then,
-              taking over the same NavSlot ref (see useNavSlot), so
-              SectionPage's portal just follows it there and back
-              without either side needing to know the other exists. */}
-          {activeGroup && (
+          {/* The active group's own sections (e.g. Possible/Previous) —
+              appears once you're actually on one of them, defaulting to
+              the first (normally "Possible ..."), hidden below 1024px
+              since the mobile drawer already lists these nested under
+              their group. */}
+          {activeGroup && activeGroup.sections.length > 1 && (
             <div className={styles["sub-nav-row"]}>
-              {activeGroup.sections.length > 1 && (
-                <NavigationMenu className={styles["sub-nav-menu"]} aria-label={`${activeGroup.label} sections`}>
-                  <NavigationMenuList>
-                    {activeGroup.sections.map((s) => (
-                      <NavigationMenuItem key={s.id}>
-                        <NavigationMenuLink asChild size="sm" active={pathname === sectionPath(activeGroup.slug, s.slug)}>
-                          <Link href={sectionPath(activeGroup.slug, s.slug)}>{s.sub_nav_label || s.label}</Link>
-                        </NavigationMenuLink>
-                      </NavigationMenuItem>
-                    ))}
-                  </NavigationMenuList>
-                </NavigationMenu>
-              )}
-              {!drawerOpen && <div ref={(el) => navSlot?.setSlot(el)} className={styles["nav-slot-target"]} />}
+              <NavigationMenu className={styles["sub-nav-menu"]} aria-label={`${activeGroup.label} sections`}>
+                <NavigationMenuList>
+                  {activeGroup.sections.map((s) => (
+                    <NavigationMenuItem key={s.id}>
+                      <NavigationMenuLink asChild size="sm" active={pathname === sectionPath(activeGroup.slug, s.slug)}>
+                        <Link href={sectionPath(activeGroup.slug, s.slug)}>{s.sub_nav_label || s.label}</Link>
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                  ))}
+                </NavigationMenuList>
+              </NavigationMenu>
             </div>
           )}
         </>

@@ -14,45 +14,37 @@
   width: 100%;
   padding: 0.625rem 1.25rem;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
+  gap: 0.5rem 1rem;
 }
 
 /* Visually distinct from .nav-row above it — a tinted background reads
-   as "secondary/nested" rather than a same-weight repeat of it. */
+   as "secondary/nested" rather than a same-weight repeat of it. Only
+   ever rendered at all once there's a real .sub-nav-menu to show (see
+   TripNavHeader's own activeGroup.sections.length > 1 gate) — hidden
+   entirely below 1024px since that's the only thing this row holds,
+   and .sub-nav-menu is itself hidden there (the mobile drawer already
+   lists these nested under their group instead). */
 .sub-nav-row {
   width: 100%;
   padding: 0.5rem 1.25rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem 1rem;
   background: var(--color-zinc-50);
   border-top: 1px solid var(--color-zinc-200);
-
-  /* A single-section group (no .sub-nav-menu rendered) with nothing
-     portaled into .nav-slot-target either (no filterable fields, no
-     ratings, no Sheet access yet) has nothing to actually show here —
-     collapsed to zero visible size instead of an empty gray bar. Pure
-     CSS: the browser re-evaluates :has() live as the portal's real DOM
-     content is added/removed, no React state needed to track it. */
-  &:not(:has(.sub-nav-menu)):not(:has(.nav-slot-target > *)) {
-    padding-block: 0;
-    border-top: none;
+}
+@media (max-width: 1023.98px) {
+  .sub-nav-row {
+    display: none;
   }
 }
 
-/* Hidden below 1024px — the hamburger menu already lists these nested
-   under their group, so showing them again here would be redundant on
-   a screen with little room to spare. */
 .sub-nav-menu {
-  display: none;
-}
-@media (min-width: 1024px) {
-  .sub-nav-menu {
-    display: flex;
-  }
+  display: flex;
 }
 
 .nav-slot-target {

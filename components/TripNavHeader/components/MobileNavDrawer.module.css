@@ -57,31 +57,6 @@
   padding: 0.375rem;
 }
 
-.actions-section {
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--color-zinc-200);
-
-  /* A section whose own utility controls don't apply here (see
-     SectionPage's utilityControls gating) still mounts this wrapper —
-     it just never gets anything portaled into it. Same collapse
-     mechanism as TripNavHeader's own .sub-nav-row, so it doesn't show
-     as a stray empty divider with nothing above or below it. */
-  &:not(:has(.actions-target > *)) {
-    display: none;
-  }
-}
-
-/* Whatever UtilityControls portals in here (Add/Google Sheet/Sort/
-   filter) lays out as a simple stacked column — plenty of width in a
-   full-screen drawer, no need for the sticky header row's own
-   horizontal/wrapping layout. */
-.actions-target {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.5rem;
-}
-
 .nav-groups {
   display: flex;
   flex-direction: column;
