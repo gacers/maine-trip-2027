@@ -7,6 +7,7 @@ import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuL
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from "@/components/DropdownMenu";
 import Button from "@/components/Button";
 import RequestAccess from "@/components/RequestAccess";
+import CreateLoginPrompt from "@/components/CreateLoginPrompt";
 import { captureInviteToken } from "@/lib/inviteClient";
 import { useNavSlot } from "./NavSlot";
 import type { PublicTrip, NavGroup } from "@/lib/types";
@@ -24,6 +25,10 @@ export interface TripNavHeaderProps {
   trip: PublicTrip;
   nav: NavGroup[];
   isAdmin?: boolean;
+  /** A real, permanent login already linked to this trip (see
+   * supabase/migrations/0021_trip_editors.sql) — someone who already
+   * has this doesn't need the "create a permanent login" offer below. */
+  isEditor?: boolean;
   contactEmail?: string | null;
 }
 
@@ -44,7 +49,13 @@ export interface TripNavHeaderProps {
 // "Manage", a visitor with neither that nor an invite link gets
 // "Request access", and a contributor (has an invite link, isn't the
 // owner) gets neither — they already have what they need on the page.
-export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, contactEmail = null }: TripNavHeaderProps) {
+export default function TripNavHeader({
+  trip,
+  nav: allNav,
+  isAdmin = false,
+  isEditor = false,
+  contactEmail = null,
+}: TripNavHeaderProps) {
   const pathname = usePathname();
   const barRef = useRef<HTMLElement>(null);
   const navSlot = useNavSlot();
@@ -88,8 +99,12 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
   const activeSection =
     activeGroup?.sections.find((s) => sectionPath(activeGroup.slug, s.slug) === pathname) || activeGroup?.sections[0];
 
-  const canContribute = isAdmin || !!contributorToken;
+  const canContribute = isAdmin || isEditor || !!contributorToken;
   const showRequestAccess = accessChecked && !canContribute && activeSection;
+  // Offered only to someone recognized purely by this browser's own
+  // invite token — an editor already has the permanent version of
+  // this, and there's nothing to upgrade for an admin.
+  const showCreateLogin = accessChecked && !isAdmin && !isEditor && !!contributorToken;
 
   return (
     <header ref={barRef} className={styles["root"]}>
@@ -118,6 +133,8 @@ export default function TripNavHeader({ trip, nav: allNav, isAdmin = false, cont
                 Manage
               </Link>
             </>
+          ) : showCreateLogin ? (
+            <CreateLoginPrompt trip={trip} contributorToken={contributorToken!} />
           ) : (
             showRequestAccess && (
               <RequestAccess

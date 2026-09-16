@@ -45,6 +45,11 @@ export interface SectionPageProps {
    * {sectionSlug}/entries. */
   navGroupSlug: string;
   isAdmin?: boolean;
+  /** A real, permanent login linked to this trip (see
+   * supabase/migrations/0021_trip_editors.sql) — the cross-device
+   * alternative to a browser-local contributor token, same edit/
+   * archive/no-delete capability either way. */
+  isEditor?: boolean;
 }
 
 // Replaces CollectionPage.jsx — same fetch/patch/delete/add logic and
@@ -52,7 +57,7 @@ export interface SectionPageProps {
 // [sectionSlug]/entries instead of /api/[collection], and rendering
 // whichever fields `section.field_defs` defines instead of a
 // hardcoded showBedBath flag.
-export default function SectionPage({ trip, section, navGroupSlug, isAdmin = false }: SectionPageProps) {
+export default function SectionPage({ trip, section, navGroupSlug, isAdmin = false, isEditor = false }: SectionPageProps) {
   const navSlot = useNavSlot();
   const [showArchived, setShowArchived] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(() => new Set());
@@ -123,8 +128,13 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // admin session, an invite param, or a cached invite token — is
   // actually confirmed.
   const canManage = isAdmin;
-  const canContribute = isAdmin || !!contributorToken;
-  const authToken = isAdmin ? null : contributorToken;
+  // An editor's session cookie already carries their identity server-
+  // side (see requireWriteAccess's minRole: "editor") — no bearer token
+  // needed, same as an admin, and they may not even have a contributor
+  // token in this browser at all (e.g. a fresh device they never used
+  // the original invite link on).
+  const canContribute = isAdmin || isEditor || !!contributorToken;
+  const authToken = isAdmin || isEditor ? null : contributorToken;
 
   useEffect(() => {
     setContributorToken(captureInviteToken(trip.slug));
