@@ -198,6 +198,22 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   const active = entries.filter((e) => e.status !== "archived").sort((a, b) => (a.rank ?? 999999) - (b.rank ?? 999999));
   const archived = entries.filter((e) => e.status === "archived");
 
+  // Every active entry not already checked off — one at a time via
+  // each card's own VisitedControl is exactly right most of the time,
+  // but confirmed live as real friction for a trip documented after it
+  // already happened (marked Completed once everything was already
+  // added, then gone through by hand entry by entry). Skips anything
+  // already visited rather than re-patching it — idempotent, and never
+  // touches archived entries (never happened, not what this means).
+  function markAllVisited() {
+    const unvisited = active.filter((e) => !e.visited);
+    if (unvisited.length === 0) return;
+    if (!window.confirm(`Mark ${unvisited.length} ${unvisited.length === 1 ? "entry" : "entries"} as Visited?`)) return;
+    for (const entry of unvisited) {
+      handlePatch(entry.id, { visited: true });
+    }
+  }
+
   // Any boolean field (e.g. Food & Drink's Restaurant/Bar/Cafe/Breakfast/
   // Lunch/Dinner) doubles as a filter, not just a card badge — generic to
   // whatever a section's own field_defs define, no section-specific code.
@@ -343,6 +359,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         onSortByChange={setSortBy}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
+        onMarkAllVisited={trip.completed ? markAllVisited : undefined}
       />
     );
 
@@ -407,20 +424,23 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
               {active.length === 0 ? section.empty_message : "Nothing matches the selected filters/search."}
             </p>
           )}
-          {trip.completed ? (
+          {/* Split into Visited/Researched headings only when there's
+              actually something on both sides to contrast — a
+              completed trip where everything (or nothing) ended up
+              visited has nothing to distinguish, and the heading just
+              read as a redundant label sitting above the one list that
+              already is the whole thing (confirmed live). Falls back to
+              the exact same flat list either way. */}
+          {trip.completed && visitedUnits.length > 0 && notVisitedUnits.length > 0 ? (
             <>
-              {visitedUnits.length > 0 && (
-                <div className={styles["completion-group"]}>
-                  <h2 className={styles["group-heading"]}>{section.supports_pairing ? "Where You Stayed" : "Visited"}</h2>
-                  <div className={listClassName}>{visitedUnits.map(renderUnit)}</div>
-                </div>
-              )}
-              {notVisitedUnits.length > 0 && (
-                <div className={styles["completion-group"]}>
-                  <h2 className={styles["group-heading"]}>Researched — Not Visited</h2>
-                  <div className={listClassName}>{notVisitedUnits.map(renderUnit)}</div>
-                </div>
-              )}
+              <div className={styles["completion-group"]}>
+                <h2 className={styles["group-heading"]}>{section.supports_pairing ? "Where You Stayed" : "Visited"}</h2>
+                <div className={listClassName}>{visitedUnits.map(renderUnit)}</div>
+              </div>
+              <div className={styles["completion-group"]}>
+                <h2 className={styles["group-heading"]}>Researched — Not Visited</h2>
+                <div className={listClassName}>{notVisitedUnits.map(renderUnit)}</div>
+              </div>
             </>
           ) : (
             <div className={listClassName}>{activeUnits.map(renderUnit)}</div>
