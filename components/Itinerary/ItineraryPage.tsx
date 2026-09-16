@@ -106,7 +106,12 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
       <div className={styles["header"]}>
         <h1 className={styles["heading"]}>Itinerary</h1>
         {accessChecked && canContribute && (
-          <AddStopDialog tripSlug={trip.slug} authToken={authToken} onAdded={handleAdded} />
+          <AddStopDialog
+            tripSlug={trip.slug}
+            authToken={authToken}
+            lastStop={stops.length > 0 ? stops[stops.length - 1] : null}
+            onAdded={handleAdded}
+          />
         )}
       </div>
 

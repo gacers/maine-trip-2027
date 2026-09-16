@@ -12,18 +12,41 @@ import styles from "./AddStopDialog.module.css";
 export interface AddStopDialogProps {
   tripSlug: string;
   authToken: string | null;
+  /** The current last stop in the list — a new stop's date/time
+   * defaults off of it (see buildDefaultSchedule) rather than starting
+   * blank every time, since stops are added roughly in visiting order. */
+  lastStop: ItineraryStop | null;
   onAdded: (stop: ItineraryStop) => void;
 }
 
-const DEFAULT_SCHEDULE: StopScheduleValues = {
-  kind: "activity",
-  status: "tentative",
-  date: "",
-  time: "",
-  durationMinutes: "",
-  travelMode: "driving",
-  notes: "",
-};
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+// A new stop's suggested date/time: the previous stop's own date/time,
+// pushed forward by its duration if one was set (e.g. previous stop
+// was 3:00 PM for 60 min -> this one defaults to 4:00 PM, rolling into
+// the next day if that crosses midnight); if no duration was given,
+// just reuse the previous stop's date/time as-is rather than guessing
+// how long you're there. Blank when there's nothing to build from yet
+// (no previous stop, or it has no date at all).
+function computeDefaultDateTime(lastStop: ItineraryStop | null): { date: string; time: string } {
+  if (!lastStop?.date) return { date: "", time: "" };
+  const timeStr = lastStop.time ? lastStop.time.slice(0, 5) : "";
+  if (!timeStr) return { date: lastStop.date, time: "" };
+  if (!lastStop.duration_minutes) return { date: lastStop.date, time: timeStr };
+
+  const start = new Date(`${lastStop.date}T${timeStr}:00`);
+  start.setMinutes(start.getMinutes() + lastStop.duration_minutes);
+  return {
+    date: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`,
+    time: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
+  };
+}
+
+function buildDefaultSchedule(lastStop: ItineraryStop | null): StopScheduleValues {
+  return { kind: "activity", status: "tentative", ...computeDefaultDateTime(lastStop), durationMinutes: "", travelMode: "driving", notes: "" };
+}
 
 type Mode = "link" | "custom";
 
@@ -33,10 +56,10 @@ type Mode = "link" | "custom";
 // flight, a ferry, "Depart home"). Either way, the same scheduling
 // fields (kind/status/date/time/duration/travel mode/notes) get filled
 // in right here rather than a separate follow-up step.
-export default function AddStopDialog({ tripSlug, authToken, onAdded }: AddStopDialogProps) {
+export default function AddStopDialog({ tripSlug, authToken, lastStop, onAdded }: AddStopDialogProps) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("link");
-  const [schedule, setSchedule] = useState<StopScheduleValues>(DEFAULT_SCHEDULE);
+  const [schedule, setSchedule] = useState<StopScheduleValues>(() => buildDefaultSchedule(lastStop));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,6 +89,18 @@ export default function AddStopDialog({ tripSlug, authToken, onAdded }: AddStopD
       .finally(() => setEntriesLoading(false));
   }, [open, entries, tripSlug]);
 
+  // Re-derives the default date/time from the *current* last stop each
+  // time the dialog opens — not just at first mount — so adding
+  // several stops in a row keeps defaulting off the one just added,
+  // not whatever the last stop was when this component first rendered.
+  // Deliberately omits `lastStop` from the deps: it should only
+  // recompute when the dialog is opened, not overwrite an in-progress
+  // edit if the last stop happens to change while this is still open.
+  useEffect(() => {
+    if (open) setSchedule(buildDefaultSchedule(lastStop));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   // { sectionId, sectionLabel, navGroupLabel } for every section that
   // actually has at least one entry — the "type" dropdown's options.
   const sectionOptions = useMemo(() => {
@@ -89,7 +124,7 @@ export default function AddStopDialog({ tripSlug, authToken, onAdded }: AddStopD
 
   function reset() {
     setMode("link");
-    setSchedule(DEFAULT_SCHEDULE);
+    setSchedule(buildDefaultSchedule(lastStop));
     setError("");
     setSectionId("");
     setEntryId("");
