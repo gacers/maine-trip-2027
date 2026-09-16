@@ -122,6 +122,13 @@ export default function TripNavHeader({
   // invite token — an editor already has the permanent version of
   // this, and there's nothing to upgrade for an admin.
   const showCreateLogin = accessChecked && !isAdmin && !isEditor && !!contributorToken;
+  // The admin section (Sections/Invites/Trip Settings — its own nested
+  // layout.tsx) has its own nav entirely; this bar's own category tabs
+  // and sub-nav/actions row underneath just duplicate it pointlessly
+  // there (confirmed live: two full navigation bars stacked on top of
+  // each other). The top row (trip name, All trips/Manage) still makes
+  // sense everywhere, so only the block below this is skipped.
+  const isAdminRoute = pathname.startsWith(`/${trip.slug}/admin`);
 
   return (
     <header ref={barRef} className={styles["root"]}>
@@ -165,7 +172,7 @@ export default function TripNavHeader({
         </div>
       </div>
 
-      {nav.length > 0 && (
+      {nav.length > 0 && !isAdminRoute && (
         <>
           <div className={styles["nav-row"]}>
             <NavigationMenu className={styles["menu-desktop"]} aria-label="Trip categories">

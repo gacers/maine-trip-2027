@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import FieldDefsEditor, { fieldDefToRow, rowToFieldDef, type FieldRow } from "./components/FieldDefsEditor";
 import SectionOptionsFields from "./components/SectionOptionsFields";
 import CounterpartOption from "./components/CounterpartOption";
+import PrefillPanel from "./components/PrefillPanel";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionForm.module.css";
 
@@ -14,6 +15,17 @@ function slugify(s: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+// A best-effort "is this a Previously Visited-style tier" check — the
+// Prefill panel below only makes sense there (pulling in already-
+// documented, already-visited places), not on a still-deciding
+// Options-style tier. No explicit "tier" column exists to check
+// instead; slug/label naming is consistent enough in practice (every
+// built-in and custom past tier this app has ever created matches one
+// of these) that a real tag column isn't worth adding just for this.
+function looksLikePastTier(s: Section): boolean {
+  return /previous|visited|past/i.test(`${s.slug} ${s.label} ${s.sub_nav_label || ""}`);
 }
 
 export interface SectionFormProps {
@@ -31,6 +43,11 @@ export interface SectionFormProps {
 export default function SectionForm({ trip, navGroups, section }: SectionFormProps) {
   const router = useRouter();
   const isEdit = !!section;
+  // The section's *current* nav group slug (not whatever the picker
+  // below might be pending-moving it to) — this identifies where the
+  // record already lives, for both the PATCH URL and the Prefill
+  // panel's own lookup.
+  const currentNavGroupSlug = navGroups.find((g) => g.id === section?.nav_group_id)?.slug;
 
   const [label, setLabel] = useState(section?.label || "");
   const [slug, setSlug] = useState(section?.slug || "");
@@ -87,10 +104,6 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
     }
 
     try {
-      // The section's *current* nav group slug (not whatever the picker
-      // above might be pending-moving it to) — that's what identifies
-      // where the record already lives for the PATCH's own URL.
-      const currentNavGroupSlug = navGroups.find((g) => g.id === section?.nav_group_id)?.slug;
       const url = isEdit
         ? `/api/trips/${trip.slug}/sections/${currentNavGroupSlug}/${section!.slug}`
         : `/api/trips/${trip.slug}/sections`;
@@ -257,6 +270,15 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
       )}
 
       <FieldDefsEditor fields={fields} onChange={setFields} />
+
+      {isEdit && section && currentNavGroupSlug && looksLikePastTier(section) && (
+        <PrefillPanel
+          tripSlug={trip.slug}
+          navGroupSlug={currentNavGroupSlug}
+          sectionSlug={section.slug}
+          sectionId={section.id}
+        />
+      )}
 
       <div className={styles["actions"]}>
         <button type="submit" disabled={saving} className={styles["submit-button"]}>

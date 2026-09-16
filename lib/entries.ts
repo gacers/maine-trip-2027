@@ -178,11 +178,13 @@ export interface CandidateSection {
   entryCount: number;
 }
 
-// Every OTHER trip's section that plausibly holds "the same kind of
-// place" — backs SectionsAdmin's own picker for what to copy into a
-// Previously Visited section (see the entries/import route), so an
-// admin can see and choose exactly which trip's list they're pulling
-// from instead of a single opaque blended count across everything
+// Every section that plausibly holds "the same kind of place" —
+// including this same trip's own other sections, so a past tier can
+// "nest" a prefill from a differently-organized section right here on
+// this trip too, not just from elsewhere — backs the Prefill panel on
+// a section's own edit page (see the entries/import route), so an
+// admin can see and choose exactly which section they're pulling from
+// instead of a single opaque blended count across everything
 // (confirmed live as genuinely confusing: e.g. "Food & Drink" matching
 // 113 entries blended in from every other trip's own Food & Drink,
 // with no way to tell whose was whose). Scoped by NAV GROUP slug, not
@@ -196,25 +198,23 @@ export interface CandidateSection {
 // custom nav group's own slug is already unique to its concept, so
 // this scoping is a no-op there. Matches both a plain concept slug and
 // its own "-visited" counterpart (either tier counts as "documented
-// somewhere"); completed trips sort first since a "previously visited"
-// list is only really meaningful pulled from a trip that's actually
-// already happened, but an in-progress trip's own version still shows
-// further down rather than being hidden outright (a trip like an old
+// somewhere"), excluding only the exact destination section itself
+// (`excludeSectionId`) so it never offers to prefill a section from
+// itself. Completed trips sort first since a "previously visited" list
+// is only really meaningful pulled from a trip that's actually already
+// happened, but an in-progress trip's own version still shows further
+// down rather than being hidden outright (a trip like an old
 // undocumented reference trip that was never formally marked Completed
 // shouldn't just disappear from the list).
 export async function findCandidateSectionsForConceptSlug(
   supabase: SupabaseClient,
   navGroupSlug: string,
   sectionSlug: string,
-  excludeTripId: string
+  excludeSectionId: string
 ): Promise<CandidateSection[]> {
   const conceptSlug = sectionSlug.replace(/-visited$/, "");
 
-  const { data: groups, error: groupsError } = await supabase
-    .from("nav_groups")
-    .select("id")
-    .eq("slug", navGroupSlug)
-    .neq("trip_id", excludeTripId);
+  const { data: groups, error: groupsError } = await supabase.from("nav_groups").select("id").eq("slug", navGroupSlug);
   if (groupsError) throw new Error(groupsError.message);
   if (!groups || groups.length === 0) return [];
 
@@ -225,7 +225,8 @@ export async function findCandidateSectionsForConceptSlug(
       "nav_group_id",
       groups.map((g) => g.id)
     )
-    .in("slug", [conceptSlug, `${conceptSlug}-visited`]);
+    .in("slug", [conceptSlug, `${conceptSlug}-visited`])
+    .neq("id", excludeSectionId);
   if (sectionsError) throw new Error(sectionsError.message);
   if (!sections || sections.length === 0) return [];
 

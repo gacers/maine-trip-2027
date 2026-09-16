@@ -73,24 +73,6 @@
   gap: 0.5rem;
 }
 
-.custom-template-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.375rem;
-  border: 1px solid var(--color-zinc-200);
-  border-radius: var(--radius-lg);
-  padding: 0.5rem 0.625rem;
-}
-
-.past-version-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: var(--text-xs);
-  color: var(--color-zinc-600);
-}
-
 .template-button {
   border-radius: var(--radius-full);
   border: 1px solid var(--color-zinc-300);
@@ -181,19 +163,3 @@
   }
 }
 
-/* Same look as .edit-link, plain-button-element reset added — used for
-   the "Copy in N entries" action, which triggers a fetch rather than
-   navigating anywhere. */
-.edit-button {
-  composes: edit-link;
-  background: none;
-  border: none;
-  padding: 0;
-  font-family: inherit;
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-}
