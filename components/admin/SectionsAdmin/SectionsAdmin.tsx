@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SECTION_TEMPLATES, type SectionTemplate } from "@/lib/sectionTemplates";
 import type { CustomSectionTemplate } from "@/lib/customSectionTemplates";
+import { PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER } from "@/lib/sectionLabels";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionsAdmin.module.css";
 
@@ -135,6 +136,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           newNavGroupLabel: template.navGroupLabel,
           fieldDefs: template.fieldDefs,
           skipTemplateCapture: true,
+          sortOrder: PRIMARY_TIER_SORT_ORDER,
         }),
       });
       const possibleData = await possibleRes.json();
@@ -158,6 +160,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           navGroupId: possibleData.section.nav_group_id,
           fieldDefs: template.fieldDefs,
           skipTemplateCapture: true,
+          sortOrder: PAST_TIER_SORT_ORDER,
         }),
       });
       const previousData = await previousRes.json();
@@ -197,7 +200,12 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     const isFirstSection = nav.every((g) => g.sections.length === 0);
     try {
       let navGroupId: string | undefined;
-      for (const s of template.sections) {
+      // Array order is intentional (the primary section is always
+      // captured first — see lib/customSectionTemplates.ts) — index
+      // doubles as a real sort_order instead of leaving every section
+      // tied at the route's own bare default, which is exactly what
+      // let real trips' display order come out inconsistent/reversed.
+      for (const [i, s] of template.sections.entries()) {
         const res = await fetch(apiBase, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -213,6 +221,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
             cardLayout: s.cardLayout,
             fieldDefs: s.fieldDefs,
             skipTemplateCapture: true,
+            sortOrder: i,
             ...(navGroupId ? { navGroupId } : { newNavGroupLabel: template.nav_group_label }),
           }),
         });

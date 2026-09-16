@@ -6,7 +6,7 @@ import FieldDefsEditor, { fieldDefToRow, rowToFieldDef, type FieldRow } from "./
 import SectionOptionsFields from "./components/SectionOptionsFields";
 import CounterpartOption from "./components/CounterpartOption";
 import PrefillPanel from "./components/PrefillPanel";
-import { VISITED_PREFIX } from "@/lib/sectionLabels";
+import { VISITED_PREFIX, PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER, PAST_TIER_PATTERN } from "@/lib/sectionLabels";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionForm.module.css";
 
@@ -26,7 +26,7 @@ function slugify(s: string): string {
 // built-in and custom past tier this app has ever created matches one
 // of these) that a real tag column isn't worth adding just for this.
 function looksLikePastTier(s: Section): boolean {
-  return /previous|visited|past/i.test(`${s.slug} ${s.label} ${s.sub_nav_label || ""}`);
+  return PAST_TIER_PATTERN.test(`${s.slug} ${s.label} ${s.sub_nav_label || ""}`);
 }
 
 export interface SectionFormProps {
@@ -100,6 +100,12 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
       payload.slug = slug;
       if (newGroupLabel.trim()) payload.newNavGroupLabel = newGroupLabel.trim();
       else payload.navGroupId = navGroupId;
+      // Only when a counterpart is about to follow — an otherwise
+      // plain standalone section (no pair being formed) keeps the
+      // route's own default instead, same as it always has, so adding
+      // a 3rd+ section to an already-populated group doesn't jump
+      // ahead of what's already there.
+      if (addCounterpart) payload.sortOrder = PRIMARY_TIER_SORT_ORDER;
     } else {
       payload.navGroupId = navGroupId;
     }
@@ -136,6 +142,7 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
           cardLayout,
           navGroupId: data.section.nav_group_id,
           fieldDefs: fields.map(rowToFieldDef),
+          sortOrder: PAST_TIER_SORT_ORDER,
         };
         const counterpartRes = await fetch(`/api/trips/${trip.slug}/sections`, {
           method: "POST",

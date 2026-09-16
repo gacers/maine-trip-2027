@@ -68,6 +68,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // a template shouldn't re-capture itself back into the templates
     // table, only genuinely new "New section" submissions should.
     skipTemplateCapture,
+    // Explicit ordering within the nav group — see lib/sectionLabels.ts's
+    // PRIMARY_TIER_SORT_ORDER/PAST_TIER_SORT_ORDER. Every caller that
+    // knows it's creating one half of an Options/Past-style pair passes
+    // this; a genuinely standalone section (no pair) omits it and just
+    // gets the bare default below, same as always.
+    sortOrder,
   } = body;
 
   if (!slug || !label) {
@@ -128,7 +134,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         has_map: !!hasMap,
         supports_ratings: !!supportsRatings,
         card_layout: cardLayout || "list",
-        sort_order: 999,
+        sort_order: typeof sortOrder === "number" ? sortOrder : 999,
       })
       .select()
       .single();
