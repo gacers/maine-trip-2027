@@ -6,7 +6,7 @@ import FieldDefsEditor, { fieldDefToRow, rowToFieldDef, type FieldRow } from "./
 import SectionOptionsFields from "./components/SectionOptionsFields";
 import CounterpartOption from "./components/CounterpartOption";
 import PrefillPanel from "./components/PrefillPanel";
-import { VISITED_PREFIX, PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER, PAST_TIER_PATTERN } from "@/lib/sectionLabels";
+import { VISITED_PREFIX, PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER, looksLikePastTier } from "@/lib/sectionLabels";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionForm.module.css";
 
@@ -16,17 +16,6 @@ function slugify(s: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-// A best-effort "is this a Previously Visited-style tier" check — the
-// Prefill panel below only makes sense there (pulling in already-
-// documented, already-visited places), not on a still-deciding
-// Options-style tier. No explicit "tier" column exists to check
-// instead; slug/label naming is consistent enough in practice (every
-// built-in and custom past tier this app has ever created matches one
-// of these) that a real tag column isn't worth adding just for this.
-function looksLikePastTier(s: Section): boolean {
-  return PAST_TIER_PATTERN.test(`${s.slug} ${s.label} ${s.sub_nav_label || ""}`);
 }
 
 export interface SectionFormProps {

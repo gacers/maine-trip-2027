@@ -34,3 +34,11 @@ export const PAST_TIER_SORT_ORDER = 1;
 // one-off data-fix script) can share the exact same rule instead of
 // hand-rolling its own regex.
 export const PAST_TIER_PATTERN = /previous|visited|past/i;
+
+// Shared with SectionForm's own PrefillPanel gating and SectionsAdmin's
+// drag-to-reorder guard — one shared implementation of "is this section
+// the already-decided half of an Options/Past pair" rather than each
+// consumer hand-rolling the same regex test.
+export function looksLikePastTier(s: { slug: string; label: string; sub_nav_label?: string | null }): boolean {
+  return PAST_TIER_PATTERN.test(`${s.slug} ${s.label} ${s.sub_nav_label || ""}`);
+}

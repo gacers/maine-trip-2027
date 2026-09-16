@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SECTION_TEMPLATES, type SectionTemplate } from "@/lib/sectionTemplates";
 import type { CustomSectionTemplate } from "@/lib/customSectionTemplates";
-import { PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER } from "@/lib/sectionLabels";
+import { PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER, looksLikePastTier } from "@/lib/sectionLabels";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionsAdmin.module.css";
 
@@ -26,6 +26,19 @@ function GripIcon() {
       <circle cx="15" cy="18" r="1.5" />
     </svg>
   );
+}
+
+// Options-before-Past/Visited is an enforced convention (see
+// lib/sectionLabels.ts's PRIMARY_TIER_SORT_ORDER/PAST_TIER_SORT_ORDER) —
+// dragging within a group must not be able to flip it. Reordering within
+// either tier is fine; only a drag that would cross the boundary between
+// them is refused. Dropping on itself is always fine (a no-op either way).
+function canReorderSections(group: NavGroup, draggedId: string, targetId: string): boolean {
+  if (draggedId === targetId) return true;
+  const dragged = group.sections.find((s) => s.id === draggedId);
+  const target = group.sections.find((s) => s.id === targetId);
+  if (!dragged || !target) return false;
+  return looksLikePastTier(dragged) === looksLikePastTier(target);
 }
 
 export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminProps) {
@@ -91,6 +104,10 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   // from the server either way once every PATCH settles.
   async function reorderSections(group: NavGroup, draggedId: string, targetId: string) {
     if (draggedId === targetId) return;
+    // Belt-and-suspenders: the onDragOver/onDrop handlers already refuse
+    // to let a cross-tier drop happen at all, this just guards against
+    // ever acting on one some other way.
+    if (!canReorderSections(group, draggedId, targetId)) return;
     const ids = group.sections.map((s) => s.id);
     const fromIndex = ids.indexOf(draggedId);
     const toIndex = ids.indexOf(targetId);
@@ -410,8 +427,19 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
             <div
               key={group.id}
               draggable
-              onDragStart={() => setDraggingGroupId(group.id)}
-              onDragOver={(e) => e.preventDefault()}
+              onDragStart={(e) => {
+                // Firefox refuses to start a drag at all without this —
+                // Chrome/Safari don't strictly need it, but setting it
+                // (and effectAllowed below) is what makes this reliable
+                // across all three rather than "seems to work in Chrome".
+                e.dataTransfer.setData("text/plain", group.id);
+                e.dataTransfer.effectAllowed = "move";
+                setDraggingGroupId(group.id);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+              }}
               onDrop={(e) => {
                 e.preventDefault();
                 if (draggingGroupId) reorderGroups(draggingGroupId, group.id);
@@ -427,61 +455,82 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                 {group.label}
               </h2>
               <div className={styles["section-list"]}>
-                {group.sections.map((section) => (
-                  <div
-                    key={section.id}
-                    draggable
-                    onDragStart={(e) => {
-                      // Dragging a section shouldn't also register as
-                      // dragging its parent group — both have their own
-                      // draggable+drop handlers on overlapping DOM.
-                      e.stopPropagation();
-                      setDraggingSectionId(section.id);
-                    }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (draggingSectionId) reorderSections(group, draggingSectionId, section.id);
-                      setDraggingSectionId(null);
-                    }}
-                    onDragEnd={() => setDraggingSectionId(null)}
-                    className={classNames(
-                      section.enabled ? styles["section-card"] : styles["section-card-disabled"],
-                      draggingSectionId === section.id && styles["dragging"]
-                    )}
-                  >
-                    <div className={styles["section-label-row"]}>
-                      <span className={styles["drag-handle"]} aria-hidden="true">
-                        <GripIcon />
-                      </span>
-                      <div>
-                        <div className={styles["section-label"]}>{section.label}</div>
-                        <div className={styles["section-meta"]}>
-                          /{trip.slug}/{group.slug}/{section.slug}
-                          {!section.enabled && " · disabled"}
+                {group.sections.map((section) => {
+                  // Options-before-Past/Visited is an enforced convention
+                  // (see lib/sectionLabels.ts) — dragging must not be able
+                  // to flip it. Reordering within either tier is still
+                  // fine; only crossing the boundary between the two is
+                  // blocked, by simply never allowing the drop here (no
+                  // preventDefault => browser shows a "not allowed" cursor
+                  // and never fires a drop event at all).
+                  const blockedTierCross =
+                    !!draggingSectionId &&
+                    draggingSectionId !== section.id &&
+                    !canReorderSections(group, draggingSectionId, section.id);
+                  return (
+                    <div
+                      key={section.id}
+                      draggable
+                      onDragStart={(e) => {
+                        // Dragging a section shouldn't also register as
+                        // dragging its parent group — both have their own
+                        // draggable+drop handlers on overlapping DOM.
+                        e.stopPropagation();
+                        e.dataTransfer.setData("text/plain", section.id);
+                        e.dataTransfer.effectAllowed = "move";
+                        setDraggingSectionId(section.id);
+                      }}
+                      onDragOver={(e) => {
+                        if (blockedTierCross) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={(e) => {
+                        if (blockedTierCross) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (draggingSectionId) reorderSections(group, draggingSectionId, section.id);
+                        setDraggingSectionId(null);
+                      }}
+                      onDragEnd={() => setDraggingSectionId(null)}
+                      className={classNames(
+                        section.enabled ? styles["section-card"] : styles["section-card-disabled"],
+                        draggingSectionId === section.id && styles["dragging"]
+                      )}
+                    >
+                      <div className={styles["section-label-row"]}>
+                        <span className={styles["drag-handle"]} aria-hidden="true">
+                          <GripIcon />
+                        </span>
+                        <div>
+                          <div className={styles["section-label"]}>{section.label}</div>
+                          <div className={styles["section-meta"]}>
+                            /{trip.slug}/{group.slug}/{section.slug}
+                            {!section.enabled && " · disabled"}
+                          </div>
                         </div>
                       </div>
+                      <div className={styles["section-actions"]}>
+                        <label className={styles["enabled-checkbox-label"]}>
+                          <input
+                            type="checkbox"
+                            checked={section.enabled}
+                            onChange={(e) => toggleEnabled(section, group.slug, e.target.checked)}
+                            className={styles["enabled-checkbox"]}
+                          />
+                          Enabled
+                        </label>
+                        <Link
+                          href={`/${trip.slug}/admin/sections/${group.slug}/${section.slug}/edit`}
+                          className={styles["edit-link"]}
+                        >
+                          Edit
+                        </Link>
+                      </div>
                     </div>
-                    <div className={styles["section-actions"]}>
-                      <label className={styles["enabled-checkbox-label"]}>
-                        <input
-                          type="checkbox"
-                          checked={section.enabled}
-                          onChange={(e) => toggleEnabled(section, group.slug, e.target.checked)}
-                          className={styles["enabled-checkbox"]}
-                        />
-                        Enabled
-                      </label>
-                      <Link
-                        href={`/${trip.slug}/admin/sections/${group.slug}/${section.slug}/edit`}
-                        className={styles["edit-link"]}
-                      >
-                        Edit
-                      </Link>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )
