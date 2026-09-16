@@ -153,9 +153,9 @@ export default function TripNavHeader({
                   and every other one. It lives on the Trip Settings
                   page instead now, right by the Completed checkbox that
                   gates it (see TripSettingsPage). */}
-              <Link href={`/${trip.slug}/admin/sections`} className={styles["manage-link"]}>
-                Manage
-              </Link>
+              <Button variant="secondary" size="sm" asChild>
+                <Link href={`/${trip.slug}/admin/sections`}>Manage</Link>
+              </Button>
             </>
           ) : showCreateLogin ? (
             <CreateLoginPrompt trip={trip} contributorToken={contributorToken!} />
