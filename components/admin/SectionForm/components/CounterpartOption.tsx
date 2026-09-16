@@ -1,3 +1,4 @@
+import { PREVIOUSLY_VISITED_PREFIX } from "@/lib/sectionLabels";
 import styles from "./CounterpartOption.module.css";
 
 export interface CounterpartOptionProps {
@@ -13,8 +14,8 @@ export interface CounterpartOptionProps {
 
 // "Also create a Previously Visited counterpart" — offered only at
 // creation time (the parent gates this on !isEdit), same pattern as
-// Possible Houses/Stayed Before: a second section in the same nav
-// group, sharing the same fields, for things already done.
+// Stay Options/Stayed Before: a second section in the same nav group,
+// sharing the same fields, for things already done.
 export default function CounterpartOption({
   addCounterpart,
   onAddCounterpartChange,
@@ -34,7 +35,7 @@ export default function CounterpartOption({
         Also create a &quot;Previously Visited&quot; counterpart
       </label>
       <p className={styles["hint"]}>
-        Same pattern as Possible Houses / Previous Stays — a second section in the same nav group, sharing the same
+        Same pattern as Stay Options / Stayed Before — a second section in the same nav group, sharing the same
         fields, for things you&apos;ve already done (e.g. Distilleries you want to visit vs. ones you&apos;ve already
         been to).
       </p>
@@ -44,7 +45,7 @@ export default function CounterpartOption({
           <input
             value={counterpartLabel}
             onChange={(e) => onCounterpartLabelChange(e.target.value)}
-            placeholder={`Previously Visited ${primaryLabel || "..."}`}
+            placeholder={`${PREVIOUSLY_VISITED_PREFIX} ${primaryLabel || "..."}`}
             className={styles["input"]}
           />
         </label>
