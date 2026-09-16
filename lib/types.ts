@@ -271,3 +271,52 @@ export interface TitleMatch {
   tripName: string;
   sectionLabel: string;
 }
+
+// See supabase/migrations/0023_itinerary_stops.sql.
+export type ItineraryStopKind = "lodging" | "activity" | "meal" | "transport" | "other";
+export type ItineraryStopStatus = "tentative" | "confirmed" | "archived";
+export type TravelMode = "driving" | "walking" | "transit" | "bicycling";
+
+export interface ItineraryStopRow {
+  id: string;
+  trip_id: string;
+  entry_id: string | null;
+  title: string | null;
+  url: string | null;
+  lat: number | null;
+  lng: number | null;
+  kind: ItineraryStopKind;
+  status: ItineraryStopStatus;
+  date: string | null;
+  time: string | null;
+  duration_minutes: number | null;
+  travel_mode: TravelMode;
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// The client-facing shape — title/url/lat/lng resolved to the linked
+// entry's own values when entry_id is set (see lib/itineraryStops.ts's
+// toClientStop), plus enough of that entry's location in the site's
+// own nav to link back to it (built the same #listing-<id> anchor way
+// lib/sheetsExport.ts's buildRow already does).
+export interface ItineraryStop extends ItineraryStopRow {
+  entryNavGroupSlug: string | null;
+  entrySectionSlug: string | null;
+}
+
+// One row of the itinerary's own "link an existing entry" search —
+// scoped to just this trip (unlike lib/entries.ts's cross-trip
+// searchEntriesByTitle, linking a stop to some other trip's entry
+// wouldn't make sense).
+export interface ItineraryEntryMatch {
+  id: string;
+  title: string | null;
+  url: string | null;
+  lat: number | null;
+  lng: number | null;
+  sectionLabel: string;
+  navGroupLabel: string;
+}
