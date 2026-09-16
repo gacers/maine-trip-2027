@@ -32,7 +32,7 @@ export default async function TripAdminLayout({
             Sections
           </Link>
           <Link href={`/${tripSlug}/admin/api-keys`} className={styles["nav-link"]}>
-            Access &amp; API Keys
+            Access
           </Link>
           <Link href={`/${tripSlug}/admin/settings`} className={styles["nav-link"]}>
             Trip Settings

@@ -61,13 +61,13 @@ export default function AccessManager({ trip }: AccessManagerProps) {
       </div>
 
       <div className={styles["section"]}>
-        <h2 className={styles["subheading"]}>Editors</h2>
-        <EditorsManager key={`editors-${refreshKey}`} trip={trip} />
+        <h2 className={styles["subheading"]}>Invite links</h2>
+        <InviteLinksManager key={`invites-${refreshKey}`} trip={trip} />
       </div>
 
       <div className={styles["section"]}>
-        <h2 className={styles["subheading"]}>Invite links</h2>
-        <InviteLinksManager key={`invites-${refreshKey}`} trip={trip} />
+        <h2 className={styles["subheading"]}>Editors</h2>
+        <EditorsManager key={`editors-${refreshKey}`} trip={trip} />
       </div>
     </div>
   );
