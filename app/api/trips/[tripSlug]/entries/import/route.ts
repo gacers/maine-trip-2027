@@ -32,6 +32,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
   const sectionId = (body.sectionId as string | undefined)?.trim();
   const conceptSlug = (body.conceptSlug as string | undefined)?.trim();
+  // Set by the client when it already warned the admin this would
+  // replace what's currently in the section (see SectionsAdmin's
+  // copyIntoExistingSection) — running this again later, after
+  // forgetting to check the box the first time, is exactly the point,
+  // but re-running it against a section that's since had real entries
+  // added by hand needs to actually clear those first or the result is
+  // just duplicates sitting next to them, not a clean re-import.
+  const overwrite = body.overwrite === true;
   if (!sectionId || !conceptSlug) {
     return NextResponse.json({ error: "sectionId and conceptSlug are required" }, { status: 400 });
   }
@@ -48,6 +56,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .maybeSingle();
     if (sectionError) throw new Error(sectionError.message);
     if (!section) return NextResponse.json({ error: "Unknown section" }, { status: 404 });
+
+    if (overwrite) {
+      const { error: deleteError } = await supabase!.from("entries").delete().eq("section_id", sectionId);
+      if (deleteError) throw new Error(deleteError.message);
+    }
 
     const sourceEntries = await findEntriesForConceptSlug(supabase!, conceptSlug, trip.id);
     const imported = await copyEntriesToSection(supabase!, sourceEntries, sectionId);

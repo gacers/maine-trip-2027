@@ -52,27 +52,30 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       .catch(() => {});
   }, []);
 
-  // For every nav group on THIS trip that's still just one tier (no
-  // Previously Visited half yet), check up front what already exists
-  // elsewhere for that same concept — cheap (this trip usually has a
-  // handful of groups at most) and means the "+ Add a Previously
-  // Visited version" button's own import checkbox is never a beat
-  // behind a click. Re-runs whenever `nav` changes (a group's own
-  // single-vs-multi-section count can change after adding one).
+  // What already exists elsewhere for this same concept, for EVERY
+  // section already on this trip — not just a single-tier group's own
+  // primary (see addPastVersionToExistingGroup) but any section at all,
+  // so "copy in existing entries" (see copyIntoExistingSection) is
+  // always available to run again later, not just at the moment a past
+  // tier is first created. Strips a "-visited" suffix so a section's
+  // own slug always resolves to the shared concept both tiers use (see
+  // findEntriesForConceptSlug). Re-runs whenever `nav` changes; cheap,
+  // this trip usually has a handful of sections at most.
   useEffect(() => {
-    const singleSectionGroups = nav.filter((g) => g.sections.length === 1);
-    for (const g of singleSectionGroups) {
-      const section = g.sections[0];
-      if (existingImportCandidates[section.id] !== undefined) continue;
-      fetch(`/api/trips/${trip.slug}/import-candidates?slug=${encodeURIComponent(section.slug)}`)
-        .then((res) => res.json())
-        .then((data) =>
-          setExistingImportCandidates((prev) => ({
-            ...prev,
-            [section.id]: data.count > 0 ? { count: data.count, tripNames: data.tripNames } : null,
-          }))
-        )
-        .catch(() => setExistingImportCandidates((prev) => ({ ...prev, [section.id]: null })));
+    for (const g of nav) {
+      for (const section of g.sections) {
+        if (existingImportCandidates[section.id] !== undefined) continue;
+        const conceptSlug = section.slug.replace(/-visited$/, "");
+        fetch(`/api/trips/${trip.slug}/import-candidates?slug=${encodeURIComponent(conceptSlug)}`)
+          .then((res) => res.json())
+          .then((data) =>
+            setExistingImportCandidates((prev) => ({
+              ...prev,
+              [section.id]: data.count > 0 ? { count: data.count, tripNames: data.tripNames } : null,
+            }))
+          )
+          .catch(() => setExistingImportCandidates((prev) => ({ ...prev, [section.id]: null })));
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nav]);
@@ -410,6 +413,48 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     }
   }
 
+  // "Copy in existing entries," runnable on ANY section at any time —
+  // not just at the moment a past tier is first created, since
+  // forgetting to check that box then otherwise left no way back in to
+  // do it later. Warns and overwrites rather than just appending
+  // whenever the section already has something in it: appending would
+  // leave duplicates sitting next to whatever's already there, and
+  // silently doing that without asking first isn't OK for something
+  // this destructive-if-wrong.
+  async function copyIntoExistingSection(group: NavGroup, section: Section) {
+    setError("");
+    setAddingTemplate(section.id);
+    try {
+      const entriesRes = await fetch(`/api/trips/${trip.slug}/sections/${group.slug}/${section.slug}/entries`, {
+        cache: "no-store",
+      });
+      const entriesData = await entriesRes.json();
+      const existingCount = (entriesData.entries || []).length;
+      if (existingCount > 0) {
+        const confirmed = window.confirm(
+          `This section already has ${existingCount} ${existingCount === 1 ? "entry" : "entries"}. Copying in ` +
+            `existing entries from other trips will replace ${existingCount === 1 ? "it" : "them"} with fresh ` +
+            `copies from elsewhere — continue?`
+        );
+        if (!confirmed) return;
+      }
+
+      const conceptSlug = section.slug.replace(/-visited$/, "");
+      const importRes = await fetch(`/api/trips/${trip.slug}/entries/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sectionId: section.id, conceptSlug, overwrite: existingCount > 0 }),
+      });
+      const importData = await importRes.json();
+      if (!importRes.ok) throw new Error(importData.error || "Copy failed");
+      refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setAddingTemplate(null);
+    }
+  }
+
   return (
     <div className={styles["root"]}>
       <div className={styles["header"]}>
@@ -550,6 +595,19 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                       >
                         Edit
                       </Link>
+                      {existingImportCandidates[section.id] && (
+                        <button
+                          type="button"
+                          disabled={addingTemplate === section.id}
+                          onClick={() => copyIntoExistingSection(group, section)}
+                          className={styles["edit-button"]}
+                          title={`Copy in ${existingImportCandidates[section.id]!.count} existing entries from ${existingImportCandidates[section.id]!.tripNames.join(", ")}`}
+                        >
+                          {addingTemplate === section.id
+                            ? "Copying..."
+                            : `Copy in ${existingImportCandidates[section.id]!.count} entries`}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

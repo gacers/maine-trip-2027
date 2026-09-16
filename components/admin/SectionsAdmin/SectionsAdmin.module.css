@@ -180,3 +180,20 @@
     text-decoration: underline;
   }
 }
+
+/* Same look as .edit-link, plain-button-element reset added — used for
+   the "Copy in N entries" action, which triggers a fetch rather than
+   navigating anywhere. */
+.edit-button {
+  composes: edit-link;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
