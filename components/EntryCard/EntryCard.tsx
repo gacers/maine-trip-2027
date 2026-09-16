@@ -261,6 +261,13 @@ export default function EntryCard({
 
   return (
     <article id={`listing-${entry.id}`} className={rootClassName}>
+      {/* Previously just a small italic line down in the footer next to
+          Restore/Delete — confirmed live as easy to miss entirely,
+          especially on a tall card. A full-width banner right at the
+          top says why this was ruled out before anything else about
+          the card even loads. */}
+      {isArchived && entry.archiveReason && <div className={styles["archive-banner"]}>Archived: {entry.archiveReason}</div>}
+
       {!hideMedia && (
         <EntryMedia entry={entry} compact={compact} large={largeMedia} medium={mediumMedia} showRatings={showRatings} />
       )}

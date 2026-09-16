@@ -140,9 +140,30 @@ export function useSectionEntries({ trip, section, navGroupSlug, authToken, canC
     // Captured before the optimistic update below, so a status change
     // on `id` itself doesn't affect what we see here for its partner.
     const beforeEntry = entries.find((e) => e.id === id);
-    applyLocalPatch(id, patch as Partial<ClientEntry>); // optimistic
+
+    // Restoring one half of a pair (each half's own footer restores
+    // individually — there's no "restore group" button, only "Delete
+    // group") while its partner is still archived splits it into a
+    // genuinely standalone single stay, rather than leaving it holding
+    // a dangling groupLabel from a pairing that's half-gone — confirmed
+    // live as confusing (still visually/structurally "paired" with
+    // nothing to pair against) and a latent risk of silently re-pairing
+    // with whatever else that name matches later. Restoring BOTH halves
+    // (the partner is still active — the normal case right after
+    // "Delete group" is undone quickly) reforms the pair as before, so
+    // groupLabel only gets cleared when there's genuinely no active
+    // partner to reform it with.
+    let effectivePatch = patch;
+    if (patch.status === "active" && beforeEntry?.groupLabel) {
+      const activePartner = entries.find(
+        (e) => e.id !== id && e.groupLabel === beforeEntry.groupLabel && e.status !== "archived"
+      );
+      if (!activePartner) effectivePatch = { ...patch, groupLabel: "" };
+    }
+
+    applyLocalPatch(id, effectivePatch as Partial<ClientEntry>); // optimistic
     try {
-      const updated = await patchMutation.mutateAsync({ id, patch });
+      const updated = await patchMutation.mutateAsync({ id, patch: effectivePatch });
       applyLocalPatch(id, updated);
 
       // Archiving or restoring `id` may have just broken up a pair (the

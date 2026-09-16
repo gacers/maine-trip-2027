@@ -31,6 +31,18 @@
   opacity: 0.7;
 }
 
+/* Deliberately the strongest color on the whole card — this is "why
+   this option is dismissed," which should read before anything else
+   here does, not compete with it. Sits above the image too (not just
+   above the title) so it's the very first thing visible either way. */
+.archive-banner {
+  background: var(--color-red-600);
+  color: var(--color-white);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  padding: 0.5rem 1rem;
+}
+
 /* Every content block below the image is a .section with a divider —
    .sections' own top border plus each .section's bottom border means
    every section gets a full-width line above and below it, including

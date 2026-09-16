@@ -5,7 +5,7 @@ import type { ClientEntry } from "@/lib/types";
 import styles from "./EntryFooter.module.css";
 
 export interface EntryFooterProps {
-  entry: Pick<ClientEntry, "id" | "status" | "archiveReason">;
+  entry: Pick<ClientEntry, "id" | "status">;
   supportsPairing: boolean;
   isEditing: boolean;
   hideMedia: boolean;
@@ -117,7 +117,10 @@ export default function EntryFooter({
 
       {isArchived && (
         <div className={styles["archived-actions"]}>
-          {entry.archiveReason && <span className={styles["archive-reason"]}>{entry.archiveReason}</span>}
+          {/* The reason itself is a full-width banner at the top of the
+              card now (EntryCard.module.css's .archive-banner) — this
+              tiny italic line next to Restore/Delete was easy to miss
+              entirely, confirmed live. */}
           <Button variant="link" size="sm" onClick={onRestore}>
             Restore
           </Button>
