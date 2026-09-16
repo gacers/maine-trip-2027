@@ -226,6 +226,18 @@ export interface ApiKey {
   hasStoredToken?: boolean;
 }
 
+// A permanent-login editor on one trip (see supabase/migrations/
+// 0021_trip_editors.sql) — user_id/email identify who, the rest is
+// when they joined/last wrote here. No `revoked` flag: unlike an
+// api_keys row, membership here is either present or it isn't (see the
+// editors API routes, which just delete the row outright).
+export interface TripEditor {
+  user_id: string;
+  email: string;
+  created_at: string;
+  last_active_at: string;
+}
+
 export interface AppSettings {
   id: true;
   google_drive_folder_id: string | null;

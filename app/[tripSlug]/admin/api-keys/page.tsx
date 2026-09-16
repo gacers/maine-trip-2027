@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTripBySlug } from "@/lib/sections";
 import ApiKeysManager from "@/components/admin/ApiKeysManager";
-import InviteLinksManager from "@/components/admin/InviteLinksManager";
+import AccessManager from "@/components/admin/AccessManager";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +14,11 @@ export default async function ApiKeysPage({ params }: { params: Promise<{ tripSl
   return (
     <div className={styles["root"]}>
       <div className={styles["section"]}>
-        <h1 className={styles["heading"]}>Invite links</h1>
-        <InviteLinksManager trip={trip} />
+        <h1 className={styles["heading"]}>Access</h1>
+        <p className={styles["intro"]}>
+          Everyone who can currently add or edit things here, and one button to cut all of it off at once.
+        </p>
+        <AccessManager trip={trip} />
       </div>
 
       <div className={styles["divider"]}>
