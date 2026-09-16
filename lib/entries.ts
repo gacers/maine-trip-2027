@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { EntryRow, ClientEntry } from "@/lib/types";
 
@@ -166,4 +167,83 @@ export function toClientEntry(row: EntryRow | null | undefined): ClientEntry | n
     visitedDate: visited_date,
     ...(data || {}),
   } as ClientEntry;
+}
+
+export interface ImportableEntry extends EntryRow {
+  tripName: string;
+  sectionLabel: string;
+}
+
+// Every entry that already exists for this same concept on ANY other
+// trip — backs SectionsAdmin's "also copy in N existing entries" option
+// when adding a custom template's Previously Visited counterpart (e.g.
+// a brand-new Scotland trip's own "Distilleries" past tier, populated
+// straight from a 2022 trip's already-curated Distilleries list — see
+// the entries/import route). Matches both a plain concept slug and its
+// own "-visited" counterpart (either tier, on any other trip, counts as
+// "the same kind of place already documented somewhere").
+export async function findEntriesForConceptSlug(
+  supabase: SupabaseClient,
+  conceptSlug: string,
+  excludeTripId: string
+): Promise<ImportableEntry[]> {
+  const { data: sections, error: sectionsError } = await supabase
+    .from("sections")
+    .select("id, label, trip_id, trips!inner(name)")
+    .in("slug", [conceptSlug, `${conceptSlug}-visited`])
+    .neq("trip_id", excludeTripId);
+  if (sectionsError) throw new Error(sectionsError.message);
+  if (!sections || sections.length === 0) return [];
+
+  const sectionMeta = new Map(sections.map((s) => [s.id, s as unknown as { label: string; trips: { name: string } }]));
+  const { data: entries, error } = await supabase
+    .from("entries")
+    .select("*")
+    .in(
+      "section_id",
+      sections.map((s) => s.id)
+    )
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (entries || []).map((e) => {
+    const meta = sectionMeta.get(e.section_id)!;
+    return { ...e, tripName: meta.trips.name, sectionLabel: meta.label };
+  });
+}
+
+// Clones the given entries into `destSectionId` as brand-new,
+// independent rows (fresh ids, no rating history, no pairing) — same
+// "genuinely separate entry" philosophy as findEntryByUrlAnywhere's
+// single-entry reuse, just for a whole section's worth at once. Always
+// lands as already-Visited (that's the whole point of copying it into
+// a Previously Visited tier) and with no groupLabel (the destination
+// tier never supports pairing, and carrying an old pairing across trips
+// would risk a nonsensical cross-trip re-pair later).
+export async function copyEntriesToSection(
+  supabase: SupabaseClient,
+  sourceEntries: EntryRow[],
+  destSectionId: string
+): Promise<number> {
+  if (sourceEntries.length === 0) return 0;
+  const rows = sourceEntries.map((e, i) => ({
+    id: nanoid(8),
+    section_id: destSectionId,
+    rank: i + 1,
+    status: "active" as const,
+    title: e.title,
+    url: e.url,
+    poster_image: e.poster_image,
+    description: e.description,
+    lat: e.lat,
+    lng: e.lng,
+    notes: e.notes,
+    concerns: e.concerns,
+    group_label: null,
+    visited: true,
+    visited_date: e.visited_date,
+    data: e.data,
+  }));
+  const { error } = await supabase.from("entries").insert(rows);
+  if (error) throw new Error(error.message);
+  return rows.length;
 }

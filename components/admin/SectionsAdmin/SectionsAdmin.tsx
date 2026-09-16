@@ -19,6 +19,25 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   const [error, setError] = useState("");
   const [addingTemplate, setAddingTemplate] = useState<string | null>(null);
   const [customTemplates, setCustomTemplates] = useState<CustomSectionTemplate[]>([]);
+  // Per-template opt-in for the "also add a Previously Visited version"
+  // checkbox below a single-section custom template — see
+  // addCustomTemplate. Keyed by template_key.
+  const [addPastVersion, setAddPastVersion] = useState<Set<string>>(new Set());
+  // Once a template's past-version checkbox is on, lazily fetched: what
+  // else already exists for this same concept on other trips (e.g. a
+  // 2022 Scotland trip's own already-curated Distilleries list) — see
+  // the import-candidates route. Keyed by template_key; undefined means
+  // "not fetched yet", null means "fetched, nothing found".
+  const [importCandidates, setImportCandidates] = useState<Record<string, { count: number; tripNames: string[] } | null>>({});
+  const [importSelected, setImportSelected] = useState<Set<string>>(new Set());
+  // Same idea as the two above, for a nav group that ALREADY exists on
+  // THIS trip with just one tier so far (e.g. a custom "Distilleries"
+  // section added before it ever needed a Previously Visited half) —
+  // see addPastVersionToExistingGroup. Keyed by section.id.
+  const [existingImportCandidates, setExistingImportCandidates] = useState<
+    Record<string, { count: number; tripNames: string[] } | null>
+  >({});
+  const [existingImportSelected, setExistingImportSelected] = useState<Set<string>>(new Set());
 
   const apiBase = `/api/trips/${trip.slug}/sections`;
   const existingGroupLabels = new Set(nav.map((g) => g.label));
@@ -32,6 +51,31 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       .then((data) => setCustomTemplates(data.templates || []))
       .catch(() => {});
   }, []);
+
+  // For every nav group on THIS trip that's still just one tier (no
+  // Previously Visited half yet), check up front what already exists
+  // elsewhere for that same concept — cheap (this trip usually has a
+  // handful of groups at most) and means the "+ Add a Previously
+  // Visited version" button's own import checkbox is never a beat
+  // behind a click. Re-runs whenever `nav` changes (a group's own
+  // single-vs-multi-section count can change after adding one).
+  useEffect(() => {
+    const singleSectionGroups = nav.filter((g) => g.sections.length === 1);
+    for (const g of singleSectionGroups) {
+      const section = g.sections[0];
+      if (existingImportCandidates[section.id] !== undefined) continue;
+      fetch(`/api/trips/${trip.slug}/import-candidates?slug=${encodeURIComponent(section.slug)}`)
+        .then((res) => res.json())
+        .then((data) =>
+          setExistingImportCandidates((prev) => ({
+            ...prev,
+            [section.id]: data.count > 0 ? { count: data.count, tripNames: data.tripNames } : null,
+          }))
+        )
+        .catch(() => setExistingImportCandidates((prev) => ({ ...prev, [section.id]: null })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nav]);
 
   async function refresh() {
     const res = await fetch(apiBase, { cache: "no-store" });
@@ -180,6 +224,32 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     }
   }
 
+  // Checking a template's "also add a Previously Visited version"
+  // fires off a one-time lookup of what already exists for this same
+  // concept elsewhere, so the nested "also copy in" checkbox can show a
+  // real count instead of a blind guess. Unchecking doesn't re-fetch —
+  // the count doesn't need to disappear along with the option to use it.
+  function togglePastVersion(template: CustomSectionTemplate, checked: boolean) {
+    setAddPastVersion((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(template.template_key);
+      else next.delete(template.template_key);
+      return next;
+    });
+    if (checked && importCandidates[template.template_key] === undefined) {
+      const slug = template.sections[0].slug;
+      fetch(`/api/trips/${trip.slug}/import-candidates?slug=${encodeURIComponent(slug)}`)
+        .then((res) => res.json())
+        .then((data) =>
+          setImportCandidates((prev) => ({
+            ...prev,
+            [template.template_key]: data.count > 0 ? { count: data.count, tripNames: data.tripNames } : null,
+          }))
+        )
+        .catch(() => setImportCandidates((prev) => ({ ...prev, [template.template_key]: null })));
+    }
+  }
+
   // Recreates a custom template's whole nav group — one, two, or
   // however many sections it was captured with (see
   // lib/customSectionTemplates.ts) — in the same one-nav-group-per-call
@@ -189,6 +259,15 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     setError("");
     setAddingTemplate(template.template_key);
     const isFirstSection = nav.every((g) => g.sections.length === 0);
+    // Most custom templates were captured from a single plain section
+    // (unlike the 3 built-ins, which always come as an Options/
+    // Previously pair) — this is the optional equivalent of
+    // SectionForm's own "also add a Previously Visited version"
+    // checkbox for a brand-new custom section, offered here too so a
+    // template that's only ever existed as one tier isn't stuck that
+    // way forever. Same field defs as the primary (same shape/"data"),
+    // never pairing/map/ratings, same as every other "previous" tier.
+    const wantsPastVersion = template.sections.length === 1 && addPastVersion.has(template.template_key);
     try {
       let navGroupId: string | undefined;
       for (const s of template.sections) {
@@ -215,12 +294,115 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
         if (!navGroupId) navGroupId = data.section.nav_group_id;
       }
 
+      if (wantsPastVersion) {
+        const primary = template.sections[0];
+        const pastRes = await fetch(apiBase, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug: `${primary.slug}-visited`,
+            label: `Previously Visited ${primary.label}`,
+            subNavLabel: "Previously Visited",
+            addPlaceholder: `Paste a link for a ${primary.label.toLowerCase()} you've already been to...`,
+            emptyMessage: `No previous ${primary.label.toLowerCase()} yet — paste a link above.`,
+            supportsPairing: false,
+            hasMap: false,
+            supportsRatings: false,
+            cardLayout: primary.cardLayout,
+            fieldDefs: primary.fieldDefs,
+            skipTemplateCapture: true,
+            navGroupId,
+          }),
+        });
+        const pastData = await pastRes.json();
+        if (!pastRes.ok) {
+          throw new Error(`Created "${template.nav_group_label}", but its Previously Visited version failed: ${pastData.error || "unknown error"}`);
+        }
+
+        // "Also copy in existing entries" — pulls in every matching
+        // entry from every OTHER trip's same-concept section (see the
+        // entries/import route), straight into the tier that's meant to
+        // hold exactly this kind of thing.
+        if (importSelected.has(template.template_key)) {
+          const importRes = await fetch(`/api/trips/${trip.slug}/entries/import`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sectionId: pastData.section.id, conceptSlug: primary.slug }),
+          });
+          const importData = await importRes.json();
+          if (!importRes.ok) {
+            throw new Error(`Created "Previously Visited ${primary.label}", but copying in existing entries failed: ${importData.error || "unknown error"}`);
+          }
+        }
+      }
+
       if (isFirstSection) {
         router.push(`/${trip.slug}`);
         router.refresh();
       } else {
         refresh();
       }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setAddingTemplate(null);
+    }
+  }
+
+  // The exact same "also add a Previously Visited version" option as
+  // addCustomTemplate above, but for a nav group that's already real on
+  // THIS trip (e.g. a custom "Distilleries" section added by hand
+  // before it ever needed a past tier) rather than one still just a
+  // template on offer — addCustomTemplate's own button is unreachable
+  // here since the nav group already exists (its "already exists" ✓
+  // state disables it). Deliberately does NOT skip template capture:
+  // landing in the same nav group as an existing captured template
+  // (or becoming a fresh one, for a genuinely new custom section) means
+  // this enriches that template with a past tier for every other trip
+  // to reuse too, same as it always has for a brand-new custom section.
+  async function addPastVersionToExistingGroup(group: NavGroup, primary: Section) {
+    setError("");
+    setAddingTemplate(primary.id);
+    try {
+      const pastRes = await fetch(apiBase, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: `${primary.slug}-visited`,
+          label: `Previously Visited ${primary.label}`,
+          subNavLabel: "Previously Visited",
+          addPlaceholder: `Paste a link for a ${primary.label.toLowerCase()} you've already been to...`,
+          emptyMessage: `No previous ${primary.label.toLowerCase()} yet — paste a link above.`,
+          supportsPairing: false,
+          hasMap: false,
+          supportsRatings: false,
+          cardLayout: primary.card_layout,
+          fieldDefs: (primary.field_defs || []).map((f) => ({
+            key: f.key,
+            label: f.label,
+            field_type: f.field_type,
+            show_on_overview: f.show_on_overview,
+            options: f.options || undefined,
+          })),
+          navGroupId: group.id,
+        }),
+      });
+      const pastData = await pastRes.json();
+      if (!pastRes.ok) throw new Error(pastData.error || "Failed to create Previously Visited version");
+
+      if (existingImportSelected.has(primary.id)) {
+        const importRes = await fetch(`/api/trips/${trip.slug}/entries/import`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sectionId: pastData.section.id, conceptSlug: primary.slug }),
+        });
+        const importData = await importRes.json();
+        if (!importRes.ok) {
+          throw new Error(`Created the Previously Visited version, but copying in existing entries failed: ${importData.error || "unknown error"}`);
+        }
+      }
+
+      refresh();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -274,21 +456,55 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
             <div className={styles["template-list"]}>
               {customTemplates.map((t) => {
                 const exists = existingGroupLabels.has(t.nav_group_label);
+                const canAddPastVersion = t.sections.length === 1;
                 return (
-                  <button
-                    key={t.template_key}
-                    type="button"
-                    disabled={exists || addingTemplate === t.template_key}
-                    onClick={() => addCustomTemplate(t)}
-                    className={styles["template-button"]}
-                    title={exists ? `${t.nav_group_label} already exists` : undefined}
-                  >
-                    {addingTemplate === t.template_key
-                      ? "Adding..."
-                      : exists
-                        ? `${t.nav_group_label} ✓`
-                        : `+ ${t.nav_group_label}`}
-                  </button>
+                  <div key={t.template_key} className={styles["custom-template-item"]}>
+                    <button
+                      type="button"
+                      disabled={exists || addingTemplate === t.template_key}
+                      onClick={() => addCustomTemplate(t)}
+                      className={styles["template-button"]}
+                      title={exists ? `${t.nav_group_label} already exists` : undefined}
+                    >
+                      {addingTemplate === t.template_key
+                        ? "Adding..."
+                        : exists
+                          ? `${t.nav_group_label} ✓`
+                          : `+ ${t.nav_group_label}`}
+                    </button>
+                    {canAddPastVersion && !exists && (
+                      <label className={styles["past-version-checkbox"]}>
+                        <input
+                          type="checkbox"
+                          checked={addPastVersion.has(t.template_key)}
+                          onChange={(e) => togglePastVersion(t, e.target.checked)}
+                        />
+                        + Previously Visited version too
+                      </label>
+                    )}
+                    {canAddPastVersion &&
+                      !exists &&
+                      addPastVersion.has(t.template_key) &&
+                      importCandidates[t.template_key] && (
+                        <label className={styles["past-version-checkbox"]}>
+                          <input
+                            type="checkbox"
+                            checked={importSelected.has(t.template_key)}
+                            onChange={(e) =>
+                              setImportSelected((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(t.template_key);
+                                else next.delete(t.template_key);
+                                return next;
+                              })
+                            }
+                          />
+                          Also copy in {importCandidates[t.template_key]!.count} existing{" "}
+                          {importCandidates[t.template_key]!.count === 1 ? "entry" : "entries"} from{" "}
+                          {importCandidates[t.template_key]!.tripNames.join(", ")}
+                        </label>
+                      )}
+                  </div>
                 );
               })}
             </div>
@@ -338,6 +554,37 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                   </div>
                 ))}
               </div>
+              {group.sections.length === 1 && !trip.completed && (
+                <div className={styles["custom-template-item"]}>
+                  <button
+                    type="button"
+                    disabled={addingTemplate === group.sections[0].id}
+                    onClick={() => addPastVersionToExistingGroup(group, group.sections[0])}
+                    className={styles["template-button"]}
+                  >
+                    {addingTemplate === group.sections[0].id ? "Adding..." : "+ Add a Previously Visited version"}
+                  </button>
+                  {existingImportCandidates[group.sections[0].id] && (
+                    <label className={styles["past-version-checkbox"]}>
+                      <input
+                        type="checkbox"
+                        checked={existingImportSelected.has(group.sections[0].id)}
+                        onChange={(e) =>
+                          setExistingImportSelected((prev) => {
+                            const next = new Set(prev);
+                            if (e.target.checked) next.add(group.sections[0].id);
+                            else next.delete(group.sections[0].id);
+                            return next;
+                          })
+                        }
+                      />
+                      Also copy in {existingImportCandidates[group.sections[0].id]!.count} existing{" "}
+                      {existingImportCandidates[group.sections[0].id]!.count === 1 ? "entry" : "entries"} from{" "}
+                      {existingImportCandidates[group.sections[0].id]!.tripNames.join(", ")}
+                    </label>
+                  )}
+                </div>
+              )}
             </div>
           )
       )}
