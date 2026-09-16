@@ -437,12 +437,18 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                 setDraggingGroupId(group.id);
               }}
               onDragOver={(e) => {
+                // Only a group drag lands here — a section drag that
+                // bubbled up this far (e.g. hovering a blocked cross-tier
+                // target) shouldn't suddenly look droppable at the group
+                // level just because it reached this element.
+                if (!draggingGroupId) return;
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
               }}
               onDrop={(e) => {
+                if (!draggingGroupId) return;
                 e.preventDefault();
-                if (draggingGroupId) reorderGroups(draggingGroupId, group.id);
+                reorderGroups(draggingGroupId, group.id);
                 setDraggingGroupId(null);
               }}
               onDragEnd={() => setDraggingGroupId(null)}
@@ -481,16 +487,23 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                         setDraggingSectionId(section.id);
                       }}
                       onDragOver={(e) => {
-                        if (blockedTierCross) return;
+                        // Not a section being dragged (a whole nav group
+                        // is, instead) — let the event alone so it bubbles
+                        // up to the group's own onDragOver/onDrop instead
+                        // of this card silently eating it. This was the
+                        // actual reason group drops never landed: every
+                        // section card the pointer passed over swallowed
+                        // the event regardless of what was being dragged.
+                        if (!draggingSectionId || blockedTierCross) return;
                         e.preventDefault();
                         e.stopPropagation();
                         e.dataTransfer.dropEffect = "move";
                       }}
                       onDrop={(e) => {
-                        if (blockedTierCross) return;
+                        if (!draggingSectionId || blockedTierCross) return;
                         e.preventDefault();
                         e.stopPropagation();
-                        if (draggingSectionId) reorderSections(group, draggingSectionId, section.id);
+                        reorderSections(group, draggingSectionId, section.id);
                         setDraggingSectionId(null);
                       }}
                       onDragEnd={() => setDraggingSectionId(null)}
