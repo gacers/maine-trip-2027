@@ -257,23 +257,20 @@ async function doExportSection(supabase: SupabaseClient, trip: Trip, section: Se
 
   await syncTabData(sheets, spreadsheetId!, tabName, lastCol, rows);
 
-  // Same tiering as above: highlight means "not archived" before the
-  // trip is completed (still a live option), and narrows to "visited"
-  // specifically once it is (an active-but-unvisited row no longer
-  // gets the same treatment as one that's actually part of the
-  // record) — reset every export either way, see the function itself.
-  // Pre-completion specifically, "not archived" only means something
-  // once something else on the list HAS been archived — a fresh list
-  // where nothing's been ruled out yet would highlight every single
-  // row, which just reads as "these are all special" instead of "these
-  // are the survivors." Once the trip's completed, "visited" stays
-  // worth highlighting even if that happens to be 100% of the list —
-  // that's a real fact about the trip, not an artifact of nothing
-  // having been decided yet.
+  // Green highlight means "visited" — a real, decided fact about the
+  // trip, only meaningful once it's actually completed. Nothing on a
+  // still-deciding Stay Options list has happened yet regardless of
+  // how many other options have been archived along the way, so it
+  // never gets a highlight of its own pre-completion (previously this
+  // highlighted "not archived" as "the survivors so far," but that
+  // read as these listings being finalized when they're still just
+  // options — confirmed live as misleading on an in-progress trip).
+  // Reset every export either way (0 clears any stale highlighting
+  // left over from before this rule, or from a still-deciding trip's
+  // own export), see the function itself.
   if (showRankColumn || trip.completed) {
-    const highlightCount = units.filter((u) => unitTier(u, trip.completed) === 0).length;
-    const nothingRuledOutYet = !trip.completed && highlightCount === units.length;
-    await applyActiveRowHighlight(sheets, spreadsheetId!, sheetId, nothingRuledOutYet ? 0 : highlightCount);
+    const highlightCount = trip.completed ? units.filter((u) => unitTier(u, trip.completed) === 0).length : 0;
+    await applyActiveRowHighlight(sheets, spreadsheetId!, sheetId, highlightCount);
   }
 
   return { spreadsheetId: spreadsheetId!, spreadsheetUrl: spreadsheetUrl! };
@@ -596,8 +593,8 @@ async function syncTabData(
 }
 
 // A light green background on the first `highlightRowCount` data
-// rows — whatever unitTier already sorted to the top (still-active
-// before the trip's completed, visited specifically once it is; see
+// rows — whatever unitTier already sorted to the top, meaning
+// "visited" once the trip's completed (0 pre-completion; see
 // exportSectionOrThrow). Always resets the whole data range to no fill
 // first (row counts shift between exports as things change status),
 // otherwise a row that was highlighted on a previous export stays that
