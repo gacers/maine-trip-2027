@@ -230,8 +230,20 @@ export async function scrapeListing(rawUrl: string): Promise<ScrapeResult> {
       // above never catches it.
       if (html.length < 20000 && /404 Page Not Found|page you.re looking for/i.test(html)) {
         if (isAirbnb) {
+          // Confirmed by hand this session: this disguised-404 page
+          // shows up for one specific listing while a different one
+          // scrapes fine seconds later with the exact same cookie — so
+          // "the cookie expired" is only one of two real causes, and
+          // not even the more likely one (a genuinely expired cookie
+          // fails *every* Airbnb listing, not just this one). The other
+          // — this specific listing being removed, private, or blocked
+          // for whatever account/region actually made this request —
+          // is just as real and isn't something refreshing the cookie
+          // would fix. Naming only the cookie sent an admin chasing a
+          // fix that wasn't the problem; this says both, and how to
+          // tell them apart.
           result.cookieWarning = process.env.AIRBNB_SESSION_COOKIE
-            ? "⚠️ Airbnb didn't return this listing's page — the saved AIRBNB_SESSION_COOKIE has likely expired. An admin needs to log into airbnb.com, grab a fresh session cookie, and update it (see .env.local / Vercel env vars)."
+            ? "⚠️ Airbnb didn't return this listing's page. If other Airbnb links are pasting in fine, this one specifically is most likely removed, private, or blocked — not a cookie problem. If every Airbnb link is failing the same way, then the saved AIRBNB_SESSION_COOKIE has likely expired and an admin needs to log into airbnb.com, grab a fresh one, and update it (see .env.local / Vercel env vars)."
             : "⚠️ No AIRBNB_SESSION_COOKIE is set — Airbnb blocks anonymous requests for some listings. An admin needs to add one (see .env.local for instructions).";
           blockedReason = "Airbnb didn't return this listing's page.";
         } else {
