@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import classNames from "classnames";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SECTION_TEMPLATES, type SectionTemplate } from "@/lib/sectionTemplates";
@@ -14,12 +15,30 @@ export interface SectionsAdminProps {
   nav: NavGroup[];
 }
 
+function GripIcon() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="9" cy="6" r="1.5" />
+      <circle cx="15" cy="6" r="1.5" />
+      <circle cx="9" cy="12" r="1.5" />
+      <circle cx="15" cy="12" r="1.5" />
+      <circle cx="9" cy="18" r="1.5" />
+      <circle cx="15" cy="18" r="1.5" />
+    </svg>
+  );
+}
+
 export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminProps) {
   const router = useRouter();
   const [nav, setNav] = useState(initialNav);
   const [error, setError] = useState("");
   const [addingTemplate, setAddingTemplate] = useState<string | null>(null);
   const [customTemplates, setCustomTemplates] = useState<CustomSectionTemplate[]>([]);
+  // Native HTML5 drag and drop — id of whatever's currently being
+  // dragged, so the matching drop handler (group vs. section) knows
+  // what to reorder. Only one of these is ever set at a time.
+  const [draggingGroupId, setDraggingGroupId] = useState<string | null>(null);
+  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
 
   const apiBase = `/api/trips/${trip.slug}/sections`;
   const existingGroupLabels = new Set(nav.map((g) => g.label));
@@ -59,6 +78,76 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       refresh();
     } catch (err) {
       setError((err as Error).message);
+    }
+  }
+
+  // Dropping section `draggedId` onto section `targetId` (both within
+  // the SAME group — sections don't cross groups via drag, only via
+  // the Edit page's own "Nav group" picker) reorders that group's
+  // whole list and persists every section's own new position as its
+  // sort_order (one PATCH per section, same field the Options-before-
+  // Past fix set at creation time — see lib/sectionLabels.ts).
+  // Optimistic: the local list reorders immediately, then re-syncs
+  // from the server either way once every PATCH settles.
+  async function reorderSections(group: NavGroup, draggedId: string, targetId: string) {
+    if (draggedId === targetId) return;
+    const ids = group.sections.map((s) => s.id);
+    const fromIndex = ids.indexOf(draggedId);
+    const toIndex = ids.indexOf(targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const reordered = [...group.sections];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    setNav((prev) => prev.map((g) => (g.id === group.id ? { ...g, sections: reordered } : g)));
+
+    setError("");
+    try {
+      await Promise.all(
+        reordered.map((s, i) =>
+          fetch(`${apiBase}/${group.slug}/${s.slug}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sortOrder: i }),
+          })
+        )
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      refresh();
+    }
+  }
+
+  // Same idea, for the top-level nav groups themselves (the Stays/Food
+  // & Drink/Activities/... tabs).
+  async function reorderGroups(draggedId: string, targetId: string) {
+    if (draggedId === targetId) return;
+    const ids = nav.map((g) => g.id);
+    const fromIndex = ids.indexOf(draggedId);
+    const toIndex = ids.indexOf(targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const reordered = [...nav];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    setNav(reordered);
+
+    setError("");
+    try {
+      await Promise.all(
+        reordered.map((g, i) =>
+          fetch(`/api/trips/${trip.slug}/nav-groups/${g.slug}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sortOrder: i }),
+          })
+        )
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      refresh();
     }
   }
 
@@ -318,19 +407,60 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       {nav.map(
         (group) =>
           group.sections.length > 0 && (
-            <div key={group.id} className={styles["group-section"]}>
-              <h2 className={styles["section-heading"]}>{group.label}</h2>
+            <div
+              key={group.id}
+              draggable
+              onDragStart={() => setDraggingGroupId(group.id)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (draggingGroupId) reorderGroups(draggingGroupId, group.id);
+                setDraggingGroupId(null);
+              }}
+              onDragEnd={() => setDraggingGroupId(null)}
+              className={classNames(styles["group-section"], draggingGroupId === group.id && styles["dragging"])}
+            >
+              <h2 className={styles["section-heading"]}>
+                <span className={styles["drag-handle"]} aria-hidden="true">
+                  <GripIcon />
+                </span>
+                {group.label}
+              </h2>
               <div className={styles["section-list"]}>
                 {group.sections.map((section) => (
                   <div
                     key={section.id}
-                    className={section.enabled ? styles["section-card"] : styles["section-card-disabled"]}
+                    draggable
+                    onDragStart={(e) => {
+                      // Dragging a section shouldn't also register as
+                      // dragging its parent group — both have their own
+                      // draggable+drop handlers on overlapping DOM.
+                      e.stopPropagation();
+                      setDraggingSectionId(section.id);
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (draggingSectionId) reorderSections(group, draggingSectionId, section.id);
+                      setDraggingSectionId(null);
+                    }}
+                    onDragEnd={() => setDraggingSectionId(null)}
+                    className={classNames(
+                      section.enabled ? styles["section-card"] : styles["section-card-disabled"],
+                      draggingSectionId === section.id && styles["dragging"]
+                    )}
                   >
-                    <div>
-                      <div className={styles["section-label"]}>{section.label}</div>
-                      <div className={styles["section-meta"]}>
-                        /{trip.slug}/{group.slug}/{section.slug}
-                        {!section.enabled && " · disabled"}
+                    <div className={styles["section-label-row"]}>
+                      <span className={styles["drag-handle"]} aria-hidden="true">
+                        <GripIcon />
+                      </span>
+                      <div>
+                        <div className={styles["section-label"]}>{section.label}</div>
+                        <div className={styles["section-meta"]}>
+                          /{trip.slug}/{group.slug}/{section.slug}
+                          {!section.enabled && " · disabled"}
+                        </div>
                       </div>
                     </div>
                     <div className={styles["section-actions"]}>

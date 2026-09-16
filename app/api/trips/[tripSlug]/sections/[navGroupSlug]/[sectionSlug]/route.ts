@@ -68,6 +68,10 @@ export async function PATCH(
     navGroupId,
     enabled,
     fieldDefs,
+    // Backs SectionsAdmin's own drag-to-reorder within a nav group —
+    // see lib/sectionLabels.ts's PRIMARY_TIER_SORT_ORDER/PAST_TIER_SORT_ORDER
+    // for the same field set at creation time.
+    sortOrder,
   } = body;
 
   if (cardLayout !== undefined && !VALID_CARD_LAYOUTS.includes(cardLayout)) {
@@ -85,6 +89,7 @@ export async function PATCH(
   if (cardLayout !== undefined) patch.card_layout = cardLayout;
   if (navGroupId !== undefined) patch.nav_group_id = navGroupId;
   if (enabled !== undefined) patch.enabled = !!enabled;
+  if (typeof sortOrder === "number") patch.sort_order = sortOrder;
 
   if (fieldDefs) {
     for (const f of fieldDefs) {
