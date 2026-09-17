@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
-import { requireSuperAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { exportItineraryOrThrow } from "@/lib/itineraryDocExport";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Same gate as the rest of the itinerary (super admin, see
-// requireSuperAdmin) — this only ever runs from an explicit button
+// Same gate as the rest of the itinerary (any admin, see
+// requireAdmin) — this only ever runs from an explicit button
 // click, so a real failure should reach whoever clicked it rather than
 // vanish into a server log (same reasoning as /sheet-export using
 // exportSectionOrThrow, not the never-throws exportSection).
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError, supabase } = await requireSuperAdmin();
+  const { error: authError, supabase } = await requireAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   try {

@@ -1,21 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { getStopsForTrip, createStop, deleteAllStopsForTrip } from "@/lib/itineraryStops";
-import { requireSuperAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// The itinerary is hidden behind super admin (see requireSuperAdmin) —
-// still being tested privately, not opened up to trip editors/
-// contributors the way the rest of a trip's content is. Every route
-// under /itinerary uses this same check.
+// The itinerary is hidden behind admin (see requireAdmin) — not yet
+// opened up to trip editors/contributors the way the rest of a trip's
+// content is. Every route under /itinerary uses this same check.
 export async function GET(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError, supabase } = await requireSuperAdmin();
+  const { error: authError, supabase } = await requireAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   try {
@@ -31,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError, supabase } = await requireSuperAdmin();
+  const { error: authError, supabase } = await requireAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   let body;
@@ -73,7 +72,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError, supabase } = await requireSuperAdmin();
+  const { error: authError, supabase } = await requireAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   try {

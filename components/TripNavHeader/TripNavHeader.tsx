@@ -23,11 +23,6 @@ export interface TripNavHeaderProps {
    * supabase/migrations/0021_trip_editors.sql) — someone who already
    * has this doesn't need the "create a permanent login" offer below. */
   isEditor?: boolean;
-  /** Gates the Itinerary link entirely — see isSuperAdminUser in
-   * lib/auth.ts. The feature is still being tested privately, not
-   * opened up to trip editors/contributors the way the rest of a
-   * trip's content is, so this is deliberately narrower than isAdmin. */
-  isSuperAdmin?: boolean;
   contactEmail?: string | null;
 }
 
@@ -62,7 +57,6 @@ export default function TripNavHeader({
   nav: allNav,
   isAdmin = false,
   isEditor = false,
-  isSuperAdmin = false,
   contactEmail = null,
 }: TripNavHeaderProps) {
   const pathname = usePathname();
@@ -233,10 +227,10 @@ export default function TripNavHeader({
                 {/* A fixed built-in page, not part of the nav_groups/
                     sections data model Section Designer manages — a
                     peer to the category tabs, not nested under one.
-                    Hidden entirely (not just disabled) unless
-                    isSuperAdmin — still being tested privately, see
-                    its own prop comment. */}
-                {isSuperAdmin && (
+                    Hidden entirely (not just disabled) unless isAdmin —
+                    not yet opened up to trip editors/contributors the
+                    way the rest of a trip's content is. */}
+                {isAdmin && (
                   <NavigationMenuItem>
                     <NavigationMenuLink asChild active={pathname === itineraryPath}>
                       <Link href={itineraryPath}>Itinerary</Link>
@@ -251,7 +245,7 @@ export default function TripNavHeader({
                 nav={nav}
                 pathname={pathname}
                 sectionPath={sectionPath}
-                extraLink={isSuperAdmin ? { href: itineraryPath, label: "Itinerary" } : undefined}
+                extraLink={isAdmin ? { href: itineraryPath, label: "Itinerary" } : undefined}
                 open={drawerOpen}
                 onOpenChange={setDrawerOpen}
               />

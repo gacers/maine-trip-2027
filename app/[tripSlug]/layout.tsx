@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getTripBySlug, getTripNav, sanitizeTripForClient } from "@/lib/sections";
-import { getAdminUser, isSuperAdminUser } from "@/lib/auth";
+import { getAdminUser } from "@/lib/auth";
 import { isEditorForTrip } from "@/lib/tripEditors";
 import { getContactEmail } from "@/lib/settings";
 import TripNavHeader from "@/components/TripNavHeader";
@@ -33,7 +33,6 @@ export default async function TripLayout({
   // would, and app_admins/trip_editors are deliberately separate
   // tables (see supabase/migrations/0021_trip_editors.sql).
   const isEditor = admin ? false : await isEditorForTrip(trip.id);
-  const superAdmin = await isSuperAdminUser(admin);
   const publicTrip = sanitizeTripForClient(trip);
 
   return (
@@ -46,7 +45,6 @@ export default async function TripLayout({
         nav={nav}
         isAdmin={!!admin}
         isEditor={isEditor}
-        isSuperAdmin={superAdmin}
         contactEmail={contactEmail}
       />
       {/* Everything below the nav bar — the actual trip content — waits

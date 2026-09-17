@@ -39,7 +39,11 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
   const [contributorToken, setContributorToken] = useState<string | null>(null);
   const [accessChecked, setAccessChecked] = useState(isAdmin || isEditor);
   const [editingStop, setEditingStop] = useState<ItineraryStop | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  // List view is hidden for now (no toggle to reach it) — Week covers
+  // everything it's actually used for, and this keeps the list-render
+  // branch below intact rather than deleting it outright in case it's
+  // worth bringing back later. Not state: nothing ever changes it.
+  const viewMode: ViewMode = "week";
   const stickyHeaderRef = useRef<HTMLDivElement>(null);
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -213,22 +217,6 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
         <div className={styles["header"]}>
           <div className={styles["heading-group"]}>
             <h1 className={styles["heading"]}>Itinerary</h1>
-            <div className={styles["view-toggle"]}>
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                className={classNames(styles["view-toggle-button"], viewMode === "list" && styles["view-toggle-active"])}
-              >
-                List
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("week")}
-                className={classNames(styles["view-toggle-button"], viewMode === "week" && styles["view-toggle-active"])}
-              >
-                Week
-              </button>
-            </div>
           </div>
           {accessChecked && canContribute && (
             <div className={styles["header-actions"]}>

@@ -7,12 +7,24 @@
 /* Quick-jump strip — most useful once the lane row below has become a
    one-at-a-time carousel (narrow screens), but harmless (and still a
    handy shortcut past a long trip) at any width, so it's never
-   conditionally rendered, just always present. */
+   conditionally rendered, just always present. Sticky, right below
+   the page's own sticky nav + title/toggle/export bar, so it stays
+   reachable while scrolling down a tall lane instead of scrolling
+   away with the rest of the page. A solid background + its own
+   negative-margin/padding bleed for the same reason .sticky-header
+   needed one: cards scroll underneath it, and .root's own side
+   padding would otherwise leave a gap in its background at full
+   width. */
 .day-picker {
+  position: sticky;
+  top: calc(var(--sticky-nav-height, 0px) + var(--itinerary-sticky-header-height, 0px));
+  z-index: 3;
+  margin: 0 -1rem;
+  padding: 0.5rem 1rem 0.75rem;
+  background: var(--color-white);
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
-  padding-bottom: 0.25rem;
 }
 
 .day-pill {

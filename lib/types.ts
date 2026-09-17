@@ -135,6 +135,11 @@ export interface Trip {
   // lazily-created-on-first-export shape as google_sheet_id/_url.
   google_itinerary_doc_id?: string | null;
   google_itinerary_doc_url?: string | null;
+  // See supabase/migrations/0031_trip_drive_folder.sql — the Drive
+  // subfolder (inside the app-wide shared folder) this trip's own
+  // Sheet + itinerary Doc live in, created lazily by
+  // lib/drive.ts's getOrCreateTripFolder.
+  google_drive_folder_id?: string | null;
   archived: boolean;
   // Admin-only secrets — present on the raw row, stripped by
   // sanitizeTripForClient before reaching a Client Component or a
@@ -153,6 +158,7 @@ export type PublicTrip = Omit<
   | "google_sheet_id"
   | "google_itinerary_doc_id"
   | "google_itinerary_doc_url"
+  | "google_drive_folder_id"
 >;
 
 export type EntryStatus = "active" | "archived";

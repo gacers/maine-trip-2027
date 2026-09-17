@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { docs_v1 } from "googleapis";
 import { getDocsClient } from "@/lib/googleDocsAuth";
-import { createDocInDrive } from "@/lib/drive";
+import { createDocInDrive, getOrCreateTripFolder } from "@/lib/drive";
 import { getStopsForTrip } from "@/lib/itineraryStops";
 import { getOrComputeRoute } from "@/lib/routeCache";
 import { toGoogleTravelMode, ITINERARY_TRAVEL_MODE_CONNECTOR_LABEL } from "@/lib/itineraryTravelMode";
@@ -334,17 +334,15 @@ function requestsFromContent(text: string, runs: StyleRun[], tabConsumptions: Ta
 export async function exportItineraryOrThrow(supabase: SupabaseClient, trip: Trip): Promise<ExportResult> {
   const stops = await getStopsForTrip(supabase, trip.id);
 
-  const { data: settings } = await supabase
-    .from("app_settings")
-    .select("google_drive_folder_id")
-    .eq("id", true)
-    .maybeSingle();
-
   let docId = trip.google_itinerary_doc_id;
   let docUrl = trip.google_itinerary_doc_url;
 
   if (!docId) {
-    const created = await createDocInDrive(`${trip.name} — Itinerary`, settings?.google_drive_folder_id);
+    // Groups this trip's Doc with its own Sheet (if it has one) in one
+    // subfolder instead of every trip's files sitting flat as siblings
+    // — see getOrCreateTripFolder's own comment.
+    const tripFolderId = await getOrCreateTripFolder(supabase, trip);
+    const created = await createDocInDrive(`${trip.name} — Itinerary`, tripFolderId);
     docId = created.id;
     docUrl = created.url;
     await supabase.from("trips").update({ google_itinerary_doc_id: docId, google_itinerary_doc_url: docUrl }).eq("id", trip.id);

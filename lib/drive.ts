@@ -1,4 +1,6 @@
 import { google } from "googleapis";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Trip } from "@/lib/types";
 
 // Plain service accounts have zero Google Drive storage quota, so they
 // can't own a file even inside a folder shared with them as Editor —
@@ -88,6 +90,52 @@ export async function createDocInDrive(name: string, folderId?: string | null): 
   });
 
   return { id: data.id!, url: `https://docs.google.com/document/d/${data.id}/edit` };
+}
+
+// Groups a trip's own Sheet + itinerary Doc together in one subfolder
+// (inside the app-wide shared folder, app_settings.google_drive_folder_id)
+// instead of every trip's files sitting flat as siblings — created
+// lazily, the first time either export needs a folder for a trip that
+// doesn't have one yet (see createSheetInDrive/createDocInDrive's own
+// callers). Any of the trip's files that already existed before it had
+// its own folder (a Sheet exported under the old flat layout, or an
+// itinerary Doc that happened to get created first) get moved into the
+// new folder too, right here, so nothing's left stranded behind.
+export async function getOrCreateTripFolder(supabase: SupabaseClient, trip: Trip): Promise<string | null> {
+  if (trip.google_drive_folder_id) return trip.google_drive_folder_id;
+
+  const { data: settings } = await supabase
+    .from("app_settings")
+    .select("google_drive_folder_id")
+    .eq("id", true)
+    .maybeSingle();
+  const parentFolderId: string | undefined = settings?.google_drive_folder_id || undefined;
+
+  const oauth = getOAuthClient();
+  const drive = google.drive({ version: "v3", auth: oauth });
+
+  const { data } = await drive.files.create({
+    requestBody: {
+      name: trip.name,
+      mimeType: "application/vnd.google-apps.folder",
+      parents: parentFolderId ? [parentFolderId] : undefined,
+    },
+    fields: "id",
+  });
+  const folderId = data.id!;
+
+  await supabase.from("trips").update({ google_drive_folder_id: folderId }).eq("id", trip.id);
+
+  // Best-effort — a stranded pre-existing file staying where it is
+  // isn't worth failing the whole export over.
+  for (const fileId of [trip.google_sheet_id, trip.google_itinerary_doc_id]) {
+    if (!fileId) continue;
+    await drive.files
+      .update({ fileId, addParents: folderId, removeParents: parentFolderId || "root", fields: "id, parents" })
+      .catch(() => {});
+  }
+
+  return folderId;
 }
 
 // Grants one specific person real Google Sheets access by email —

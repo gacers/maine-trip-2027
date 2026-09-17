@@ -295,3 +295,19 @@ export async function requireSuperAdmin(): Promise<
   }
   return { supabase: supabaseServiceRole() };
 }
+
+// Same shape as requireSuperAdmin above, minus the extra super-admin
+// restriction — a real signed-in admin session (or the dev-bypass
+// equivalent), full stop. For the itinerary API routes now that the
+// feature has moved from super-admin-only to any admin (it was gated
+// tighter while still being tested privately — see requireSuperAdmin's
+// own comment); still no bearer-token path, same reasoning as there
+// (an invite-link contributor or a global automation API key has no
+// app_admins row to check).
+export async function requireAdmin(): Promise<
+  { supabase: SupabaseClient; error?: undefined } | { error: WriteAccessError; supabase?: undefined }
+> {
+  const admin = await getAdminUser();
+  if (!admin) return { error: { status: 401, message: "Sign in required" } };
+  return { supabase: supabaseServiceRole() };
+}

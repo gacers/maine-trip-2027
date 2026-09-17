@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { sheets_v4 } from "googleapis";
 import { getSheetsClient } from "@/lib/googleSheetsAuth";
-import { createSheetInDrive } from "@/lib/drive";
+import { createSheetInDrive, getOrCreateTripFolder } from "@/lib/drive";
 import { getAllEntries, toClientEntry } from "@/lib/entries";
 import { getRatingsForEntries, summarizeRatings } from "@/lib/ratings";
 import { groupUnits } from "@/lib/groupUnits";
@@ -159,7 +159,8 @@ async function doExportSection(supabase: SupabaseClient, trip: Trip, section: Se
   let spreadsheetUrl = trip.google_sheet_url;
 
   if (!spreadsheetId) {
-    const created = await createSheetInDrive(trip.name, settings?.google_drive_folder_id);
+    const tripFolderId = await getOrCreateTripFolder(supabase, trip);
+    const created = await createSheetInDrive(trip.name, tripFolderId);
     spreadsheetId = created.id;
     spreadsheetUrl = created.url;
     await supabase.from("trips").update({ google_sheet_id: spreadsheetId, google_sheet_url: spreadsheetUrl }).eq("id", trip.id);

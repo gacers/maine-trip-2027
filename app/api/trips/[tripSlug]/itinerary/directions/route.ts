@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
-import { requireSuperAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { getOrComputeRoute } from "@/lib/routeCache";
 import type { TravelMode } from "@/lib/types";
 
@@ -14,7 +14,7 @@ function isLatLng(v: unknown): v is { lat: number; lng: number } {
 }
 
 // Backs RouteConnector — same access level as the rest of the
-// itinerary (super admin, see requireSuperAdmin), a POST rather than a
+// itinerary (any admin, see requireAdmin), a POST rather than a
 // GET since the origin/destination pair is arbitrary input, not a
 // resource path. Almost every call hits route_cache instead of Google
 // (see getOrComputeRoute) once a trip's stop-pairs have been asked for
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError, supabase } = await requireSuperAdmin();
+  const { error: authError, supabase } = await requireAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   let body: Record<string, unknown>;
