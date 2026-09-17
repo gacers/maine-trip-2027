@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type DragEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import classNames from "classnames";
 import { captureInviteToken } from "@/lib/inviteClient";
 import AddStopDialog from "./components/AddStopDialog";
@@ -40,6 +40,7 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
   const [accessChecked, setAccessChecked] = useState(isAdmin || isEditor);
   const [editingStop, setEditingStop] = useState<ItineraryStop | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const stickyHeaderRef = useRef<HTMLDivElement>(null);
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -53,6 +54,26 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
     setContributorToken(captureInviteToken(trip.slug));
     setAccessChecked(true);
   }, [trip.slug]);
+
+  // This page's own sticky bar (title/toggle/actions row, plus the Doc
+  // export box) sits right below the site's own sticky nav — its
+  // rendered height varies (the export box only shows once
+  // accessChecked, and wraps taller on a narrow screen), so it's
+  // published as a CSS variable on the document root the same way
+  // TripNavHeader publishes --sticky-nav-height, rather than guessed
+  // as a fixed value. Lets WeekView's own per-lane sticky day headers
+  // stick directly below both stacked bars instead of getting covered
+  // by them (a sibling, not a descendant, of this bar in the DOM, so
+  // the variable has to live somewhere both can reach).
+  useLayoutEffect(() => {
+    const el = stickyHeaderRef.current;
+    if (!el) return;
+    const setHeight = () => document.documentElement.style.setProperty("--itinerary-sticky-header-height", `${el.offsetHeight}px`);
+    setHeight();
+    const observer = new ResizeObserver(setHeight);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     // Waits on accessChecked so a contributor's token (only known after
@@ -188,7 +209,7 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
 
   return (
     <div className={classNames(styles["root"], viewMode === "week" ? styles["root-week"] : styles["root-list"])}>
-      <div className={styles["sticky-header"]}>
+      <div ref={stickyHeaderRef} className={styles["sticky-header"]}>
         <div className={styles["header"]}>
           <div className={styles["heading-group"]}>
             <h1 className={styles["heading"]}>Itinerary</h1>

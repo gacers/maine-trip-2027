@@ -84,7 +84,18 @@
   background: var(--color-blue-50);
 }
 
+/* Stuck below the site's own sticky nav AND this page's own sticky
+   title/toggle/export bar (see ItineraryPage's own
+   --itinerary-sticky-header-height) — scrolling down a long day keeps
+   its own date visible instead of it scrolling away with the first
+   card, which is what "sticky" already does for the page's header. A
+   solid background (not transparent) since cards now scroll underneath
+   it. */
 .lane-header {
+  position: sticky;
+  top: calc(var(--sticky-nav-height, 0px) + var(--itinerary-sticky-header-height, 0px));
+  z-index: 2;
+  background: var(--color-zinc-50);
   font-size: var(--text-sm);
   font-weight: var(--font-weight-bold);
   color: var(--color-zinc-700);
