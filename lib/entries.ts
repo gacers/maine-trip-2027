@@ -72,11 +72,13 @@ export async function findEntryByUrlAnywhere(
 // Live search-as-you-type across every trip/section's entries by title
 // — same "suggestion to reuse" idea as findEntryByUrlAnywhere above,
 // just keyed by name instead of a pasted link (for someone typing a
-// place from memory rather than pasting its URL). Same public-read
-// posture, same "never blocks, just offers" semantics: picking a match
-// still creates a genuinely independent row (see the preview route's
-// own comment on why notes/rank/section-specific fields are never
-// carried over either way).
+// place from memory rather than pasting its URL). Same "never blocks,
+// just offers" semantics: picking a match still creates a genuinely
+// independent row (see the preview route's own comment on why notes/
+// rank/section-specific fields are never carried over either way).
+// Its own route requires read access to the *calling* trip (see
+// requireReadAccess) — once past that, the results themselves are
+// still cross-trip on purpose, same as findEntryByUrlAnywhere.
 export async function searchEntriesByTitle(
   supabase: SupabaseClient,
   query: string,

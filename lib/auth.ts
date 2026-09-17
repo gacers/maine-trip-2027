@@ -160,6 +160,73 @@ export async function requireWriteAccess(
   return { supabase, raterKey: `admin:${user.id}` };
 }
 
+// Gates a *read* — every trip's real content (entries, the search/
+// preview endpoints that expose them) used to be open to anyone who
+// knew or guessed the URL; TripAccessGate blocks the UI from ever
+// getting there, but that's a client-side convenience, not real
+// protection against a direct request. This admits the same 3
+// identities requireWriteAccess does, just with no role tier to clear:
+// a contributor's invite-link key is exactly as good as an admin/editor
+// session for reading, unlike for writes (see requireWriteAccess's own
+// minRole gate) — there's no "read-only" invite link today, so any
+// valid, trip-scoped key is enough. Every read call site that already
+// sends this trip's authToken for writes (see useSectionEntries's own
+// authHeaders, AddEntryForm's) already sends it on reads too, so a
+// legitimate contributor sees no change; only a request carrying
+// neither a session nor a key gets refused now.
+export async function requireReadAccess(request: Request, tripId: string): Promise<WriteAccessResult> {
+  const authHeader = request.headers.get("authorization") || "";
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+
+  if (bearerMatch) {
+    const token = bearerMatch[1].trim();
+
+    if (isDevBypassEnabled && token === DEV_CONTRIBUTOR_TOKEN) {
+      return { supabase: supabaseServiceRole(), raterKey: "key:dev-contributor" };
+    }
+
+    const service = supabaseServiceRole();
+    const { data: keys, error } = await service
+      .from("api_keys")
+      .select("id, trip_id, revoked")
+      .eq("key_hash", hashApiKey(token))
+      .limit(1);
+    if (error) return { error: { status: 500, message: "Auth check failed" } };
+    const key = keys?.[0];
+    if (!key || key.revoked) return { error: { status: 401, message: "Invalid access link" } };
+    if (key.trip_id && key.trip_id !== tripId) {
+      return { error: { status: 403, message: "This key isn't valid for this trip" } };
+    }
+    // Best-effort — don't block the actual request on this.
+    service
+      .from("api_keys")
+      .update({ last_used_at: new Date().toISOString() })
+      .eq("id", key.id)
+      .then(() => {});
+    return { supabase: service, raterKey: `key:${key.id}` };
+  }
+
+  const supabase = await supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    if (await hasDevAdminCookie()) {
+      return { supabase: supabaseServiceRole(), raterKey: "admin:dev" };
+    }
+    return { error: { status: 401, message: "Sign in or an invite link required" } };
+  }
+
+  const { data: adminRow } = await supabase.from("app_admins").select("user_id").eq("user_id", user.id).maybeSingle();
+  if (adminRow) return { supabase, raterKey: `admin:${user.id}` };
+
+  if (await checkEditorForTrip(supabase, user.id, tripId)) {
+    return { supabase: supabaseServiceRole(), raterKey: `editor:${user.id}` };
+  }
+
+  return { error: { status: 403, message: "You don't have access to this trip" } };
+}
+
 // For gating admin pages (Section Designer, New Trip, API keys) in
 // Server Components/layouts — not used by API routes, which use
 // requireWriteAccess above instead. Returns the signed-in admin's user

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { findCandidateSectionsForConceptSlug } from "@/lib/entries";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { requireWriteAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -21,6 +21,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
+  // Admin-only, matching PrefillPanel's own page (a section's Edit
+  // page, under /admin) — this hands back other trips' section/entry
+  // counts, a level above what a plain contributor should see.
+  const { error: authError, supabase } = await requireWriteAccess(request, trip.id);
+  if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
+
   const searchParams = new URL(request.url).searchParams;
   const navGroupSlug = (searchParams.get("navGroupSlug") || "").trim();
   const slug = (searchParams.get("slug") || "").trim();
@@ -29,7 +35,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "navGroupSlug, slug, and excludeSectionId are required" }, { status: 400 });
   }
 
-  const supabase = await supabaseServer();
-  const candidates = await findCandidateSectionsForConceptSlug(supabase, navGroupSlug, slug, excludeSectionId);
+  const candidates = await findCandidateSectionsForConceptSlug(supabase!, navGroupSlug, slug, excludeSectionId);
   return NextResponse.json({ candidates });
 }

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
-import { requireWriteAccess } from "@/lib/auth";
+import { getTripBySlug, getSectionBySlug, sanitizeTripForClient } from "@/lib/sections";
+import { requireWriteAccess, requireReadAccess } from "@/lib/auth";
 import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
 import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
 import type { FieldType, Section } from "@/lib/types";
@@ -32,7 +32,13 @@ export async function GET(
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
   const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) return NextResponse.json({ error: "Unknown section" }, { status: 404 });
-  return NextResponse.json({ trip, section });
+
+  const { error: authError } = await requireReadAccess(request, trip.id);
+  if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
+
+  // sanitizeTripForClient — same fix as the sections list GET route,
+  // this used to hand back trip.sheet_invite_token as-is.
+  return NextResponse.json({ trip: sanitizeTripForClient(trip), section });
 }
 
 // Replaces the section's whole field_defs list with whatever's given

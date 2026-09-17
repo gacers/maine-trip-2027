@@ -60,7 +60,7 @@ export default function RequestAccess({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant={triggerVariant} size={triggerSize} className={triggerClassName}>
-          {section ? "Want to add something here? Request access" : "Request access"}
+          {section ? "Request access" : "Request access"}
         </Button>
       </DialogTrigger>
       <DialogContent>

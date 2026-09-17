@@ -184,7 +184,7 @@ export default function AddEntryForm({
     }
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`${apiBase}/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`${apiBase}/search?q=${encodeURIComponent(q)}`, { headers: authHeaders });
         const resData = await res.json();
         if (!cancelled && res.ok) setTitleMatches(resData.matches || []);
       } catch {
