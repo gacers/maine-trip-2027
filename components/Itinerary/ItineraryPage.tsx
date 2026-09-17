@@ -50,12 +50,18 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
   }, [trip.slug]);
 
   useEffect(() => {
-    fetch(`/api/trips/${trip.slug}/itinerary/stops`, { cache: "no-store" })
+    // Waits on accessChecked so a contributor's token (only known after
+    // the effect above resolves) is actually in authHeaders by the time
+    // this fires — otherwise a contributor's very first render would
+    // fire this with no Authorization header and get refused.
+    if (!accessChecked) return;
+    fetch(`/api/trips/${trip.slug}/itinerary/stops`, { cache: "no-store", headers: authHeaders })
       .then((res) => res.json())
       .then((data) => setStops(data.stops || []))
       .catch(() => setError("Couldn't load the itinerary"))
       .finally(() => setLoading(false));
-  }, [trip.slug]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip.slug, accessChecked]);
 
   function canReorder(draggedId: string, targetId: string): boolean {
     return draggedId !== targetId && stops.some((s) => s.id === draggedId) && stops.some((s) => s.id === targetId);
@@ -158,6 +164,8 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
               <div key={stop.id}>
                 {showConnector && (
                   <RouteConnector
+                    tripSlug={trip.slug}
+                    authToken={authToken}
                     from={{ lat: prevStop!.lat!, lng: prevStop!.lng! }}
                     to={{ lat: stop.lat!, lng: stop.lng! }}
                     travelMode={stop.travel_mode}

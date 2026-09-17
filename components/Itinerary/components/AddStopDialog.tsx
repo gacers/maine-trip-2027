@@ -84,12 +84,14 @@ export default function AddStopDialog({ tripSlug, authToken, lastStop, onAdded }
   useEffect(() => {
     if (!open || entries !== null) return;
     setEntriesLoading(true);
-    fetch(`/api/trips/${tripSlug}/itinerary/entries`)
+    fetch(`/api/trips/${tripSlug}/itinerary/entries`, {
+      headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+    })
       .then((res) => res.json())
       .then((data) => setEntries(data.entries || []))
       .catch(() => setEntries([]))
       .finally(() => setEntriesLoading(false));
-  }, [open, entries, tripSlug]);
+  }, [open, entries, tripSlug, authToken]);
 
   // Re-derives the default date/time from the *current* last stop each
   // time the dialog opens — not just at first mount — so adding

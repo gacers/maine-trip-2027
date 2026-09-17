@@ -1,20 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { getStopsForTrip, createStop, deleteAllStopsForTrip } from "@/lib/itineraryStops";
-import { requireWriteAccess } from "@/lib/auth";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { requireWriteAccess, requireReadAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// Real trip content — same as every other read this trip's data comes
+// from (see requireReadAccess's own comment). This predates that gate;
+// bringing it in line now rather than leaving the itinerary as the one
+// place still open to a bare request.
 export async function GET(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
+  const { error: authError, supabase } = await requireReadAccess(request, trip.id);
+  if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
+
   try {
-    const supabase = await supabaseServer();
-    const stops = await getStopsForTrip(supabase, trip.id);
+    const stops = await getStopsForTrip(supabase!, trip.id);
     return NextResponse.json({ stops });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
