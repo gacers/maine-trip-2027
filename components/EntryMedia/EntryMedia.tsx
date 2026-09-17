@@ -84,6 +84,11 @@ export default function EntryMedia({
           as the photo shrinks to nothing. */}
       {!collapsed && (collapsible || (showRatings && !!entry.ratingCount && entry.averageScore != null)) && (
         <div className={styles["overlay-row"]}>
+          {showRatings && !!entry.ratingCount && entry.averageScore != null && (
+            <div className={styles["score-badge"]} title={`${entry.averageScore.toFixed(1)} avg (${entry.ratingCount})`}>
+              {entry.averageScore.toFixed(1)}
+            </div>
+          )}
           {collapsible && (
             <button
               type="button"
@@ -94,11 +99,6 @@ export default function EntryMedia({
             >
               <ChevronUp size={18} />
             </button>
-          )}
-          {showRatings && !!entry.ratingCount && entry.averageScore != null && (
-            <div className={styles["score-badge"]} title={`${entry.averageScore.toFixed(1)} avg (${entry.ratingCount})`}>
-              {entry.averageScore.toFixed(1)}
-            </div>
           )}
         </div>
       )}
