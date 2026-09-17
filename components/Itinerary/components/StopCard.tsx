@@ -90,41 +90,23 @@ export default function StopCard({
         <div className={styles["top-row"]}>
           {time && <span className={styles["time"]}>{time}</span>}
           <span className={styles["kind"]}>{KIND_LABEL[stop.kind] || stop.kind}</span>
-          {canEdit ? (
-            // Always visible, on every stop regardless of its current
-            // status — not just while tentative — so it doubles as
-            // both the quick decide-now action AND the always-on
-            // indicator of where a stop currently stands. Checking one
-            // sets that status; un-checking (clicking an already-
-            // checked box) reverts back to tentative, same as any
-            // other checkbox toggling its own state.
+          {stop.status === "confirmed" && (
+            <span className={styles["confirmed"]} title="Confirmed / booked">
+              ✅
+            </span>
+          )}
+          {stop.status === "archived" && <span className={styles["archived-tag"]}>Archived</span>}
+          {stop.status === "tentative" && canEdit && (
             <div className={styles["status-actions"]}>
               <label className={styles["status-checkbox"]}>
-                <input
-                  type="checkbox"
-                  checked={stop.status === "confirmed"}
-                  onChange={() => onStatusChange(stop.status === "confirmed" ? "tentative" : "confirmed")}
-                />
+                <input type="checkbox" checked={false} onChange={() => onStatusChange("confirmed")} />
                 Confirm
               </label>
               <label className={styles["status-checkbox"]}>
-                <input
-                  type="checkbox"
-                  checked={stop.status === "archived"}
-                  onChange={() => onStatusChange(stop.status === "archived" ? "tentative" : "archived")}
-                />
+                <input type="checkbox" checked={false} onChange={() => onStatusChange("archived")} />
                 Skip
               </label>
             </div>
-          ) : (
-            <>
-              {stop.status === "confirmed" && (
-                <span className={styles["confirmed"]} title="Confirmed / booked">
-                  ✅
-                </span>
-              )}
-              {stop.status === "archived" && <span className={styles["archived-tag"]}>Archived</span>}
-            </>
           )}
         </div>
         <div className={styles["title"]}>

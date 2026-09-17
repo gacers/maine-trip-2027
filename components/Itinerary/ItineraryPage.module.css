@@ -19,13 +19,21 @@
    list — Add stop/Clear all/the Doc export box stay reachable without
    scrolling back up. Its own background/padding/border so it reads as
    a distinct bar once content is actually scrolling underneath it,
-   not just floating text. */
+   not just floating text. The negative horizontal margin cancels
+   .root's own 1rem side padding so this bar's background spans the
+   full window edge to edge (confirmed live: without it, .root's
+   padding left a visible sliver of page background on both sides of
+   an otherwise "full width" sticky bar) — the matching 1rem padding
+   put back on just this element keeps its own content (title,
+   buttons) aligned with everything else on the page that's still
+   inset by .root's padding. */
 .sticky-header {
   position: sticky;
   top: var(--sticky-nav-height, 0px);
   z-index: 5;
   background: var(--color-white);
-  padding: 1.5rem 0 1rem;
+  margin: 0 -1rem;
+  padding: 0.75rem 1rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
