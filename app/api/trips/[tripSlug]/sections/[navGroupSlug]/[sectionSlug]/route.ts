@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
+import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
 import type { FieldType, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -171,6 +172,18 @@ export async function PATCH(
         }));
         const { error: insError } = await supabase!.from("field_defs").insert(rows);
         if (insError) throw new Error(insError.message);
+
+        // Best-effort, same as the sections POST route's own capture.
+        for (const f of fieldDefs as Record<string, unknown>[]) {
+          upsertCustomFieldTemplate(supabase!, trip.id, {
+            key: f.key as string,
+            label: f.label as string,
+            field_type: f.field_type as FieldType,
+            show_on_overview: !!f.show_on_overview,
+            required: !!f.required,
+            options: (f.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
+          }).catch((err) => console.error("Field template capture failed:", err));
+        }
       }
     }
 

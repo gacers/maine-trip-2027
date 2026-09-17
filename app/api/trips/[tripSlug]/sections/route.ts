@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug, getTripNav } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
+import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
 import type { FieldType, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -154,6 +155,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }));
       const { error: fieldError } = await supabase!.from("field_defs").insert(rows);
       if (fieldError) throw new Error(fieldError.message);
+
+      // Best-effort, same reasoning as the nav-group capture below —
+      // every named field becomes pickable on any other section/trip
+      // too (see FieldDefsEditor's own template picker).
+      for (const f of fieldDefs as Record<string, unknown>[]) {
+        upsertCustomFieldTemplate(supabase!, trip.id, {
+          key: f.key as string,
+          label: f.label as string,
+          field_type: f.field_type as FieldType,
+          show_on_overview: !!f.show_on_overview,
+          required: !!f.required,
+          options: (f.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
+        }).catch((err) => console.error("Field template capture failed:", err));
+      }
     }
 
     // Best-effort — a custom nav group's usefulness on THIS trip never

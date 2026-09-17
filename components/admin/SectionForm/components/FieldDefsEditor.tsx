@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import type { FieldDef, FieldType } from "@/lib/types";
+import type { CustomFieldTemplate } from "@/lib/customFieldTemplates";
 import styles from "./FieldDefsEditor.module.css";
 
 const FIELD_TYPES: FieldType[] = ["text", "textarea", "url", "image_url", "number", "count", "price", "select", "boolean", "date"];
@@ -62,13 +64,47 @@ export interface FieldDefsEditorProps {
   onChange: (fields: FieldRow[]) => void;
 }
 
+function templateToRow(t: CustomFieldTemplate): FieldRow {
+  return {
+    key: t.field_key,
+    label: t.label,
+    field_type: t.field_type,
+    show_on_overview: t.show_on_overview,
+    required: t.required,
+    optionsText:
+      t.field_type === "select"
+        ? (t.options?.choices || []).join(", ")
+        : t.field_type === "count"
+          ? (t.options?.aliases || []).join(", ")
+          : "",
+  };
+}
+
 // The section's own custom fields (price, bedrooms, Closed, ...) —
 // add/edit/remove rows. Owns the array-manipulation itself (add/
 // update/remove), the parent just holds the current array and reads
-// it back on submit.
+// it back on submit. Also offers picking an already-defined field
+// (any section, any trip — see lib/customFieldTemplates.ts) instead of
+// starting blank, the same "build it once, reuse it everywhere" idea
+// SectionsAdmin's own template buttons give whole nav groups.
 export default function FieldDefsEditor({ fields, onChange }: FieldDefsEditorProps) {
+  const [templates, setTemplates] = useState<CustomFieldTemplate[]>([]);
+
+  useEffect(() => {
+    fetch("/api/field-templates", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => setTemplates(data.templates || []))
+      .catch(() => {});
+  }, []);
+
   function addField() {
     onChange([...fields, { key: "", label: "", field_type: "text", show_on_overview: false, required: false, optionsText: "" }]);
+  }
+
+  function addTemplateField(fieldKey: string) {
+    const template = templates.find((t) => t.field_key === fieldKey);
+    if (!template) return;
+    onChange([...fields, templateToRow(template)]);
   }
 
   function updateField(i: number, patch: Partial<FieldRow>) {
@@ -79,13 +115,35 @@ export default function FieldDefsEditor({ fields, onChange }: FieldDefsEditorPro
     onChange(fields.filter((_, idx) => idx !== i));
   }
 
+  // Already-added keys don't need to be offered again — picking one a
+  // second time would just collide with the row already on the form.
+  const availableTemplates = templates.filter((t) => !fields.some((f) => f.key === t.field_key));
+
   return (
     <div className={styles["root"]}>
       <div className={styles["header"]}>
         <h3 className={styles["title"]}>Fields</h3>
-        <button type="button" onClick={addField} className={styles["add-button"]}>
-          + Add field
-        </button>
+        <div className={styles["header-actions"]}>
+          {availableTemplates.length > 0 && (
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) addTemplateField(e.target.value);
+              }}
+              className={styles["template-select"]}
+            >
+              <option value="">+ Add existing field...</option>
+              {availableTemplates.map((t) => (
+                <option key={t.field_key} value={t.field_key}>
+                  {t.label} ({t.field_type})
+                </option>
+              ))}
+            </select>
+          )}
+          <button type="button" onClick={addField} className={styles["add-button"]}>
+            + Add blank field
+          </button>
+        </div>
       </div>
       {fields.length === 0 && (
         <p className={styles["no-fields-hint"]}>
