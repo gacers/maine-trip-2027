@@ -328,20 +328,26 @@ export default function EntryCard({
             </div>
             <div className={styles["header-actions"]}>
               <PriceDisplay entry={entry} priceFields={priceFields} />
-              {/* EntryMedia carries this same toggle as an overlay on
-                  the photo instead (right next to the score badge) —
-                  this copy only exists for a photo-less entry, which
-                  has nowhere to overlay it. */}
-              {collapsible && !entry.posterImage && (
-                <button
-                  type="button"
-                  onClick={() => setCollapsed((c) => !c)}
-                  className={styles["collapse-toggle"]}
-                  aria-expanded={!isCollapsed}
-                >
-                  {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                  {isCollapsed ? "Expand" : "Collapse"}
-                </button>
+              {/* While there's a photo, EntryMedia hosts this same
+                  toggle as an overlay on it instead (see its own
+                  comment) — collapsing shrinks that photo away
+                  entirely, so this copy slides in from the right here
+                  (pushing the price left to make room) the moment
+                  there's nowhere left up there to keep it. A photo-
+                  less entry never had one to hand off from, so this
+                  one just stays visible from the start. */}
+              {collapsible && (
+                <span className={classNames(styles["header-toggle-wrap"], (isCollapsed || !entry.posterImage) && styles["header-toggle-wrap-visible"])}>
+                  <button
+                    type="button"
+                    onClick={() => setCollapsed((c) => !c)}
+                    className={styles["collapse-toggle"]}
+                    aria-expanded={!isCollapsed}
+                    title={isCollapsed ? "Expand" : "Collapse"}
+                  >
+                    {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                  </button>
+                </span>
               )}
             </div>
           </div>

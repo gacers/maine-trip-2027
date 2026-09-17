@@ -123,22 +123,43 @@
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  /* No gap here on purpose — .header-toggle-wrap's own margin-left is
+     what actually animates open, so a fixed gap wouldn't leave a
+     stray space behind while it's collapsed to width:0. */
+}
+
+/* Slides in from the right (width + margin both animating) exactly
+   when EntryMedia no longer has the photo to host this same toggle on
+   — see EntryCard's own comment. Width, not just opacity, so the price
+   beside it visibly gets pushed left to make room as this opens,
+   rather than the two just swapping visibility in place. */
+.header-toggle-wrap {
+  display: inline-flex;
+  width: 0;
+  margin-left: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: width 0.25s ease, margin-left 0.25s ease, opacity 0.2s ease;
+}
+
+.header-toggle-wrap-visible {
+  width: 2.25rem;
+  margin-left: 0.75rem;
+  opacity: 1;
 }
 
 .collapse-toggle {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: var(--text-xs);
-  font-weight: var(--font-weight-medium);
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
   color: var(--color-zinc-600);
   background: var(--color-zinc-100);
   border: 1px solid var(--color-zinc-200);
-  border-radius: var(--radius);
-  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-full);
   cursor: pointer;
-  white-space: nowrap;
 
   &:hover {
     background: var(--color-zinc-200);

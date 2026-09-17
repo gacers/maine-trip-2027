@@ -32,14 +32,14 @@
   height: 15rem;
 }
 
-/* Just tall enough for the overlay row itself (toggle + score badge)
-   — the photo fades out underneath (see .media-img-collapsed) rather
-   than the card losing its photo entirely, so there's still a
-   recognizable strip with the controls sitting exactly where they were
-   before collapsing, not a jump to a bare text row. */
+/* All the way to nothing — no leftover grey placeholder bar once the
+   photo's faded out (see .media-img-collapsed). The toggle itself
+   doesn't get lost in this collapse: EntryCard's header row picks it
+   back up next to the price the moment there's no photo left to host
+   it (see EntryCard's own comment). */
 .root-collapsed {
   composes: root;
-  height: 3.25rem;
+  height: 0;
 }
 
 .media-img {
