@@ -270,13 +270,15 @@ async function doExportSection(supabase: SupabaseClient, trip: Trip, section: Se
   // highlighted "not archived" as "the survivors so far," but that
   // read as these listings being finalized when they're still just
   // options — confirmed live as misleading on an in-progress trip).
-  // Reset every export either way (0 clears any stale highlighting
-  // left over from before this rule, or from a still-deciding trip's
-  // own export), see the function itself.
-  if (showRankColumn || trip.completed) {
-    const highlightCount = trip.completed ? units.filter((u) => unitTier(u, trip.completed) === 0).length : 0;
-    await applyActiveRowHighlight(sheets, spreadsheetId!, sheetId, highlightCount);
-  }
+  // Unconditional, not gated on showRankColumn/trip.completed like the
+  // sort above — reset-to-white has to run on *every* export
+  // regardless of whether this run wants any highlight at all, or
+  // un-completing a trip (or turning ratings off) left every row it had
+  // previously marked visited stuck green forever, with nothing left
+  // to ever clear it (confirmed live). 0 highlightCount here just means
+  // "nothing to highlight," not "skip resetting."
+  const highlightCount = trip.completed ? units.filter((u) => unitTier(u, trip.completed) === 0).length : 0;
+  await applyActiveRowHighlight(sheets, spreadsheetId!, sheetId, highlightCount);
 
   return { spreadsheetId: spreadsheetId!, spreadsheetUrl: spreadsheetUrl! };
 }
