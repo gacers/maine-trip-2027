@@ -102,17 +102,39 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
     setStops((prev) => prev.filter((s) => s.id !== stopId));
   }
 
+  async function handleClearAll() {
+    if (!window.confirm(`Remove all ${stops.length} stops from this itinerary? This can't be undone.`)) return;
+    setError("");
+    try {
+      const res = await fetch(`/api/trips/${trip.slug}/itinerary/stops`, {
+        method: "DELETE",
+        headers: authHeaders,
+      });
+      if (!res.ok) throw new Error("Clear failed");
+      setStops([]);
+    } catch {
+      setError("Couldn't clear the itinerary — try again.");
+    }
+  }
+
   return (
     <div className={styles["root"]}>
       <div className={styles["header"]}>
         <h1 className={styles["heading"]}>Itinerary</h1>
         {accessChecked && canContribute && (
-          <AddStopDialog
-            tripSlug={trip.slug}
-            authToken={authToken}
-            lastStop={stops.length > 0 ? stops[stops.length - 1] : null}
-            onAdded={handleAdded}
-          />
+          <div className={styles["header-actions"]}>
+            <AddStopDialog
+              tripSlug={trip.slug}
+              authToken={authToken}
+              lastStop={stops.length > 0 ? stops[stops.length - 1] : null}
+              onAdded={handleAdded}
+            />
+            {stops.length > 0 && (
+              <button type="button" onClick={handleClearAll} className={styles["clear-button"]}>
+                Clear all
+              </button>
+            )}
+          </div>
         )}
       </div>
 

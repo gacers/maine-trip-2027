@@ -179,6 +179,13 @@ export async function deleteStop(supabase: SupabaseClient, tripId: string, stopI
   if (error) throw new Error(error.message);
 }
 
+// The "Clear all" button — wipes every stop on this trip's itinerary
+// in one query rather than the client looping a DELETE per stop.
+export async function deleteAllStopsForTrip(supabase: SupabaseClient, tripId: string): Promise<void> {
+  const { error } = await supabase.from("itinerary_stops").delete().eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+}
+
 // The itinerary's own "link an existing entry" search — scoped to just
 // this trip, unlike lib/entries.ts's cross-trip searchEntriesByTitle
 // (linking a stop to some other trip's entry wouldn't make sense).

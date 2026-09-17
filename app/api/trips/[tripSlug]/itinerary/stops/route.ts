@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
-import { getStopsForTrip, createStop } from "@/lib/itineraryStops";
+import { getStopsForTrip, createStop, deleteAllStopsForTrip } from "@/lib/itineraryStops";
 import { requireWriteAccess } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabaseServer";
 
@@ -59,6 +59,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       notes: body.notes || null,
     });
     return NextResponse.json({ stop }, { status: 201 });
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+}
+
+// The "Clear all" button — wipes every stop on this trip at once.
+// Same access level as everything else here (editor, not admin-only).
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
+  const { tripSlug } = await params;
+  const trip = await getTripBySlug(tripSlug);
+  if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
+
+  const { error: authError, supabase } = await requireWriteAccess(request, trip.id, { minRole: "editor" });
+  if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
+
+  try {
+    await deleteAllStopsForTrip(supabase!, trip.id);
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
