@@ -152,62 +152,64 @@ export default function TripNavHeader({
   const isAdminRoute = pathname.startsWith(`/${trip.slug}/admin`);
 
   return (
-    <header className={styles["root"]}>
-      <div className={styles["top-row"]}>
-        <Link
-          href={nav[0] ? sectionPath(nav[0].slug, nav[0].sections[0].slug) : `/${trip.slug}`}
-          className={styles["brand"]}
-        >
-          {trip.name}
-        </Link>
+    <>
+      <header className={styles["root"]}>
+        <div className={styles["top-row"]}>
+          <Link
+            href={nav[0] ? sectionPath(nav[0].slug, nav[0].sections[0].slug) : `/${trip.slug}`}
+            className={styles["brand"]}
+          >
+            {trip.name}
+          </Link>
 
-        <div className={styles["actions"]}>
-          {isAdmin ? (
-            <>
-              <Link href="/" className={styles["action-link"]}>
-                All trips
-              </Link>
-              {/* This row's own set of buttons stays fixed regardless of
-                  trip state — a conditional third item here (an earlier
-                  version put Archive Unvisited in this same row) made
-                  the header's structure shift between a completed trip
-                  and every other one. It lives on the Trip Settings
-                  page instead now, right by the Completed checkbox that
-                  gates it (see TripSettingsPage). */}
-              <Button variant="secondary" size="sm" asChild>
-                <Link href={`/${trip.slug}/admin/sections`}>Manage</Link>
-              </Button>
-              {/* /admin routes need real access to render anything
-                  useful — redirect back to the public trip page rather
-                  than stranding a just-logged-out admin on one. */}
-              <LogoutButton redirectTo={isAdminRoute ? `/${trip.slug}` : undefined} />
-            </>
-          ) : isEditor ? (
-            <LogoutButton />
-          ) : (
-            accessChecked && (
+          <div className={styles["actions"]}>
+            {isAdmin ? (
               <>
-                <LoginPrompt hasInviteAccess={!!contributorToken} />
-                {showCreateLogin && (
-                  <CreateLoginPrompt
-                    trip={trip}
-                    contributorToken={contributorToken!}
-                    defaultOpen={showCreateLoginNudge}
-                  />
-                )}
-                {showRequestAccess && (
-                  <RequestAccess
-                    trip={trip}
-                    section={activeSection!}
-                    contactEmail={contactEmail}
-                    triggerClassName={styles["request-access-trigger"]}
-                  />
-                )}
+                <Link href="/" className={styles["action-link"]}>
+                  All trips
+                </Link>
+                {/* This row's own set of buttons stays fixed regardless of
+                    trip state — a conditional third item here (an earlier
+                    version put Archive Unvisited in this same row) made
+                    the header's structure shift between a completed trip
+                    and every other one. It lives on the Trip Settings
+                    page instead now, right by the Completed checkbox that
+                    gates it (see TripSettingsPage). */}
+                <Button variant="secondary" size="sm" asChild>
+                  <Link href={`/${trip.slug}/admin/sections`}>Manage</Link>
+                </Button>
+                {/* /admin routes need real access to render anything
+                    useful — redirect back to the public trip page rather
+                    than stranding a just-logged-out admin on one. */}
+                <LogoutButton redirectTo={isAdminRoute ? `/${trip.slug}` : undefined} />
               </>
-            )
-          )}
+            ) : isEditor ? (
+              <LogoutButton />
+            ) : (
+              accessChecked && (
+                <>
+                  <LoginPrompt hasInviteAccess={!!contributorToken} />
+                  {showCreateLogin && (
+                    <CreateLoginPrompt
+                      trip={trip}
+                      contributorToken={contributorToken!}
+                      defaultOpen={showCreateLoginNudge}
+                    />
+                  )}
+                  {showRequestAccess && (
+                    <RequestAccess
+                      trip={trip}
+                      section={activeSection!}
+                      contactEmail={contactEmail}
+                      triggerClassName={styles["request-access-trigger"]}
+                    />
+                  )}
+                </>
+              )
+            )}
+          </div>
         </div>
-      </div>
+      </header>
 
       {nav.length > 0 && !isAdminRoute && (
         <div ref={barRef} className={styles["sticky-nav"]}>
@@ -270,6 +272,6 @@ export default function TripNavHeader({
           )}
         </div>
       )}
-    </header>
+    </>
   );
 }
