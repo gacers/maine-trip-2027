@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import classNames from "classnames";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import StarRating from "@/components/StarRating";
 import Button from "@/components/Button";
 import { assignBadgeVariants } from "@/components/Badge";
@@ -81,6 +82,12 @@ export interface EntryCardProps {
    * meaningful once the trip is actually over (trip.completed); a
    * still-Pending trip has nothing to have visited yet. */
   showVisitedControl?: boolean;
+  /** Offers a Collapse/Expand toggle that shrinks the card down to just
+   * its title/price row — only worth it on a full-width "list" layout
+   * (SectionPage passes this as cardLayout === "list"), where each card
+   * takes a whole row's height on its own scrolling down a long list;
+   * a grid card is already small, nothing to collapse. */
+  collapsible?: boolean;
 }
 
 export default function EntryCard({
@@ -106,6 +113,7 @@ export default function EntryCard({
   onAddPaired,
   nightsEstimate = null,
   showVisitedControl = false,
+  collapsible = false,
 }: EntryCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<EntryDraft | null>(null);
@@ -113,6 +121,8 @@ export default function EntryCard({
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
   const [addressLabel, setAddressLabel] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const isCollapsed = collapsible && collapsed;
   const isArchived = entry.status === "archived";
   const extraMarkers = parseExtraMarkers(entry.extraMarkers);
   const hasHouse = hasCoords(entry);
@@ -286,13 +296,13 @@ export default function EntryCard({
           the card even loads. */}
       {isArchived && entry.archiveReason && <div className={styles["archive-banner"]}>Archived: {entry.archiveReason}</div>}
 
-      {!hideMedia && (
+      {!hideMedia && !isCollapsed && (
         <EntryMedia entry={entry} compact={compact} large={largeMedia} medium={mediumMedia} showRatings={showRatings} />
       )}
 
       <div className={sectionsClassName}>
         <div className={styles["section"]}>
-          {activeBooleanFields.length > 0 && (
+          {!isCollapsed && activeBooleanFields.length > 0 && (
             <EntryBadgesRow activeBooleanFields={activeBooleanFields} badgeVariants={badgeVariants} />
           )}
 
@@ -301,16 +311,29 @@ export default function EntryCard({
               <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles["title-link"]}>
                 {entry.title}
               </a>
-              {hasHouse && (
+              {hasHouse && !isCollapsed && (
                 <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles["address-link"]}>
                   {addressLabel || "View on map"}
                 </a>
               )}
             </div>
-            <PriceDisplay entry={entry} priceFields={priceFields} />
+            <div className={styles["header-actions"]}>
+              <PriceDisplay entry={entry} priceFields={priceFields} />
+              {collapsible && (
+                <button
+                  type="button"
+                  onClick={() => setCollapsed((c) => !c)}
+                  className={styles["collapse-toggle"]}
+                  aria-expanded={!isCollapsed}
+                >
+                  {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                  {isCollapsed ? "Expand" : "Collapse"}
+                </button>
+              )}
+            </div>
           </div>
 
-          {showRatingControl && showRatings && canContribute && onRate && (
+          {!isCollapsed && showRatingControl && showRatings && canContribute && onRate && (
             <div className={styles["user-rating-row"]}>
               <span className={styles["rating-caption"]}>Your score</span>
               <StarRating value={entry.myScore ?? 0} size={18} onChange={(v) => onRate(entry.id, v)} />
@@ -323,111 +346,115 @@ export default function EntryCard({
           )}
         </div>
 
-        {/* Its own section, horizontal — bedrooms/beds/bathrooms read as
-            a quick-scan strip rather than being crammed into the price
-            column or a slash-joined sentence. */}
-        {countRows.length > 0 && (
-          <div className={styles["section"]}>
-            <CountsRow countRows={countRows} />
-          </div>
-        )}
+        {!isCollapsed && (
+          <>
+            {/* Its own section, horizontal — bedrooms/beds/bathrooms read as
+                a quick-scan strip rather than being crammed into the price
+                column or a slash-joined sentence. */}
+            {countRows.length > 0 && (
+              <div className={styles["section"]}>
+                <CountsRow countRows={countRows} />
+              </div>
+            )}
 
-        {/* Everything else marked "show on overview" (phone, website,
-            ...) that has no dedicated display of its own. */}
-        {overviewRows.length > 0 && (
-          <div className={styles["section"]}>
-            <OverviewFieldsRow rows={overviewRows} />
-          </div>
-        )}
+            {/* Everything else marked "show on overview" (phone, website,
+                ...) that has no dedicated display of its own. */}
+            {overviewRows.length > 0 && (
+              <div className={styles["section"]}>
+                <OverviewFieldsRow rows={overviewRows} />
+              </div>
+            )}
 
-        {!isEditing && (
-          <div className={styles["section"]}>
-            <EntryDescription bullets={descriptionBullets} />
-          </div>
-        )}
+            {!isEditing && (
+              <div className={styles["section"]}>
+                <EntryDescription bullets={descriptionBullets} />
+              </div>
+            )}
 
-        {canManage && !isArchived && showVisitedControl && (
-          <div className={styles["section"]}>
-            <VisitedControl entry={entry} supportsPairing={supportsPairing} onPatch={onPatch} />
-          </div>
-        )}
+            {canManage && !isArchived && showVisitedControl && (
+              <div className={styles["section"]}>
+                <VisitedControl entry={entry} supportsPairing={supportsPairing} onPatch={onPatch} />
+              </div>
+            )}
 
-        {!isEditing && showMap && hasHouse && (
-          <LocationSection entry={entry} comparisonMode={comparisonMode} listingMapData={listingMapData} />
-        )}
+            {!isEditing && showMap && hasHouse && (
+              <LocationSection entry={entry} comparisonMode={comparisonMode} listingMapData={listingMapData} />
+            )}
 
-        {isEditing && draft && (
-          <div className={styles["section"]}>
-            <EntryEditForm
-              draft={draft}
-              onChange={setDraft}
-              fieldDefs={fieldDefs}
-              nightsEstimate={nightsEstimate}
-              supportsPairing={supportsPairing}
-              address={address}
-              onAddressChange={setAddress}
-              geocoding={geocoding}
-              geocodeMsg={geocodeMsg}
-              onFindCoords={handleFindCoords}
-            />
-          </div>
-        )}
+            {isEditing && draft && (
+              <div className={styles["section"]}>
+                <EntryEditForm
+                  draft={draft}
+                  onChange={setDraft}
+                  fieldDefs={fieldDefs}
+                  nightsEstimate={nightsEstimate}
+                  supportsPairing={supportsPairing}
+                  address={address}
+                  onAddressChange={setAddress}
+                  geocoding={geocoding}
+                  geocodeMsg={geocodeMsg}
+                  onFindCoords={handleFindCoords}
+                />
+              </div>
+            )}
 
-        {/* Its own section, same as every other content block — not
-            bundled with Concerns under one shared heading-pair anymore. */}
-        {(hasNotes || canContribute) && (
-          <div className={styles["section"]}>
-            <h3 className={styles["section-heading"]}>Notes</h3>
-            <EditableNoteList
-              items={toBullets(entry.notes)}
-              onAdd={canContribute ? addNote : null}
-              onRemove={canContribute ? removeNoteAt : null}
-              addLabel="Add note"
-              placeholder="Add a note..."
-            />
-          </div>
-        )}
+            {/* Its own section, same as every other content block — not
+                bundled with Concerns under one shared heading-pair anymore. */}
+            {(hasNotes || canContribute) && (
+              <div className={styles["section"]}>
+                <h3 className={styles["section-heading"]}>Notes</h3>
+                <EditableNoteList
+                  items={toBullets(entry.notes)}
+                  onAdd={canContribute ? addNote : null}
+                  onRemove={canContribute ? removeNoteAt : null}
+                  addLabel="Add note"
+                  placeholder="Add a note..."
+                />
+              </div>
+            )}
 
-        {/* The whole section gets the amber tint now, not just a box
-            wrapped around the list inside a plain section. */}
-        {(hasConcerns || canContribute) && (
-          <div className={styles["concerns-section"]}>
-            <h3 className={styles["concerns-heading"]}>Concerns</h3>
-            <EditableNoteList
-              items={toBullets(entry.concerns)}
-              onAdd={canContribute ? addConcern : null}
-              onRemove={canContribute ? removeConcernAt : null}
-              addLabel="Add concern"
-              placeholder="Anything that gives you pause..."
-            />
-          </div>
-        )}
+            {/* The whole section gets the amber tint now, not just a box
+                wrapped around the list inside a plain section. */}
+            {(hasConcerns || canContribute) && (
+              <div className={styles["concerns-section"]}>
+                <h3 className={styles["concerns-heading"]}>Concerns</h3>
+                <EditableNoteList
+                  items={toBullets(entry.concerns)}
+                  onAdd={canContribute ? addConcern : null}
+                  onRemove={canContribute ? removeConcernAt : null}
+                  addLabel="Add concern"
+                  placeholder="Anything that gives you pause..."
+                />
+              </div>
+            )}
 
-        {/* A contributor (invite-link) gets edit/archive/restore here
-            too, not just admins — canManage (admin-only) instead just
-            gates the real permanent-delete actions inside, via
-            canDelete. See requireWriteAccess's allowContributor on the
-            entries PATCH route for the matching server-side check. */}
-        {canContribute && (
-          <div className={styles["section"]}>
-            <EntryFooter
-              entry={entry}
-              supportsPairing={supportsPairing}
-              isEditing={isEditing}
-              hideMedia={hideMedia}
-              canDelete={canManage}
-              onArchive={archive}
-              onDelete={onDelete}
-              onRestore={restore}
-              onStartEdit={startEdit}
-              onSaveEdit={saveEdit}
-              onCancelEdit={() => {
-                setIsEditing(false);
-                setDraft(null);
-              }}
-              onAddPaired={onAddPaired}
-            />
-          </div>
+            {/* A contributor (invite-link) gets edit/archive/restore here
+                too, not just admins — canManage (admin-only) instead just
+                gates the real permanent-delete actions inside, via
+                canDelete. See requireWriteAccess's allowContributor on the
+                entries PATCH route for the matching server-side check. */}
+            {canContribute && (
+              <div className={styles["section"]}>
+                <EntryFooter
+                  entry={entry}
+                  supportsPairing={supportsPairing}
+                  isEditing={isEditing}
+                  hideMedia={hideMedia}
+                  canDelete={canManage}
+                  onArchive={archive}
+                  onDelete={onDelete}
+                  onRestore={restore}
+                  onStartEdit={startEdit}
+                  onSaveEdit={saveEdit}
+                  onCancelEdit={() => {
+                    setIsEditing(false);
+                    setDraft(null);
+                  }}
+                  onAddPaired={onAddPaired}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
     </article>

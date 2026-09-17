@@ -350,6 +350,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         supportsPairing={!!section.supports_pairing}
         onAddPaired={canContribute ? () => requestPair(entry) : undefined}
         nightsEstimate={nightsEstimate}
+        collapsible={cardLayout === "list"}
         showVisitedControl={trip.completed}
       />
     );
