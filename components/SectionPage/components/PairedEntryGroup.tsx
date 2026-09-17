@@ -1,3 +1,6 @@
+import { useState } from "react";
+import classNames from "classnames";
+import { ChevronUp } from "lucide-react";
 import EntryCard from "@/components/EntryCard";
 import EntryMedia from "@/components/EntryMedia";
 import ListingSection from "@/components/ListingSection";
@@ -37,7 +40,13 @@ export interface PairedEntryGroupProps {
    * doc. Set by SectionPage when the section's card_layout is a grid,
    * so this comparison card spans the whole row instead of one column. */
   className?: string;
-  /** Passed straight through to ListingSection — see its own doc. */
+  /** Same idea as EntryCard's own `collapsible` (a full-width "list"
+   * layout card), applied to the whole pair at once — see this
+   * component's own collapse handling below for why the state lives
+   * here rather than inside ListingSection: the toggle itself needs to
+   * live as an overlay on the photo row while expanded (this
+   * component builds that row), then hand off into ListingSection's
+   * own header once there's no more photo to sit on. */
   collapsible?: boolean;
 }
 
@@ -64,20 +73,48 @@ export default function PairedEntryGroup({
   className,
   collapsible = false,
 }: PairedEntryGroupProps) {
+  const [collapsed, setCollapsed] = useState(false);
+  const isCollapsed = collapsible && collapsed;
+
   return (
     <ListingSection
       key={unit.listings.map((e) => e.id).join("-")}
       id={`group-${unit.listings[0].id}`}
       className={className}
       collapsible={collapsible}
+      collapsed={isCollapsed}
+      onToggleCollapse={() => setCollapsed((c) => !c)}
       title={groupTitle(unit.listings[0].groupLabel)}
       media={
-        <div className={styles["media-row"]}>
-          {unit.listings.map((entry) => (
-            <div key={entry.id} className={styles["media-half"]}>
-              <EntryMedia entry={entry} compact={isCompactMedia} large={isLargeMedia} medium={isMediumMedia} showRatings={showRatings} />
+        <div className={classNames(styles["media-row-wrap"], isCollapsed && styles["media-row-wrap-collapsed"])}>
+          <div className={styles["media-row-inner"]}>
+            <div className={styles["media-row"]}>
+              {unit.listings.map((entry) => (
+                <div key={entry.id} className={styles["media-half"]}>
+                  <EntryMedia entry={entry} compact={isCompactMedia} large={isLargeMedia} medium={isMediumMedia} showRatings={showRatings} />
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+          {/* Left corner, not right — each half's own EntryMedia
+              already puts its own score badge at ITS top-right (see
+              EntryMedia), and the rightmost photo's own badge would
+              otherwise sit in the exact same corner as this. Only
+              rendered while expanded — collapsing hands this same
+              toggle off to ListingSection's own header instead (see
+              its own comment), same idea as EntryCard/EntryMedia's own
+              solo-card version. */}
+          {collapsible && !isCollapsed && (
+            <button
+              type="button"
+              onClick={() => setCollapsed((c) => !c)}
+              className={styles["collapse-toggle-overlay"]}
+              aria-expanded={!isCollapsed}
+              title="Collapse"
+            >
+              <ChevronUp size={18} />
+            </button>
+          )}
         </div>
       }
       canArchiveGroup={canContribute}

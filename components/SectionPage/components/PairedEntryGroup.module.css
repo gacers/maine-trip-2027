@@ -1,3 +1,49 @@
+/* Animates the whole photo row open/shut via CSS grid's 1fr/0fr trick
+   (rather than a fixed height, since the row's real height differs
+   between the stacked-on-mobile and side-by-side-on-desktop layouts
+   below) — .media-row-inner clips whatever's inside as this shrinks.
+   position: relative so .collapse-toggle-overlay below anchors to this
+   whole row, not just one half. */
+.media-row-wrap {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.25s ease;
+}
+
+.media-row-wrap-collapsed {
+  grid-template-rows: 0fr;
+}
+
+.media-row-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.collapse-toggle-overlay {
+  position: absolute;
+  z-index: 1;
+  top: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  box-shadow: var(--shadow-lg);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-zinc-700);
+
+  &:hover {
+    background: var(--color-zinc-50);
+    color: var(--color-zinc-900);
+  }
+}
+
 /* Both houses' photos, side by side, ahead of the group's own title
    section. A thin white seam (not the usual zinc divider — the images
    already have plenty of their own contrast) separates the two once

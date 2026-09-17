@@ -49,8 +49,16 @@ export interface ListingSectionProps {
    * "list" layout card is tall enough that being able to shrink it
    * down to just its title is worth it), applied to the whole pair at
    * once rather than each half separately: collapsing hides both
-   * photos and both halves' own bodies, leaving just this header. */
+   * halves' own bodies, leaving just this header (and, once `media`
+   * has shrunk itself away too, this is also where the toggle itself
+   * ends up living — see below). */
   collapsible?: boolean;
+  /** Controlled, not owned here — PairedEntryGroup needs the same
+   * value to also drive its own photo-row overlay toggle (see its own
+   * comment on why), so there's one shared source of truth rather than
+   * two independent collapsed states that could drift apart. */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 // The shared frame around a 2-house-option group: both houses' photos
@@ -78,11 +86,12 @@ export default function ListingSection({
   onRate,
   className,
   collapsible = false,
+  collapsed = false,
+  onToggleCollapse,
 }: ListingSectionProps) {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(editableTitle ?? "");
-  const [collapsed, setCollapsed] = useState(false);
   const isCollapsed = collapsible && collapsed;
 
   function archiveGroup(reason: string) {
@@ -103,7 +112,11 @@ export default function ListingSection({
 
   return (
     <section id={id} className={classNames(styles["root"], className)}>
-      {!isCollapsed && media}
+      {/* Always rendered, not gated on isCollapsed — the caller-built
+          `media` (PairedEntryGroup) owns its own shrink/fade transition
+          keyed off the same collapsed value, rather than this just
+          unmounting it outright and losing that animation. */}
+      {media}
       <div className={styles["header"]}>
         <div className={styles["title-area"]}>
           {isEditingTitle ? (
@@ -153,16 +166,24 @@ export default function ListingSection({
               <ArchiveDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog} onConfirm={archiveGroup} />
             </div>
           )}
+          {/* While there's still a photo row, PairedEntryGroup hosts
+              this same toggle as an overlay on it instead (see its own
+              comment) — this copy slides in here (width/margin/opacity
+              all transitioning) the moment that photo row has shrunk
+              itself away, same hand-off idea as EntryCard/EntryMedia's
+              own solo-card version. */}
           {collapsible && (
-            <button
-              type="button"
-              onClick={() => setCollapsed((c) => !c)}
-              className={styles["collapse-toggle"]}
-              aria-expanded={!isCollapsed}
-              title={isCollapsed ? "Expand" : "Collapse"}
-            >
-              {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
-            </button>
+            <span className={classNames(styles["header-toggle-wrap"], isCollapsed && styles["header-toggle-wrap-visible"])}>
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className={styles["collapse-toggle"]}
+                aria-expanded={!isCollapsed}
+                title={isCollapsed ? "Expand" : "Collapse"}
+              >
+                {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+              </button>
+            </span>
           )}
         </div>
       </div>

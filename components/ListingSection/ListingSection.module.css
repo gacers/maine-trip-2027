@@ -97,8 +97,12 @@
 .controls {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
   flex-shrink: 0;
+  /* No gap here on purpose — .header-toggle-wrap's own margin-left is
+     what actually animates open (see EntryCard's own .header-actions
+     for the identical reasoning), so a fixed gap wouldn't leave a
+     stray space next to Delete group while the toggle is collapsed to
+     width:0. */
 }
 
 .user-rating-row {
@@ -118,6 +122,25 @@
 
 .delete-group-wrapper {
   position: relative;
+}
+
+/* Same width/margin/opacity hand-off animation as EntryCard's own
+   .header-toggle-wrap — see PairedEntryGroup's own comment for why
+   this needs to exist at all (the photo-row overlay version is the
+   real home for this toggle while expanded). */
+.header-toggle-wrap {
+  display: inline-flex;
+  width: 0;
+  margin-left: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: width 0.25s ease, margin-left 0.25s ease, opacity 0.2s ease;
+}
+
+.header-toggle-wrap-visible {
+  width: 2.25rem;
+  margin-left: 0.75rem;
+  opacity: 1;
 }
 
 .collapse-toggle {
