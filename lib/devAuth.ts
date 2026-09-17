@@ -17,6 +17,12 @@
 //   sections/API-keys pages, then all treat you as the real signed-in
 //   admin, no real Supabase Auth session needed). /api/dev/admin?on=0
 //   turns it back off.
+// - Super admin (see SUPER_ADMIN_EMAIL in lib/auth.ts — gates the
+//   itinerary feature, currently the only "super admin" surface):
+//   /api/dev/admin?super=1 sets this on top of the plain dev-admin
+//   cookie above; plain /api/dev/admin (no ?super) explicitly clears it
+//   again, so switching back to "admin but not super admin" doesn't
+//   need a separate ?on=0/?on=1 round trip.
 // - Contributor/invite link: visit any trip page with
 //   ?invite=dev-contributor-token once — same as a real invite link,
 //   using lib/inviteClient.ts's existing capture/persist flow as-is,
@@ -25,4 +31,10 @@
 export const isDevBypassEnabled = process.env.NODE_ENV !== "production";
 
 export const DEV_ADMIN_COOKIE = "dev-admin";
+export const DEV_SUPER_ADMIN_COOKIE = "dev-super-admin";
 export const DEV_CONTRIBUTOR_TOKEN = "dev-contributor-token";
+// The stand-in admin user's own id (see lib/auth.ts's DEV_ADMIN_USER) —
+// exported so isSuperAdminUser can recognize "this is the dev bypass
+// user" without lib/devAuth.ts needing to know about User objects
+// itself.
+export const DEV_ADMIN_USER_ID = "dev-admin";

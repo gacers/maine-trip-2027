@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getTripBySlug, getTripNav, sanitizeTripForClient } from "@/lib/sections";
-import { getAdminUser } from "@/lib/auth";
+import { getAdminUser, isSuperAdminUser } from "@/lib/auth";
 import { isEditorForTrip } from "@/lib/tripEditors";
 import { getContactEmail } from "@/lib/settings";
 import TripNavHeader from "@/components/TripNavHeader";
@@ -33,6 +33,7 @@ export default async function TripLayout({
   // would, and app_admins/trip_editors are deliberately separate
   // tables (see supabase/migrations/0021_trip_editors.sql).
   const isEditor = admin ? false : await isEditorForTrip(trip.id);
+  const superAdmin = await isSuperAdminUser(admin);
   const publicTrip = sanitizeTripForClient(trip);
 
   return (
@@ -40,7 +41,14 @@ export default async function TripLayout({
       {/* TripNavHeader is a Client Component — anything passed to it
           gets serialized into the page's own source, so the raw trip
           row (carrying sheet_invite_token) must never go here as-is. */}
-      <TripNavHeader trip={publicTrip} nav={nav} isAdmin={!!admin} isEditor={isEditor} contactEmail={contactEmail} />
+      <TripNavHeader
+        trip={publicTrip}
+        nav={nav}
+        isAdmin={!!admin}
+        isEditor={isEditor}
+        isSuperAdmin={superAdmin}
+        contactEmail={contactEmail}
+      />
       {/* Everything below the nav bar — the actual trip content — waits
           on this; a total stranger (no login, no invite token) gets a
           login/request-access prompt instead. See TripAccessGate's own

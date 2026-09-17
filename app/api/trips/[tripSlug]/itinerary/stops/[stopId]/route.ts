@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { updateStop, deleteStop } from "@/lib/itineraryStops";
-import { requireWriteAccess } from "@/lib/auth";
+import { requireSuperAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -17,7 +17,7 @@ export async function PATCH(
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError, supabase } = await requireWriteAccess(request, trip.id, { minRole: "editor" });
+  const { error: authError, supabase } = await requireSuperAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   let body;
@@ -57,7 +57,7 @@ export async function DELETE(
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError, supabase } = await requireWriteAccess(request, trip.id, { minRole: "editor" });
+  const { error: authError, supabase } = await requireSuperAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   try {

@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import { cookies } from "next/headers";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { supabaseServer, supabaseServiceRole } from "@/lib/supabaseServer";
-import { isDevBypassEnabled, DEV_ADMIN_COOKIE, DEV_CONTRIBUTOR_TOKEN } from "@/lib/devAuth";
+import { isDevBypassEnabled, DEV_ADMIN_COOKIE, DEV_SUPER_ADMIN_COOKIE, DEV_ADMIN_USER_ID, DEV_CONTRIBUTOR_TOKEN } from "@/lib/devAuth";
 import { checkEditorForTrip } from "@/lib/tripEditors";
 
 export function hashApiKey(token: string): string {
@@ -24,12 +24,21 @@ async function hasDevAdminCookie(): Promise<boolean> {
 // never reads a specific field off it, so this only needs to satisfy
 // the type, not actually resemble a real account.
 const DEV_ADMIN_USER = {
-  id: "dev-admin",
+  id: DEV_ADMIN_USER_ID,
   app_metadata: {},
   user_metadata: {},
   aud: "dev",
   created_at: new Date(0).toISOString(),
 } as User;
+
+// See lib/devAuth.ts — the separate super-admin dev cookie, checked
+// only once we already know we're looking at the dev-admin stand-in
+// (a real admin's own super-admin check never touches this).
+async function hasDevSuperAdminCookie(): Promise<boolean> {
+  if (!isDevBypassEnabled) return false;
+  const store = await cookies();
+  return store.get(DEV_SUPER_ADMIN_COOKIE)?.value === "1";
+}
 
 export interface WriteAccessError {
   status: number;
@@ -245,4 +254,44 @@ export async function getAdminUser(): Promise<User | null> {
     if (data) return user;
   }
   return (await hasDevAdminCookie()) ? DEV_ADMIN_USER : null;
+}
+
+// A further restriction on top of regular admin — currently the only
+// thing this gates is the itinerary feature, still being tested
+// privately before other admins/contributors see it (a real app_admins
+// row can outlive this: a future second admin wouldn't automatically
+// get itinerary access just from being an admin). Take the `User |
+// null` a caller already has (typically from getAdminUser above)
+// rather than re-fetching it, since every real caller already needed
+// that check first anyway. Locally, the dev-admin stand-in's own
+// super-admin-ness is a separate cookie (see lib/devAuth.ts) so a
+// regular "admin but not super admin" can still be simulated too, not
+// just "admin = always super admin" in dev.
+export const SUPER_ADMIN_EMAIL = "gary.acers@gmail.com";
+
+export async function isSuperAdminUser(user: User | null): Promise<boolean> {
+  if (!user) return false;
+  if (user.id === DEV_ADMIN_USER_ID) return hasDevSuperAdminCookie();
+  return user.email === SUPER_ADMIN_EMAIL;
+}
+
+// For the itinerary API routes: a real signed-in session belonging to
+// the super admin (or the dev-bypass equivalent), full stop — no
+// bearer-token path at all, unlike requireWriteAccess/requireReadAccess.
+// An invite-link contributor or a global automation API key never
+// identifies a specific email, so neither can ever satisfy "is this
+// gary.acers@gmail.com" — this feature just isn't reachable that way
+// right now. Returns the service-role client on success: getAdminUser
+// having returned non-null already means this is a confirmed
+// app_admins row (or the dev stand-in), so there's no narrower RLS-
+// scoped client worth using here the way an editor session gets one.
+export async function requireSuperAdmin(): Promise<
+  { supabase: SupabaseClient; error?: undefined } | { error: WriteAccessError; supabase?: undefined }
+> {
+  const admin = await getAdminUser();
+  if (!admin) return { error: { status: 401, message: "Sign in required" } };
+  if (!(await isSuperAdminUser(admin))) {
+    return { error: { status: 403, message: "This feature isn't available yet" } };
+  }
+  return { supabase: supabaseServiceRole() };
 }

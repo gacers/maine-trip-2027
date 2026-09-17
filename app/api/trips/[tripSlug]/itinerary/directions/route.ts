@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
-import { requireReadAccess } from "@/lib/auth";
+import { requireSuperAdmin } from "@/lib/auth";
 import { getOrComputeRoute } from "@/lib/routeCache";
 import type { TravelMode } from "@/lib/types";
 
@@ -13,17 +13,18 @@ function isLatLng(v: unknown): v is { lat: number; lng: number } {
   return !!v && typeof v === "object" && typeof (v as { lat: unknown }).lat === "number" && typeof (v as { lng: unknown }).lng === "number";
 }
 
-// Backs RouteConnector — same access level as reading the itinerary
-// itself (see requireReadAccess), a POST rather than a GET since the
-// origin/destination pair is arbitrary input, not a resource path.
-// Almost every call hits route_cache instead of Google (see
-// getOrComputeRoute) once a trip's stop-pairs have been asked for once.
+// Backs RouteConnector — same access level as the rest of the
+// itinerary (super admin, see requireSuperAdmin), a POST rather than a
+// GET since the origin/destination pair is arbitrary input, not a
+// resource path. Almost every call hits route_cache instead of Google
+// (see getOrComputeRoute) once a trip's stop-pairs have been asked for
+// once.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError, supabase } = await requireReadAccess(request, trip.id);
+  const { error: authError, supabase } = await requireSuperAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   let body: Record<string, unknown>;

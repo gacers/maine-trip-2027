@@ -1,21 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { getStopsForTrip, createStop, deleteAllStopsForTrip } from "@/lib/itineraryStops";
-import { requireWriteAccess, requireReadAccess } from "@/lib/auth";
+import { requireSuperAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Real trip content — same as every other read this trip's data comes
-// from (see requireReadAccess's own comment). This predates that gate;
-// bringing it in line now rather than leaving the itinerary as the one
-// place still open to a bare request.
+// The itinerary is hidden behind super admin (see requireSuperAdmin) —
+// still being tested privately, not opened up to trip editors/
+// contributors the way the rest of a trip's content is. Every route
+// under /itinerary uses this same check.
 export async function GET(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError, supabase } = await requireReadAccess(request, trip.id);
+  const { error: authError, supabase } = await requireSuperAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   try {
@@ -26,14 +26,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-// Same access level as adding an entry (minRole: "editor") — building
-// the itinerary is trip content, not an admin-only action.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError, supabase } = await requireWriteAccess(request, trip.id, { minRole: "editor" });
+  const { error: authError, supabase } = await requireSuperAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   let body;
@@ -70,13 +68,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 }
 
 // The "Clear all" button — wipes every stop on this trip at once.
-// Same access level as everything else here (editor, not admin-only).
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError, supabase } = await requireWriteAccess(request, trip.id, { minRole: "editor" });
+  const { error: authError, supabase } = await requireSuperAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   try {
