@@ -46,7 +46,7 @@ function mapsSearchUrl(lat: number, lng: number): string {
 export interface StyleRun {
   start: number;
   end: number;
-  style: "title" | "day" | "bold" | "italic" | "bullet" | "indent" | "link";
+  style: "title" | "day" | "bold" | "italic" | "bullet" | "indent" | "connector" | "link";
   /** Only meaningful for "link" runs. */
   url?: string;
 }
@@ -119,8 +119,7 @@ export async function buildDocContent(
         }
         start = text.length;
         append(`${line}\n`);
-        mark(start, "indent");
-        mark(start, "italic");
+        mark(start, "connector");
       }
     }
 
@@ -194,11 +193,49 @@ function requestsFromContent(text: string, runs: StyleRun[]): docs_v1.Schema$Req
         createParagraphBullets: { range, bulletPreset: "BULLET_DISC_CIRCLE_SQUARE" },
       });
     } else if (run.style === "indent") {
+      // indentStart alone only affects a paragraph's WRAPPED lines — a
+      // single-line paragraph (every meta/notes line here) renders at
+      // indentFirstLine instead, which defaults to 0 when never set.
+      // The bulleted title line above lands at indentStart (36pt)
+      // because its bullet's own hanging indent (indentFirstLine 18pt,
+      // where the glyph sits, then a tab to indentStart) pushes its
+      // TEXT to 36pt — confirmed live via the exported doc's own JSON.
+      // Setting indentFirstLine here too is what actually makes this
+      // line's text land at the same 36pt, instead of flush left.
       requests.push({
         updateParagraphStyle: {
           range,
-          paragraphStyle: { indentStart: { magnitude: 36, unit: "PT" } },
-          fields: "indentStart",
+          paragraphStyle: {
+            indentFirstLine: { magnitude: 36, unit: "PT" },
+            indentStart: { magnitude: 36, unit: "PT" },
+          },
+          fields: "indentFirstLine,indentStart",
+        },
+      });
+    } else if (run.style === "connector") {
+      // Same indent fix as "indent" above, plus the italic/dimmed
+      // styling "indent"+"italic" used to be stacked to get, plus a
+      // bit of space below it — this line sits right against the next
+      // stop's bulleted title otherwise (the blank line between stops
+      // only separates the END of one stop's block from the NEXT
+      // stop's connector, not the connector from that stop's own
+      // title right below it).
+      requests.push({
+        updateParagraphStyle: {
+          range,
+          paragraphStyle: {
+            indentFirstLine: { magnitude: 36, unit: "PT" },
+            indentStart: { magnitude: 36, unit: "PT" },
+            spaceBelow: { magnitude: 6, unit: "PT" },
+          },
+          fields: "indentFirstLine,indentStart,spaceBelow",
+        },
+      });
+      requests.push({
+        updateTextStyle: {
+          range,
+          textStyle: { italic: true, foregroundColor: { color: { rgbColor: { red: 0.45, green: 0.45, blue: 0.45 } } } },
+          fields: "italic,foregroundColor",
         },
       });
     } else if (run.style === "link" && run.url) {

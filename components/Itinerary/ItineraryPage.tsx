@@ -163,7 +163,7 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
   }
 
   return (
-    <div className={styles["root"]}>
+    <div className={classNames(styles["root"], viewMode === "week" ? styles["root-week"] : styles["root-list"])}>
       <div className={styles["sticky-header"]}>
         <div className={styles["header"]}>
           <div className={styles["heading-group"]}>
@@ -219,6 +219,7 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
           canContribute={canContribute}
           onEdit={setEditingStop}
           onMoveStop={moveStop}
+          onAdded={handleAdded}
         />
       ) : (
         <div className={styles["list"]}>

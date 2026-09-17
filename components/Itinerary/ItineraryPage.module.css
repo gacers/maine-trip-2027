@@ -1,10 +1,23 @@
 .root {
-  max-width: 60rem;
   margin: 0 auto;
   padding: 0 1rem 4rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* List reads as plain text lines — a line that stretches too wide gets
+   genuinely harder to scan, so it keeps a comfortable reading width.
+   Week is a multi-column layout that only benefits from more room
+   (more lanes visible before scrolling, or wider ones) — confirmed
+   live as feeling cramped at the same cap List uses, so it gets a much
+   wider one instead. */
+.root-list {
+  max-width: 64rem;
+}
+
+.root-week {
+  max-width: 100rem;
 }
 
 /* Pinned below the site's own sticky nav bar (--sticky-nav-height,

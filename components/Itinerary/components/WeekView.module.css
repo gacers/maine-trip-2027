@@ -46,7 +46,7 @@
 }
 
 .lane {
-  flex: 0 0 18rem;
+  flex: 0 0 21rem;
   scroll-snap-align: start;
   min-width: 0;
   display: flex;

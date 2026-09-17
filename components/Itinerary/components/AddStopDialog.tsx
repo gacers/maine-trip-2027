@@ -32,8 +32,22 @@ export interface AddStopDialogProps {
   authToken: string | null;
   /** The current last stop in the list — a new stop's date/time
    * defaults off of it (see buildDefaultSchedule) rather than starting
-   * blank every time, since stops are added roughly in visiting order. */
+   * blank every time, since stops are added roughly in visiting order.
+   * WeekView passes the LAST stop in the specific lane this was opened
+   * from instead of the globally-last one, so the time-of-day default
+   * still makes sense there. */
   lastStop: ItineraryStop | null;
+  /** Forces the date field to this regardless of what lastStop's own
+   * date computes to — WeekView's own per-lane "+ Add stop" passes the
+   * lane's date explicitly, since that's unambiguous the moment you've
+   * clicked a specific lane's own button (an empty lane has no
+   * lastStop to infer it from at all). Omitted by the header's
+   * trip-wide "+ Add stop", which has no specific lane in mind. */
+  presetDate?: string | null;
+  /** The lane-footer button (WeekView) is a lighter-weight, secondary
+   * action next to the header's own primary one — same dialog either
+   * way, just a less prominent trigger. */
+  triggerVariant?: "primary" | "ghost";
   onAdded: (stop: ItineraryStop) => void;
 }
 
@@ -62,8 +76,17 @@ function computeDefaultDateTime(lastStop: ItineraryStop | null): { date: string;
   };
 }
 
-function buildDefaultSchedule(lastStop: ItineraryStop | null): StopScheduleValues {
-  return { kind: "activity", status: "tentative", ...computeDefaultDateTime(lastStop), durationMinutes: "", travelMode: "driving", notes: "" };
+function buildDefaultSchedule(lastStop: ItineraryStop | null, presetDate?: string | null): StopScheduleValues {
+  const computed = computeDefaultDateTime(lastStop);
+  return {
+    kind: "activity",
+    status: "tentative",
+    ...computed,
+    date: presetDate != null ? presetDate : computed.date,
+    durationMinutes: "",
+    travelMode: "driving",
+    notes: "",
+  };
 }
 
 type Mode = "link" | "custom";
@@ -74,10 +97,17 @@ type Mode = "link" | "custom";
 // flight, a ferry, "Depart home"). Either way, the same scheduling
 // fields (kind/status/date/time/duration/travel mode/notes) get filled
 // in right here rather than a separate follow-up step.
-export default function AddStopDialog({ tripSlug, authToken, lastStop, onAdded }: AddStopDialogProps) {
+export default function AddStopDialog({
+  tripSlug,
+  authToken,
+  lastStop,
+  presetDate,
+  triggerVariant = "primary",
+  onAdded,
+}: AddStopDialogProps) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("link");
-  const [schedule, setSchedule] = useState<StopScheduleValues>(() => buildDefaultSchedule(lastStop));
+  const [schedule, setSchedule] = useState<StopScheduleValues>(() => buildDefaultSchedule(lastStop, presetDate));
   const [saving, setSaving] = useState(false);
   const [checkingTiming, setCheckingTiming] = useState(false);
   const [error, setError] = useState("");
@@ -118,7 +148,7 @@ export default function AddStopDialog({ tripSlug, authToken, lastStop, onAdded }
   // recompute when the dialog is opened, not overwrite an in-progress
   // edit if the last stop happens to change while this is still open.
   useEffect(() => {
-    if (open) setSchedule(buildDefaultSchedule(lastStop));
+    if (open) setSchedule(buildDefaultSchedule(lastStop, presetDate));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -145,7 +175,7 @@ export default function AddStopDialog({ tripSlug, authToken, lastStop, onAdded }
 
   function reset() {
     setMode("link");
-    setSchedule(buildDefaultSchedule(lastStop));
+    setSchedule(buildDefaultSchedule(lastStop, presetDate));
     setError("");
     setSectionId("");
     setEntryId("");
@@ -247,7 +277,7 @@ export default function AddStopDialog({ tripSlug, authToken, lastStop, onAdded }
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="primary" size="sm">
+        <Button variant={triggerVariant} size="sm">
           + Add stop
         </Button>
       </DialogTrigger>

@@ -4,6 +4,7 @@ import { useRef, useState, type DragEvent } from "react";
 import classNames from "classnames";
 import StopCard from "./StopCard";
 import RouteConnector from "./RouteConnector";
+import AddStopDialog from "./AddStopDialog";
 import { groupStopsByDate } from "../lib/groupStopsByDate";
 import type { ItineraryStop } from "@/lib/types";
 import styles from "./WeekView.module.css";
@@ -15,6 +16,7 @@ export interface WeekViewProps {
   canContribute: boolean;
   onEdit: (stop: ItineraryStop) => void;
   onMoveStop: (draggedId: string, targetId: string | null, position: "before" | "after", targetDate?: string | null) => void;
+  onAdded: (stop: ItineraryStop) => void;
 }
 
 function formatLaneHeader(date: string | null): string {
@@ -38,7 +40,7 @@ function laneKey(date: string | null): string {
 // scroll-snap, not JS-tracked "current page" state) — one lane fills
 // the viewport at a time, with a day-picker strip above it to jump
 // straight to one instead of swiping through everything between.
-export default function WeekView({ stops, tripSlug, authToken, canContribute, onEdit, onMoveStop }: WeekViewProps) {
+export default function WeekView({ stops, tripSlug, authToken, canContribute, onEdit, onMoveStop, onAdded }: WeekViewProps) {
   const lanes = groupStopsByDate(stops);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -162,6 +164,16 @@ export default function WeekView({ stops, tripSlug, authToken, canContribute, on
                     </div>
                   );
                 })
+              )}
+              {canContribute && (
+                <AddStopDialog
+                  tripSlug={tripSlug}
+                  authToken={authToken}
+                  lastStop={lane.stops.length > 0 ? lane.stops[lane.stops.length - 1] : null}
+                  presetDate={lane.date}
+                  triggerVariant="ghost"
+                  onAdded={onAdded}
+                />
               )}
             </div>
           );
