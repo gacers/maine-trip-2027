@@ -361,7 +361,24 @@ export default function EntryCard({
               <span className={styles["rating-caption"]}>Your score</span>
               <StarRating value={entry.myScore ?? 0} size={18} onChange={(v) => onRate(entry.id, v)} />
               {entry.myScore != null && (
-                <Button variant="ghost" size="sm" onClick={() => onRate(entry.id, null)} className={styles["clear-score"]}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    // Clearing removes this exact button from the DOM
+                    // the instant myScore goes back to null — with
+                    // nothing else done first, the still-focused button
+                    // vanishing out from under the browser's own focus
+                    // makes it fall back to the page body and jump the
+                    // scroll position to the top (confirmed live).
+                    // Blurring first, while the button's still mounted,
+                    // means there's no focused element left to lose by
+                    // the time it actually disappears.
+                    e.currentTarget.blur();
+                    onRate(entry.id, null);
+                  }}
+                  className={styles["clear-score"]}
+                >
                   Clear
                 </Button>
               )}

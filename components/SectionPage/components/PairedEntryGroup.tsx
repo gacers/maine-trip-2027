@@ -123,29 +123,47 @@ export default function PairedEntryGroup({
         <div className={classNames(styles["media-row-wrap"], isCollapsed && styles["media-row-wrap-collapsed"])}>
           <div className={styles["media-row-inner"]}>
             <div className={styles["media-row"]}>
+              {/* Neither half renders its own score badge (showRatings
+                  omitted) — the pair is rated as one option, not twice
+                  (see ListingSection's own shared "Your score"), so one
+                  combined badge below stands in for both, positioned
+                  the same top-right spot a solo card's own single badge
+                  would be. */}
               {unit.listings.map((entry) => (
                 <div key={entry.id} className={styles["media-half"]}>
-                  <EntryMedia entry={entry} compact={isCompactMedia} large={isLargeMedia} medium={isMediumMedia} showRatings={showRatings} />
+                  <EntryMedia entry={entry} compact={isCompactMedia} large={isLargeMedia} medium={isMediumMedia} />
                 </div>
               ))}
             </div>
           </div>
-          {/* Top-right, matching the solo card exactly. Only rendered
-              while expanded — collapsing hands this same toggle off to
+          {/* Top-right of the whole row — sits over the rightmost photo,
+              same corner a solo card's own score badge + toggle overlay
+              would occupy, so a paired card reads the same way at a
+              glance. Score first, then toggle to its right (same order
+              as EntryMedia's own overlay-row) — only rendered while
+              expanded; collapsing hands the toggle off to
               ListingSection's own header instead (see its own
-              comment), same idea as EntryCard/EntryMedia's own solo-
-              card version. */}
-          {collapsible && !isCollapsed && (
-            <button
-              type="button"
-              onClick={() => setCollapsed((c) => !c)}
-              className={styles["collapse-toggle-overlay"]}
-              aria-expanded={!isCollapsed}
-              title="Collapse"
-            >
-              <ChevronUp size={18} />
-            </button>
-          )}
+              comment). */}
+          {(showRatings && !!firstListing.ratingCount && firstListing.averageScore != null) || (collapsible && !isCollapsed) ? (
+            <div className={styles["overlay-row"]}>
+              {showRatings && !!firstListing.ratingCount && firstListing.averageScore != null && (
+                <div className={styles["score-badge"]} title={`${firstListing.averageScore.toFixed(1)} avg (${firstListing.ratingCount})`}>
+                  {firstListing.averageScore.toFixed(1)}
+                </div>
+              )}
+              {collapsible && !isCollapsed && (
+                <button
+                  type="button"
+                  onClick={() => setCollapsed((c) => !c)}
+                  className={styles["collapse-toggle-overlay"]}
+                  aria-expanded={!isCollapsed}
+                  title="Collapse"
+                >
+                  <ChevronUp size={18} />
+                </button>
+              )}
+            </div>
+          ) : null}
         </div>
       }
       canArchiveGroup={canContribute}

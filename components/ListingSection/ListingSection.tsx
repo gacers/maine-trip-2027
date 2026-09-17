@@ -166,7 +166,17 @@ export default function ListingSection({
               <span className={styles["rating-caption"]}>Your score</span>
               <StarRating value={myScore ?? 0} size={18} onChange={(v) => onRate(v)} />
               {myScore != null && (
-                <Button variant="ghost" size="sm" onClick={() => onRate(null)} className={styles["clear-score-button"]}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    // See EntryCard's own identical Clear button for
+                    // why this blur has to happen first.
+                    e.currentTarget.blur();
+                    onRate(null);
+                  }}
+                  className={styles["clear-score-button"]}
+                >
                   Clear
                 </Button>
               )}

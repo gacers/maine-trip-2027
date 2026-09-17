@@ -2,8 +2,8 @@
    (rather than a fixed height, since the row's real height differs
    between the stacked-on-mobile and side-by-side-on-desktop layouts
    below) — .media-row-inner clips whatever's inside as this shrinks.
-   position: relative so .collapse-toggle-overlay below anchors to this
-   whole row, not just one half. */
+   position: relative so .overlay-row below anchors to this whole row,
+   not just one half. */
 .media-row-wrap {
   position: relative;
   display: grid;
@@ -20,11 +20,35 @@
   min-height: 0;
 }
 
-.collapse-toggle-overlay {
+/* Same top-right cluster as EntryMedia's own overlay-row (score badge,
+   then the collapse toggle to its right) — pinned to the whole row's
+   corner, which lands over the rightmost photo, same spot a solo
+   card's own single badge/toggle would sit. */
+.overlay-row {
   position: absolute;
   z-index: 1;
   top: 0.75rem;
   right: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.score-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-zinc-900);
+}
+
+.collapse-toggle-overlay {
   display: flex;
   align-items: center;
   justify-content: center;
