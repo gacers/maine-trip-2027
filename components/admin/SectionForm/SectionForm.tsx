@@ -6,6 +6,7 @@ import FieldDefsEditor, { fieldDefToRow, rowToFieldDef, type FieldRow } from "./
 import SectionOptionsFields from "./components/SectionOptionsFields";
 import CounterpartOption from "./components/CounterpartOption";
 import PrefillPanel from "./components/PrefillPanel";
+import DangerZone from "./components/DangerZone";
 import { VISITED_PREFIX, PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER, looksLikePastTier } from "@/lib/sectionLabels";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionForm.module.css";
@@ -293,6 +294,8 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
           {saving ? "Saving..." : isEdit ? "Save changes" : "Create section"}
         </button>
       </div>
+
+      {isEdit && section && currentNavGroupSlug && <DangerZone trip={trip} navGroupSlug={currentNavGroupSlug} section={section} />}
     </form>
   );
 }
