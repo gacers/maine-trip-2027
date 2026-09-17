@@ -112,6 +112,15 @@
   }
 }
 
+/* A paired 2-house comparison card already shows two listings side by
+   side on its own — inside a grid-2/grid-3 layout it needs the whole
+   row, not just one column's worth of it like a solo card. Only ever
+   applied to a "group" unit (see SectionPage's renderUnit); .entry-list
+   is already full width, so nothing needs this there. */
+.grid-span-full {
+  grid-column: 1 / -1;
+}
+
 /* Once a trip is completed, the active list splits into "what we
    actually did" and "researched, didn't get to" right here in the
    normal view — nothing is archived/hidden to show this, so there's

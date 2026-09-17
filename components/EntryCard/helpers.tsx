@@ -1,4 +1,5 @@
-import { Bath, BedDouble, BedSingle, Hash } from "lucide-react";
+import { Bath, BedDouble, BedSingle, Hash, Phone, Mail, MapPin, Clock, Globe } from "lucide-react";
+import type { FieldDef } from "@/lib/types";
 import styles from "./helpers.module.css";
 
 // A raw street address ("9 Thurston Rd, Bernard, ME 04612, USA") ending
@@ -38,4 +39,23 @@ export function countFieldIcon(label: string) {
   if (l.includes("bedroom")) return <BedDouble size={17} className={styles["count-icon"]} />;
   if (l.includes("bed")) return <BedSingle size={17} className={styles["count-icon"]} />;
   return <Hash size={17} className={styles["count-icon"]} />;
+}
+
+// Same idea as countFieldIcon, for a generic "show on overview" field
+// (anything not already handled by its own dedicated display — price/
+// count/boolean, see EntryCard) — a phone number, a website, whatever
+// an admin adds later. Unlike counts (always a number, so always worth
+// *some* icon), an arbitrary text field with no recognizable label
+// often has no sensible icon at all — this is a best-effort match, so
+// it returns null rather than forcing a generic icon onto it.
+export function overviewFieldIcon(fieldDef: FieldDef) {
+  const l = `${fieldDef.key} ${fieldDef.label}`.toLowerCase();
+  if (l.includes("phone") || l.includes("tel")) return <Phone size={15} className={styles["overview-icon"]} />;
+  if (l.includes("email")) return <Mail size={15} className={styles["overview-icon"]} />;
+  if (l.includes("address")) return <MapPin size={15} className={styles["overview-icon"]} />;
+  if (l.includes("hour") || l.includes("time")) return <Clock size={15} className={styles["overview-icon"]} />;
+  if (fieldDef.field_type === "url" || l.includes("website") || l.includes("site") || l.includes("link")) {
+    return <Globe size={15} className={styles["overview-icon"]} />;
+  }
+  return null;
 }

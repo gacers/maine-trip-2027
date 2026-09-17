@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
+import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
 import type { FieldType, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +67,12 @@ export async function PATCH(
     supportsRatings,
     cardLayout,
     navGroupId,
+    // Moves this section into a brand-new nav group instead of an
+    // existing one — same idea as the sections POST route's own
+    // newNavGroupLabel, so a miscategorized section (e.g. filed under
+    // an existing group by mistake) can be corrected from its own Edit
+    // page, not just at creation time.
+    newNavGroupLabel,
     enabled,
     fieldDefs,
     // Backs SectionsAdmin's own drag-to-reorder within a nav group —
@@ -100,6 +107,48 @@ export async function PATCH(
   }
 
   try {
+    if (newNavGroupLabel && newNavGroupLabel.trim()) {
+      const groupSlug = newNavGroupLabel
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      const { data: group, error: groupError } = await supabase!
+        .from("nav_groups")
+        .insert({ trip_id: trip.id, slug: groupSlug, label: newNavGroupLabel.trim(), sort_order: 999 })
+        .select()
+        .single();
+      if (groupError) throw new Error(groupError.message);
+      patch.nav_group_id = group.id;
+
+      // Moving a section into a brand-new group is functionally the
+      // same "this is a real custom category now" signal the sections
+      // POST route captures on create — without this, a section
+      // originally miscategorized under a built-in group (where
+      // capture is deliberately skipped, see isDefaultNavGroupLabel)
+      // stays invisible as a template even after being moved to its
+      // own group, since PATCH otherwise never calls this at all.
+      // Best-effort, same as the POST route's own capture call.
+      upsertCustomSectionTemplate(supabase!, newNavGroupLabel.trim(), trip.id, {
+        slug: section.slug,
+        label: (patch.label as string | undefined) ?? section.label,
+        subNavLabel: (patch.sub_nav_label as string | undefined) ?? section.sub_nav_label,
+        addPlaceholder: (patch.add_placeholder as string | undefined) ?? section.add_placeholder,
+        emptyMessage: (patch.empty_message as string | undefined) ?? section.empty_message,
+        supportsPairing: (patch.supports_pairing as boolean | undefined) ?? section.supports_pairing,
+        hasMap: (patch.has_map as boolean | undefined) ?? section.has_map,
+        supportsRatings: (patch.supports_ratings as boolean | undefined) ?? section.supports_ratings,
+        cardLayout: (patch.card_layout as Section["card_layout"] | undefined) ?? section.card_layout,
+        fieldDefs: (fieldDefs || section.field_defs || []).map((f: Record<string, unknown>) => ({
+          key: f.key as string,
+          label: f.label as string,
+          field_type: f.field_type as FieldType,
+          show_on_overview: !!f.show_on_overview,
+          options: (f.options as { aliases?: string[] } | undefined) || undefined,
+        })),
+      }).catch((err) => console.error("Template capture failed:", err));
+    }
+
     if (Object.keys(patch).length > 0) {
       const { error } = await supabase!.from("sections").update(patch).eq("id", section.id);
       if (error) throw new Error(error.message);
@@ -125,7 +174,18 @@ export async function PATCH(
       }
     }
 
-    const updated = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
+    // Not getSectionBySlug(trip.id, navGroupSlug, sectionSlug) here —
+    // that's scoped to the *request's* nav group slug, which no longer
+    // matches once newNavGroupLabel just moved this section elsewhere.
+    // Looking it up by its own id instead works regardless of whether
+    // it moved.
+    const { data: updated, error: fetchError } = await supabase!
+      .from("sections")
+      .select("*, field_defs(*)")
+      .eq("id", section.id)
+      .single();
+    if (fetchError) throw new Error(fetchError.message);
+    updated.field_defs = (updated.field_defs || []).sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order);
     return NextResponse.json({ section: updated });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

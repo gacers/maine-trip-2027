@@ -299,6 +299,12 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
           isMediumMedia={isMediumMedia}
           nightsEstimate={nightsEstimate}
           tripCompleted={trip.completed}
+          // A paired comparison card already shows two listings side by
+          // side on its own — inside a grid-2/grid-3 layout it needs
+          // the whole row, not just one column's worth like a solo
+          // card. .entry-list is already full width, nothing extra
+          // needed there.
+          className={cardLayout !== "list" ? styles["grid-span-full"] : undefined}
         />
       );
     }

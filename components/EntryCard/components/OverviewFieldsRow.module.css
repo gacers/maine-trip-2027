@@ -1,0 +1,29 @@
+.list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: var(--text-sm);
+  color: var(--color-zinc-700);
+}
+
+.label {
+  color: var(--color-zinc-500);
+}
+
+.link {
+  color: var(--color-blue-600);
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
