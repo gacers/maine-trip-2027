@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useState, type DragEvent } from "react";
+import classNames from "classnames";
 import { captureInviteToken } from "@/lib/inviteClient";
 import AddStopDialog from "./components/AddStopDialog";
 import EditStopDialog from "./components/EditStopDialog";
 import StopCard from "./components/StopCard";
 import RouteConnector from "./components/RouteConnector";
 import DocExportBox from "./components/DocExportBox";
+import WeekView from "./components/WeekView";
 import type { PublicTrip, ItineraryStop } from "@/lib/types";
 import styles from "./ItineraryPage.module.css";
+
+type ViewMode = "list" | "week";
 
 export interface ItineraryPageProps {
   trip: PublicTrip;
@@ -35,6 +39,7 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
   const [contributorToken, setContributorToken] = useState<string | null>(null);
   const [accessChecked, setAccessChecked] = useState(isAdmin || isEditor);
   const [editingStop, setEditingStop] = useState<ItineraryStop | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -69,15 +74,49 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
 
   async function reorderStops(draggedId: string, targetId: string, position: "before" | "after") {
     if (draggedId === targetId) return;
-    const ids = stops.map((s) => s.id);
-    const fromIndex = ids.indexOf(draggedId);
-    if (fromIndex === -1 || ids.indexOf(targetId) === -1) return;
+    await moveStop(draggedId, targetId, position);
+  }
 
-    const reordered = [...stops];
-    const [moved] = reordered.splice(fromIndex, 1);
-    let insertAt = reordered.findIndex((s) => s.id === targetId);
-    if (position === "after") insertAt += 1;
-    reordered.splice(insertAt, 0, moved);
+  // The shared move used by both views — the list view only ever
+  // reorders within the same date (targetDate omitted, so the dragged
+  // stop's own date is left alone); WeekView also uses this to drag a
+  // stop onto a different day's lane entirely (targetDate set), or
+  // onto an empty lane / the end of one (targetId omitted — inserts
+  // right after that date's own last stop in the flat order, or at the
+  // very end if that date has none yet). Every stop's sort_order is
+  // one single flat sequence across the whole trip regardless of date
+  // — the date grouping (list view's day headers, WeekView's lanes) is
+  // purely a display concern on top of it, same as the original
+  // itinerary-builder plan called for.
+  async function moveStop(draggedId: string, targetId: string | null, position: "before" | "after", targetDate?: string | null) {
+    const dragged = stops.find((s) => s.id === draggedId);
+    if (!dragged) return;
+    if (targetId && draggedId === targetId) return;
+
+    const dateChanged = targetDate !== undefined && targetDate !== dragged.date;
+    const updatedDragged = dateChanged ? { ...dragged, date: targetDate! } : dragged;
+    const withoutDragged = stops.filter((s) => s.id !== draggedId);
+
+    let insertAt: number;
+    if (targetId) {
+      insertAt = withoutDragged.findIndex((s) => s.id === targetId);
+      if (insertAt === -1) return;
+      if (position === "after") insertAt += 1;
+    } else if (dateChanged) {
+      // No specific target stop — dropped on an empty lane, or past
+      // the last card in one. Lands right after that date's own last
+      // stop in the flat order (or at the very end if it has none).
+      let lastIndexInGroup = -1;
+      withoutDragged.forEach((s, i) => {
+        if (s.date === targetDate) lastIndexInGroup = i;
+      });
+      insertAt = lastIndexInGroup === -1 ? withoutDragged.length : lastIndexInGroup + 1;
+    } else {
+      return;
+    }
+
+    const reordered = [...withoutDragged];
+    reordered.splice(insertAt, 0, updatedDragged);
     setStops(reordered);
 
     setError("");
@@ -87,12 +126,12 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
           fetch(`/api/trips/${trip.slug}/itinerary/stops/${s.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json", ...authHeaders },
-            body: JSON.stringify({ sortOrder: i }),
+            body: JSON.stringify(dateChanged && s.id === draggedId ? { sortOrder: i, date: targetDate } : { sortOrder: i }),
           })
         )
       );
     } catch {
-      setError("Reorder failed to save — reload to see the actual saved order.");
+      setError("Move failed to save — reload to see the actual saved order.");
     }
   }
 
@@ -127,7 +166,25 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
     <div className={styles["root"]}>
       <div className={styles["sticky-header"]}>
         <div className={styles["header"]}>
-          <h1 className={styles["heading"]}>Itinerary</h1>
+          <div className={styles["heading-group"]}>
+            <h1 className={styles["heading"]}>Itinerary</h1>
+            <div className={styles["view-toggle"]}>
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={classNames(styles["view-toggle-button"], viewMode === "list" && styles["view-toggle-active"])}
+              >
+                List
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("week")}
+                className={classNames(styles["view-toggle-button"], viewMode === "week" && styles["view-toggle-active"])}
+              >
+                Week
+              </button>
+            </div>
+          </div>
           {accessChecked && canContribute && (
             <div className={styles["header-actions"]}>
               <AddStopDialog
@@ -154,6 +211,15 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
         <p className={styles["muted"]}>Loading...</p>
       ) : stops.length === 0 ? (
         <p className={styles["muted"]}>Nothing on the itinerary yet — add a stop above.</p>
+      ) : viewMode === "week" ? (
+        <WeekView
+          stops={stops}
+          tripSlug={trip.slug}
+          authToken={authToken}
+          canContribute={canContribute}
+          onEdit={setEditingStop}
+          onMoveStop={moveStop}
+        />
       ) : (
         <div className={styles["list"]}>
           {stops.map((stop, i) => {

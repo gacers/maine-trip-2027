@@ -1,0 +1,87 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Quick-jump strip — most useful once the lane row below has become a
+   one-at-a-time carousel (narrow screens), but harmless (and still a
+   handy shortcut past a long trip) at any width, so it's never
+   conditionally rendered, just always present. */
+.day-picker {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.day-pill {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-zinc-700);
+  background: var(--color-zinc-100);
+  border: 1px solid var(--color-zinc-200);
+  border-radius: var(--radius-full);
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--color-zinc-200);
+  }
+}
+
+/* One lane per day, side by side — scroll-snap (not JS-tracked "which
+   page am I on" state) is what turns this into a one-lane carousel on
+   a narrow screen: .lane's own width just becomes 100% there (see
+   below), so a swipe naturally lands on the next lane's own snap
+   point. */
+.lanes {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 1rem;
+}
+
+.lane {
+  flex: 0 0 18rem;
+  scroll-snap-align: start;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-zinc-200);
+  background: var(--color-zinc-50);
+  padding: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .lane {
+    flex: 0 0 100%;
+  }
+}
+
+.lane-drop-target {
+  border-color: var(--color-blue-400);
+  background: var(--color-blue-50);
+}
+
+.lane-header {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-zinc-700);
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--color-zinc-200);
+}
+
+.lane-empty {
+  font-size: var(--text-xs);
+  color: var(--color-zinc-400);
+  text-align: center;
+  border: 1px dashed var(--color-zinc-300);
+  border-radius: var(--radius);
+  padding: 1rem 0.5rem;
+}
