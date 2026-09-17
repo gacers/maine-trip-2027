@@ -1,10 +1,28 @@
 .root {
-  max-width: 40rem;
+  max-width: 60rem;
   margin: 0 auto;
-  padding: 1.5rem 1rem 4rem;
+  padding: 0 1rem 4rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* Pinned below the site's own sticky nav bar (--sticky-nav-height,
+   published by TripNavHeader) while scrolling down a long day-by-day
+   list — Add stop/Clear all/the Doc export box stay reachable without
+   scrolling back up. Its own background/padding/border so it reads as
+   a distinct bar once content is actually scrolling underneath it,
+   not just floating text. */
+.sticky-header {
+  position: sticky;
+  top: var(--sticky-nav-height, 0px);
+  z-index: 5;
+  background: var(--color-white);
+  padding: 1.5rem 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-zinc-200);
 }
 
 .header {
@@ -53,6 +71,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  padding-top: 0.5rem;
 }
 
 .day-header {
@@ -60,6 +79,6 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-zinc-700);
   margin-top: 0.5rem;
-  padding-bottom: 0.25rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--color-zinc-200);
 }

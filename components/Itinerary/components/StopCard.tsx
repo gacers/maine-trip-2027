@@ -3,6 +3,7 @@
 import type { DragEvent } from "react";
 import classNames from "classnames";
 import Link from "next/link";
+import { formatDuration } from "@/lib/formatDuration";
 import type { ItineraryStop } from "@/lib/types";
 import styles from "./StopCard.module.css";
 
@@ -104,7 +105,7 @@ export default function StopCard({
             stop.title
           )}
         </div>
-        {stop.duration_minutes != null && <div className={styles["duration"]}>{stop.duration_minutes} min</div>}
+        {stop.duration_minutes != null && <div className={styles["duration"]}>{formatDuration(stop.duration_minutes)}</div>}
         {stop.notes && <div className={styles["notes"]}>{stop.notes}</div>}
       </div>
       {canEdit && (

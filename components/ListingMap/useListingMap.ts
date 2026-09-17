@@ -80,6 +80,11 @@ export interface UseListingMapArgs {
    * below just silently skip (same as `enabled: false`), same reasoning
    * as ListingMap.tsx's own unused-in-practice default export. */
   tripSlug?: string;
+  /** A contributor's invite-link token — null for an admin/editor
+   * session, which authenticates via cookie instead (see
+   * lib/geocodeClient.ts/lib/routeClient.ts's own comments on why this
+   * has to be passed explicitly rather than assumed). */
+  authToken?: string | null;
 }
 
 export interface UseListingMapResult {
@@ -124,6 +129,7 @@ export function useListingMap({
   showReferencePoints = true,
   enabled = true,
   tripSlug,
+  authToken,
 }: UseListingMapArgs): UseListingMapResult {
   const mapDivRef = useRef<HTMLDivElement>(null);
   const { google, status, errorMsg } = useGoogleMaps();
@@ -163,7 +169,7 @@ export function useListingMap({
   useEffect(() => {
     if (!enabled || !showReferencePoints || !referenceHouse || !tripSlug) return;
     let cancelled = false;
-    fetchTown(tripSlug, referenceHouse.lat, referenceHouse.lng)
+    fetchTown(tripSlug, referenceHouse.lat, referenceHouse.lng, authToken)
       .then((town) => {
         if (!cancelled) setClosestTown(town);
       })
@@ -175,7 +181,7 @@ export function useListingMap({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [housesKey, showReferencePoints, enabled, tripSlug]);
+  }, [housesKey, showReferencePoints, enabled, tripSlug, authToken]);
 
   useEffect(() => {
     if (!enabled || !google || !mapDivRef.current || !referenceHouse) return;
@@ -223,7 +229,7 @@ export function useListingMap({
       // Just compute duration/distance for the Driving Times list below —
       // no route polyline drawn on the map itself, just the pins.
       const destUrl = `https://www.google.com/maps/dir/?api=1&origin=${referenceHouse.lat},${referenceHouse.lng}&destination=${dest.lat},${dest.lng}`;
-      fetchRoute(tripSlug, referenceHouse, { lat: dest.lat, lng: dest.lng })
+      fetchRoute(tripSlug, referenceHouse, { lat: dest.lat, lng: dest.lng }, "driving", authToken)
         .then((route) => {
           if (cancelled) return;
           newRouteInfo[dest.label] = route
@@ -252,10 +258,10 @@ export function useListingMap({
     if (showReferencePoints && config.originLabel && tripSlug) {
       const originLabel = config.originLabel;
       const originUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originLabel)}&destination=${referenceHouse.lat},${referenceHouse.lng}`;
-      fetchForwardGeocode(tripSlug, originLabel)
+      fetchForwardGeocode(tripSlug, originLabel, authToken)
         .then((origin) => {
           if (cancelled) return null;
-          return fetchRoute(tripSlug, origin, referenceHouse);
+          return fetchRoute(tripSlug, origin, referenceHouse, "driving", authToken);
         })
         .then((route) => {
           if (cancelled) return;
@@ -270,7 +276,7 @@ export function useListingMap({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, google, housesKey, closestTown, tripSlug]);
+  }, [enabled, google, housesKey, closestTown, tripSlug, authToken]);
 
   const liveMapUrl =
     "https://www.google.com/maps/dir/" + [...houses, ...destinations].map((p) => `${p.lat},${p.lng}`).join("/");

@@ -7,6 +7,11 @@ export interface RouteResult {
    * DirectionsService call used to build inline. */
   text: string;
   url: string;
+  /** Raw seconds, alongside the formatted text above — for anything
+   * that needs to do arithmetic with the duration (the itinerary's own
+   * "leave by" estimate: nextStop.time minus this), not just display
+   * it. */
+  durationSeconds: number;
   /** Surfaced for the devtools/debugging only — RouteConnector doesn't
    * change what it renders based on this. */
   cached: boolean;
@@ -15,6 +20,7 @@ export interface RouteResult {
 interface CachedRow {
   distance_text: string;
   duration_text: string;
+  duration_seconds: number;
   computed_at: string;
 }
 
@@ -39,8 +45,8 @@ function round(n: number): number {
   return Math.round(n * 1e6) / 1e6;
 }
 
-function formatResult(row: Pick<CachedRow, "distance_text" | "duration_text">, url: string, cached: boolean): RouteResult {
-  return { text: `${row.duration_text} (${row.distance_text})`, url, cached };
+function formatResult(row: CachedRow, url: string, cached: boolean): RouteResult {
+  return { text: `${row.duration_text} (${row.distance_text})`, url, durationSeconds: row.duration_seconds, cached };
 }
 
 // The one entry point RouteConnector's own API route calls: reuse a
@@ -66,7 +72,7 @@ export async function getOrComputeRoute(
 
   const { data: existing } = await supabase
     .from("route_cache")
-    .select("distance_text, duration_text, computed_at")
+    .select("distance_text, duration_text, duration_seconds, computed_at")
     .eq("origin_lat", originLat)
     .eq("origin_lng", originLng)
     .eq("dest_lat", destLat)
@@ -113,6 +119,7 @@ export async function getOrComputeRoute(
   return {
     text: `${computed.durationText} (${computed.distanceText})`,
     url: mapsUrl,
+    durationSeconds: computed.durationSeconds,
     cached: false,
   };
 }

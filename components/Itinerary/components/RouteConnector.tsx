@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { TravelMode } from "@/lib/types";
+import { ITINERARY_TRAVEL_MODE_CONNECTOR_LABEL, toGoogleTravelMode } from "@/lib/itineraryTravelMode";
+import type { ItineraryTravelMode } from "@/lib/types";
 import styles from "./RouteConnector.module.css";
 
 export interface RouteConnectorProps {
@@ -9,20 +10,26 @@ export interface RouteConnectorProps {
   authToken: string | null;
   from: { lat: number; lng: number };
   to: { lat: number; lng: number };
-  travelMode: TravelMode;
+  travelMode: ItineraryTravelMode;
+  /** The arriving stop's own date/time, if it has one — lets this show
+   * "Leave by 2:15 PM" (that time minus the drive) alongside the drive
+   * time itself. Omitted (no estimate shown) when the next stop has no
+   * set time to work backward from. */
+  toDate?: string | null;
+  toTime?: string | null;
 }
-
-const TRAVEL_MODE_LABEL: Record<TravelMode, string> = {
-  driving: "drive",
-  walking: "walk",
-  transit: "transit",
-  bicycling: "bike",
-};
 
 // A day this route caching was introduced, roughly — not read anywhere,
 // just so staleTime below has an obvious reason attached to it rather
 // than a bare number.
 const A_DAY = 24 * 60 * 60 * 1000;
+
+function formatLeaveBy(toDate: string, toTime: string, durationSeconds: number): string | null {
+  const arrival = new Date(`${toDate}T${toTime.slice(0, 5)}:00`);
+  if (Number.isNaN(arrival.getTime())) return null;
+  const leaveBy = new Date(arrival.getTime() - durationSeconds * 1000);
+  return leaveBy.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
 
 // An overlay, not the primary way a leg is represented — only rendered
 // by ItineraryPage when both neighboring stops actually have lat/lng
@@ -43,9 +50,14 @@ const A_DAY = 24 * 60 * 60 * 1000;
 // queries (SectionPage's own entries are 60s) since a drive time
 // between two fixed points is nowhere near as likely to change
 // mid-session as trip content is.
-export default function RouteConnector({ tripSlug, authToken, from, to, travelMode }: RouteConnectorProps) {
+export default function RouteConnector({ tripSlug, authToken, from, to, travelMode, toDate, toTime }: RouteConnectorProps) {
+  // car_service isn't a real Directions mode (see toGoogleTravelMode) —
+  // sent as "driving" to the API (which validates against Google's own
+  // 4 modes), the cache key it hits and the actual leg computed are
+  // identical to a plain driving connector either way.
+  const googleMode = toGoogleTravelMode(travelMode);
   const { data, isError } = useQuery({
-    queryKey: ["itineraryDirections", tripSlug, from.lat, from.lng, to.lat, to.lng, travelMode] as const,
+    queryKey: ["itineraryDirections", tripSlug, from.lat, from.lng, to.lat, to.lng, googleMode] as const,
     queryFn: async () => {
       const res = await fetch(`/api/trips/${tripSlug}/itinerary/directions`, {
         method: "POST",
@@ -53,11 +65,11 @@ export default function RouteConnector({ tripSlug, authToken, from, to, travelMo
           "Content-Type": "application/json",
           ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         },
-        body: JSON.stringify({ from, to, travelMode }),
+        body: JSON.stringify({ from, to, travelMode: googleMode }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || "Route lookup failed");
-      return body as { text: string; url: string };
+      return body as { text: string; url: string; durationSeconds: number };
     },
     staleTime: A_DAY,
     gcTime: A_DAY,
@@ -66,12 +78,17 @@ export default function RouteConnector({ tripSlug, authToken, from, to, travelMo
 
   if (isError) return null;
 
+  const leaveBy = data && toDate && toTime ? formatLeaveBy(toDate, toTime, data.durationSeconds) : null;
+
   return (
     <div className={styles["root"]}>
       {data ? (
-        <a href={data.url} target="_blank" rel="noopener noreferrer" className={styles["link"]}>
-          ↓ {data.text} {TRAVEL_MODE_LABEL[travelMode]}
-        </a>
+        <>
+          <a href={data.url} target="_blank" rel="noopener noreferrer" className={styles["link"]}>
+            ↓ {data.text} {ITINERARY_TRAVEL_MODE_CONNECTOR_LABEL[travelMode]}
+          </a>
+          {leaveBy && <span className={styles["leave-by"]}>Leave by {leaveBy}</span>}
+        </>
       ) : (
         <span className={styles["loading"]}>↓ calculating...</span>
       )}

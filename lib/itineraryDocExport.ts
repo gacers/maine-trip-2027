@@ -3,6 +3,9 @@ import type { docs_v1 } from "googleapis";
 import { getDocsClient } from "@/lib/googleDocsAuth";
 import { createDocInDrive } from "@/lib/drive";
 import { getStopsForTrip } from "@/lib/itineraryStops";
+import { getOrComputeRoute } from "@/lib/routeCache";
+import { toGoogleTravelMode, ITINERARY_TRAVEL_MODE_CONNECTOR_LABEL } from "@/lib/itineraryTravelMode";
+import { formatDuration } from "@/lib/formatDuration";
 import type { Trip, ItineraryStop } from "@/lib/types";
 
 export interface ExportResult {
@@ -36,10 +39,16 @@ function formatTime(time: string | null): string | null {
   return `${hour12}:${pad(m)} ${period}`;
 }
 
+function mapsSearchUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+}
+
 export interface StyleRun {
   start: number;
   end: number;
-  style: "title" | "day" | "bold" | "italic";
+  style: "title" | "day" | "bold" | "italic" | "bullet" | "indent" | "link";
+  /** Only meaningful for "link" runs. */
+  url?: string;
 }
 
 // Builds the whole doc body as one plain-text string plus a list of
@@ -50,13 +59,25 @@ export interface StyleRun {
 // entry; tentative/archived are italicized (Docs' nearest equivalent
 // to "dimmed") rather than hidden — same "keep discarded options
 // visible" posture as the web page itself.
-export function buildDocContent(tripName: string, stops: ItineraryStop[]): { text: string; runs: StyleRun[] } {
+//
+// Async now (was pure text-building before) — computing the drive-
+// time/leave-by line between two coordinate-bearing stops needs a real
+// Directions lookup, same cached one the site's own RouteConnector
+// uses (see lib/routeCache.ts): the whole *combined* app usage for a
+// given stop-pair still only ever asks Google once (until that mode's
+// TTL expires), whether that first ask came from someone viewing the
+// page or someone clicking Export.
+export async function buildDocContent(
+  supabase: SupabaseClient,
+  tripName: string,
+  stops: ItineraryStop[]
+): Promise<{ text: string; runs: StyleRun[] }> {
   let text = "";
   const runs: StyleRun[] = [];
   const append = (s: string) => {
     text += s;
   };
-  const mark = (start: number, style: StyleRun["style"]) => runs.push({ start, end: text.length, style });
+  const mark = (start: number, style: StyleRun["style"], url?: string) => runs.push({ start, end: text.length, style, url });
 
   let start = text.length;
   append(`${tripName} — Itinerary\n\n`);
@@ -64,6 +85,8 @@ export function buildDocContent(tripName: string, stops: ItineraryStop[]): { tex
 
   let lastDate: string | null | undefined;
   let sawAnyDate = false;
+  let prevStop: ItineraryStop | null = null;
+
   for (const stop of stops) {
     if (stop.date !== lastDate) {
       lastDate = stop.date;
@@ -73,19 +96,69 @@ export function buildDocContent(tripName: string, stops: ItineraryStop[]): { tex
       mark(start, "day");
     }
 
+    // The drive-time/leave-by line between this stop and the previous
+    // one — same conditions RouteConnector uses on the site (both
+    // sides need coordinates), same cache, same car_service ->
+    // "driving" mapping (a car service drives the same roads a regular
+    // car would — see toGoogleTravelMode).
+    if (prevStop && prevStop.lat != null && prevStop.lng != null && stop.lat != null && stop.lng != null) {
+      const route = await getOrComputeRoute(
+        supabase,
+        { lat: prevStop.lat, lng: prevStop.lng },
+        { lat: stop.lat, lng: stop.lng },
+        toGoogleTravelMode(stop.travel_mode)
+      ).catch(() => null);
+      if (route) {
+        let line = `↓ ${route.text} ${ITINERARY_TRAVEL_MODE_CONNECTOR_LABEL[stop.travel_mode]}`;
+        if (stop.time) {
+          const arrival = new Date(`${stop.date}T${stop.time.slice(0, 5)}:00`);
+          if (!Number.isNaN(arrival.getTime())) {
+            const leaveBy = new Date(arrival.getTime() - route.durationSeconds * 1000);
+            line += ` — leave by ${leaveBy.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+          }
+        }
+        start = text.length;
+        append(`${line}\n`);
+        mark(start, "indent");
+        mark(start, "italic");
+      }
+    }
+
     const time = formatTime(stop.time);
     const prefix = stop.status === "confirmed" ? "✓ " : "";
     const suffix = stop.status === "archived" ? "  (archived)" : stop.status === "tentative" ? "  (tentative)" : "";
     const titleLine = `${time ? `${time} — ` : ""}${prefix}${stop.title}${suffix}`;
     start = text.length;
-    append(`${titleLine}\n`);
+    append(titleLine);
     mark(start, stop.status === "confirmed" ? "bold" : "italic");
 
-    const metaBits = [KIND_LABEL[stop.kind] || stop.kind];
-    if (stop.duration_minutes) metaBits.push(`${stop.duration_minutes} min`);
-    append(`${metaBits.join(" · ")}\n`);
-    if (stop.notes) append(`${stop.notes}\n`);
+    // A real link, not just a URL printed as text — the stop's own
+    // link when it has one (its linked entry's own site, or a custom
+    // stop's own URL), falling back to a Google Maps search on its
+    // coordinates so there's still SOME way to get directions from the
+    // doc alone, without the itinerary page open alongside it.
+    const directionsUrl = stop.url || (stop.lat != null && stop.lng != null ? mapsSearchUrl(stop.lat, stop.lng) : null);
+    if (directionsUrl) {
+      const linkStart = text.length;
+      append("  (directions)");
+      mark(linkStart, "link", directionsUrl);
+    }
     append("\n");
+    mark(start, "bullet");
+
+    const metaBits = [KIND_LABEL[stop.kind] || stop.kind];
+    if (stop.duration_minutes) metaBits.push(formatDuration(stop.duration_minutes));
+    start = text.length;
+    append(`${metaBits.join(" · ")}\n`);
+    mark(start, "indent");
+    if (stop.notes) {
+      start = text.length;
+      append(`${stop.notes}\n`);
+      mark(start, "indent");
+    }
+    append("\n");
+
+    prevStop = stop;
   }
 
   if (!sawAnyDate && stops.length === 0) {
@@ -114,6 +187,26 @@ function requestsFromContent(text: string, runs: StyleRun[]): docs_v1.Schema$Req
           range,
           textStyle: { italic: true, foregroundColor: { color: { rgbColor: { red: 0.45, green: 0.45, blue: 0.45 } } } },
           fields: "italic,foregroundColor",
+        },
+      });
+    } else if (run.style === "bullet") {
+      requests.push({
+        createParagraphBullets: { range, bulletPreset: "BULLET_DISC_CIRCLE_SQUARE" },
+      });
+    } else if (run.style === "indent") {
+      requests.push({
+        updateParagraphStyle: {
+          range,
+          paragraphStyle: { indentStart: { magnitude: 36, unit: "PT" } },
+          fields: "indentStart",
+        },
+      });
+    } else if (run.style === "link" && run.url) {
+      requests.push({
+        updateTextStyle: {
+          range,
+          textStyle: { link: { url: run.url }, foregroundColor: { color: { rgbColor: { red: 0.06, green: 0.36, blue: 0.77 } } } },
+          fields: "link,foregroundColor",
         },
       });
     }
@@ -161,7 +254,7 @@ export async function exportItineraryOrThrow(supabase: SupabaseClient, trip: Tri
     requests.push({ deleteContentRange: { range: { startIndex: 1, endIndex: endIndex - 1 } } });
   }
 
-  const { text, runs } = buildDocContent(trip.name, stops);
+  const { text, runs } = await buildDocContent(supabase, trip.name, stops);
   requests.push(...requestsFromContent(text, runs));
 
   await docs.documents.batchUpdate({ documentId: docId!, requestBody: { requests } });

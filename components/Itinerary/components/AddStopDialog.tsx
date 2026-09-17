@@ -7,8 +7,25 @@ import PlacePicker from "@/components/AddEntryForm/components/PlacePicker";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import StopScheduleFields, { type StopScheduleValues } from "./StopScheduleFields";
 import { findTimingConflict } from "../lib/validateStopTiming";
-import type { ItineraryEntryOption, ItineraryStop, PlaceResult } from "@/lib/types";
+import type { ItineraryEntryOption, ItineraryStop, ItineraryStopKind, PlaceResult } from "@/lib/types";
 import styles from "./AddStopDialog.module.css";
+
+// A best-effort default, not a hard mapping — picking a type just
+// pre-selects Kind to whatever's most likely (confirmed live: it
+// defaulted to "Activity" no matter what you linked, which was wrong
+// often enough to be annoying for Stays/Food & Drink); the Kind
+// dropdown right below still lets you correct it either way.
+function guessKindFromNavGroupLabel(navGroupLabel: string): ItineraryStopKind {
+  const l = navGroupLabel.toLowerCase();
+  if (l.includes("stay") || l.includes("house") || l.includes("lodging") || l.includes("hotel")) return "lodging";
+  if (l.includes("food") || l.includes("drink") || l.includes("dining") || l.includes("restaurant") || l.includes("tasting")) {
+    return "meal";
+  }
+  if (l.includes("transport") || l.includes("car") || l.includes("ferry") || l.includes("flight") || l.includes("transit")) {
+    return "transport";
+  }
+  return "activity";
+}
 
 export interface AddStopDialogProps {
   tripSlug: string;
@@ -173,7 +190,7 @@ export default function AddStopDialog({ tripSlug, authToken, lastStop, onAdded }
     const candidateLat = mode === "link" ? (selected?.lat ?? null) : (place?.lat ?? null);
     const candidateLng = mode === "link" ? (selected?.lng ?? null) : (place?.lng ?? null);
     setCheckingTiming(true);
-    const conflict = await findTimingConflict(lastStop, {
+    const conflict = await findTimingConflict(tripSlug, lastStop, {
       date: schedule.date,
       time: schedule.time,
       lat: candidateLat,
@@ -270,6 +287,8 @@ export default function AddStopDialog({ tripSlug, authToken, lastStop, onAdded }
                     onChange={(e) => {
                       setSectionId(e.target.value);
                       setEntryId("");
+                      const picked = sectionOptions.find((s) => s.sectionId === e.target.value);
+                      if (picked) setSchedule((s) => ({ ...s, kind: guessKindFromNavGroupLabel(picked.navGroupLabel) }));
                     }}
                     className={styles["search-input"]}
                   >

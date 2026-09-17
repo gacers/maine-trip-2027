@@ -225,7 +225,7 @@ export default function AddEntryForm({
     setGeocoding(true);
     setGeocodeMsg("");
     try {
-      const { lat, lng, formattedAddress } = await fetchForwardGeocode(trip.slug, address);
+      const { lat, lng, formattedAddress } = await fetchForwardGeocode(trip.slug, address, authToken);
       setFields((f) => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
       setGeocodeMsg(`Found: ${formattedAddress}`);
     } catch (err) {

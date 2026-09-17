@@ -1,4 +1,6 @@
-import type { ItineraryStopKind, ItineraryStopStatus, TravelMode } from "@/lib/types";
+import { ITINERARY_TRAVEL_MODE_LABELS } from "@/lib/itineraryTravelMode";
+import DurationInput from "./DurationInput";
+import type { ItineraryStopKind, ItineraryStopStatus, ItineraryTravelMode } from "@/lib/types";
 import styles from "./StopScheduleFields.module.css";
 
 export interface StopScheduleValues {
@@ -7,7 +9,7 @@ export interface StopScheduleValues {
   date: string;
   time: string;
   durationMinutes: string;
-  travelMode: TravelMode;
+  travelMode: ItineraryTravelMode;
   notes: string;
 }
 
@@ -32,13 +34,6 @@ const STATUS_LABELS: Record<ItineraryStopStatus, string> = {
   tentative: "Tentative — still deciding",
   confirmed: "Confirmed / booked",
   archived: "Archived — considered, not doing",
-};
-
-const TRAVEL_MODE_LABELS: Record<TravelMode, string> = {
-  driving: "Driving",
-  walking: "Walking",
-  transit: "Transit",
-  bicycling: "Bicycling",
 };
 
 // The fields every stop shares regardless of whether it links to an
@@ -80,20 +75,18 @@ export default function StopScheduleFields({ values, onChange, showTravelMode }:
         <input type="time" value={values.time} onChange={(e) => set("time", e.target.value)} className={styles["input"]} />
       </label>
       <label className={styles["field"]}>
-        Duration (minutes)
-        <input
-          type="number"
-          min={0}
-          value={values.durationMinutes}
-          onChange={(e) => set("durationMinutes", e.target.value)}
-          className={styles["input"]}
-        />
+        Duration
+        <DurationInput minutes={values.durationMinutes} onChange={(v) => set("durationMinutes", v)} />
       </label>
       {showTravelMode && (
         <label className={styles["field"]}>
           Travel mode (arriving here)
-          <select value={values.travelMode} onChange={(e) => set("travelMode", e.target.value as TravelMode)} className={styles["input"]}>
-            {Object.entries(TRAVEL_MODE_LABELS).map(([v, label]) => (
+          <select
+            value={values.travelMode}
+            onChange={(e) => set("travelMode", e.target.value as ItineraryTravelMode)}
+            className={styles["input"]}
+          >
+            {Object.entries(ITINERARY_TRAVEL_MODE_LABELS).map(([v, label]) => (
               <option key={v} value={v}>
                 {label}
               </option>

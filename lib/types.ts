@@ -288,6 +288,17 @@ export interface TitleMatch {
 export type ItineraryStopKind = "lodging" | "activity" | "meal" | "transport" | "other";
 export type ItineraryStopStatus = "tentative" | "confirmed" | "archived";
 export type TravelMode = "driving" | "walking" | "transit" | "bicycling";
+// An itinerary stop's own travel_mode is a superset of the real Google
+// Directions modes above — "car_service" (Uber/taxi/car service) is
+// presentation-only, not a 5th mode Google understands: a car service
+// drives the same roads a regular car would, so wherever a leg's drive
+// time actually gets computed, this maps down to "driving" first (see
+// components/Itinerary/lib/itineraryTravelMode.ts). Kept as its own
+// type rather than folded into TravelMode itself so nothing outside
+// the itinerary (route_cache, the general /directions route, listing-
+// card driving times) ever has to think about a mode Google doesn't
+// support.
+export type ItineraryTravelMode = TravelMode | "car_service";
 
 export interface ItineraryStopRow {
   id: string;
@@ -302,7 +313,7 @@ export interface ItineraryStopRow {
   date: string | null;
   time: string | null;
   duration_minutes: number | null;
-  travel_mode: TravelMode;
+  travel_mode: ItineraryTravelMode;
   notes: string | null;
   sort_order: number;
   created_at: string;

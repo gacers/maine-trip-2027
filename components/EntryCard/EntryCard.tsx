@@ -36,6 +36,11 @@ export interface EntryCardProps {
    * doesn't have to fabricate one. Without it, those lookups just
    * silently skip. */
   tripSlug?: string;
+  /** A contributor's invite-link token — null for an admin/editor
+   * session (cookie-authenticated instead). Required for the same
+   * lookups tripSlug feeds — a contributor's request 401s without it,
+   * confirmed live. */
+  authToken?: string | null;
   onPatch: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
   onRate?: (id: string, score: number | null) => void;
@@ -95,6 +100,7 @@ export default function EntryCard({
   fieldDefs = [],
   mapConfig,
   tripSlug,
+  authToken,
   onPatch,
   onDelete,
   onRate,
@@ -141,6 +147,7 @@ export default function EntryCard({
     showReferencePoints: showHouseDetails,
     enabled: comparisonMode && hasHouse && showMap && !isEditing,
     tripSlug,
+    authToken,
   });
 
   // Reverse-geocoded once per location for the address line below the
@@ -152,7 +159,7 @@ export default function EntryCard({
       return;
     }
     let cancelled = false;
-    fetchReverseAddress(tripSlug, entry.lat as number, entry.lng as number)
+    fetchReverseAddress(tripSlug, entry.lat as number, entry.lng as number, authToken)
       .then((result) => {
         if (!cancelled) setAddressLabel(result?.formattedAddress ?? null);
       })
@@ -162,7 +169,7 @@ export default function EntryCard({
     return () => {
       cancelled = true;
     };
-  }, [hasHouse, entry.lat, entry.lng, tripSlug]);
+  }, [hasHouse, entry.lat, entry.lng, tripSlug, authToken]);
 
   const priceFields = fieldDefs.filter((f) => f.field_type === "price");
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
@@ -235,7 +242,7 @@ export default function EntryCard({
     setGeocoding(true);
     setGeocodeMsg("");
     try {
-      const { lat, lng, formattedAddress } = await fetchForwardGeocode(tripSlug, address);
+      const { lat, lng, formattedAddress } = await fetchForwardGeocode(tripSlug, address, authToken);
       setDraft((d) => (d ? { ...d, lat: lat.toFixed(6), lng: lng.toFixed(6) } : d));
       setGeocodeMsg(`Found: ${formattedAddress}`);
     } catch (err) {

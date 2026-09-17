@@ -26,6 +26,7 @@ export interface PairedEntryGroupProps {
   fieldDefs: FieldDef[];
   mapConfig?: MapConfig;
   tripSlug: string;
+  authToken?: string | null;
   onPatch: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
   onRate: (id: string, score: number | null) => void;
@@ -60,6 +61,7 @@ export default function PairedEntryGroup({
   fieldDefs,
   mapConfig,
   tripSlug,
+  authToken,
   onPatch,
   onDelete,
   onRate,
@@ -90,7 +92,7 @@ export default function PairedEntryGroup({
       return;
     }
     let cancelled = false;
-    fetchReverseAddress(tripSlug, firstListing.lat as number, firstListing.lng as number)
+    fetchReverseAddress(tripSlug, firstListing.lat as number, firstListing.lng as number, authToken)
       .then((result) => {
         if (!cancelled) setFirstAddressLabel(result?.formattedAddress ?? null);
       })
@@ -103,7 +105,7 @@ export default function PairedEntryGroup({
     // Depend on the primitive coordinates, not `firstListing` itself —
     // it's a fresh object (unit.listings[0]) every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firstListing.lat, firstListing.lng, tripSlug]);
+  }, [firstListing.lat, firstListing.lng, tripSlug, authToken]);
   const firstAddressUrl = hasCoords(firstListing)
     ? `https://www.google.com/maps/search/?api=1&query=${firstListing.lat},${firstListing.lng}`
     : undefined;
@@ -187,6 +189,7 @@ export default function PairedEntryGroup({
               fieldDefs={fieldDefs}
               mapConfig={mapConfig}
               tripSlug={tripSlug}
+              authToken={authToken}
               onPatch={onPatch}
               onDelete={onDelete}
               onRate={onRate}
@@ -206,7 +209,7 @@ export default function PairedEntryGroup({
         ))}
       </div>
       {comparisonMode ? (
-        <GroupMap listings={unit.listings} mapConfig={mapConfig} tripSlug={tripSlug} />
+        <GroupMap listings={unit.listings} mapConfig={mapConfig} tripSlug={tripSlug} authToken={authToken} />
       ) : (
         <div className={styles["map-section"]}>
           <SimpleGroupMap listings={unit.listings} />

@@ -125,26 +125,28 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
 
   return (
     <div className={styles["root"]}>
-      <div className={styles["header"]}>
-        <h1 className={styles["heading"]}>Itinerary</h1>
-        {accessChecked && canContribute && (
-          <div className={styles["header-actions"]}>
-            <AddStopDialog
-              tripSlug={trip.slug}
-              authToken={authToken}
-              lastStop={stops.length > 0 ? stops[stops.length - 1] : null}
-              onAdded={handleAdded}
-            />
-            {stops.length > 0 && (
-              <button type="button" onClick={handleClearAll} className={styles["clear-button"]}>
-                Clear all
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <div className={styles["sticky-header"]}>
+        <div className={styles["header"]}>
+          <h1 className={styles["heading"]}>Itinerary</h1>
+          {accessChecked && canContribute && (
+            <div className={styles["header-actions"]}>
+              <AddStopDialog
+                tripSlug={trip.slug}
+                authToken={authToken}
+                lastStop={stops.length > 0 ? stops[stops.length - 1] : null}
+                onAdded={handleAdded}
+              />
+              {stops.length > 0 && (
+                <button type="button" onClick={handleClearAll} className={styles["clear-button"]}>
+                  Clear all
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
-      {accessChecked && canContribute && <DocExportBox tripSlug={trip.slug} authToken={authToken} />}
+        {accessChecked && canContribute && <DocExportBox tripSlug={trip.slug} authToken={authToken} />}
+      </div>
 
       {error && <p className={styles["error"]}>{error}</p>}
 
@@ -169,6 +171,8 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
                     from={{ lat: prevStop!.lat!, lng: prevStop!.lng! }}
                     to={{ lat: stop.lat!, lng: stop.lng! }}
                     travelMode={stop.travel_mode}
+                    toDate={stop.date}
+                    toTime={stop.time}
                   />
                 )}
                 {showDayHeader && <h2 className={styles["day-header"]}>{formatDayHeader(stop.date)}</h2>}

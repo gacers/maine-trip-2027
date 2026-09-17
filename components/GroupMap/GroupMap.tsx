@@ -10,6 +10,7 @@ export interface GroupMapProps {
   listings: ClientEntry[];
   mapConfig?: MapConfig;
   tripSlug: string;
+  authToken?: string | null;
 }
 
 // One shared map + one shared set of driving times for a 2-house-option
@@ -21,7 +22,7 @@ export interface GroupMapProps {
 // same split as EntryCard's solo card — rather than one bundled block,
 // so SectionPage doesn't wrap this in its own section div the way it
 // does for SimpleGroupMap.
-export default function GroupMap({ listings, mapConfig, tripSlug }: GroupMapProps) {
+export default function GroupMap({ listings, mapConfig, tripSlug, authToken }: GroupMapProps) {
   const houses = listings.filter(hasCoords).map((l) => ({
     lat: l.lat as number,
     lng: l.lng as number,
@@ -52,6 +53,7 @@ export default function GroupMap({ listings, mapConfig, tripSlug }: GroupMapProp
     showReferencePoints: true,
     enabled: houses.length > 0,
     tripSlug,
+    authToken,
   });
 
   if (houses.length === 0) return null;

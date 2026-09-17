@@ -58,7 +58,7 @@ export default function EditStopDialog({
   async function handleSave() {
     setError("");
     setCheckingTiming(true);
-    const conflict = await findTimingConflict(previousStop, {
+    const conflict = await findTimingConflict(tripSlug, previousStop, {
       date: schedule.date,
       time: schedule.time,
       lat: stop.lat,
