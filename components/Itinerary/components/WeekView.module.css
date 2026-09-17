@@ -53,16 +53,33 @@
    stretch each lane absurdly wide. With enough lanes to exceed the
    viewport, they settle back to the 21rem basis and the row scrolls
    instead of shrinking further. */
+/* Each lane scrolls its OWN content independently (Trello-column
+   style) rather than relying on the whole page's scroll — a real CSS
+   limitation forced this: .lanes needs overflow-x:auto for the
+   horizontal scroll, and per spec that automatically makes its
+   overflow-y compute to "auto" too (an element can't have
+   auto/scroll/hidden on one axis and visible on the other), which
+   silently makes .lanes itself — not the page — the "nearest
+   scrolling ancestor" a descendant's position:sticky resolves
+   against. Confirmed live: with .lane unbounded in height, that broke
+   .lane-header's sticky in a genuinely broken way (it would render
+   duplicated, floating over cards mid-scroll, instead of pinned to
+   the top) rather than just not-sticking. Bounding each lane's own
+   height and giving IT the overflow instead makes it its own honest
+   scroll container, and .lane-header's sticky top:0 below is relative
+   to that, not the page. */
 .lane {
   flex: 1 1 21rem;
   max-width: 32rem;
+  max-height: calc(100vh - var(--sticky-nav-height, 0px) - var(--itinerary-sticky-header-height, 0px) - 6rem);
+  overflow-y: auto;
   scroll-snap-align: start;
   min-width: 0;
   /* Keeps a day-pill tap from landing a lane's own top edge UNDER the
      page's sticky nav + this page's own sticky title/re-export bar
      once scrollIntoView's block:"start" pulls it flush to the top of
      the scroll area — see scrollToLane's own comment. */
-  scroll-margin-top: calc(var(--sticky-nav-height, 0px) + 12rem);
+  scroll-margin-top: calc(var(--sticky-nav-height, 0px) + var(--itinerary-sticky-header-height, 0px) + 1rem);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -84,22 +101,23 @@
   background: var(--color-blue-50);
 }
 
-/* Stuck below the site's own sticky nav AND this page's own sticky
-   title/toggle/export bar (see ItineraryPage's own
-   --itinerary-sticky-header-height) — scrolling down a long day keeps
-   its own date visible instead of it scrolling away with the first
-   card, which is what "sticky" already does for the page's header. A
-   solid background (not transparent) since cards now scroll underneath
-   it. */
+/* Sticks to the top of its OWN lane's own scroll box (see .lane's own
+   comment on why that's the lane itself now, not the page) — scrolling
+   down a long day keeps its own date visible instead of it scrolling
+   away with the first card. A solid background (not transparent)
+   since cards now scroll underneath it, and negative side margins +
+   matching padding so that background still reaches .lane's own edges
+   (this header sits inside .lane's own 0.75rem padding otherwise). */
 .lane-header {
   position: sticky;
-  top: calc(var(--sticky-nav-height, 0px) + var(--itinerary-sticky-header-height, 0px));
+  top: 0;
   z-index: 2;
+  margin: 0 -0.75rem;
+  padding: 0 0.75rem 0.25rem;
   background: var(--color-zinc-50);
   font-size: var(--text-sm);
   font-weight: var(--font-weight-bold);
   color: var(--color-zinc-700);
-  padding-bottom: 0.25rem;
   border-bottom: 1px solid var(--color-zinc-200);
 }
 
