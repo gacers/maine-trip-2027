@@ -20,6 +20,7 @@ export interface PairedEntryGroupProps {
   unit: Extract<EntryUnit, { type: "group" }>;
   fieldDefs: FieldDef[];
   mapConfig?: MapConfig;
+  tripSlug: string;
   onPatch: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
   onRate: (id: string, score: number | null) => void;
@@ -45,6 +46,7 @@ export default function PairedEntryGroup({
   unit,
   fieldDefs,
   mapConfig,
+  tripSlug,
   onPatch,
   onDelete,
   onRate,
@@ -94,6 +96,7 @@ export default function PairedEntryGroup({
               entry={entry}
               fieldDefs={fieldDefs}
               mapConfig={mapConfig}
+              tripSlug={tripSlug}
               onPatch={onPatch}
               onDelete={onDelete}
               onRate={onRate}
@@ -113,7 +116,7 @@ export default function PairedEntryGroup({
         ))}
       </div>
       {comparisonMode ? (
-        <GroupMap listings={unit.listings} mapConfig={mapConfig} />
+        <GroupMap listings={unit.listings} mapConfig={mapConfig} tripSlug={tripSlug} />
       ) : (
         <div className={styles["map-section"]}>
           <SimpleGroupMap listings={unit.listings} />

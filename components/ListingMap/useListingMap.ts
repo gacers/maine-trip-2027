@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useGoogleMaps, type GoogleMapsApi } from "@/lib/useGoogleMaps";
-import { reverseGeocodeTown, type TownResult } from "@/lib/loadGoogleMaps";
+import { fetchTown, fetchForwardGeocode, type TownResult } from "@/lib/geocodeClient";
+import { fetchRoute } from "@/lib/routeClient";
 import type { LatLngLabel, MapReferencePoint, MapConfig } from "@/lib/types";
 
 const DEFAULT_TOWN_COLOR = "#1976D2";
@@ -72,6 +73,13 @@ export interface UseListingMapArgs {
    * hook unconditionally per the Rules of Hooks but only actually wants
    * a map for some entries). */
   enabled?: boolean;
+  /** Which trip's own /geocode and /directions routes to call (see
+   * lib/geocodeCache.ts/lib/routeCache.ts) — every real caller has one;
+   * left optional only so a caller with genuinely nothing to look up
+   * doesn't have to pass one. Without it, the town/driving-time lookups
+   * below just silently skip (same as `enabled: false`), same reasoning
+   * as ListingMap.tsx's own unused-in-practice default export. */
+  tripSlug?: string;
 }
 
 export interface UseListingMapResult {
@@ -94,16 +102,28 @@ export interface UseListingMapResult {
 // times) — pulled out into a hook so a single call's results can feed
 // two independent pieces of UI (the map+key itself, and the Closest
 // Town/Driving Times details) without duplicating the underlying
-// Google Maps instance/Directions calls between them. See ListingMap
-// (the all-in-one, backward-compatible default export GroupMap still
-// uses) and EntryCard (which calls this directly to render the two
-// pieces as separate card sections).
+// Google Maps instance between them. See ListingMap (the all-in-one,
+// backward-compatible default export GroupMap still uses) and
+// EntryCard (which calls this directly to render the two pieces as
+// separate card sections).
+//
+// Driving times and the closest-town lookup used to call
+// google.maps.DirectionsService/Geocoder directly, client-side, fresh
+// on every mount — for every listing card, on every page view, by
+// every visitor. Both now go through this trip's own /directions and
+// /geocode routes instead, which check a server-side cache
+// (route_cache/geocode_cache) before ever asking Google for real — see
+// lib/routeCache.ts and lib/geocodeCache.ts. The map itself (drawing
+// pins, fitting bounds) still uses the Maps JavaScript API directly;
+// there's no equivalent caching for a live embedded map, only for the
+// data lookups that used to ride along with it.
 export function useListingMap({
   houses,
   extraMarkers,
   mapConfig,
   showReferencePoints = true,
   enabled = true,
+  tripSlug,
 }: UseListingMapArgs): UseListingMapResult {
   const mapDivRef = useRef<HTMLDivElement>(null);
   const { google, status, errorMsg } = useGoogleMaps();
@@ -137,13 +157,13 @@ export function useListingMap({
   const housesKey = houses.map((h) => `${h.lat},${h.lng}`).join("|");
 
   // Resolved separately from the main map effect below since it's an
-  // extra async lookup (reverse geocoding), not just drawing already-known
-  // points — once it resolves, closestTown feeds back into `destinations`
-  // above and the main effect re-runs to add its pin + driving time.
+  // extra async lookup, not just drawing already-known points — once it
+  // resolves, closestTown feeds back into `destinations` above and the
+  // main effect re-runs to add its pin + driving time.
   useEffect(() => {
-    if (!enabled || !showReferencePoints || !referenceHouse) return;
+    if (!enabled || !showReferencePoints || !referenceHouse || !tripSlug) return;
     let cancelled = false;
-    reverseGeocodeTown(referenceHouse.lat, referenceHouse.lng)
+    fetchTown(tripSlug, referenceHouse.lat, referenceHouse.lng)
       .then((town) => {
         if (!cancelled) setClosestTown(town);
       })
@@ -155,7 +175,7 @@ export function useListingMap({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [housesKey, showReferencePoints, enabled]);
+  }, [housesKey, showReferencePoints, enabled, tripSlug]);
 
   useEffect(() => {
     if (!enabled || !google || !mapDivRef.current || !referenceHouse) return;
@@ -179,7 +199,6 @@ export function useListingMap({
       bounds.extend(h);
     });
 
-    const directionsService = new google.maps.DirectionsService();
     const newRouteInfo: Record<string, RouteInfo> = {};
 
     destinations.forEach((dest, i) => {
@@ -199,38 +218,24 @@ export function useListingMap({
       });
       bounds.extend({ lat: dest.lat, lng: dest.lng });
 
-      if (!showReferencePoints) return;
+      if (!showReferencePoints || !tripSlug) return;
 
       // Just compute duration/distance for the Driving Times list below —
       // no route polyline drawn on the map itself, just the pins.
-      directionsService.route(
-        {
-          origin: referenceHouse,
-          destination: { lat: dest.lat, lng: dest.lng },
-          travelMode: google.maps.TravelMode.DRIVING,
-        },
-        (
-          result: { routes: { legs: { duration: { text: string }; distance: { text: string } }[] }[] },
-          routeStatus: string
-        ) => {
+      const destUrl = `https://www.google.com/maps/dir/?api=1&origin=${referenceHouse.lat},${referenceHouse.lng}&destination=${dest.lat},${dest.lng}`;
+      fetchRoute(tripSlug, referenceHouse, { lat: dest.lat, lng: dest.lng })
+        .then((route) => {
           if (cancelled) return;
-          if (routeStatus === "OK") {
-            const leg = result.routes[0].legs[0];
-            newRouteInfo[dest.label] = {
-              text: `${leg.duration.text} (${leg.distance.text})`,
-              url: `https://www.google.com/maps/dir/?api=1&origin=${referenceHouse.lat},${referenceHouse.lng}&destination=${dest.lat},${dest.lng}`,
-              color: dest.color,
-            };
-          } else {
-            newRouteInfo[dest.label] = {
-              text: "Couldn't get directions",
-              url: `https://www.google.com/maps/dir/?api=1&origin=${referenceHouse.lat},${referenceHouse.lng}&destination=${dest.lat},${dest.lng}`,
-              color: dest.color,
-            };
-          }
+          newRouteInfo[dest.label] = route
+            ? { text: route.text, url: destUrl, color: dest.color }
+            : { text: "Couldn't get directions", url: destUrl, color: dest.color };
           setRouteInfo({ ...newRouteInfo });
-        }
-      );
+        })
+        .catch(() => {
+          if (cancelled) return;
+          newRouteInfo[dest.label] = { text: "Couldn't get directions", url: destUrl, color: dest.color };
+          setRouteInfo({ ...newRouteInfo });
+        });
     });
 
     map.fitBounds(bounds);
@@ -239,44 +244,33 @@ export function useListingMap({
     });
 
     // Origin -> house: real duration/distance, not drawn on this
-    // zoomed-in local map. Only if this trip defines one.
-    if (showReferencePoints && config.originLabel) {
-      directionsService.route(
-        {
-          origin: config.originLabel,
-          destination: referenceHouse,
-          travelMode: google.maps.TravelMode.DRIVING,
-        },
-        (
-          result: { routes: { legs: { duration: { text: string }; distance: { text: string } }[] }[] },
-          routeStatus: string
-        ) => {
+    // zoomed-in local map. Only if this trip defines one. originLabel is
+    // free text (e.g. an airport name), not coordinates — geocoded once
+    // (and cached indefinitely, see getOrComputeForwardGeocode) before
+    // the actual route lookup, rather than teaching route_cache/
+    // getOrComputeRoute to accept a text origin directly.
+    if (showReferencePoints && config.originLabel && tripSlug) {
+      const originLabel = config.originLabel;
+      const originUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originLabel)}&destination=${referenceHouse.lat},${referenceHouse.lng}`;
+      fetchForwardGeocode(tripSlug, originLabel)
+        .then((origin) => {
+          if (cancelled) return null;
+          return fetchRoute(tripSlug, origin, referenceHouse);
+        })
+        .then((route) => {
           if (cancelled) return;
-          if (routeStatus === "OK") {
-            const leg = result.routes[0].legs[0];
-            setOriginInfo({
-              text: `${leg.duration.text} (${leg.distance.text})`,
-              url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-                config.originLabel!
-              )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
-            });
-          } else {
-            setOriginInfo({
-              text: "Couldn't get directions",
-              url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-                config.originLabel!
-              )}&destination=${referenceHouse.lat},${referenceHouse.lng}`,
-            });
-          }
-        }
-      );
+          setOriginInfo(route ? { text: route.text, url: originUrl } : { text: "Couldn't get directions", url: originUrl });
+        })
+        .catch(() => {
+          if (!cancelled) setOriginInfo({ text: "Couldn't get directions", url: originUrl });
+        });
     }
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, google, housesKey, closestTown]);
+  }, [enabled, google, housesKey, closestTown, tripSlug]);
 
   const liveMapUrl =
     "https://www.google.com/maps/dir/" + [...houses, ...destinations].map((p) => `${p.lat},${p.lng}`).join("/");

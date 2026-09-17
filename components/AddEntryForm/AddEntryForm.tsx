@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { geocodeAddress } from "@/lib/loadGoogleMaps";
+import { fetchForwardGeocode } from "@/lib/geocodeClient";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import {
   isPlainUrl,
@@ -225,7 +225,7 @@ export default function AddEntryForm({
     setGeocoding(true);
     setGeocodeMsg("");
     try {
-      const { lat, lng, formattedAddress } = await geocodeAddress(address);
+      const { lat, lng, formattedAddress } = await fetchForwardGeocode(trip.slug, address);
       setFields((f) => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
       setGeocodeMsg(`Found: ${formattedAddress}`);
     } catch (err) {

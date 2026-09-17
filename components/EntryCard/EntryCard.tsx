@@ -7,7 +7,7 @@ import Button from "@/components/Button";
 import { assignBadgeVariants } from "@/components/Badge";
 import EntryMedia from "@/components/EntryMedia";
 import { useListingMap } from "@/components/ListingMap";
-import { geocodeAddress, reverseGeocodeAddress } from "@/lib/loadGoogleMaps";
+import { fetchForwardGeocode, fetchReverseAddress } from "@/lib/geocodeClient";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { toBullets } from "@/lib/fieldTypes/textarea";
 import { isAddressLike } from "./helpers";
@@ -28,6 +28,13 @@ export interface EntryCardProps {
   entry: ClientEntry;
   fieldDefs?: FieldDef[];
   mapConfig?: MapConfig;
+  /** For the address line's reverse-geocode + useListingMap's own
+   * town/driving-time lookups (see lib/geocodeClient.ts/lib/routeClient.ts)
+   * — every real caller has one; optional in the type only so a bare/
+   * detached usage without a real trip context (none currently exist)
+   * doesn't have to fabricate one. Without it, those lookups just
+   * silently skip. */
+  tripSlug?: string;
   onPatch: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
   onRate?: (id: string, score: number | null) => void;
@@ -80,6 +87,7 @@ export default function EntryCard({
   entry,
   fieldDefs = [],
   mapConfig,
+  tripSlug,
   onPatch,
   onDelete,
   onRate,
@@ -122,20 +130,21 @@ export default function EntryCard({
     mapConfig,
     showReferencePoints: showHouseDetails,
     enabled: comparisonMode && hasHouse && showMap && !isEditing,
+    tripSlug,
   });
 
   // Reverse-geocoded once per location for the address line below the
   // title — falls back to a plain "View on map" link (rather than
   // blocking the rest of the card) if it can't resolve.
   useEffect(() => {
-    if (!hasHouse) {
+    if (!hasHouse || !tripSlug) {
       setAddressLabel(null);
       return;
     }
     let cancelled = false;
-    reverseGeocodeAddress(entry.lat as number, entry.lng as number)
-      .then((addr) => {
-        if (!cancelled) setAddressLabel(addr);
+    fetchReverseAddress(tripSlug, entry.lat as number, entry.lng as number)
+      .then((result) => {
+        if (!cancelled) setAddressLabel(result?.formattedAddress ?? null);
       })
       .catch(() => {
         // Non-fatal — the map-pin link below still works via lat/lng.
@@ -143,7 +152,7 @@ export default function EntryCard({
     return () => {
       cancelled = true;
     };
-  }, [hasHouse, entry.lat, entry.lng]);
+  }, [hasHouse, entry.lat, entry.lng, tripSlug]);
 
   const priceFields = fieldDefs.filter((f) => f.field_type === "price");
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
@@ -212,11 +221,11 @@ export default function EntryCard({
   }
 
   async function handleFindCoords() {
-    if (!address.trim()) return;
+    if (!address.trim() || !tripSlug) return;
     setGeocoding(true);
     setGeocodeMsg("");
     try {
-      const { lat, lng, formattedAddress } = await geocodeAddress(address);
+      const { lat, lng, formattedAddress } = await fetchForwardGeocode(tripSlug, address);
       setDraft((d) => (d ? { ...d, lat: lat.toFixed(6), lng: lng.toFixed(6) } : d));
       setGeocodeMsg(`Found: ${formattedAddress}`);
     } catch (err) {

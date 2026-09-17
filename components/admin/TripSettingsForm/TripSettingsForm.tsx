@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Button from "@/components/Button";
-import { geocodeAddress } from "@/lib/loadGoogleMaps";
+import { fetchForwardGeocode } from "@/lib/geocodeClient";
 import ArchiveUnvisitedButton from "@/components/ArchiveUnvisitedButton";
 import DangerZone from "./components/DangerZone";
 import type { Trip, NavGroup, MapReferencePoint } from "@/lib/types";
@@ -67,7 +67,7 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
     setFindingPoi(true);
     setError("");
     try {
-      const { lat, lng, formattedAddress } = await geocodeAddress(poiQuery);
+      const { lat, lng, formattedAddress } = await fetchForwardGeocode(trip.slug, poiQuery);
       const color = POI_COLORS[pois.length % POI_COLORS.length];
       setPois((prev) => [
         ...prev,
