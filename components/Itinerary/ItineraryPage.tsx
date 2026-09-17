@@ -6,6 +6,7 @@ import AddStopDialog from "./components/AddStopDialog";
 import EditStopDialog from "./components/EditStopDialog";
 import StopCard from "./components/StopCard";
 import RouteConnector from "./components/RouteConnector";
+import DocExportBox from "./components/DocExportBox";
 import type { PublicTrip, ItineraryStop } from "@/lib/types";
 import styles from "./ItineraryPage.module.css";
 
@@ -114,6 +115,8 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
           />
         )}
       </div>
+
+      {accessChecked && canContribute && <DocExportBox tripSlug={trip.slug} authToken={authToken} />}
 
       {error && <p className={styles["error"]}>{error}</p>}
 

@@ -14,7 +14,7 @@ function getOAuthClient() {
   return client;
 }
 
-export interface CreatedSheet {
+export interface CreatedDriveFile {
   id: string;
   url: string;
 }
@@ -25,7 +25,7 @@ export interface CreatedSheet {
 // link can view) — that's the actual point of exporting to a
 // spreadsheet, so friends can open it without individual Google
 // accounts. Returns { id, url }.
-export async function createSheetInDrive(name: string, folderId?: string | null): Promise<CreatedSheet> {
+export async function createSheetInDrive(name: string, folderId?: string | null): Promise<CreatedDriveFile> {
   const oauth = getOAuthClient();
   const drive = google.drive({ version: "v3", auth: oauth });
 
@@ -53,6 +53,41 @@ export async function createSheetInDrive(name: string, folderId?: string | null)
   });
 
   return { id: data.id!, url: `https://docs.google.com/spreadsheets/d/${data.id}/edit` };
+}
+
+// Same idea as createSheetInDrive, for a Google Doc instead (the
+// itinerary export) — same reason it has to go through the OAuth
+// account rather than the service account (no Drive quota to own a
+// file with), same create-then-share-with-the-service-account-then-
+// make-link-shareable shape, just a different mimeType/URL template.
+export async function createDocInDrive(name: string, folderId?: string | null): Promise<CreatedDriveFile> {
+  const oauth = getOAuthClient();
+  const drive = google.drive({ version: "v3", auth: oauth });
+
+  const { data } = await drive.files.create({
+    requestBody: {
+      name,
+      mimeType: "application/vnd.google-apps.document",
+      parents: folderId ? [folderId] : undefined,
+    },
+    fields: "id",
+  });
+
+  await drive.permissions.create({
+    fileId: data.id!,
+    requestBody: {
+      type: "user",
+      role: "writer",
+      emailAddress: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    },
+  });
+
+  await drive.permissions.create({
+    fileId: data.id!,
+    requestBody: { type: "anyone", role: "reader" },
+  });
+
+  return { id: data.id!, url: `https://docs.google.com/document/d/${data.id}/edit` };
 }
 
 // Grants one specific person real Google Sheets access by email —

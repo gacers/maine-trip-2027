@@ -131,6 +131,10 @@ export interface Trip {
   map_config: MapConfig;
   google_sheet_id?: string | null;
   google_sheet_url?: string | null;
+  // See supabase/migrations/0024_trip_itinerary_doc.sql — same
+  // lazily-created-on-first-export shape as google_sheet_id/_url.
+  google_itinerary_doc_id?: string | null;
+  google_itinerary_doc_url?: string | null;
   archived: boolean;
   // Admin-only secrets — present on the raw row, stripped by
   // sanitizeTripForClient before reaching a Client Component or a
@@ -141,7 +145,15 @@ export interface Trip {
 
 // A trip row as it reaches a Client Component/public response — see
 // lib/sections.ts's sanitizeTripForClient.
-export type PublicTrip = Omit<Trip, "sheet_invite_token" | "sheet_invite_key_id" | "google_sheet_url" | "google_sheet_id">;
+export type PublicTrip = Omit<
+  Trip,
+  | "sheet_invite_token"
+  | "sheet_invite_key_id"
+  | "google_sheet_url"
+  | "google_sheet_id"
+  | "google_itinerary_doc_id"
+  | "google_itinerary_doc_url"
+>;
 
 export type EntryStatus = "active" | "archived";
 

@@ -27,7 +27,15 @@ export function sanitizeTripForClient(trip: Trip): PublicTrip;
 export function sanitizeTripForClient(trip: null | undefined): null | undefined;
 export function sanitizeTripForClient(trip: Trip | null | undefined): PublicTrip | null | undefined {
   if (!trip) return trip;
-  const { sheet_invite_token, sheet_invite_key_id, google_sheet_url, google_sheet_id, ...safe } = trip;
+  const {
+    sheet_invite_token,
+    sheet_invite_key_id,
+    google_sheet_url,
+    google_sheet_id,
+    google_itinerary_doc_id,
+    google_itinerary_doc_url,
+    ...safe
+  } = trip;
   return safe;
 }
 
