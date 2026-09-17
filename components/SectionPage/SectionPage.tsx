@@ -322,6 +322,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
           // card. .entry-list is already full width, nothing extra
           // needed there.
           className={cardLayout !== "list" ? styles["grid-span-full"] : undefined}
+          collapsible={cardLayout === "list"}
         />
       );
     }

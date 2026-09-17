@@ -37,6 +37,8 @@ export interface PairedEntryGroupProps {
    * doc. Set by SectionPage when the section's card_layout is a grid,
    * so this comparison card spans the whole row instead of one column. */
   className?: string;
+  /** Passed straight through to ListingSection — see its own doc. */
+  collapsible?: boolean;
 }
 
 // A 2-item paired option — one shared frame/header (ListingSection)
@@ -60,12 +62,14 @@ export default function PairedEntryGroup({
   nightsEstimate,
   tripCompleted,
   className,
+  collapsible = false,
 }: PairedEntryGroupProps) {
   return (
     <ListingSection
       key={unit.listings.map((e) => e.id).join("-")}
       id={`group-${unit.listings[0].id}`}
       className={className}
+      collapsible={collapsible}
       title={groupTitle(unit.listings[0].groupLabel)}
       media={
         <div className={styles["media-row"]}>

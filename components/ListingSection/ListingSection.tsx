@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import classNames from "classnames";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import Button from "@/components/Button";
 import StarRating from "@/components/StarRating";
@@ -43,6 +44,13 @@ export interface ListingSectionProps {
   canContribute?: boolean;
   myScore?: number | null;
   onRate?: (score: number | null) => void;
+  /** Offers a Collapse/Expand toggle in the header, next to Delete
+   * group — same idea as EntryCard's own `collapsible` (a full-width
+   * "list" layout card is tall enough that being able to shrink it
+   * down to just its title is worth it), applied to the whole pair at
+   * once rather than each half separately: collapsing hides both
+   * photos and both halves' own bodies, leaving just this header. */
+  collapsible?: boolean;
 }
 
 // The shared frame around a 2-house-option group: both houses' photos
@@ -69,10 +77,13 @@ export default function ListingSection({
   myScore,
   onRate,
   className,
+  collapsible = false,
 }: ListingSectionProps) {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(editableTitle ?? "");
+  const [collapsed, setCollapsed] = useState(false);
+  const isCollapsed = collapsible && collapsed;
 
   function archiveGroup(reason: string) {
     onDeleteGroup?.(reason);
@@ -92,7 +103,7 @@ export default function ListingSection({
 
   return (
     <section id={id} className={classNames(styles["root"], className)}>
-      {media}
+      {!isCollapsed && media}
       <div className={styles["header"]}>
         <div className={styles["title-area"]}>
           {isEditingTitle ? (
@@ -121,7 +132,7 @@ export default function ListingSection({
               )}
             </div>
           )}
-          {showRatings && canContribute && onRate && (
+          {!isCollapsed && showRatings && canContribute && onRate && (
             <div className={styles["user-rating-row"]}>
               <span className={styles["rating-caption"]}>Your score</span>
               <StarRating value={myScore ?? 0} size={18} onChange={(v) => onRate(v)} />
@@ -134,7 +145,7 @@ export default function ListingSection({
           )}
         </div>
         <div className={styles["controls"]}>
-          {canArchiveGroup && onDeleteGroup && (
+          {!isCollapsed && canArchiveGroup && onDeleteGroup && (
             <div className={styles["delete-group-wrapper"]}>
               <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog(true)}>
                 Delete group
@@ -142,9 +153,20 @@ export default function ListingSection({
               <ArchiveDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog} onConfirm={archiveGroup} />
             </div>
           )}
+          {collapsible && (
+            <button
+              type="button"
+              onClick={() => setCollapsed((c) => !c)}
+              className={styles["collapse-toggle"]}
+              aria-expanded={!isCollapsed}
+              title={isCollapsed ? "Expand" : "Collapse"}
+            >
+              {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+            </button>
+          )}
         </div>
       </div>
-      <div className={styles["body"]}>{children}</div>
+      {!isCollapsed && <div className={styles["body"]}>{children}</div>}
     </section>
   );
 }

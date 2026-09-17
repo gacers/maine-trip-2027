@@ -120,6 +120,25 @@
   position: relative;
 }
 
+.collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  color: var(--color-zinc-600);
+  background: var(--color-zinc-100);
+  border: 1px solid var(--color-zinc-200);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-zinc-200);
+    color: var(--color-zinc-900);
+  }
+}
+
 
 /* No padding here — each child EntryCard (and the map section below,
    via SectionPage's .groupMapSection) owns its own inset the exact same
