@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from "@/components/Dialog";
 import Button from "@/components/Button";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import type { ButtonVariant, ButtonSize } from "@/components/Button";
 import styles from "./LoginPrompt.module.css";
 
 export interface LoginPromptProps {
@@ -19,6 +20,11 @@ export interface LoginPromptProps {
   /** Extra class for the trigger button — matches RequestAccess's own
    * prop for the same reason (wrapping in a tight nav-bar space). */
   triggerClassName?: string;
+  /** Defaults match the small nav-bar link this has always been —
+   * TripAccessGate passes a bigger/bolder variant since there it's the
+   * primary action on the page, not a corner link. */
+  triggerVariant?: ButtonVariant;
+  triggerSize?: ButtonSize;
 }
 
 // A plain sign-in, for someone who already has a permanent login (see
@@ -30,7 +36,12 @@ export interface LoginPromptProps {
 // trip's own layout re-checks isEditor/isAdmin server-side on every
 // request, so the header updates to Logout on its own once the cookie
 // is set, no separate "you're in now" step needed.
-export default function LoginPrompt({ hasInviteAccess, triggerClassName }: LoginPromptProps) {
+export default function LoginPrompt({
+  hasInviteAccess,
+  triggerClassName,
+  triggerVariant = "link",
+  triggerSize = "sm",
+}: LoginPromptProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -55,7 +66,7 @@ export default function LoginPrompt({ hasInviteAccess, triggerClassName }: Login
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="link" size="sm" className={triggerClassName}>
+        <Button variant={triggerVariant} size={triggerSize} className={triggerClassName}>
           Login
         </Button>
       </DialogTrigger>
