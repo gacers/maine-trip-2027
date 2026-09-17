@@ -46,7 +46,7 @@ function mapsSearchUrl(lat: number, lng: number): string {
 export interface StyleRun {
   start: number;
   end: number;
-  style: "title" | "day" | "bold" | "italic" | "bullet" | "indent" | "connector" | "link";
+  style: "title" | "day" | "bold" | "italic" | "bullet" | "child-bullet" | "indent" | "connector" | "link";
   /** Only meaningful for "link" runs. */
   url?: string;
 }
@@ -71,9 +71,14 @@ export async function buildDocContent(
   supabase: SupabaseClient,
   tripName: string,
   stops: ItineraryStop[]
-): Promise<{ text: string; runs: StyleRun[] }> {
+): Promise<{ text: string; runs: StyleRun[]; tabPositions: number[] }> {
   let text = "";
   const runs: StyleRun[] = [];
+  // Position of every leading tab inserted for a child bullet (see the
+  // "bullet"/"child-bullet" runs below) — requestsFromContent needs
+  // these to correctly translate later ranges once each tab gets
+  // consumed by its own createParagraphBullets call.
+  const tabPositions: number[] = [];
   const append = (s: string) => {
     text += s;
   };
@@ -127,9 +132,9 @@ export async function buildDocContent(
     const prefix = stop.status === "confirmed" ? "✓ " : "";
     const suffix = stop.status === "archived" ? "  (archived)" : stop.status === "tentative" ? "  (tentative)" : "";
     const titleLine = `${time ? `${time} — ` : ""}${prefix}${stop.title}${suffix}`;
-    start = text.length;
+    const titleParaStart = text.length;
     append(titleLine);
-    mark(start, stop.status === "confirmed" ? "bold" : "italic");
+    mark(titleParaStart, stop.status === "confirmed" ? "bold" : "italic");
 
     // A real link, not just a URL printed as text — the stop's own
     // link when it has one (its linked entry's own site, or a custom
@@ -143,13 +148,26 @@ export async function buildDocContent(
       mark(linkStart, "link", directionsUrl);
     }
     append("\n");
-    mark(start, "bullet");
 
+    // The Kind label ("Activity"/"Meal"/etc.) as a genuine CHILD
+    // bullet nested under the title's own bullet — not just indented
+    // plain text — matching the literal "hit enter, tab over one
+    // space" gesture that'd take by hand in the Docs UI. That gesture
+    // is literally what Docs' own nesting inference keys off of: a
+    // createParagraphBullets call counts each paragraph's own LEADING
+    // TAB characters to decide its level (confirmed live — a plain
+    // indentStart/indentFirstLine difference alone, tried first, was
+    // NOT enough; both paragraphs came back at level 0). The leading
+    // tab itself gets consumed into the bullet's own nesting, not left
+    // behind as visible text.
     const metaBits = [KIND_LABEL[stop.kind] || stop.kind];
     if (stop.duration_minutes) metaBits.push(formatDuration(stop.duration_minutes));
-    start = text.length;
-    append(`${metaBits.join(" · ")}\n`);
-    mark(start, "indent");
+    const kindStart = text.length;
+    tabPositions.push(kindStart);
+    append(`\t${metaBits.join(" · ")}\n`);
+    mark(titleParaStart, "bullet");
+    mark(kindStart, "child-bullet");
+
     if (stop.notes) {
       start = text.length;
       append(`${stop.notes}\n`);
@@ -164,16 +182,40 @@ export async function buildDocContent(
     append("Nothing on the itinerary yet.\n");
   }
 
-  return { text, runs };
+  return { text, runs, tabPositions };
 }
 
 // Docs body content starts at index 1 — a run at [start, end) in the
 // plain-text string above maps to document range [1+start, 1+end)
 // once that whole string has been inserted at index 1.
-function requestsFromContent(text: string, runs: StyleRun[]): docs_v1.Schema$Request[] {
+function requestsFromContent(text: string, runs: StyleRun[], tabPositions: number[]): docs_v1.Schema$Request[] {
   const requests: docs_v1.Schema$Request[] = [{ insertText: { location: { index: 1 }, text } }];
+  // createParagraphBullets on a paragraph that starts with a leading
+  // tab (used to signal nesting depth — see the "bullet" run's own
+  // call site) consumes that tab as part of establishing the nesting
+  // level instead of leaving it as visible text, shrinking every index
+  // AFTER it by one — confirmed live: an uncorrected batch failed with
+  // an out-of-bounds range on a later request, off by exactly the
+  // number of nested bullets already applied earlier in the same
+  // batch. shiftFor(i) counts consumed tabs STRICTLY BEFORE i (not
+  // <=) — the "<=" version looked right at first too, but is off by
+  // one for a boundary that sits exactly AT a tab's own position (the
+  // child-bullet run's own start, always == that tab's position):
+  // removing a single character collapses the boundary just-before it
+  // and just-after it into the same new position, so a boundary AT the
+  // removed character is unaffected by that specific removal, only by
+  // earlier ones.
+  const sortedTabs = [...tabPositions].sort((a, b) => a - b);
+  function shiftFor(index: number): number {
+    let count = 0;
+    for (const p of sortedTabs) {
+      if (p < index) count++;
+      else break;
+    }
+    return count;
+  }
   for (const run of runs) {
-    const range = { startIndex: 1 + run.start, endIndex: 1 + run.end };
+    const range = { startIndex: 1 + run.start - shiftFor(run.start), endIndex: 1 + run.end - shiftFor(run.end) };
     if (run.style === "title") {
       requests.push({ updateParagraphStyle: { range, paragraphStyle: { namedStyleType: "TITLE" }, fields: "namedStyleType" } });
     } else if (run.style === "day") {
@@ -191,6 +233,27 @@ function requestsFromContent(text: string, runs: StyleRun[]): docs_v1.Schema$Req
     } else if (run.style === "bullet") {
       requests.push({
         createParagraphBullets: { range, bulletPreset: "BULLET_DISC_CIRCLE_SQUARE" },
+      });
+    } else if (run.style === "child-bullet") {
+      // Re-asserts the child bullet's own rendered text column back to
+      // the same 36pt everything else on the page lands at (its
+      // inferred nesting level's own default was 72pt — confirmed live
+      // via the doc's own "lists" resource) — being nested one level
+      // deeper structurally isn't meant to also read as visually
+      // indented further. Same hanging-indent shape as the title's own
+      // bullet (indentFirstLine 18 for the glyph, indentStart 36 for
+      // the text), plus a little space below so it doesn't sit jammed
+      // against the connector line right underneath it.
+      requests.push({
+        updateParagraphStyle: {
+          range,
+          paragraphStyle: {
+            indentFirstLine: { magnitude: 18, unit: "PT" },
+            indentStart: { magnitude: 36, unit: "PT" },
+            spaceBelow: { magnitude: 6, unit: "PT" },
+          },
+          fields: "indentFirstLine,indentStart,spaceBelow",
+        },
       });
     } else if (run.style === "indent") {
       // indentStart alone only affects a paragraph's WRAPPED lines — a
@@ -291,8 +354,8 @@ export async function exportItineraryOrThrow(supabase: SupabaseClient, trip: Tri
     requests.push({ deleteContentRange: { range: { startIndex: 1, endIndex: endIndex - 1 } } });
   }
 
-  const { text, runs } = await buildDocContent(supabase, trip.name, stops);
-  requests.push(...requestsFromContent(text, runs));
+  const { text, runs, tabPositions } = await buildDocContent(supabase, trip.name, stops);
+  requests.push(...requestsFromContent(text, runs, tabPositions));
 
   await docs.documents.batchUpdate({ documentId: docId!, requestBody: { requests } });
 

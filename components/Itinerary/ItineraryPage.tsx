@@ -39,7 +39,7 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
   const [contributorToken, setContributorToken] = useState<string | null>(null);
   const [accessChecked, setAccessChecked] = useState(isAdmin || isEditor);
   const [editingStop, setEditingStop] = useState<ItineraryStop | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -143,6 +143,30 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
     setStops((prev) => prev.map((s) => (s.id === stop.id ? stop : s)));
   }
 
+  // The quick Confirm/Skip checkboxes on a tentative stop's own card —
+  // a lighter-weight path than opening the full edit dialog just to
+  // flip one field. "Skip" maps to "archived": kept around (dimmed),
+  // not deleted, same as the real hand-built reference itinerary kept
+  // its own discarded options visible rather than removing them.
+  async function handleStatusChange(stopId: string, status: ItineraryStop["status"]) {
+    const prevStops = stops;
+    setStops((prev) => prev.map((s) => (s.id === stopId ? { ...s, status } : s)));
+    setError("");
+    try {
+      const res = await fetch(`/api/trips/${trip.slug}/itinerary/stops/${stopId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      const data = await res.json();
+      handleUpdated(data.stop);
+    } catch {
+      setStops(prevStops);
+      setError("Couldn't update that stop's status — try again.");
+    }
+  }
+
   function handleDeleted(stopId: string) {
     setStops((prev) => prev.filter((s) => s.id !== stopId));
   }
@@ -220,6 +244,7 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
           onEdit={setEditingStop}
           onMoveStop={moveStop}
           onAdded={handleAdded}
+          onStatusChange={handleStatusChange}
         />
       ) : (
         <div className={styles["list"]}>
@@ -248,6 +273,7 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
                   tripSlug={trip.slug}
                   canEdit={canContribute}
                   onEdit={() => setEditingStop(stop)}
+                  onStatusChange={(status) => handleStatusChange(stop.id, status)}
                   dragging={draggingId === stop.id}
                   dropBefore={dragOverId === stop.id && dropPosition === "before"}
                   dropAfter={dragOverId === stop.id && dropPosition === "after"}

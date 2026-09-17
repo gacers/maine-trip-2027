@@ -4,7 +4,7 @@ import type { DragEvent } from "react";
 import classNames from "classnames";
 import Link from "next/link";
 import { formatDuration } from "@/lib/formatDuration";
-import type { ItineraryStop } from "@/lib/types";
+import type { ItineraryStop, ItineraryStopStatus } from "@/lib/types";
 import styles from "./StopCard.module.css";
 
 export interface StopCardProps {
@@ -12,6 +12,9 @@ export interface StopCardProps {
   tripSlug: string;
   canEdit: boolean;
   onEdit: () => void;
+  /** Only ever called with "confirmed" or "archived" — the two quick
+   * actions a tentative stop's own Confirm/Skip checkboxes offer. */
+  onStatusChange: (status: ItineraryStopStatus) => void;
   dragging: boolean;
   dropBefore: boolean;
   dropAfter: boolean;
@@ -49,6 +52,7 @@ export default function StopCard({
   tripSlug,
   canEdit,
   onEdit,
+  onStatusChange,
   dragging,
   dropBefore,
   dropAfter,
@@ -91,6 +95,18 @@ export default function StopCard({
             </span>
           )}
           {stop.status === "archived" && <span className={styles["archived-tag"]}>Archived</span>}
+          {stop.status === "tentative" && canEdit && (
+            <div className={styles["status-actions"]}>
+              <label className={styles["status-checkbox"]}>
+                <input type="checkbox" checked={false} onChange={() => onStatusChange("confirmed")} />
+                Confirm
+              </label>
+              <label className={styles["status-checkbox"]}>
+                <input type="checkbox" checked={false} onChange={() => onStatusChange("archived")} />
+                Skip
+              </label>
+            </div>
+          )}
         </div>
         <div className={styles["title"]}>
           {href ? (

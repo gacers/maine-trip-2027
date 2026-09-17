@@ -6,18 +6,12 @@
   gap: 1rem;
 }
 
-/* List reads as plain text lines — a line that stretches too wide gets
-   genuinely harder to scan, so it keeps a comfortable reading width.
-   Week is a multi-column layout that only benefits from more room
-   (more lanes visible before scrolling, or wider ones) — confirmed
-   live as feeling cramped at the same cap List uses, so it gets a much
-   wider one instead. */
-.root-list {
-  max-width: 64rem;
-}
-
+/* No max-width cap on either view — confirmed live that even Week's
+   100rem cap still left visible unused space on a wide screen. Full
+   width, just the .root padding for a gutter. */
+.root-list,
 .root-week {
-  max-width: 100rem;
+  width: 100%;
 }
 
 /* Pinned below the site's own sticky nav bar (--sticky-nav-height,

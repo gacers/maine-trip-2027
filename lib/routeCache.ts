@@ -146,6 +146,10 @@ async function fetchDirectionsFromGoogle(
     origin: `${from.lat},${from.lng}`,
     destination: `${to.lat},${to.lng}`,
     mode: travelMode,
+    // Without this, Google infers metric/imperial from the origin's
+    // own country (e.g. Scotland -> km) rather than the traveler's —
+    // this app's own users want miles regardless of which trip it is.
+    units: "imperial",
     key: apiKey,
   });
   const res = await fetch(`https://maps.googleapis.com/maps/api/directions/json?${params}`);

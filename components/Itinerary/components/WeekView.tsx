@@ -6,7 +6,7 @@ import StopCard from "./StopCard";
 import RouteConnector from "./RouteConnector";
 import AddStopDialog from "./AddStopDialog";
 import { groupStopsByDate } from "../lib/groupStopsByDate";
-import type { ItineraryStop } from "@/lib/types";
+import type { ItineraryStop, ItineraryStopStatus } from "@/lib/types";
 import styles from "./WeekView.module.css";
 
 export interface WeekViewProps {
@@ -17,6 +17,7 @@ export interface WeekViewProps {
   onEdit: (stop: ItineraryStop) => void;
   onMoveStop: (draggedId: string, targetId: string | null, position: "before" | "after", targetDate?: string | null) => void;
   onAdded: (stop: ItineraryStop) => void;
+  onStatusChange: (stopId: string, status: ItineraryStopStatus) => void;
 }
 
 function formatLaneHeader(date: string | null): string {
@@ -40,7 +41,16 @@ function laneKey(date: string | null): string {
 // scroll-snap, not JS-tracked "current page" state) — one lane fills
 // the viewport at a time, with a day-picker strip above it to jump
 // straight to one instead of swiping through everything between.
-export default function WeekView({ stops, tripSlug, authToken, canContribute, onEdit, onMoveStop, onAdded }: WeekViewProps) {
+export default function WeekView({
+  stops,
+  tripSlug,
+  authToken,
+  canContribute,
+  onEdit,
+  onMoveStop,
+  onAdded,
+  onStatusChange,
+}: WeekViewProps) {
   const lanes = groupStopsByDate(stops);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -124,6 +134,7 @@ export default function WeekView({ stops, tripSlug, authToken, canContribute, on
                         tripSlug={tripSlug}
                         canEdit={canContribute}
                         onEdit={() => onEdit(stop)}
+                        onStatusChange={(status) => onStatusChange(stop.id, status)}
                         dragging={draggingId === stop.id}
                         dropBefore={dragOverId === stop.id && dropPosition === "before"}
                         dropAfter={dragOverId === stop.id && dropPosition === "after"}

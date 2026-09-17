@@ -67,6 +67,35 @@
   padding: 0.0625rem 0.5rem;
 }
 
+/* A tentative stop's own quick decide-now actions — lighter-weight
+   than opening the full edit dialog just to flip status. Both start
+   unchecked (there's no "currently tentative" box to show as on) —
+   checking either one is itself the action, immediately swapping this
+   whole row for the confirmed checkmark / archived tag above once the
+   stop's status actually changes. */
+.status-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.status-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--text-xs);
+  color: var(--color-zinc-600);
+  cursor: pointer;
+
+  input {
+    cursor: pointer;
+  }
+
+  &:hover {
+    color: var(--color-zinc-900);
+  }
+}
+
 .title {
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
