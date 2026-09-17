@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from "@/components/Dialog";
 import Button from "@/components/Button";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getOrCreateDeviceId } from "@/lib/inviteClient";
 import type { PublicTrip } from "@/lib/types";
 import styles from "./CreateLoginPrompt.module.css";
 
@@ -46,10 +47,14 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
       // sign-up disabled — see the route's own comment) and links it
       // to this trip in one step, gated on the invite token proving
       // this browser genuinely had access already.
+      // deviceId lets the route bring this browser's own ratings (left
+      // as a contributor, keyed by that same id — see lib/ratings.ts's
+      // resolveRaterKey) over onto the new account, rather than the
+      // account starting with every "My Score" blank.
       const res = await fetch(`/api/trips/${trip.slug}/become-editor`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${contributorToken}` },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, deviceId: getOrCreateDeviceId() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Couldn't create a login");

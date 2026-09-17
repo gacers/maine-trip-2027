@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { hashApiKey } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
+import { migrateDeviceRatingsToEditor, DEVICE_ID_RE } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!bearerMatch) return NextResponse.json({ error: "Missing invite token" }, { status: 401 });
 
-  let body: { email?: string; password?: string };
+  let body: { email?: string; password?: string; deviceId?: string };
   try {
     body = await request.json();
   } catch {
@@ -68,6 +69,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .from("trip_editors")
     .upsert({ trip_id: trip.id, user_id: created.user.id });
   if (linkError) return NextResponse.json({ error: linkError.message }, { status: 500 });
+
+  // Best-effort — a migration hiccup shouldn't fail an account that
+  // was otherwise created successfully; worst case they just see blank
+  // stars where their own ratings used to show, same as before this
+  // existed. See migrateDeviceRatingsToEditor's own comment for why
+  // this needs to happen here at all.
+  if (body.deviceId && DEVICE_ID_RE.test(body.deviceId)) {
+    try {
+      await migrateDeviceRatingsToEditor(service, body.deviceId, created.user.id);
+    } catch (err) {
+      console.error("Rating migration to new editor account failed:", err);
+    }
+  }
 
   return NextResponse.json({ ok: true });
 }
