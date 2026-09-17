@@ -96,14 +96,11 @@ export default function PairedEntryGroup({
               ))}
             </div>
           </div>
-          {/* Left corner, not right — each half's own EntryMedia
-              already puts its own score badge at ITS top-right (see
-              EntryMedia), and the rightmost photo's own badge would
-              otherwise sit in the exact same corner as this. Only
-              rendered while expanded — collapsing hands this same
-              toggle off to ListingSection's own header instead (see
-              its own comment), same idea as EntryCard/EntryMedia's own
-              solo-card version. */}
+          {/* Top-right, matching the solo card exactly. Only rendered
+              while expanded — collapsing hands this same toggle off to
+              ListingSection's own header instead (see its own
+              comment), same idea as EntryCard/EntryMedia's own solo-
+              card version. */}
           {collapsible && !isCollapsed && (
             <button
               type="button"
