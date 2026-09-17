@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import classNames from "classnames";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import Button from "@/components/Button";
 import StarRating from "@/components/StarRating";
@@ -10,6 +11,11 @@ export interface ListingSectionProps {
   title: ReactNode;
   children: ReactNode;
   id?: string;
+  /** Extra class on the root <section> — e.g. PairedEntryGroup passing
+   * a grid-span override so a 2-house comparison card takes the whole
+   * row inside a grid-2/grid-3 section instead of just one column's
+   * worth (see SectionPage's renderUnit). */
+  className?: string;
   /** Both houses' own photos, laid out as their own row ahead of this
    * group's title section — see SectionPage, which builds this from
    * EntryMedia directly so each EntryCard below can skip its own copy
@@ -62,6 +68,7 @@ export default function ListingSection({
   canContribute,
   myScore,
   onRate,
+  className,
 }: ListingSectionProps) {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -84,7 +91,7 @@ export default function ListingSection({
   }
 
   return (
-    <section id={id} className={styles["root"]}>
+    <section id={id} className={classNames(styles["root"], className)}>
       {media}
       <div className={styles["header"]}>
         <div className={styles["title-area"]}>

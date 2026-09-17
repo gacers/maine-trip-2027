@@ -49,7 +49,14 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
   const [hasMap, setHasMap] = useState(section?.has_map ?? true);
   const [supportsRatings, setSupportsRatings] = useState(section?.supports_ratings ?? false);
   const [cardLayout, setCardLayout] = useState<Section["card_layout"]>(section?.card_layout ?? "list");
-  const [navGroupId, setNavGroupId] = useState(section?.nav_group_id || navGroups[0]?.id || "");
+  // Blank by default when creating (not section?.nav_group_id ||
+  // navGroups[0]?.id — that silently defaulted to whichever group
+  // happened to be first, so a new section joined it unless you
+  // noticed and changed the dropdown yourself, confirmed live as an
+  // easy way to end up with, say, a Car Services section quietly filed
+  // under Stays). Editing still defaults to the section's own current
+  // group, same as always.
+  const [navGroupId, setNavGroupId] = useState(section?.nav_group_id || "");
   const [newGroupLabel, setNewGroupLabel] = useState("");
   const [fields, setFields] = useState<FieldRow[]>((section?.field_defs || []).map(fieldDefToRow));
   const [addCounterpart, setAddCounterpart] = useState(false);
@@ -65,6 +72,11 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (!isEdit && !navGroupId && !newGroupLabel.trim()) {
+      setError("Pick a nav group, or name a new one.");
+      return;
+    }
 
     for (const f of fields) {
       if (!f.key.trim() || !f.label.trim()) {
@@ -95,6 +107,8 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
       // a 3rd+ section to an already-populated group doesn't jump
       // ahead of what's already there.
       if (addCounterpart) payload.sortOrder = PRIMARY_TIER_SORT_ORDER;
+    } else if (newGroupLabel.trim()) {
+      payload.newNavGroupLabel = newGroupLabel.trim();
     } else {
       payload.navGroupId = navGroupId;
     }
@@ -185,45 +199,42 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
           />
         </label>
 
-        {isEdit ? (
-          <label className={styles["field"]}>
-            Nav group
-            <select value={navGroupId} onChange={(e) => setNavGroupId(e.target.value)} className={styles["input"]}>
+        <div className={styles["field"]}>
+          <label>Nav group</label>
+          <div className={styles["nav-group-row"]}>
+            <select
+              value={newGroupLabel ? "" : navGroupId}
+              onChange={(e) => {
+                setNavGroupId(e.target.value);
+                setNewGroupLabel("");
+              }}
+              disabled={!!newGroupLabel}
+              className={styles["nav-group-select"]}
+            >
+              {!isEdit && (
+                <option value="" disabled>
+                  — Pick a nav group —
+                </option>
+              )}
               {navGroups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.label}
                 </option>
               ))}
             </select>
-          </label>
-        ) : (
-          <div className={styles["field"]}>
-            <label>Nav group</label>
-            <div className={styles["nav-group-row"]}>
-              <select
-                value={newGroupLabel ? "" : navGroupId}
-                onChange={(e) => {
-                  setNavGroupId(e.target.value);
-                  setNewGroupLabel("");
-                }}
-                disabled={!!newGroupLabel}
-                className={styles["nav-group-select"]}
-              >
-                {navGroups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.label}
-                  </option>
-                ))}
-              </select>
-              <input
-                value={newGroupLabel}
-                onChange={(e) => setNewGroupLabel(e.target.value)}
-                placeholder="or new group..."
-                className={styles["nav-group-input"]}
-              />
-            </div>
+            <input
+              value={newGroupLabel}
+              onChange={(e) => setNewGroupLabel(e.target.value)}
+              placeholder="or new group..."
+              className={styles["nav-group-input"]}
+            />
           </div>
-        )}
+          {isEdit && newGroupLabel && (
+            <p className={styles["nav-group-hint"]}>
+              Moves this section into a brand-new “{newGroupLabel}” nav group of its own.
+            </p>
+          )}
+        </div>
 
         <label className={styles["wide-field"]}>
           Add-form placeholder text

@@ -1,10 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { nanoid } from "nanoid";
-import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
+import { getTripBySlug, getSectionBySlug, sanitizeTripForClient } from "@/lib/sections";
 import { getAllEntries, findEntryByUrl, createEntry, toClientEntry } from "@/lib/entries";
 import { getRatingsForEntries, summarizeRatings, resolveRaterKey } from "@/lib/ratings";
-import { requireWriteAccess } from "@/lib/auth";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { requireWriteAccess, requireReadAccess } from "@/lib/auth";
 import { normalizeListingUrl } from "@/lib/scrape";
 import { extractCount } from "@/lib/fieldTypes/count";
 import { exportSection } from "@/lib/sheetsExport";
@@ -34,19 +33,23 @@ export async function GET(
   const { trip, section, notFound } = await resolveTripAndSection(tripSlug, navGroupSlug, sectionSlug);
   if (notFound) return notFound;
 
+  // The actual content — gated so a stranger's browser (blocked by
+  // TripAccessGate already, this is the direct-request backstop) can't
+  // just fetch it anyway. Every legitimate caller already sends this
+  // trip's authToken on this exact request (see useSectionEntries's
+  // own authHeaders), so this is a no-op for them.
+  const { error: authError, supabase, raterKey: accessKey } = await requireReadAccess(request, trip.id);
+  if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
+
   try {
-    const supabase = await supabaseServer();
-    const entries = await getAllEntries(supabase, section.id);
+    const entries = await getAllEntries(supabase!, section.id);
     let clientEntries = entries.map((e) => toClientEntry(e));
 
     if (section.supports_ratings) {
       const ratingsByEntry = await getRatingsForEntries(
-        supabase,
+        supabase!,
         entries.map((e) => e.id)
       );
-      // Best-effort — a visitor with no access at all just gets averages,
-      // myScore stays null rather than the request failing.
-      const { raterKey: accessKey } = await requireWriteAccess(request, trip.id, { minRole: "editor" });
       const raterKey = resolveRaterKey(accessKey, request);
       clientEntries = clientEntries.map((e) => ({
         ...e,
@@ -54,7 +57,11 @@ export async function GET(
       }));
     }
 
-    return NextResponse.json({ trip, section, entries: clientEntries });
+    // sanitizeTripForClient — a contributor's invite-link key gets
+    // through requireReadAccess above same as an admin/editor does, and
+    // that key holder specifically should never see trip.sheet_invite_token
+    // (a real, live Sheet-editing secret — see lib/sections.ts).
+    return NextResponse.json({ trip: sanitizeTripForClient(trip), section, entries: clientEntries });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

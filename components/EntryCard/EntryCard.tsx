@@ -14,6 +14,7 @@ import { isAddressLike } from "./helpers";
 import EntryBadgesRow from "./components/EntryBadgesRow";
 import PriceDisplay from "./components/PriceDisplay";
 import CountsRow, { type CountRow } from "./components/CountsRow";
+import OverviewFieldsRow, { type OverviewFieldRow } from "./components/OverviewFieldsRow";
 import EntryDescription from "./components/EntryDescription";
 import VisitedControl from "./components/VisitedControl";
 import LocationSection from "./components/LocationSection";
@@ -147,6 +148,14 @@ export default function EntryCard({
   const priceFields = fieldDefs.filter((f) => f.field_type === "price");
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
   const countRows: CountRow[] = countFields
+    .map((f) => ({ fieldDef: f, value: entry[f.key] }))
+    .filter(({ value }) => value !== "" && value !== null && value !== undefined);
+  // Any other "show on overview" field (text/url/select/date/... — a
+  // phone number, a website, whatever an admin adds) that isn't already
+  // handled by one of the dedicated displays above — see
+  // OverviewFieldsRow, which previously had nowhere to render at all.
+  const overviewRows: OverviewFieldRow[] = fieldDefs
+    .filter((f) => f.show_on_overview && !["price", "count", "boolean"].includes(f.field_type))
     .map((f) => ({ fieldDef: f, value: entry[f.key] }))
     .filter(({ value }) => value !== "" && value !== null && value !== undefined);
   const descriptionBullets = toBullets(entry.description).filter((line) => !isAddressLike(line));
@@ -311,6 +320,14 @@ export default function EntryCard({
         {countRows.length > 0 && (
           <div className={styles["section"]}>
             <CountsRow countRows={countRows} />
+          </div>
+        )}
+
+        {/* Everything else marked "show on overview" (phone, website,
+            ...) that has no dedicated display of its own. */}
+        {overviewRows.length > 0 && (
+          <div className={styles["section"]}>
+            <OverviewFieldsRow rows={overviewRows} />
           </div>
         )}
 

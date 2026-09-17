@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { scrapeListing, normalizeListingUrl } from "@/lib/scrape";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { findEntryByUrl, findEntryByUrlAnywhere } from "@/lib/entries";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { requireReadAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -16,6 +16,12 @@ export async function POST(
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
   const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) return NextResponse.json({ error: "Unknown section" }, { status: 404 });
+
+  // findEntryByUrlAnywhere below can hand back another trip's entry's
+  // title/description/photo/location — same access level as the
+  // search route this mirrors (see requireReadAccess's own comment).
+  const { error: authError, supabase } = await requireReadAccess(request, trip.id);
+  if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   let body: Record<string, unknown>;
   try {
@@ -34,8 +40,7 @@ export async function POST(
     return NextResponse.json({ error: "That doesn't look like a valid URL" }, { status: 400 });
   }
 
-  const supabase = await supabaseServer();
-  const existing = await findEntryByUrl(supabase, section.id, normalizedUrl);
+  const existing = await findEntryByUrl(supabase!, section.id, normalizedUrl);
   if (existing) return NextResponse.json({ duplicate: true, existing });
 
   // Someone's already documented this exact place in another trip or
@@ -48,7 +53,7 @@ export async function POST(
   // vary per trip/section, and the row being created here is a
   // genuinely independent one regardless of where its starting data
   // came from.
-  const reused = await findEntryByUrlAnywhere(supabase, normalizedUrl, section.id);
+  const reused = await findEntryByUrlAnywhere(supabase!, normalizedUrl, section.id);
   if (reused) {
     return NextResponse.json({
       duplicate: false,

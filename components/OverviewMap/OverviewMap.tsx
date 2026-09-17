@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useGoogleMaps } from "@/lib/useGoogleMaps";
+import { flashAnchor } from "@/lib/flashAnchor";
 import type { OverviewPin } from "@/lib/types";
 import styles from "./OverviewMap.module.css";
 
@@ -44,24 +45,8 @@ export default function OverviewMap({ pins }: OverviewMapProps) {
         title: p.label,
       });
       marker.addListener("click", () => {
-        const el = document.getElementById(p.anchor);
-        if (el) {
-          // scroll-margin-top on the card/group itself (see EntryCard's
-          // and ListingSection's own CSS) keeps this from landing half
-          // behind TripNavHeader's sticky bar.
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
-          if (typeof window !== "undefined" && window.history) {
-            window.history.replaceState(null, "", `#${p.anchor}`);
-          }
-          // A plain global class (not a CSS Module one) — this targets
-          // whatever element the anchor id is actually on, in an
-          // entirely different component than this map.
-          el.classList.remove("pin-jump-highlight");
-          // Force a reflow so re-adding the class restarts the
-          // animation even if the same pin is clicked again mid-pulse.
-          void el.offsetWidth;
-          el.classList.add("pin-jump-highlight");
-          window.setTimeout(() => el.classList.remove("pin-jump-highlight"), 5000);
+        if (flashAnchor(p.anchor, { scroll: true }) && window.history) {
+          window.history.replaceState(null, "", `#${p.anchor}`);
         }
       });
       bounds.extend({ lat: p.lat, lng: p.lng });

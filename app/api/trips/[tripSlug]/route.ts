@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getTripBySlug } from "@/lib/sections";
+import { getTripBySlug, getAllSectionsForTrip } from "@/lib/sections";
 import { requireWriteAccess, getAdminUser } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
+import { exportSection } from "@/lib/sheetsExport";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const { data, error } = await supabase!.from("trips").update(patch).eq("id", trip.id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Completed status changes what every tab's own header/highlighting/
+  // row order looks like (see lib/sheetsExport.ts's unitTier/
+  // applyActiveRowHighlight) — without re-exporting here, a Sheet that
+  // had already picked up "completed" styling (green Visited rows)
+  // stayed stuck that way after un-completing the trip, since nothing
+  // else re-triggers a Sheet refresh until some unrelated entry write
+  // eventually does (confirmed live). Best-effort, same as every other
+  // auto-export call site — a Sheets hiccup here can't fail this save.
+  if ("completed" in body) {
+    const sections = await getAllSectionsForTrip(trip.id);
+    for (const section of sections) {
+      await exportSection(supabase!, data, section);
+    }
+  }
+
   return NextResponse.json({ trip: data });
 }
 

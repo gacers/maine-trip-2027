@@ -2,17 +2,26 @@
 
 import { useState } from "react";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/Dialog";
-import Button from "@/components/Button";
+import Button, { type ButtonVariant, type ButtonSize } from "@/components/Button";
 import type { PublicTrip, Section } from "@/lib/types";
 import styles from "./RequestAccess.module.css";
 
 export interface RequestAccessProps {
   trip: PublicTrip;
-  section: Section;
+  /** Omitted by TripAccessGate, which blocks a whole trip before any
+   * particular section is even reachable — the request just names the
+   * trip generally then. Every other caller (the nav bar) already
+   * knows the section the visitor landed on, and mentions it by name. */
+  section?: Section;
   contactEmail: string | null;
   /** Extra class for the trigger button — e.g. letting it wrap in a
    * tight space like the nav bar instead of overflowing on one line. */
   triggerClassName?: string;
+  /** Defaults match the small nav-bar link this has always been —
+   * TripAccessGate passes a bigger/bolder variant since there it's the
+   * primary action on the page, not a corner link. */
+  triggerVariant?: ButtonVariant;
+  triggerSize?: ButtonSize;
 }
 
 // Shown in place of the Add form to a visitor with no invite link (and
@@ -23,7 +32,14 @@ export interface RequestAccessProps {
 // generated from InviteLinksManager. The actual form lives in a modal
 // (Radix Dialog) rather than expanding inline — this trigger shows up
 // in tight spaces (the nav bar) where growing in place isn't an option.
-export default function RequestAccess({ trip, section, contactEmail, triggerClassName }: RequestAccessProps) {
+export default function RequestAccess({
+  trip,
+  section,
+  contactEmail,
+  triggerClassName,
+  triggerVariant = "link",
+  triggerSize = "sm",
+}: RequestAccessProps) {
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -31,7 +47,7 @@ export default function RequestAccess({ trip, section, contactEmail, triggerClas
 
   const subject = `Access request: ${trip.name}`;
   const bodyLines = [
-    `Hi — I'd like to add to the "${section.label}" list for ${trip.name}.`,
+    section ? `Hi — I'd like to add to the "${section.label}" list for ${trip.name}.` : `Hi — I'd like access to ${trip.name}.`,
     message.trim(),
     "",
     `Page: ${typeof window !== "undefined" ? window.location.href : ""}`,
@@ -43,8 +59,8 @@ export default function RequestAccess({ trip, section, contactEmail, triggerClas
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="link" size="sm" className={triggerClassName}>
-          Want to add something here? Request access
+        <Button variant={triggerVariant} size={triggerSize} className={triggerClassName}>
+          Request access
         </Button>
       </DialogTrigger>
       <DialogContent>

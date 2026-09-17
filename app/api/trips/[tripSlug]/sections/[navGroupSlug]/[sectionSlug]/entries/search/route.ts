@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { searchEntriesByTitle } from "@/lib/entries";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { requireReadAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,11 +19,16 @@ export async function GET(
   const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) return NextResponse.json({ error: "Unknown section" }, { status: 404 });
 
+  // Same reasoning as the entries GET route — this is real content
+  // (other trips' entry titles/descriptions/photos included, since
+  // searchEntriesByTitle looks cross-trip for reuse candidates).
+  const { error: authError, supabase } = await requireReadAccess(request, trip.id);
+  if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
+
   const q = (new URL(request.url).searchParams.get("q") || "").trim();
   if (q.length < 2) return NextResponse.json({ matches: [] });
 
-  const supabase = await supabaseServer();
-  const matches = await searchEntriesByTitle(supabase, q, section.id);
+  const matches = await searchEntriesByTitle(supabase!, q, section.id);
   return NextResponse.json({
     matches: matches.map((m) => ({
       id: m.entry.id,

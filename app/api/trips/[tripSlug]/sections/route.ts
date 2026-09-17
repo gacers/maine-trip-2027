@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getTripBySlug, getTripNav } from "@/lib/sections";
-import { requireWriteAccess } from "@/lib/auth";
+import { getTripBySlug, getTripNav, sanitizeTripForClient } from "@/lib/sections";
+import { requireWriteAccess, requireReadAccess } from "@/lib/auth";
 import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
+import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
 import type { FieldType, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -27,9 +28,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
+  const { error: authError } = await requireReadAccess(request, trip.id);
+  if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
+
   try {
     const nav = await getTripNav(trip.id);
-    return NextResponse.json({ trip, nav });
+    // sanitizeTripForClient, not the raw row — this used to hand back
+    // trip.sheet_invite_token (a real, live Sheet-editing secret, see
+    // its own comment in lib/sections.ts) to anyone who asked, gated or
+    // not.
+    return NextResponse.json({ trip: sanitizeTripForClient(trip), nav });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
@@ -154,6 +162,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }));
       const { error: fieldError } = await supabase!.from("field_defs").insert(rows);
       if (fieldError) throw new Error(fieldError.message);
+
+      // Best-effort, same reasoning as the nav-group capture below —
+      // every named field becomes pickable on any other section/trip
+      // too (see FieldDefsEditor's own template picker).
+      for (const f of fieldDefs as Record<string, unknown>[]) {
+        upsertCustomFieldTemplate(supabase!, trip.id, {
+          key: f.key as string,
+          label: f.label as string,
+          field_type: f.field_type as FieldType,
+          show_on_overview: !!f.show_on_overview,
+          required: !!f.required,
+          options: (f.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
+        }).catch((err) => console.error("Field template capture failed:", err));
+      }
     }
 
     // Best-effort — a custom nav group's usefulness on THIS trip never

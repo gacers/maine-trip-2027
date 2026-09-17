@@ -2,3 +2,8 @@
   flex-shrink: 0;
   color: var(--color-zinc-500);
 }
+
+.overview-icon {
+  flex-shrink: 0;
+  color: var(--color-zinc-500);
+}

@@ -32,6 +32,10 @@ export interface PairedEntryGroupProps {
   isMediumMedia: boolean;
   nightsEstimate: number | null;
   tripCompleted: boolean;
+  /** Passed straight through to ListingSection — see its own className
+   * doc. Set by SectionPage when the section's card_layout is a grid,
+   * so this comparison card spans the whole row instead of one column. */
+  className?: string;
 }
 
 // A 2-item paired option — one shared frame/header (ListingSection)
@@ -53,11 +57,13 @@ export default function PairedEntryGroup({
   isMediumMedia,
   nightsEstimate,
   tripCompleted,
+  className,
 }: PairedEntryGroupProps) {
   return (
     <ListingSection
       key={unit.listings.map((e) => e.id).join("-")}
       id={`group-${unit.listings[0].id}`}
+      className={className}
       title={groupTitle(unit.listings[0].groupLabel)}
       media={
         <div className={styles["media-row"]}>

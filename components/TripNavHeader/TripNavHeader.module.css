@@ -1,8 +1,17 @@
-/* One sticky bar, stacked rows (title+actions, categories, and — only
-   once you're on a section — that category's own sub-nav) — full width
-   on purpose (no max-width cap): the bar always spans the viewport,
-   just with its own side padding. */
+/* Full width on purpose (no max-width cap): the bar always spans the
+   viewport, just with its own side padding. Only .sticky-nav below
+   (categories + sub-nav) actually sticks — the title/actions row
+   scrolls away normally, it's not something you need pinned while
+   reading down a long list. */
 .root {
+  background: var(--color-white);
+}
+
+/* The part that actually stays pinned while scrolling — categories,
+   plus sub-nav once you're on a section. Its own background/border
+   (previously .root's) since it's what's visibly "the sticky bar" now
+   that .top-row above it isn't part of it. */
+.sticky-nav {
   position: sticky;
   top: 0;
   z-index: 10;

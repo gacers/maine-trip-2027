@@ -12,6 +12,7 @@ import { useNavSlot } from "@/components/TripNavHeader/NavSlot";
 import { groupUnits } from "@/lib/groupUnits";
 import { computeTripNights } from "@/lib/fieldTypes/price";
 import { captureInviteToken } from "@/lib/inviteClient";
+import { flashAnchor } from "@/lib/flashAnchor";
 import { useSectionEntries } from "./useSectionEntries";
 import UtilityControls, { type SortBy } from "./components/UtilityControls";
 import PairedEntryGroup from "./components/PairedEntryGroup";
@@ -160,6 +161,21 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     showRatings,
   });
 
+  // Landing here via a direct link to one specific item (a Sheet row's
+  // own HYPERLINK back to #listing-<id>/#group-<id>, or any other
+  // external link built the same way) — same "make it obvious which
+  // one you actually landed on" flash EntryCard's map-pin jump already
+  // has (see lib/flashAnchor.ts). Waits for loading to actually finish
+  // rather than firing on mount: entries render client-side, so the
+  // target element doesn't exist in the DOM yet at first paint, and the
+  // browser's own native #fragment scroll (which runs once, before
+  // that) would silently do nothing.
+  useEffect(() => {
+    if (loading) return;
+    const hash = window.location.hash.slice(1);
+    if (hash) flashAnchor(hash, { scroll: true });
+  }, [loading]);
+
   // Filters/search are per-section, not global — clear them when
   // navigating to a different section rather than silently carrying a
   // stale selection (e.g. "Bar" checked, or a search term) into one
@@ -299,6 +315,12 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
           isMediumMedia={isMediumMedia}
           nightsEstimate={nightsEstimate}
           tripCompleted={trip.completed}
+          // A paired comparison card already shows two listings side by
+          // side on its own — inside a grid-2/grid-3 layout it needs
+          // the whole row, not just one column's worth like a solo
+          // card. .entry-list is already full width, nothing extra
+          // needed there.
+          className={cardLayout !== "list" ? styles["grid-span-full"] : undefined}
         />
       );
     }
