@@ -199,6 +199,49 @@ export async function PATCH(
       .single();
     if (fetchError) throw new Error(fetchError.message);
     updated.field_defs = (updated.field_defs || []).sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order);
+
+    // Regular edit to a section that already lives in a custom nav
+    // group (the newNavGroupLabel branch above already captured the
+    // "just moved into a brand-new group" case) — re-sync that group's
+    // template too, so e.g. removing a field here also stops it being
+    // offered on new trips built from this template. Only worth the
+    // extra write when something template-relevant actually changed;
+    // isDefaultNavGroupLabel inside the upsert itself is what actually
+    // skips this for the 3 built-in groups.
+    const templateRelevantChange =
+      fieldDefs !== undefined ||
+      label !== undefined ||
+      subNavLabel !== undefined ||
+      addPlaceholder !== undefined ||
+      emptyMessage !== undefined ||
+      supportsPairing !== undefined ||
+      hasMap !== undefined ||
+      supportsRatings !== undefined ||
+      cardLayout !== undefined;
+    if (templateRelevantChange && !(newNavGroupLabel && newNavGroupLabel.trim())) {
+      const { data: group } = await supabase!.from("nav_groups").select("label").eq("id", updated.nav_group_id).maybeSingle();
+      if (group?.label) {
+        upsertCustomSectionTemplate(supabase!, group.label, trip.id, {
+          slug: updated.slug,
+          label: updated.label,
+          subNavLabel: updated.sub_nav_label,
+          addPlaceholder: updated.add_placeholder,
+          emptyMessage: updated.empty_message,
+          supportsPairing: updated.supports_pairing,
+          hasMap: updated.has_map,
+          supportsRatings: updated.supports_ratings,
+          cardLayout: updated.card_layout,
+          fieldDefs: (updated.field_defs || []).map((f: Record<string, unknown>) => ({
+            key: f.key as string,
+            label: f.label as string,
+            field_type: f.field_type as FieldType,
+            show_on_overview: !!f.show_on_overview,
+            options: (f.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
+          })),
+        }).catch((err) => console.error("Template capture failed:", err));
+      }
+    }
+
     return NextResponse.json({ section: updated });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
