@@ -296,8 +296,17 @@ export default function EntryCard({
           the card even loads. */}
       {isArchived && entry.archiveReason && <div className={styles["archive-banner"]}>Archived: {entry.archiveReason}</div>}
 
-      {!hideMedia && !isCollapsed && (
-        <EntryMedia entry={entry} compact={compact} large={largeMedia} medium={mediumMedia} showRatings={showRatings} />
+      {!hideMedia && (
+        <EntryMedia
+          entry={entry}
+          compact={compact}
+          large={largeMedia}
+          medium={mediumMedia}
+          showRatings={showRatings}
+          collapsible={collapsible}
+          collapsed={isCollapsed}
+          onToggleCollapse={() => setCollapsed((c) => !c)}
+        />
       )}
 
       <div className={sectionsClassName}>
@@ -319,7 +328,11 @@ export default function EntryCard({
             </div>
             <div className={styles["header-actions"]}>
               <PriceDisplay entry={entry} priceFields={priceFields} />
-              {collapsible && (
+              {/* EntryMedia carries this same toggle as an overlay on
+                  the photo instead (right next to the score badge) —
+                  this copy only exists for a photo-less entry, which
+                  has nowhere to overlay it. */}
+              {collapsible && !entry.posterImage && (
                 <button
                   type="button"
                   onClick={() => setCollapsed((c) => !c)}
