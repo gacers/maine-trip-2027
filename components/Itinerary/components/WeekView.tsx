@@ -60,7 +60,16 @@ export default function WeekView({
   const laneRefs = useRef(new Map<string, HTMLDivElement>());
 
   function scrollToLane(key: string) {
-    laneRefs.current.get(key)?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
+    // block: "nearest" was the culprit behind a mobile tap landing
+    // partway down the page instead of at the lane's own top — a
+    // full-height lane (many stops) counts as "already visible" the
+    // moment ANY part of it is on screen, so "nearest" often left the
+    // page scrolled to wherever it already happened to be rather than
+    // jumping to this lane's start. "start" always aligns the lane's
+    // own top edge to the top of the scrollable area (offset by
+    // .lane's own scroll-margin-top so the page's sticky header
+    // doesn't cover it).
+    laneRefs.current.get(key)?.scrollIntoView({ behavior: "smooth", inline: "start", block: "start" });
   }
 
   return (

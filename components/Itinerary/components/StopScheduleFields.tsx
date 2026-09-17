@@ -26,6 +26,7 @@ const KIND_LABELS: Record<ItineraryStopKind, string> = {
   lodging: "Lodging",
   activity: "Activity",
   meal: "Meal",
+  bar: "Bar",
   transport: "Transport",
   other: "Other",
 };

@@ -285,7 +285,7 @@ export interface TitleMatch {
 }
 
 // See supabase/migrations/0023_itinerary_stops.sql.
-export type ItineraryStopKind = "lodging" | "activity" | "meal" | "transport" | "other";
+export type ItineraryStopKind = "lodging" | "activity" | "meal" | "bar" | "transport" | "other";
 export type ItineraryStopStatus = "tentative" | "confirmed" | "archived";
 export type TravelMode = "driving" | "walking" | "transit" | "bicycling";
 // An itinerary stop's own travel_mode is a superset of the real Google

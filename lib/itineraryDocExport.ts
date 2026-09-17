@@ -17,6 +17,7 @@ const KIND_LABEL: Record<string, string> = {
   lodging: "Lodging",
   activity: "Activity",
   meal: "Meal",
+  bar: "Bar",
   transport: "Transport",
   other: "Other",
 };

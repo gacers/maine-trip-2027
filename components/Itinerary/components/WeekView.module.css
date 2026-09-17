@@ -45,10 +45,24 @@
   padding-bottom: 1rem;
 }
 
+/* Grows to fill whatever room the full-width row actually has (a
+   short trip's 3 lanes were otherwise sitting at a fixed 21rem each,
+   leaving a large blank gap on the right of an otherwise edge-to-edge
+   page — confirmed live, exactly what "full width means full width"
+   was calling out) — capped so a trip with only a day or two doesn't
+   stretch each lane absurdly wide. With enough lanes to exceed the
+   viewport, they settle back to the 21rem basis and the row scrolls
+   instead of shrinking further. */
 .lane {
-  flex: 0 0 21rem;
+  flex: 1 1 21rem;
+  max-width: 32rem;
   scroll-snap-align: start;
   min-width: 0;
+  /* Keeps a day-pill tap from landing a lane's own top edge UNDER the
+     page's sticky nav + this page's own sticky title/re-export bar
+     once scrollIntoView's block:"start" pulls it flush to the top of
+     the scroll area — see scrollToLane's own comment. */
+  scroll-margin-top: calc(var(--sticky-nav-height, 0px) + 12rem);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -61,6 +75,7 @@
 @media (max-width: 640px) {
   .lane {
     flex: 0 0 100%;
+    max-width: 100%;
   }
 }
 
