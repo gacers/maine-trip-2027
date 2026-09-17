@@ -29,12 +29,14 @@ export interface TripNavHeaderProps {
 // `nav` is this trip's nav_groups, each with its member `sections`
 // already attached and sorted (see lib/sections.js's getTripNav) —
 // entirely data-driven per trip, replacing the old hardcoded
-// GROUPS/COLLECTIONS constants. One single sticky bar, full width:
-// trip name + utility links on their own row, then every top-level
-// group (Houses, Food & Drink, Activities, ...) as a plain flat link
-// alongside this section's own actions (Add/Google Sheet/Sort/filter —
-// see NavSlot) on the row below — no dropdown/flyout. Landing on a
-// group navigates straight to its first (normally "Possible ...")
+// GROUPS/COLLECTIONS constants. Full width: trip name + utility links
+// on their own (non-sticky — you don't need it pinned while reading
+// down a list) row, then every top-level group (Houses, Food & Drink,
+// Activities, ...) as a plain flat link alongside this section's own
+// actions (Add/Google Sheet/Sort/filter — see NavSlot) on the row
+// below — no dropdown/flyout — and that row (plus sub-nav once you're
+// on a section) is what's actually sticky (see .sticky-nav). Landing
+// on a group navigates straight to its first (normally "Possible ...")
 // section; once you're on any section in that group, a third row
 // appears underneath with that group's own sections (Possible/
 // Previous), so there's always at most one extra row, never a hover-
@@ -58,7 +60,7 @@ export default function TripNavHeader({
   contactEmail = null,
 }: TripNavHeaderProps) {
   const pathname = usePathname();
-  const barRef = useRef<HTMLElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   const navSlot = useNavSlot();
   const [contributorToken, setContributorToken] = useState<string | null>(null);
   const [accessChecked, setAccessChecked] = useState(isAdmin);
@@ -102,11 +104,16 @@ export default function TripNavHeader({
     return () => mq.removeEventListener("change", handleChange);
   }, [drawerOpen]);
 
-  // This bar's own rendered height, published as a CSS variable on the
-  // document root so anything sticky further down the tree (SectionPage's
-  // filter/sort bar, which isn't a DOM sibling of this component) can
-  // stick right below it instead of guessing a fixed offset —
-  // recalculated on resize since it can wrap taller at narrow widths.
+  // The *sticky* portion's own rendered height (.sticky-nav — nav-row
+  // plus sub-nav-row when present, not .top-row above it, which
+  // scrolls away normally) — published as a CSS variable on the
+  // document root so anything sticky further down the tree
+  // (SectionPage's filter/sort bar, which isn't a DOM sibling of this
+  // component) can stick right below it instead of guessing a fixed
+  // offset. Recalculated on resize since it can wrap taller at
+  // narrower widths; 0 whenever .sticky-nav doesn't render at all
+  // (admin routes, or a trip with no nav yet) since barRef.current is
+  // then null and nothing here runs.
   useLayoutEffect(() => {
     const el = barRef.current;
     if (!el) return;
@@ -145,7 +152,7 @@ export default function TripNavHeader({
   const isAdminRoute = pathname.startsWith(`/${trip.slug}/admin`);
 
   return (
-    <header ref={barRef} className={styles["root"]}>
+    <header className={styles["root"]}>
       <div className={styles["top-row"]}>
         <Link
           href={nav[0] ? sectionPath(nav[0].slug, nav[0].sections[0].slug) : `/${trip.slug}`}
@@ -203,7 +210,7 @@ export default function TripNavHeader({
       </div>
 
       {nav.length > 0 && !isAdminRoute && (
-        <>
+        <div ref={barRef} className={styles["sticky-nav"]}>
           <div className={styles["nav-row"]}>
             <NavigationMenu className={styles["menu-desktop"]} aria-label="Trip categories">
               <NavigationMenuList>
@@ -261,7 +268,7 @@ export default function TripNavHeader({
               </NavigationMenu>
             </div>
           )}
-        </>
+        </div>
       )}
     </header>
   );
