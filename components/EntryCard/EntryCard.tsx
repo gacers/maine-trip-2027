@@ -320,7 +320,11 @@ export default function EntryCard({
               <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles["title-link"]}>
                 {entry.title}
               </a>
-              {hasHouse && !isCollapsed && (
+              {/* Stays visible collapsed too — unlike the rating row/
+                  fields/notes below, the address is exactly the kind
+                  of thing worth still seeing at a glance without
+                  expanding first. */}
+              {hasHouse && (
                 <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles["address-link"]}>
                   {addressLabel || "View on map"}
                 </a>

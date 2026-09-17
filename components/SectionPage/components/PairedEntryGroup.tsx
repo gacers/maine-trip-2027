@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import classNames from "classnames";
 import { ChevronUp } from "lucide-react";
 import EntryCard from "@/components/EntryCard";
@@ -6,6 +6,8 @@ import EntryMedia from "@/components/EntryMedia";
 import ListingSection from "@/components/ListingSection";
 import GroupMap from "@/components/GroupMap";
 import SimpleGroupMap from "@/components/SimpleGroupMap";
+import { fetchReverseAddress } from "@/lib/geocodeClient";
+import { hasCoords } from "@/lib/listingUtils";
 import type { ClientEntry, EntryUnit, FieldDef, MapConfig } from "@/lib/types";
 import styles from "./PairedEntryGroup.module.css";
 
@@ -76,6 +78,36 @@ export default function PairedEntryGroup({
   const [collapsed, setCollapsed] = useState(false);
   const isCollapsed = collapsible && collapsed;
 
+  // The group's own header has no single card's worth of address to
+  // show — this just picks the first listing's, same "good enough,
+  // better than neither" reasoning as myScore/editableTitle above
+  // already reading off unit.listings[0] alone.
+  const firstListing = unit.listings[0];
+  const [firstAddressLabel, setFirstAddressLabel] = useState<string | null>(null);
+  useEffect(() => {
+    if (!hasCoords(firstListing)) {
+      setFirstAddressLabel(null);
+      return;
+    }
+    let cancelled = false;
+    fetchReverseAddress(tripSlug, firstListing.lat as number, firstListing.lng as number)
+      .then((result) => {
+        if (!cancelled) setFirstAddressLabel(result?.formattedAddress ?? null);
+      })
+      .catch(() => {
+        // Non-fatal — the map-pin link below still works via lat/lng.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Depend on the primitive coordinates, not `firstListing` itself —
+    // it's a fresh object (unit.listings[0]) every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstListing.lat, firstListing.lng, tripSlug]);
+  const firstAddressUrl = hasCoords(firstListing)
+    ? `https://www.google.com/maps/search/?api=1&query=${firstListing.lat},${firstListing.lng}`
+    : undefined;
+
   return (
     <ListingSection
       key={unit.listings.map((e) => e.id).join("-")}
@@ -85,6 +117,8 @@ export default function PairedEntryGroup({
       collapsed={isCollapsed}
       onToggleCollapse={() => setCollapsed((c) => !c)}
       title={groupTitle(unit.listings[0].groupLabel)}
+      addressLabel={firstAddressLabel}
+      addressUrl={firstAddressUrl}
       media={
         <div className={classNames(styles["media-row-wrap"], isCollapsed && styles["media-row-wrap-collapsed"])}>
           <div className={styles["media-row-inner"]}>

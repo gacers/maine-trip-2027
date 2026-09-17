@@ -62,6 +62,18 @@
   min-width: 0;
 }
 
+/* Same look as EntryCard's own address-link. */
+.address-link {
+  align-self: flex-start;
+  font-size: var(--text-sm);
+  color: var(--color-zinc-600);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-blue-600);
+  }
+}
+
 .edit-title-button {
   flex-shrink: 0;
   font-size: var(--text-xs);

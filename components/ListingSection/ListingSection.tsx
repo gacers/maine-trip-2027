@@ -36,6 +36,13 @@ export interface ListingSectionProps {
    * `onEditTitle` below is expected to update both at once. */
   editableTitle?: string;
   onEditTitle?: (newLabel: string) => void;
+  /** The first listing's own address/map link — a group has two
+   * addresses, one per half, and this just surfaces the first one here
+   * (same idea as a solo card's own address-link) rather than picking
+   * neither. See PairedEntryGroup, which resolves this the same way
+   * EntryCard resolves its own. */
+  addressLabel?: string | null;
+  addressUrl?: string;
   /** A 2-house-option group is rated as one option, not twice — one
    * shared "Your score" control here instead of each half's own
    * EntryCard rendering its own (see EntryCard's showRatingControl,
@@ -88,6 +95,8 @@ export default function ListingSection({
   collapsible = false,
   collapsed = false,
   onToggleCollapse,
+  addressLabel,
+  addressUrl,
 }: ListingSectionProps) {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -144,6 +153,13 @@ export default function ListingSection({
                 </button>
               )}
             </div>
+          )}
+          {/* Stays visible collapsed too — same reasoning as EntryCard's
+              own address-link. */}
+          {addressUrl && (
+            <a href={addressUrl} target="_blank" rel="noopener noreferrer" className={styles["address-link"]}>
+              {addressLabel || "View on map"}
+            </a>
           )}
           {!isCollapsed && showRatings && canContribute && onRate && (
             <div className={styles["user-rating-row"]}>
