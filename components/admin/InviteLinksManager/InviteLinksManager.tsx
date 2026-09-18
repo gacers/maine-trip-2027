@@ -14,21 +14,30 @@ type InviteMode = "email" | "link";
 
 // Same shape as ApiKeysManager, but for `role: "contributor"` keys —
 // each one backs one shareable invite link
-// (`{site}/{tripSlug}?invite=<token>`). Visiting that link lets a friend
-// add new entries and append notes/concerns from the site itself (see
-// SectionPage's invite-capture effect) without ever signing in, and
-// without you generating and handing them a raw API key.
+// (`/{tripSlug}?invite=<token>`). Visiting that link lets a friend
+// add/edit from the site without signing in. Two ways to hand it out:
+// "Invite via email" (Resend, one person, ?email= prefill) or "Shareable
+// link" (plain multi-use URL, same idea as the Google Sheet pipeline's
+// standing invite — WhatsApp, Slack, etc.).
 export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
+  const [label, setLabel] = useState("");
   const [mode, setMode] = useState<InviteMode>("email");
   const [creating, setCreating] = useState(false);
-  const [newInvite, setNewInvite] = useState<{ link: string; token: string; emailed: boolean } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [newInvite, setNewInvite] = useState<{
+    link: string;
+    token: string;
+    email: string | null;
+    emailed: boolean;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const apiBase = `/api/trips/${trip.slug}/api-keys`;
+  const inviteEmailApi = `/api/trips/${trip.slug}/invite-email`;
 
   function buildInviteLink(token: string, emailForLink?: string): string {
     const url = new URL(`/${trip.slug}`, window.location.origin);
@@ -42,16 +51,17 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
     return !!value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
   }
 
-  function openInviteMailto(to: string, link: string) {
-    const subject = `Invite to ${trip.name}`;
-    const body = [
-      `You're invited to help plan ${trip.name}.`,
-      "",
-      "Open this link to get access (works in this browser; you can create a permanent login once you're in):",
-      link,
-      "",
-    ].join("\n");
-    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  async function sendInviteEmail(to: string, token: string): Promise<string> {
+    const res = await fetch(inviteEmailApi, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: to, token }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to send invite email");
+    return typeof data.inviteUrl === "string"
+      ? data.inviteUrl
+      : `${window.location.origin}${buildInviteLink(token, to)}`;
   }
 
   async function load() {
@@ -76,33 +86,70 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setError("");
-    const trimmed = email.trim();
-    if (!trimmed) {
-      setError("Email is required");
+
+    if (mode === "email") {
+      const trimmed = email.trim();
+      if (!looksLikeEmail(trimmed)) {
+        setError("A valid email is required");
+        return;
+      }
+      setCreating(true);
+      try {
+        const res = await fetch(apiBase, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: trimmed, role: "contributor" }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        const link = await sendInviteEmail(trimmed, data.token);
+        setNewInvite({ link, token: data.token, email: trimmed, emailed: true });
+        setEmail("");
+        setCopied(false);
+        load();
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setCreating(false);
+      }
       return;
     }
+
+    // Shareable link — same multi-use contributor token as the Sheet
+    // pipeline (ensureSheetInviteToken). Optional label only; no ?email=.
+    const inviteLabel = label.trim() || `Shared link — ${trip.name}`;
     setCreating(true);
     try {
-      // Email is the invite's label too — shows in the list, and Reveal
-      // can re-attach ?email= when the stored label still looks like one.
       const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: trimmed, role: "contributor" }),
+        body: JSON.stringify({ label: inviteLabel, role: "contributor" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      const link = `${window.location.origin}${buildInviteLink(data.token, trimmed)}`;
-      const emailed = mode === "email";
-      setNewInvite({ link, token: data.token, emailed });
-      setEmail("");
+      const link = `${window.location.origin}${buildInviteLink(data.token)}`;
+      setNewInvite({ link, token: data.token, email: null, emailed: false });
+      setLabel("");
       setCopied(false);
       load();
-      if (emailed) openInviteMailto(trimmed, link);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleResend() {
+    if (!newInvite?.email) return;
+    setError("");
+    setSending(true);
+    try {
+      const link = await sendInviteEmail(newInvite.email, newInvite.token);
+      setNewInvite({ ...newInvite, link, emailed: true });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSending(false);
     }
   }
 
@@ -145,23 +192,36 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
   return (
     <div className={styles["wrapper"]}>
       <p className={styles["intro"]}>
-        Invite someone straight to the site — they land with access and the create-login form prefilled. Prefer
-        sharing the spreadsheet? Use the Google Sheet box below (or Google&apos;s own share); every Sheet link already
-        carries its own invite. Invitees can add, edit, and archive, but can&apos;t permanently delete or change trip
-        settings.
+        Invite people to the site — they land with access and can create a permanent login.{" "}
+        <strong>Invite via email</strong> sends one person a link (create-login prefilled).{" "}
+        <strong>Shareable link</strong> is a plain multi-use URL (WhatsApp, Slack, etc.) — same idea as the
+        Google Sheet pipeline&apos;s standing invite. Prefer sharing the spreadsheet? Use the Google Sheet box
+        below; every Sheet link already carries its own invite.
       </p>
 
       {error && <p className={styles["error"]}>{error}</p>}
 
       <form onSubmit={handleCreate} className={styles["create-form"]}>
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="their@email.com"
-          className={styles["label-input"]}
-        />
+        {mode === "email" ? (
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="their@email.com"
+            className={styles["label-input"]}
+            aria-label="Invitee email"
+          />
+        ) : (
+          <input
+            type="text"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Label (optional) — e.g. WhatsApp group"
+            className={styles["label-input"]}
+            aria-label="Invite label"
+          />
+        )}
         <select
           value={mode}
           onChange={(e) => setMode(e.target.value as InviteMode)}
@@ -169,19 +229,25 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
           aria-label="Invite method"
         >
           <option value="email">Invite via email</option>
-          <option value="link">Generate link</option>
+          <option value="link">Shareable link</option>
         </select>
-        <button type="submit" className={styles["create-button"]} disabled={creating}>
-          {creating ? "Creating..." : mode === "email" ? "Invite" : "Create link"}
+        <button type="submit" className={styles["create-button"]} disabled={creating || sending}>
+          {creating
+            ? mode === "email"
+              ? "Sending..."
+              : "Creating..."
+            : mode === "email"
+              ? "Invite"
+              : "Create link"}
         </button>
       </form>
 
       {newInvite && (
         <div className={styles["new-invite-box"]}>
           <p className={styles["new-invite-note"]}>
-            {newInvite.emailed
-              ? "Invite created — your email app should open with the link ready to send. You can still copy it here."
-              : "Save this now, or come back and click \"Show\" on it later."}
+            {newInvite.emailed && newInvite.email
+              ? `Invite emailed to ${newInvite.email}. You can still copy the link or resend.`
+              : "Anyone with this link gets access in their browser — same as Sheet invites. Copy it wherever you like; they can create a login once they're in."}
           </p>
           <div className={styles["new-invite-row"]}>
             <code className={styles["link-code"]}>{newInvite.link}</code>
@@ -190,16 +256,14 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
             </button>
           </div>
           <div className={styles["new-invite-actions"]}>
-            {newInvite.emailed && (
+            {newInvite.email && (
               <button
                 type="button"
-                onClick={() => {
-                  const emailParam = new URL(newInvite.link).searchParams.get("email");
-                  if (emailParam) openInviteMailto(emailParam, newInvite.link);
-                }}
+                onClick={handleResend}
                 className={styles["resend-button"]}
+                disabled={sending}
               >
-                Open email again
+                {sending ? "Sending..." : newInvite.emailed ? "Resend email" : "Send email"}
               </button>
             )}
             <button type="button" onClick={() => setNewInvite(null)} className={styles["dismiss-button"]}>
