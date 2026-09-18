@@ -9,6 +9,7 @@ import RequestAccess from "@/components/RequestAccess";
 import CreateLoginPrompt from "@/components/CreateLoginPrompt";
 import LoginPrompt from "@/components/LoginPrompt";
 import LogoutButton from "@/components/LogoutButton";
+import SiteHeader, { siteHeaderStyles } from "@/components/SiteHeader";
 import MobileNavDrawer from "./MobileNavDrawer";
 import { captureInviteToken, hasSeenCreateLoginNudge, markCreateLoginNudgeSeen, clearInviteAccess } from "@/lib/inviteClient";
 import { useNavSlot } from "./NavSlot";
@@ -175,90 +176,89 @@ export default function TripNavHeader({
 
   return (
     <>
-      <header className={styles["root"]}>
-        <div className={styles["top-row"]}>
-          <div className={styles["brand"]}>
+      <SiteHeader
+        brand={
+          <>
             {/* "All Trips ›" for anyone with trip access — admins see
                 every trip; editors and invite contributors see only the
                 trips they're linked to (see app/page.tsx). */}
             {(isAdmin || isEditor || !!contributorToken) && (
               <>
-                <Link href="/" className={styles["brand-crumb"]}>
+                <Link href="/" className={siteHeaderStyles["brand-crumb"]}>
                   All Trips
                 </Link>
-                <span className={styles["brand-separator"]} aria-hidden>
+                <span className={siteHeaderStyles["brand-separator"]} aria-hidden>
                   ›
                 </span>
               </>
             )}
             <Link
               href={nav[0] ? sectionPath(nav[0].slug, nav[0].sections[0].slug) : `/${trip.slug}`}
-              className={styles["brand-crumb"]}
+              className={siteHeaderStyles["brand-crumb"]}
             >
               {trip.name}
             </Link>
-          </div>
-
-          <div className={styles["actions"]}>
-            {isAdmin ? (
+          </>
+        }
+        actions={
+          isAdmin ? (
+            <>
+              {/* This row's own set of buttons stays fixed regardless of
+                  trip state — a conditional third item here (an earlier
+                  version put Archive Unvisited in this same row) made
+                  the header's structure shift between a completed trip
+                  and every other one. It lives on the Trip Settings
+                  page instead now, right by the Completed checkbox that
+                  gates it (see TripSettingsPage). */}
+              <Button variant="secondary" size="sm" asChild>
+                <Link href={`/${trip.slug}/admin/sections`}>Manage</Link>
+              </Button>
+              {/* /admin routes need real access to render anything
+                  useful — redirect back to the public trip page rather
+                  than stranding a just-logged-out admin on one. */}
+              <LogoutButton redirectTo={isAdminRoute ? `/${trip.slug}` : undefined} />
+            </>
+          ) : isEditor ? (
+            <LogoutButton />
+          ) : (
+            accessChecked && (
               <>
-                {/* This row's own set of buttons stays fixed regardless of
-                    trip state — a conditional third item here (an earlier
-                    version put Archive Unvisited in this same row) made
-                    the header's structure shift between a completed trip
-                    and every other one. It lives on the Trip Settings
-                    page instead now, right by the Completed checkbox that
-                    gates it (see TripSettingsPage). */}
-                <Button variant="secondary" size="sm" asChild>
-                  <Link href={`/${trip.slug}/admin/sections`}>Manage</Link>
-                </Button>
-                {/* /admin routes need real access to render anything
-                    useful — redirect back to the public trip page rather
-                    than stranding a just-logged-out admin on one. */}
-                <LogoutButton redirectTo={isAdminRoute ? `/${trip.slug}` : undefined} />
-              </>
-            ) : isEditor ? (
-              <LogoutButton />
-            ) : (
-              accessChecked && (
-                <>
-                  {!!contributorToken ? (
-                    <div className={styles["invite-access"]}>
-                      <div className={styles["invite-access-links"]}>
-                        <LoginPrompt
-                          hasInviteAccess
-                          contributorToken={contributorToken}
-                          tripSlug={trip.slug}
-                        />
-                        {showCreateLogin && (
-                          <CreateLoginPrompt
-                            trip={trip}
-                            contributorToken={contributorToken!}
-                            defaultOpen={showCreateLoginNudge}
-                          />
-                        )}
-                      </div>
-                      <p className={styles["invite-access-hint"]}>(current access via browser cookie)</p>
-                    </div>
-                  ) : (
-                    <>
-                      <LoginPrompt />
-                      {showRequestAccess && (
-                        <RequestAccess
+                {!!contributorToken ? (
+                  <div className={siteHeaderStyles["invite-access"]}>
+                    <div className={siteHeaderStyles["invite-access-links"]}>
+                      <LoginPrompt
+                        hasInviteAccess
+                        contributorToken={contributorToken}
+                        tripSlug={trip.slug}
+                      />
+                      {showCreateLogin && (
+                        <CreateLoginPrompt
                           trip={trip}
-                          section={activeSection!}
-                          contactEmail={contactEmail}
-                          triggerClassName={styles["request-access-trigger"]}
+                          contributorToken={contributorToken!}
+                          defaultOpen={showCreateLoginNudge}
                         />
                       )}
-                    </>
-                  )}
-                </>
-              )
-            )}
-          </div>
-        </div>
-      </header>
+                    </div>
+                    <p className={siteHeaderStyles["invite-access-hint"]}>(current access via browser cookie)</p>
+                  </div>
+                ) : (
+                  <>
+                    <LoginPrompt />
+                    {showRequestAccess && (
+                      <RequestAccess
+                        trip={trip}
+                        section={activeSection!}
+                        contactEmail={contactEmail}
+                        triggerClassName={siteHeaderStyles["request-access-trigger"]}
+                      />
+                    )}
+                  </>
+                )}
+              </>
+            )
+          )
+        }
+      />
 
       {nav.length > 0 && !isAdminRoute && (
         <div ref={barRef} className={styles["sticky-nav"]}>

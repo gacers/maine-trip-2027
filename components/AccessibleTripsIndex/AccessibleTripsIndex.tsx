@@ -6,6 +6,8 @@ import TripCard from "@/components/TripCard";
 import LoginPrompt from "@/components/LoginPrompt";
 import LogoutButton from "@/components/LogoutButton";
 import CreateLoginPrompt from "@/components/CreateLoginPrompt";
+import Button from "@/components/Button";
+import SiteHeader, { siteHeaderStyles } from "@/components/SiteHeader";
 import { listInviteTripSlugs, readInviteToken } from "@/lib/inviteClient";
 import type { PublicTrip } from "@/lib/types";
 import styles from "./AccessibleTripsIndex.module.css";
@@ -61,32 +63,41 @@ export default function AccessibleTripsIndex({
 
   const showInviteAuth = !isSignedIn && !!inviteToken && !!inviteSlug;
 
+  const authActions = isSignedIn ? (
+    <LogoutButton />
+  ) : showInviteAuth ? (
+    <div className={siteHeaderStyles["invite-access"]}>
+      <div className={siteHeaderStyles["invite-access-links"]}>
+        <LoginPrompt hasInviteAccess contributorToken={inviteToken} tripSlug={inviteSlug!} />
+        <CreateLoginPrompt trip={{ slug: inviteSlug! }} contributorToken={inviteToken!} />
+      </div>
+      <p className={siteHeaderStyles["invite-access-hint"]}>(current access via browser cookie)</p>
+    </div>
+  ) : (
+    <LoginPrompt />
+  );
+
   return (
     <>
-      <header className={styles["site-header"]}>
-        <div className={styles["site-header-inner"]}>
-          <p className={styles["brand"]}>Country Goth Travel</p>
-          <div className={styles["header-actions"]}>
-            {isSignedIn ? (
-              <LogoutButton />
-            ) : showInviteAuth ? (
-              <div className={styles["invite-access"]}>
-                <div className={styles["invite-access-links"]}>
-                  <LoginPrompt
-                    hasInviteAccess
-                    contributorToken={inviteToken}
-                    tripSlug={inviteSlug!}
-                  />
-                  <CreateLoginPrompt trip={{ slug: inviteSlug! }} contributorToken={inviteToken!} />
-                </div>
-                <p className={styles["invite-access-hint"]}>(current access via browser cookie)</p>
-              </div>
-            ) : (
-              <LoginPrompt />
-            )}
-          </div>
-        </div>
-      </header>
+      <SiteHeader
+        sticky
+        brand={<p className={siteHeaderStyles["brand-title"]}>Country Goth Travel</p>}
+        actions={
+          isAdmin ? (
+            <>
+              <Button variant="secondary" size="sm" asChild>
+                <Link href="/trips/new">+ New trip</Link>
+              </Button>
+              <Button variant="link" size="sm" asChild>
+                <Link href="/settings">Settings</Link>
+              </Button>
+              {authActions}
+            </>
+          ) : (
+            authActions
+          )
+        }
+      />
 
       <main className={styles["root"]}>
         <h1 className={styles["heading"]}>Trips</h1>
@@ -128,17 +139,6 @@ export default function AccessibleTripsIndex({
               </section>
             )}
           </>
-        )}
-
-        {isAdmin && (
-          <div className={styles["actions-row"]}>
-            <Link href="/trips/new" className={styles["new-trip-button"]}>
-              + New trip
-            </Link>
-            <Link href="/settings" className={styles["settings-link"]}>
-              Settings
-            </Link>
-          </div>
         )}
       </main>
     </>
