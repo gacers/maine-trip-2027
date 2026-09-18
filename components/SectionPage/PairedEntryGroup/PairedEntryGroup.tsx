@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import classNames from "classnames";
 import { ChevronUp } from "lucide-react";
-import EntryCard from "@/components/EntryCard";
+import EntryCard, { type DateRange } from "@/components/EntryCard";
 import EntryMedia from "@/components/EntryMedia";
 import ListingSection from "@/components/ListingSection";
 import GroupMap from "@/components/GroupMap";
@@ -23,6 +23,11 @@ function groupTitle(label: string | null | undefined): string {
 
 export interface PairedEntryGroupProps {
   unit: Extract<EntryUnit, { type: "group" }>;
+  /** Forwarded straight through to each half's own EntryCard — see its
+   * AvailabilityLinks, which only renders anything for an Airbnb/VRBO
+   * url. */
+  primaryDateRange?: DateRange | null;
+  backupDateRange?: DateRange | null;
   fieldDefs: FieldDef[];
   mapConfig?: MapConfig;
   tripSlug: string;
@@ -60,6 +65,8 @@ export interface PairedEntryGroupProps {
 // own row above the shared title, and one shared map below both.
 export default function PairedEntryGroup({
   unit,
+  primaryDateRange,
+  backupDateRange,
   fieldDefs,
   mapConfig,
   tripSlug,
@@ -189,6 +196,8 @@ export default function PairedEntryGroup({
           <div key={entry.id} className={styles["listing-half"]}>
             <EntryCard
               entry={entry}
+              primaryDateRange={primaryDateRange}
+              backupDateRange={backupDateRange}
               fieldDefs={fieldDefs}
               mapConfig={mapConfig}
               tripSlug={tripSlug}

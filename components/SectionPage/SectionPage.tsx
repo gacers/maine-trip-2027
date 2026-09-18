@@ -74,6 +74,13 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
 
   const fieldDefs = section.field_defs || [];
   const mapConfig = trip.map_config;
+  // Resolved once here rather than in every card — see EntryCard's own
+  // AvailabilityLinks, which only actually renders anything for an
+  // Airbnb/VRBO url, so passing these through unconditionally to every
+  // section type (not just Stays) is harmless.
+  const primaryDateRange = trip.start_date && trip.end_date ? { start: trip.start_date, end: trip.end_date } : null;
+  const backupDateRange =
+    trip.alt_start_date && trip.alt_end_date ? { start: trip.alt_start_date, end: trip.alt_end_date } : null;
   // `has_map` doubles as "this is a still-deciding-among-options list" —
   // driving times/Closest Town exist to help pick a winner, which a
   // "previous"/already-done section (nothing left to decide) has no use
@@ -335,6 +342,8 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         <PairedEntryGroup
           key={unit.listings.map((e) => e.id).join("-")}
           unit={unit}
+          primaryDateRange={primaryDateRange}
+          backupDateRange={backupDateRange}
           fieldDefs={fieldDefs}
           mapConfig={mapConfig}
           tripSlug={trip.slug}
@@ -375,6 +384,8 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
       <EntryCard
         key={entry.id}
         entry={entry}
+        primaryDateRange={primaryDateRange}
+        backupDateRange={backupDateRange}
         fieldDefs={fieldDefs}
         mapConfig={mapConfig}
         tripSlug={trip.slug}

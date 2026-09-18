@@ -22,6 +22,7 @@ import LocationSection from "./LocationSection";
 import EntryEditForm, { type EntryDraft } from "./EntryEditForm";
 import EditableNoteList from "./EditableNoteList";
 import EntryFooter from "./EntryFooter";
+import AvailabilityLinks, { type DateRange } from "./AvailabilityLinks";
 import type { ImportSourceEntryInfo } from "@/lib/entrySync";
 import type { ClientEntry, FieldDef, MapConfig, MapReferencePoint } from "@/lib/types";
 import styles from "./EntryCard.module.css";
@@ -97,10 +98,21 @@ export interface EntryCardProps {
    * takes a whole row's height on its own scrolling down a long list;
    * a grid card is already small, nothing to collapse. */
   collapsible?: boolean;
+  /** Trip.start_date/end_date and alt_start_date/alt_end_date, resolved
+   * once by SectionPage rather than every card re-reading trip fields
+   * itself — see AvailabilityLinks, which turns these into "Check
+   * dates"/"Check backup dates" next to the title for an Airbnb/VRBO
+   * url specifically (a no-op everywhere else). Undefined (not just
+   * unset dates) for a section with no reason to ever show these —
+   * e.g. Food & Drink/Activities entries never pass this at all. */
+  primaryDateRange?: DateRange | null;
+  backupDateRange?: DateRange | null;
 }
 
 export default function EntryCard({
   entry,
+  primaryDateRange,
+  backupDateRange,
   fieldDefs = [],
   mapConfig,
   tripSlug,
@@ -362,6 +374,9 @@ export default function EntryCard({
                 <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles["address-link"]}>
                   {addressLabel || "View on map"}
                 </a>
+              )}
+              {(primaryDateRange || backupDateRange) && (
+                <AvailabilityLinks url={entry.url} primary={primaryDateRange} backup={backupDateRange} />
               )}
             </div>
             <div className={styles["header-actions"]}>

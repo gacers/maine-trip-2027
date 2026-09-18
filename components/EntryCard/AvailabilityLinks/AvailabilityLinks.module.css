@@ -1,0 +1,15 @@
+.root {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.link {
+  font-size: var(--text-sm);
+  color: var(--color-blue-600);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

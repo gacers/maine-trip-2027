@@ -30,6 +30,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if ("subtitle" in body) patch.subtitle = body.subtitle || null;
   if ("startDate" in body) patch.start_date = body.startDate || null;
   if ("endDate" in body) patch.end_date = body.endDate || null;
+  if ("altStartDate" in body) patch.alt_start_date = body.altStartDate || null;
+  if ("altEndDate" in body) patch.alt_end_date = body.altEndDate || null;
   if ("nightsEstimate" in body) patch.nights_estimate = body.nightsEstimate || null;
   if ("mapConfig" in body) patch.map_config = body.mapConfig;
   if ("coverImage" in body) patch.cover_image = body.coverImage || null;

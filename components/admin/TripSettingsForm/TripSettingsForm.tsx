@@ -36,6 +36,8 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
   const [subtitle, setSubtitle] = useState(trip.subtitle || "");
   const [startDate, setStartDate] = useState(trip.start_date || "");
   const [endDate, setEndDate] = useState(trip.end_date || "");
+  const [altStartDate, setAltStartDate] = useState(trip.alt_start_date || "");
+  const [altEndDate, setAltEndDate] = useState(trip.alt_end_date || "");
   const [nightsEstimate, setNightsEstimate] = useState(trip.nights_estimate ? String(trip.nights_estimate) : "");
   const [coverImage, setCoverImage] = useState(trip.cover_image || "");
   const [completed, setCompleted] = useState(trip.completed);
@@ -102,6 +104,8 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
           subtitle,
           startDate: startDate || null,
           endDate: endDate || null,
+          altStartDate: altStartDate || null,
+          altEndDate: altEndDate || null,
           nightsEstimate: nightsEstimate ? Number(nightsEstimate) : null,
           coverImage: coverImage || null,
           completed,
@@ -158,6 +162,30 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
           />
         </label>
       </div>
+      <div className={styles["date-row"]}>
+        <label className={styles["field"]}>
+          Backup start date (optional)
+          <input
+            type="date"
+            value={altStartDate}
+            onChange={(e) => setAltStartDate(e.target.value)}
+            className={styles["input"]}
+          />
+        </label>
+        <label className={styles["field"]}>
+          Backup end date (optional)
+          <input
+            type="date"
+            value={altEndDate}
+            onChange={(e) => setAltEndDate(e.target.value)}
+            className={styles["input"]}
+          />
+        </label>
+      </div>
+      <p className={styles["hint"]}>
+        A fallback week, if there is one — every Stay Option&apos;s Airbnb/VRBO link gets a &quot;Check backup
+        dates&quot; button alongside the main one whenever both dates here are set.
+      </p>
       <label className={styles["field"]}>
         Estimated length in nights (for a price/night estimate — ignored once real dates are set above)
         <input

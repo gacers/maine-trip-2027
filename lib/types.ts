@@ -114,6 +114,14 @@ export interface Trip {
   subtitle?: string | null;
   start_date?: string | null;
   end_date?: string | null;
+  /** A fallback date range — for when the primary dates above might
+   * not pan out (availability, price, ...) and there's a real backup
+   * week already in mind. Independent of start_date/end_date; either
+   * pair can be set without the other. See lib/listingAvailability.ts,
+   * which appends whichever range(s) are set to a Stay Option's own
+   * Airbnb/VRBO link so its availability there is one click away. */
+  alt_start_date?: string | null;
+  alt_end_date?: string | null;
   /** Fallback trip length when there's no real start_date+end_date
    * range yet — lets a price field's own lone total (no stated "/
    * night" or "for N nights") still resolve to a useful avg/night
