@@ -199,6 +199,13 @@ export default function PairedEntryGroup({
               onResetRankings={onResetRankings}
               canManage={canManage}
               canContribute={canContribute}
+              // Never passed before — each half's own footer silently
+              // defaulted to the flat "Delete for good?" confirm
+              // instead of the archive-with-reason dialog every other
+              // pairing-section delete uses (confirmed live: a group
+              // stay's individual half skipped straight to permanent
+              // delete). Matches SectionPage's own solo-card prop.
+              supportsPairing
               bare
               hideMedia
               showRatings={showRatings}
