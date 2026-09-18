@@ -215,9 +215,6 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
     <div className={classNames(styles["root"], viewMode === "week" ? styles["root-week"] : styles["root-list"])}>
       <div ref={stickyHeaderRef} className={styles["sticky-header"]}>
         <div className={styles["header"]}>
-          <div className={styles["heading-group"]}>
-            <h1 className={styles["heading"]}>Itinerary</h1>
-          </div>
           {accessChecked && canContribute && (
             <div className={styles["header-actions"]}>
               <AddStopDialog

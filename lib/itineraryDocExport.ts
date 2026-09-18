@@ -47,7 +47,7 @@ function mapsSearchUrl(lat: number, lng: number): string {
 export interface StyleRun {
   start: number;
   end: number;
-  style: "title" | "day" | "bold" | "italic" | "bullet" | "block-end" | "connector" | "link";
+  style: "title" | "day" | "bold" | "italic" | "bullet" | "block-end" | "link";
   /** Only meaningful for "link" runs. */
   url?: string;
 }
@@ -101,61 +101,17 @@ export async function buildDocContent(
 
   let lastDate: string | null | undefined;
   let sawAnyDate = false;
-  let prevStop: ItineraryStop | null = null;
 
-  for (const stop of stops) {
+  for (let i = 0; i < stops.length; i++) {
+    const stop = stops[i];
+    const nextStop = i + 1 < stops.length ? stops[i + 1] : null;
+
     if (stop.date !== lastDate) {
       lastDate = stop.date;
       sawAnyDate = true;
       start = text.length;
       append(`${formatDay(stop.date)}\n`);
       mark(start, "day");
-    }
-
-    // The drive-time/leave-by line between this stop and the previous
-    // one — same conditions the site's own list view uses (both sides
-    // need coordinates, AND never across a day boundary: a new day's
-    // first stop is where you're starting from, usually the lodging
-    // you woke up at, not somewhere you just walked/drove to from
-    // yesterday's last stop), same cache, same car_service -> "driving"
-    // mapping (a car service drives the same roads a regular car
-    // would — see toGoogleTravelMode).
-    if (
-      prevStop &&
-      prevStop.date === stop.date &&
-      prevStop.lat != null &&
-      prevStop.lng != null &&
-      stop.lat != null &&
-      stop.lng != null
-    ) {
-      const route = await getOrComputeRoute(
-        supabase,
-        { lat: prevStop.lat, lng: prevStop.lng },
-        { lat: stop.lat, lng: stop.lng },
-        toGoogleTravelMode(stop.travel_mode)
-      ).catch(() => null);
-      if (route) {
-        let line = `↓ ${route.text} ${ITINERARY_TRAVEL_MODE_CONNECTOR_LABEL[stop.travel_mode]}`;
-        if (stop.time) {
-          const arrival = new Date(`${stop.date}T${stop.time.slice(0, 5)}:00`);
-          if (!Number.isNaN(arrival.getTime())) {
-            const leaveBy = new Date(arrival.getTime() - route.durationSeconds * 1000);
-            line += ` — leave by ${leaveBy.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
-          }
-        }
-        // A real (level-1) bullet, same mechanism as Kind/"Notes:" —
-        // manually setting indentFirstLine/indentStart on a plain
-        // paragraph to match a bulleted line's own column, tried
-        // twice, never actually rendered where the API's own readback
-        // said it would (confirmed live via a real screenshot: still
-        // flush left despite the request going through) — a real
-        // nested bullet is the one mechanism actually confirmed to
-        // land at the right indent, so this just becomes one too.
-        start = text.length;
-        tabConsumptions.push({ position: start, count: 1 });
-        append(`\t${line}\n`);
-        mark(start, "connector");
-      }
     }
 
     const time = formatTime(stop.time);
@@ -220,11 +176,57 @@ export async function buildDocContent(
       }
     }
 
-    mark(titleParaStart, "bullet");
-    mark(lastBlockLineStart, "block-end");
-    append("\n");
+    // The drive-time/leave-by line to the NEXT stop — as this stop's
+    // own last child bullet (level 1, same combined createParagraphBullets
+    // call as Kind/"Notes:" above) rather than a standalone paragraph
+    // or its own separate list. Tried both of those first: a plain
+    // paragraph with manually-set indentFirstLine/indentStart never
+    // actually rendered at the column the API's own readback said it
+    // would (confirmed live via a real screenshot, still flush left);
+    // its own separate bulleted list (even with a distinct preset to
+    // dodge Docs' adjacent-list auto-merge) still read as visually
+    // disconnected — too much space above it, not enough below,
+    // because it wasn't actually part of the block it belongs to. This
+    // is simpler AND fixes that: no separate call, no separate list,
+    // just one more tab-1 paragraph before this stop's own trailing
+    // blank line — same conditions the site's own list view uses (both
+    // sides need coordinates, AND never across a day boundary: a new
+    // day's first stop is where you're starting from, not somewhere
+    // you just traveled to from yesterday's last stop).
+    let connectorStart: number | null = null;
+    if (
+      nextStop &&
+      nextStop.date === stop.date &&
+      stop.lat != null &&
+      stop.lng != null &&
+      nextStop.lat != null &&
+      nextStop.lng != null
+    ) {
+      const route = await getOrComputeRoute(
+        supabase,
+        { lat: stop.lat, lng: stop.lng },
+        { lat: nextStop.lat, lng: nextStop.lng },
+        toGoogleTravelMode(nextStop.travel_mode)
+      ).catch(() => null);
+      if (route) {
+        let line = `↓ ${route.text} ${ITINERARY_TRAVEL_MODE_CONNECTOR_LABEL[nextStop.travel_mode]}`;
+        if (nextStop.time) {
+          const arrival = new Date(`${nextStop.date}T${nextStop.time.slice(0, 5)}:00`);
+          if (!Number.isNaN(arrival.getTime())) {
+            const leaveBy = new Date(arrival.getTime() - route.durationSeconds * 1000);
+            line += ` — leave by ${leaveBy.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+          }
+        }
+        connectorStart = text.length;
+        tabConsumptions.push({ position: connectorStart, count: 1 });
+        append(`\t${line}\n`);
+        mark(connectorStart, "italic");
+      }
+    }
 
-    prevStop = stop;
+    mark(titleParaStart, "bullet");
+    mark(connectorStart ?? lastBlockLineStart, "block-end");
+    append("\n");
   }
 
   if (!sawAnyDate && stops.length === 0) {
@@ -299,44 +301,6 @@ function requestsFromContent(text: string, runs: StyleRun[], tabConsumptions: Ta
           range,
           paragraphStyle: { spaceBelow: { magnitude: 6, unit: "PT" } },
           fields: "spaceBelow",
-        },
-      });
-    } else if (run.style === "connector") {
-      // Its own single-paragraph level-1 bullet — same tab-count
-      // mechanism as Kind/"Notes:", own standalone list rather than
-      // sharing one with either neighboring stop (it isn't really a
-      // child of either). Lands at the same native column as Kind
-      // automatically, which manually setting indentFirstLine/
-      // indentStart on a plain paragraph never actually did despite
-      // the API readback agreeing with what was sent (confirmed live
-      // via a real screenshot — still flush left).
-      //
-      // A DIFFERENT preset than "bullet"'s own BULLET_DISC_CIRCLE_SQUARE
-      // is deliberate, not decorative: Docs auto-merges a newly
-      // bulleted paragraph into an immediately-adjacent list that uses
-      // a MATCHING preset (documented behavior) — since a connector
-      // always sits directly between two stops' own bulleted blocks,
-      // matching their preset was silently merging it into whichever
-      // neighbor's list, which then dragged the FOLLOWING stop's own
-      // title down to the connector's own nesting level too (confirmed
-      // live: every title after the first came back nested one level
-      // deep instead of at level 0). A different preset here is what
-      // actually keeps every list independent.
-      requests.push({
-        createParagraphBullets: { range, bulletPreset: "BULLET_ARROW_DIAMOND_DISC" },
-      });
-      requests.push({
-        updateParagraphStyle: {
-          range,
-          paragraphStyle: { spaceBelow: { magnitude: 6, unit: "PT" } },
-          fields: "spaceBelow",
-        },
-      });
-      requests.push({
-        updateTextStyle: {
-          range,
-          textStyle: { italic: true, foregroundColor: { color: { rgbColor: { red: 0.45, green: 0.45, blue: 0.45 } } } },
-          fields: "italic,foregroundColor",
         },
       });
     } else if (run.style === "link" && run.url) {

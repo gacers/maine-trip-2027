@@ -44,9 +44,8 @@ export default function DocExportBox({ tripSlug, authToken }: DocExportBoxProps)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Export failed");
-      const wasAlreadyLinked = !!docUrl;
       setDocUrl(data.docUrl);
-      setMessage(wasAlreadyLinked ? "Done — re-exported." : "Done — the Doc is ready.");
+      setMessage("Done");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -60,15 +59,15 @@ export default function DocExportBox({ tripSlug, authToken }: DocExportBoxProps)
     <div className={styles["root"]}>
       <div className={styles["row"]}>
         <Button variant="secondary" size="sm" disabled={exporting} onClick={handleExport}>
-          {exporting ? (docUrl ? "Re-exporting..." : "Creating...") : docUrl ? "Re-export to Google Doc" : "Export to Google Doc"}
+          {exporting ? (docUrl ? "Re-exporting..." : "Creating...") : docUrl ? "Re-export Doc" : "Export Doc"}
         </Button>
         {docUrl && (
           <a href={docUrl} target="_blank" rel="noopener noreferrer" className={styles["link"]}>
             Open it
           </a>
         )}
+        {message && <span className={styles["message"]}>{message}</span>}
       </div>
-      {message && <p className={styles["message"]}>{message}</p>}
       {error && <p className={styles["error"]}>{error}</p>}
     </div>
   );

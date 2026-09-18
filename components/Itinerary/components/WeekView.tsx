@@ -107,7 +107,25 @@ export default function WeekView({
         const isStuck = horizontallyVisible && laneRect.top < newStickTop && laneRect.bottom > newStickTop + headerHeight;
 
         if (isStuck) {
-          const info = { left: laneRect.left, width: laneRect.width, height: headerHeight };
+          // Derived from .lane's own box + its real computed padding,
+          // not the header element's own rect — once the header itself
+          // is position:fixed, its own rect just reflects whatever we
+          // last told it to be, which would turn this into a feedback
+          // loop (reading back exactly what was set, never correcting
+          // toward .lane's actual current position) instead of an
+          // honest recomputation each time. This is also what was
+          // wrong before: using .lane's OUTER rect directly ignored
+          // its own padding, landing the fixed header flush with the
+          // lane's border instead of inset to match its un-stuck
+          // position.
+          const laneStyle = window.getComputedStyle(laneEl);
+          const paddingLeft = parseFloat(laneStyle.paddingLeft) || 0;
+          const paddingRight = parseFloat(laneStyle.paddingRight) || 0;
+          const info = {
+            left: laneRect.left + paddingLeft,
+            width: laneRect.width - paddingLeft - paddingRight,
+            height: headerHeight,
+          };
           next[key] = info;
           const prev = stuck[key];
           if (!prev || prev.left !== info.left || prev.width !== info.width || prev.height !== info.height) changed = true;

@@ -25,6 +25,7 @@
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
+  border-bottom: 1px solid var(--color-zinc-200);
 }
 
 .day-pill {
@@ -67,14 +68,15 @@
    instead of shrinking further.
 
    Deliberately NOT independently height-bound/scrolling (tried that
-   first, to get a real per-lane sticky header working — see the old
-   comment this replaced, still in git history) — reintroduces the
-   whole page's own natural scroll instead, on direct feedback that
-   nested per-column scrolling itself was the actual problem (a
-   trackpad/mobile scroll gesture over a lane fights with the page's
-   own scroll instead of just scrolling the page). The day-picker strip
-   above (already sticky) is the "which day am I looking at" affordance
-   now instead of each lane's own header following you down it. */
+   first, to get a real per-lane sticky header working via plain CSS —
+   see old comments still in git history) — the whole page keeps its
+   own natural scroll instead, on direct feedback that nested
+   per-column scrolling itself was the actual problem (a trackpad/
+   mobile scroll gesture over a lane fights with the page's own scroll
+   instead of just scrolling the page). The per-lane sticky header is
+   back too, just reimplemented by hand in WeekView.tsx (position:fixed
+   toggled on scroll) instead of relying on CSS position:sticky, which
+   is flatly impossible here — see .lane-header's own comment. */
 .lane {
   flex: 1 1 21rem;
   max-width: 32rem;
@@ -106,12 +108,18 @@
   background: var(--color-blue-50);
 }
 
-/* Plain, not sticky (see .lane's own comment) — the day-picker strip
-   above is the "which day" affordance while scrolling instead. */
+/* Pinned to the top of its own lane while that lane's own vertical
+   span crosses the sticky bars above it — see WeekView.tsx's own
+   "stuck" state/recompute for how (real CSS position:sticky can't do
+   this here; see .lane's own comment). Needs an opaque background
+   matching .lane's own — cards keep scrolling past underneath it once
+   it's actually pinned (position:fixed), and without one they'd show
+   straight through instead of the header reading as a solid bar. */
 .lane-header {
   font-size: var(--text-sm);
   font-weight: var(--font-weight-bold);
   color: var(--color-zinc-700);
+  background: var(--color-zinc-50);
   padding-bottom: 0.25rem;
   border-bottom: 1px solid var(--color-zinc-200);
 }
