@@ -121,8 +121,28 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
     setSaving(true);
     setError("");
     try {
-      const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({ email, password });
+      const { data: signInData, error: signInError } = await supabaseBrowser().auth.signInWithPassword({
+        email,
+        password,
+      });
       if (signInError) throw signInError;
+
+      // Session alone isn't enough — they need a trip_editors row or
+      // the header still treats them as invite-only. Same invite-token
+      // proof become-editor uses when creating a brand-new account.
+      // Pass accessToken so claim-editor doesn't depend on the session
+      // cookie landing before this next request.
+      const res = await fetch(`/api/trips/${trip.slug}/claim-editor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${contributorToken}` },
+        body: JSON.stringify({
+          deviceId: getOrCreateDeviceId(),
+          accessToken: signInData.session?.access_token,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't link this trip to your login");
+
       dismissNudge();
       setOpen(false);
       router.refresh();

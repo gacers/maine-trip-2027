@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from "@/components/Dialog";
 import Button from "@/components/Button";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getOrCreateDeviceId } from "@/lib/inviteClient";
 import type { ButtonVariant, ButtonSize } from "@/components/Button";
 import styles from "./LoginPrompt.module.css";
 
@@ -17,6 +18,13 @@ export interface LoginPromptProps {
    * only clicked Login by habit rather than actually wanting a
    * permanent account on this browser too. */
   hasInviteAccess?: boolean;
+  /** Invite token for this trip — when set, a successful sign-in also
+   * claims a trip_editors row (see /claim-editor) so the header flips
+   * to Logout instead of staying on Login / cookie hint. */
+  contributorToken?: string | null;
+  /** Trip slug required with contributorToken so claim-editor knows
+   * which trip to attach. */
+  tripSlug?: string;
   /** Extra class for the trigger button — matches RequestAccess's own
    * prop for the same reason (wrapping in a tight nav-bar space). */
   triggerClassName?: string;
@@ -38,6 +46,8 @@ export interface LoginPromptProps {
 // is set, no separate "you're in now" step needed.
 export default function LoginPrompt({
   hasInviteAccess,
+  contributorToken,
+  tripSlug,
   triggerClassName,
   triggerVariant = "link",
   triggerSize = "sm",
@@ -53,12 +63,38 @@ export default function LoginPrompt({
     e.preventDefault();
     setLoading(true);
     setError("");
-    const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({ email, password });
-    setLoading(false);
+    const { data: signInData, error: signInError } = await supabaseBrowser().auth.signInWithPassword({
+      email,
+      password,
+    });
     if (signInError) {
+      setLoading(false);
       setError(signInError.message);
       return;
     }
+
+    // From an invite browser: attach this trip to the permanent login
+    // so isEditor becomes true (otherwise they stay on the cookie hint).
+    if (contributorToken && tripSlug) {
+      try {
+        const res = await fetch(`/api/trips/${tripSlug}/claim-editor`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${contributorToken}` },
+          body: JSON.stringify({
+            deviceId: getOrCreateDeviceId(),
+            accessToken: signInData.session?.access_token,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Couldn't link this trip to your login");
+      } catch (err) {
+        setLoading(false);
+        setError((err as Error).message);
+        return;
+      }
+    }
+
+    setLoading(false);
     setOpen(false);
     router.refresh();
   }

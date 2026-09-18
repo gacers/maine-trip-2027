@@ -216,7 +216,11 @@ export default function TripNavHeader({
                   {!!contributorToken ? (
                     <div className={styles["invite-access"]}>
                       <div className={styles["invite-access-links"]}>
-                        <LoginPrompt hasInviteAccess />
+                        <LoginPrompt
+                          hasInviteAccess
+                          contributorToken={contributorToken}
+                          tripSlug={trip.slug}
+                        />
                         {showCreateLogin && (
                           <CreateLoginPrompt
                             trip={trip}
