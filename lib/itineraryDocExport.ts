@@ -125,7 +125,7 @@ export async function buildDocContent(
     // suffix that wasn't real turn-by-turn directions at all. Actual
     // A→B directions live on the commute-time line below instead.
     const titleStart = text.length;
-    append(stop.title);
+    append(stop.title ?? "");
     const locationUrl = stop.url || (stop.lat != null && stop.lng != null ? mapsSearchUrl(stop.lat, stop.lng) : null);
     if (locationUrl) mark(titleStart, "link", locationUrl);
     append(`${suffix}\n`);
