@@ -88,16 +88,12 @@ export interface LatLngLabel {
 }
 
 // One render unit's pin for OverviewMap — a paired 2-item group
-// collapses to a single pin (see SectionPage's pinFor). `color` is
-// this unit's own slot in lib/pinColors' palette — SectionPage hands
-// the same value to the corresponding list item's PinDot, so a marker
-// and its list row always match.
+// collapses to a single pin (see SectionPage's pinFor).
 export interface OverviewPin {
   anchor: string;
   label: string | null | undefined;
   lat: number | null;
   lng: number | null;
-  color: string;
 }
 
 export interface MapReferencePoint {

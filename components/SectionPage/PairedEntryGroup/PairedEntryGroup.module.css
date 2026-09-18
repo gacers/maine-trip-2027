@@ -128,15 +128,6 @@
   padding: 0.875rem 1rem;
   border-top: 1px solid var(--color-zinc-200);
 }
-
-/* ListingSection's .title is a plain (non-flex) h2 — see its own
-   comment on why display:flex there isn't worth the risk to its
-   min-content wrap tuning — so PinDot needs its own margin instead of
-   relying on a flex gap. */
-.title-dot {
-  margin-right: 0.375rem;
-  vertical-align: -0.0625rem;
-}
 @media (min-width: 640px) {
   .map-section {
     padding-inline: 1.25rem;
