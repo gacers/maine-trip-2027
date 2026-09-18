@@ -190,13 +190,12 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
           <ArchiveUnvisitedButton trip={trip} nav={nav} />
         </div>
       )}
-      {/* Only worth showing when at least one section on this trip uses
-          star ratings — otherwise there's nothing to wipe. */}
-      {nav.some((g) => g.sections.some((s) => s.supports_ratings)) && (
-        <div>
-          <ResetAllRatingsButton trip={trip} nav={nav} />
-        </div>
-      )}
+      <div className={styles["ratings-reset"]}>
+        <p className={styles["ratings-reset-hint"]}>
+          Clears every rater&apos;s stars on Stay Options (and any other ratings-enabled section).
+        </p>
+        <ResetAllRatingsButton trip={trip} nav={nav} />
+      </div>
       <label className={styles["checkbox-field"]}>
         <input
           type="checkbox"

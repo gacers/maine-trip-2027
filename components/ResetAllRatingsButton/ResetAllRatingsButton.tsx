@@ -40,9 +40,10 @@ export default function ResetAllRatingsButton({ trip, nav, triggerClassName }: R
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Couldn't reset rankings");
       setDoneCount(data.deletedCount ?? 0);
+      // Invalidate every section on this trip — safer than trusting
+      // supports_ratings on the nav payload used for the settings page.
       for (const group of nav) {
         for (const section of group.sections) {
-          if (!section.supports_ratings) continue;
           queryClient.invalidateQueries({ queryKey: ["entries", trip.slug, group.slug, section.slug] });
         }
       }
@@ -55,7 +56,7 @@ export default function ResetAllRatingsButton({ trip, nav, triggerClassName }: R
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={openDialog} className={triggerClassName}>
+      <Button variant="secondary" size="sm" onClick={openDialog} className={triggerClassName}>
         Reset all rankings
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
