@@ -7,7 +7,7 @@ import PairEntryDialog from "@/components/PairEntryDialog";
 import EntryCard from "@/components/EntryCard";
 import OverviewMap from "@/components/OverviewMap";
 import Button from "@/components/Button";
-import Spinner from "@/components/Spinner";
+import PageLoading from "@/components/PageLoading";
 import { useNavSlot } from "@/components/TripNavHeader/NavSlot";
 import { groupUnits } from "@/lib/groupUnits";
 import { computeTripNights } from "@/lib/fieldTypes/price";
@@ -475,9 +475,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
       )}
 
       {loading ? (
-        <div className={styles["loading-wrap"]}>
-          <Spinner size={48} />
-        </div>
+        <PageLoading />
       ) : (
         <>
           {/* Independent of comparisonMode on purpose — OverviewMap is a

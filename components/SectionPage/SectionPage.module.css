@@ -62,13 +62,6 @@
   composes: loading-text;
 }
 
-.loading-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-}
-
 .entry-list {
   display: flex;
   flex-direction: column;

@@ -139,10 +139,16 @@ export default function TripNavHeader({
   const nav = allNav
     .map((g) => ({ ...g, sections: g.sections.filter((s) => s.enabled) }))
     .filter((g) => g.sections.length > 0);
-  const activeGroup =
-    nav.find((g) => g.sections.some((s) => sectionPath(g.slug, s.slug) === pathname)) || nav[0];
+  // Itinerary is a peer tab, not under any nav group — don't fall back
+  // to nav[0] there or Stays (etc.) stays lit alongside Itinerary.
+  const isItineraryRoute = pathname === itineraryPath || pathname.startsWith(`${itineraryPath}/`);
+  const matchedGroup = nav.find((g) =>
+    g.sections.some((s) => sectionPath(g.slug, s.slug) === pathname),
+  );
+  const activeGroup = isItineraryRoute ? undefined : matchedGroup || nav[0];
   const activeSection =
-    activeGroup?.sections.find((s) => sectionPath(activeGroup.slug, s.slug) === pathname) || activeGroup?.sections[0];
+    activeGroup?.sections.find((s) => sectionPath(activeGroup.slug, s.slug) === pathname) ||
+    activeGroup?.sections[0];
 
   const canContribute = isAdmin || isEditor || !!contributorToken;
   const showRequestAccess = accessChecked && !canContribute && activeSection;
@@ -250,7 +256,7 @@ export default function TripNavHeader({
                     way the rest of a trip's content is. */}
                 {isAdmin && (
                   <NavigationMenuItem>
-                    <NavigationMenuLink asChild active={pathname === itineraryPath}>
+                    <NavigationMenuLink asChild active={isItineraryRoute}>
                       <Link href={itineraryPath}>Itinerary</Link>
                     </NavigationMenuLink>
                   </NavigationMenuItem>

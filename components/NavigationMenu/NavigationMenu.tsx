@@ -44,12 +44,14 @@ export type NavigationMenuLinkSize = "md" | "sm" | "menu-item";
 type LinkProps = ComponentPropsWithoutRef<typeof RadixNavigationMenu.Link> & { size?: NavigationMenuLinkSize };
 
 export const NavigationMenuLink = forwardRef<HTMLAnchorElement, LinkProps>(function NavigationMenuLink(
-  { className, size = "md", ...props },
+  { className, size = "md", active, ...props },
   ref
 ) {
   return (
     <RadixNavigationMenu.Link
       ref={ref}
+      active={active}
+      data-active={active ? "" : undefined}
       className={classNames(styles["link"], styles[size], className)}
       {...props}
     />
