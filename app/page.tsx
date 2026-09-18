@@ -1,6 +1,7 @@
 import { getAllTrips, sanitizeTripForClient } from "@/lib/sections";
 import { getAdminUser } from "@/lib/auth";
 import { getEditorTripIds } from "@/lib/tripEditors";
+import { supabaseServer } from "@/lib/supabaseServer";
 import AccessibleTripsIndex, { type TripListItem } from "@/components/AccessibleTripsIndex";
 import type { Trip } from "@/lib/types";
 
@@ -81,6 +82,11 @@ export default async function TripsIndexPage() {
   const todayIso = new Date().toISOString().slice(0, 10);
   const admin = await getAdminUser();
   const isAdmin = !!admin;
+  const supabase = await supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const isSignedIn = !!user;
 
   let trips = allTrips;
   let filterByInviteTokens = false;
@@ -101,5 +107,12 @@ export default async function TripsIndexPage() {
 
   const items = toListItems(trips, todayIso);
 
-  return <AccessibleTripsIndex items={items} filterByInviteTokens={filterByInviteTokens} isAdmin={isAdmin} />;
+  return (
+    <AccessibleTripsIndex
+      items={items}
+      filterByInviteTokens={filterByInviteTokens}
+      isAdmin={isAdmin}
+      isSignedIn={isSignedIn}
+    />
+  );
 }

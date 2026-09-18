@@ -11,7 +11,7 @@ import type { PublicTrip } from "@/lib/types";
 import styles from "./CreateLoginPrompt.module.css";
 
 export interface CreateLoginPromptProps {
-  trip: PublicTrip;
+  trip: Pick<PublicTrip, "slug">;
   /** The invite token already captured for this trip in this browser
    * (see lib/inviteClient.ts) — proof this account should actually be
    * linked here, sent once to /become-editor right after signup. */
