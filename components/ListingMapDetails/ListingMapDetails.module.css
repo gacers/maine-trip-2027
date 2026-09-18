@@ -24,3 +24,14 @@
 .loading-row {
   color: var(--color-zinc-400);
 }
+
+/* Colors this one <li>'s own bullet (not its text — BulletList's
+   shared .root sets the text color for every list in the app, Notes/
+   Concerns included, and this file has no business touching that) to
+   match the same reference point's pin color on the map above, set
+   per-item via the --bullet-color custom property. Falls back to the
+   plain default color when a destination has none (the origin's own
+   "X -> house" row, which isn't one of the map's own colored pins). */
+.dest-item::marker {
+  color: var(--bullet-color, currentColor);
+}

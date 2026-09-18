@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import BulletList from "@/components/BulletList";
 import type { UseListingMapResult } from "@/components/ListingMap/useListingMap";
 import styles from "./ListingMapDetails.module.css";
@@ -54,7 +55,11 @@ export default function ListingMapDetails({
             {destinations.map((dest) => {
               const info = routeInfo[dest.label];
               return (
-                <li key={dest.label}>
+                <li
+                  key={dest.label}
+                  className={styles["dest-item"]}
+                  style={{ "--bullet-color": dest.color } as CSSProperties}
+                >
                   {info ? (
                     <a href={info.url} target="_blank" rel="noopener noreferrer" className={styles["link"]}>
                       House &rarr; {dest.label}: {info.text}
