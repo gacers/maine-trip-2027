@@ -107,7 +107,7 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
             <DialogDescription>
               A permanent login is not required, but your invite link only works in this browser. A login works on
               any browser and device if you wish to use the app on multiple devices. I suggest bookmarking the site
-              if you don&apos;t create one.
+              if you don&apos;t create one. Close this if you do not want to create a login.
             </DialogDescription>
             <form onSubmit={handleSubmit} className={styles["form"]}>
               <label className={styles["field"]}>
