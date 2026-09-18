@@ -76,39 +76,101 @@ async function getDestinationSectionIds(supabase: SupabaseClient, sourceSectionI
   return (data || []).map((r) => r.destination_section_id);
 }
 
-// Overwrites every destination section's own field_defs to mirror the
-// source's exactly — called after a source section's own field_defs
-// are saved. A synced entry's own `data` is keyed by field `key`, so
-// every destination genuinely needs the same fields, not just
-// similar ones, for that data to stay meaningful. A destination fed by
-// MULTIPLE sources gets this every time any ONE of them changes —
-// fine as long as every source feeding one destination stays
-// structurally identical (same convention documented in
-// lib/customSectionTemplates.ts's own comment on shared templates);
-// this makes no attempt to reconcile sources that have actually
-// diverged from each other.
+// Rebuilds one destination's own field_defs as the UNION of every
+// source currently feeding it, not just whichever one changed —
+// confirmed live as a real gap: a multi-source destination (e.g. Food
+// & Drink fed by several past trips) lost fields that only existed on
+// ONE of its sources (a trip-specific type tag like "Seafood Shack",
+// added by hand on just that trip — see lib/sectionTemplates.ts's own
+// comment) the moment any OTHER source's own change re-propagated,
+// silently orphaning that field's own data on every entry synced in
+// from the source that actually had it. Sources are merged in link
+// order (section_import_sources.created_at — i.e. the order they were
+// added to this destination); the first source to define a given key
+// wins that key's exact definition, later sources only contribute keys
+// not already covered. A synced entry's own `data` is keyed by field
+// `key`, so every destination genuinely needs a field for every key
+// any of its sources actually uses, not just the ones the most-
+// recently-changed source happens to have.
+async function syncFieldDefsForDestination(supabase: SupabaseClient, destinationSectionId: string): Promise<void> {
+  const { data: links, error: linksError } = await supabase
+    .from("section_import_sources")
+    .select("source_section_id")
+    .eq("destination_section_id", destinationSectionId)
+    .order("created_at");
+  if (linksError) throw new Error(linksError.message);
+  const sourceIds = (links || []).map((l) => l.source_section_id);
+  if (sourceIds.length === 0) return;
+
+  const { data: allFieldDefs, error: fdError } = await supabase
+    .from("field_defs")
+    .select("key, label, field_type, storage, core_column, show_on_overview, required, options, sort_order, section_id")
+    .in("section_id", sourceIds);
+  if (fdError) throw new Error(fdError.message);
+
+  const sourceRank = new Map(sourceIds.map((id, i) => [id, i]));
+  const bySource = [...(allFieldDefs || [])].sort((a, b) => (sourceRank.get(a.section_id) ?? 0) - (sourceRank.get(b.section_id) ?? 0));
+  const merged = new Map<string, Partial<FieldDef> & { section_id: string }>();
+  for (const f of bySource) {
+    if (!merged.has(f.key)) merged.set(f.key, f);
+  }
+
+  const { error: delError } = await supabase.from("field_defs").delete().eq("section_id", destinationSectionId);
+  if (delError) throw new Error(delError.message);
+  const mergedDefs = [...merged.values()];
+  if (mergedDefs.length > 0) {
+    const rows = mergedDefs.map(({ section_id: _sourceId, ...f }, i) => ({ ...f, section_id: destinationSectionId, sort_order: i }));
+    const { error: insError } = await supabase.from("field_defs").insert(rows);
+    if (insError) throw new Error(insError.message);
+  }
+  await reExportSection(supabase, destinationSectionId);
+}
+
+// Called after a source section's own field_defs are saved (or a new
+// source link is added/removed) — re-syncs every destination
+// currently pointing at this source, each recomputed from ALL of its
+// own sources (see syncFieldDefsForDestination), not just this one.
 export async function propagateFieldDefsFromSource(sourceSectionId: string): Promise<void> {
   const supabase = supabaseServiceRole();
   const destSectionIds = await getDestinationSectionIds(supabase, sourceSectionId);
-  if (destSectionIds.length === 0) return;
+  for (const destId of destSectionIds) {
+    await syncFieldDefsForDestination(supabase, destId);
+  }
+}
 
-  const { data: sourceFieldDefs, error: fdError } = await supabase
+// Additive-only counterpart for a hand-picked, non-ongoing import (see
+// PrefillPanel's "pick specific spots" — the picked entries stay live-
+// synced individually via their own import_source_entry_id, same as a
+// whole-section sync, but this destination never becomes a real
+// section_import_sources destination: no field_defs lock, no auto-
+// pulling in whatever the source adds next). Adds any of the source
+// section's own field keys the destination doesn't already have, so
+// the picked entries' own `data` (keyed by those fields) is actually
+// visible/editable — never deletes or reorders a field the
+// destination already has, unlike syncFieldDefsForDestination's own
+// full rebuild for a real ongoing source.
+export async function seedMissingFieldDefsFromSource(sourceSectionId: string, destinationSectionId: string): Promise<void> {
+  const supabase = supabaseServiceRole();
+  const { data: destFieldDefs, error: destError } = await supabase
     .from("field_defs")
-    .select("key, label, field_type, storage, core_column, show_on_overview, required, options, sort_order")
+    .select("key, sort_order")
+    .eq("section_id", destinationSectionId);
+  if (destError) throw new Error(destError.message);
+  const existingKeys = new Set((destFieldDefs || []).map((f) => f.key));
+  let nextSortOrder = (destFieldDefs || []).reduce((max, f) => (f.sort_order > max ? f.sort_order : max), -1) + 1;
+
+  const { data: sourceFieldDefs, error: sourceError } = await supabase
+    .from("field_defs")
+    .select("key, label, field_type, storage, core_column, show_on_overview, required, options")
     .eq("section_id", sourceSectionId)
     .order("sort_order");
-  if (fdError) throw new Error(fdError.message);
+  if (sourceError) throw new Error(sourceError.message);
+  const missing = (sourceFieldDefs || []).filter((f) => !existingKeys.has(f.key));
+  if (missing.length === 0) return;
 
-  for (const destId of destSectionIds) {
-    const { error: delError } = await supabase.from("field_defs").delete().eq("section_id", destId);
-    if (delError) throw new Error(delError.message);
-    if (sourceFieldDefs && sourceFieldDefs.length > 0) {
-      const rows = sourceFieldDefs.map((f: Partial<FieldDef>) => ({ ...f, section_id: destId }));
-      const { error: insError } = await supabase.from("field_defs").insert(rows);
-      if (insError) throw new Error(insError.message);
-    }
-    await reExportSection(supabase, destId);
-  }
+  const rows = missing.map((f) => ({ ...f, section_id: destinationSectionId, sort_order: nextSortOrder++ }));
+  const { error: insError } = await supabase.from("field_defs").insert(rows);
+  if (insError) throw new Error(insError.message);
 }
 
 // Copies a source entry's own current shared fields into every entry
@@ -140,15 +202,20 @@ export async function propagateEntryUpdateFromSource(sourceEntryId: string): Pro
 // that imports from its own section — called after a new entry is
 // created directly in a section that turns out to be someone else's
 // import source. Same shape lib/entries.ts's linkEntriesFromSource
-// establishes at initial-import time (already-Visited, no pairing).
+// establishes at initial-import time (already-Visited, no pairing),
+// including the same url-based duplicate skip: a destination fed by
+// more than one source can already have this same real place synced
+// in from a DIFFERENT source (or added there manually) by the time
+// this one gets it too.
 export async function propagateNewEntryFromSource(sourceEntry: EntryRow): Promise<void> {
   const supabase = supabaseServiceRole();
   const destSectionIds = await getDestinationSectionIds(supabase, sourceEntry.section_id);
   if (destSectionIds.length === 0) return;
 
   for (const destId of destSectionIds) {
-    const { data: existingRows, error: ranksError } = await supabase.from("entries").select("rank").eq("section_id", destId);
+    const { data: existingRows, error: ranksError } = await supabase.from("entries").select("rank, url").eq("section_id", destId);
     if (ranksError) throw new Error(ranksError.message);
+    if (sourceEntry.url && (existingRows || []).some((r) => r.url === sourceEntry.url)) continue;
     const maxRank = (existingRows || []).reduce((max, r) => (r.rank && r.rank > max ? r.rank : max), 0);
 
     const { error: insError } = await supabase.from("entries").insert({

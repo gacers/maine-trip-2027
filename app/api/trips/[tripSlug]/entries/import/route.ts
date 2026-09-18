@@ -3,28 +3,55 @@ import { getTripBySlug } from "@/lib/sections";
 import { getAllEntries, linkEntriesFromSource } from "@/lib/entries";
 import { requireWriteAccess } from "@/lib/auth";
 import { exportSection } from "@/lib/sheetsExport";
-import { propagateFieldDefsFromSource, getImportSourcesForSection } from "@/lib/entrySync";
+import { propagateFieldDefsFromSource, getImportSourcesForSection, seedMissingFieldDefsFromSource } from "@/lib/entrySync";
 import type { Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Every source currently feeding this one section — backs PrefillPanel's
-// own "currently synced from" list (so it knows what's already linked,
-// both to render it and to exclude those from the "add another
-// source" picker).
+// Two independent lookups, picked by which query param shows up:
+//  - ?sectionId=X -> every source currently feeding section X (backs
+//    PrefillPanel's own "currently synced from" list, and excludes
+//    those from its "add another source" picker).
+//  - ?sourceSectionId=Y[&destSectionId=X] -> section Y's own entries
+//    (any trip — this is the one cross-trip entry lookup an admin
+//    picker needs), each flagged `alreadyImported` when X already has
+//    a same-url entry. Backs PrefillPanel's "pick specific spots"
+//    checklist — reopenable any time, since a spot already brought in
+//    (from this same source or picking it again after adding more to
+//    the source since) shows as already-added instead of offering a
+//    duplicate.
 export async function GET(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) return NextResponse.json({ error: "Unknown trip" }, { status: 404 });
 
-  const { error: authError } = await requireWriteAccess(request, trip.id);
+  const { error: authError, supabase } = await requireWriteAccess(request, trip.id);
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
-  const sectionId = (new URL(request.url).searchParams.get("sectionId") || "").trim();
-  if (!sectionId) return NextResponse.json({ error: "sectionId is required" }, { status: 400 });
+  const searchParams = new URL(request.url).searchParams;
+  const sectionId = (searchParams.get("sectionId") || "").trim();
+  const sourceSectionId = (searchParams.get("sourceSectionId") || "").trim();
+  const destSectionId = (searchParams.get("destSectionId") || "").trim();
 
   try {
+    if (sourceSectionId) {
+      const sourceEntries = await getAllEntries(supabase!, sourceSectionId);
+      let existingUrls = new Set<string>();
+      if (destSectionId) {
+        const destEntries = await getAllEntries(supabase!, destSectionId);
+        existingUrls = new Set(destEntries.filter((e) => e.url).map((e) => e.url as string));
+      }
+      const entries = sourceEntries.map((e) => ({
+        id: e.id,
+        title: e.title,
+        url: e.url,
+        alreadyImported: !!e.url && existingUrls.has(e.url),
+      }));
+      return NextResponse.json({ entries });
+    }
+
+    if (!sectionId) return NextResponse.json({ error: "sectionId or sourceSectionId is required" }, { status: 400 });
     const sources = await getImportSourcesForSection(sectionId);
     return NextResponse.json({ sources });
   } catch (err) {
@@ -32,18 +59,29 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-// Adds or removes ONE source link at a time (section_import_sources —
-// see migration 0033_multi_source_import.sql) — a destination can pull
-// from several sources at once, added and removed independently
-// without disturbing entries already synced in from the others. This
-// is an ONGOING sync from here on, not a one-time copy (see
-// lib/entrySync.ts): the destination's own field_defs mirror every
-// linked source's (assumed structurally identical — see
-// lib/customSectionTemplates.ts's own comment), and every entry copied
-// in stays linked to its own source row, picking up that source's own
-// future edits automatically. Admin-only (same default as creating the
-// section itself); there's no contributor/editor use case for pulling
-// in another trip's whole list at once.
+// Three actions, picked by `action`:
+//  - "add" (default): links section_import_sources (see migration
+//    0033_multi_source_import.sql) — an ONGOING sync from here on, not
+//    a one-time copy. The destination's own field_defs mirror every
+//    linked source's (see lib/entrySync.ts's own merge-by-key comment),
+//    every entry copied in stays linked to its own source row, and
+//    anything the source adds later auto-arrives here too. A
+//    destination can pull from several sources at once, added and
+//    removed independently without disturbing entries already synced
+//    in from the others.
+//  - "remove": unlinks one source and removes only the entries it
+//    brought in — see below.
+//  - "add-selected": a one-time, hand-picked subset of a source's own
+//    entries (PrefillPanel's "pick specific spots") — each picked
+//    entry still stays live-synced individually (its own
+//    import_source_entry_id keeps its shared fields updated from that
+//    one specific source row), but this never creates a
+//    section_import_sources link: no field_defs lock, and nothing the
+//    source adds later arrives on its own — reopening the same
+//    source's picker later is how "I forgot one" gets handled,
+//    already-added ones just show as such instead of duplicating.
+// Admin-only (same default as creating the section itself); there's no
+// contributor/editor use case for pulling in another trip's list.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
   const trip = await getTripBySlug(tripSlug);
@@ -60,7 +98,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
   const sectionId = (body.sectionId as string | undefined)?.trim();
   const sourceSectionId = (body.sourceSectionId as string | undefined)?.trim();
-  const action = body.action === "remove" ? "remove" : "add";
+  const action = body.action === "remove" ? "remove" : body.action === "add-selected" ? "add-selected" : "add";
+  const entryIds = Array.isArray(body.entryIds) ? (body.entryIds as unknown[]).filter((id): id is string => typeof id === "string") : [];
   // Set by the client when it already warned the admin this would
   // delete what's currently in the section that ISN'T linked to any
   // source (see PrefillPanel's own confirm dialog) — a first source
@@ -73,6 +112,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
   if (sectionId === sourceSectionId) {
     return NextResponse.json({ error: "Source and destination can't be the same section" }, { status: 400 });
+  }
+  if (action === "add-selected" && entryIds.length === 0) {
+    return NextResponse.json({ error: "entryIds is required for add-selected" }, { status: 400 });
   }
 
   try {
@@ -127,6 +169,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ removed });
     }
 
+    if (action === "add-selected") {
+      const { data: sourceEntries, error: sourceEntriesError } = await supabase!
+        .from("entries")
+        .select("*")
+        .eq("section_id", sourceSectionId)
+        .in("id", entryIds);
+      if (sourceEntriesError) throw new Error(sourceEntriesError.message);
+
+      // Additive only — never touches a field the destination already
+      // has, unlike a real ongoing source's full field_defs rebuild.
+      await seedMissingFieldDefsFromSource(sourceSectionId, sectionId);
+      const { imported, skipped } = await linkEntriesFromSource(supabase!, sourceEntries || [], sectionId);
+
+      const { data: freshSection, error: freshError } = await supabase!
+        .from("sections")
+        .select("*, field_defs(*)")
+        .eq("id", sectionId)
+        .single();
+      if (freshError) throw new Error(freshError.message);
+      await exportSection(supabase!, trip, freshSection as Section);
+      return NextResponse.json({ imported, skipped });
+    }
+
     // action === "add"
     if (clearUnsynced) {
       const { error: deleteError } = await supabase!
@@ -148,7 +213,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // them all in one pass, rather than duplicating that logic here).
     await propagateFieldDefsFromSource(sourceSectionId);
     const sourceEntries = await getAllEntries(supabase!, sourceSectionId);
-    const imported = await linkEntriesFromSource(supabase!, sourceEntries, sectionId);
+    const { imported, skipped } = await linkEntriesFromSource(supabase!, sourceEntries, sectionId);
 
     // Re-fetched, not the `section` looked up at the top — its own
     // field_defs just got overwritten (mirrored from the source)
@@ -162,7 +227,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .single();
     if (freshError) throw new Error(freshError.message);
     await exportSection(supabase!, trip, freshSection as Section);
-    return NextResponse.json({ imported });
+    return NextResponse.json({ imported, skipped });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

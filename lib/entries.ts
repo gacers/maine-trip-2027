@@ -283,16 +283,38 @@ export async function findCandidateSectionsForConceptSlug(
 // at 1 — a destination fed by more than one source calls this once per
 // source, and restarting would collide with (and visually reorder)
 // entries a previous source already linked in.
+//
+// Skips a source entry whose url already matches something already
+// sitting in this section — a plain manual entry, or one already
+// synced in from a DIFFERENT source (the same real place turning up
+// in more than one of a multi-source destination's own sources, e.g.
+// the same distillery on two different past trips' own lists). Same
+// same-section match findEntryByUrl already uses for the manual add-
+// entry flow, applied here so adding a 2nd/3rd/4th source doesn't pile
+// up literal duplicates of anything the others already brought in.
+// The skipped entry keeps whichever source it's already linked to (or
+// stays a plain unlinked entry) — this never reassigns/merges an
+// existing row onto the new source, just declines to create a second
+// one.
 export async function linkEntriesFromSource(
   supabase: SupabaseClient,
   sourceEntries: EntryRow[],
   destSectionId: string
-): Promise<number> {
-  if (sourceEntries.length === 0) return 0;
-  const { data: existingRows, error: ranksError } = await supabase.from("entries").select("rank").eq("section_id", destSectionId);
-  if (ranksError) throw new Error(ranksError.message);
+): Promise<{ imported: number; skipped: number }> {
+  if (sourceEntries.length === 0) return { imported: 0, skipped: 0 };
+  const { data: existingRows, error: existingError } = await supabase
+    .from("entries")
+    .select("rank, url")
+    .eq("section_id", destSectionId);
+  if (existingError) throw new Error(existingError.message);
   const startRank = (existingRows || []).reduce((max, r) => (r.rank && r.rank > max ? r.rank : max), 0);
-  const rows = sourceEntries.map((e, i) => ({
+  const existingUrls = new Set((existingRows || []).filter((r) => r.url).map((r) => r.url));
+
+  const toInsert = sourceEntries.filter((e) => !e.url || !existingUrls.has(e.url));
+  const skipped = sourceEntries.length - toInsert.length;
+  if (toInsert.length === 0) return { imported: 0, skipped };
+
+  const rows = toInsert.map((e, i) => ({
     id: nanoid(8),
     section_id: destSectionId,
     import_source_entry_id: e.id,
@@ -313,5 +335,5 @@ export async function linkEntriesFromSource(
   }));
   const { error } = await supabase.from("entries").insert(rows);
   if (error) throw new Error(error.message);
-  return rows.length;
+  return { imported: rows.length, skipped };
 }
