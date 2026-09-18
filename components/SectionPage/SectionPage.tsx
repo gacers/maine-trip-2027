@@ -171,10 +171,35 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // target element doesn't exist in the DOM yet at first paint, and the
   // browser's own native #fragment scroll (which runs once, before
   // that) would silently do nothing.
+  // Skip the pulse when there's only one option on the page (nothing
+  // to distinguish) or when this tab already flashed this hash
+  // (refresh / revisit) — still scroll into view either way.
   useEffect(() => {
     if (loading) return;
     const hash = window.location.hash.slice(1);
-    if (hash) flashAnchor(hash, { scroll: true });
+    if (!hash) return;
+
+    const unitCount = groupUnits(entries.filter((e) => e.status !== "archived")).length;
+    const storageKey = `anchor-flashed:${window.location.pathname}#${hash}`;
+    let alreadyFlashed = false;
+    try {
+      alreadyFlashed = sessionStorage.getItem(storageKey) === "1";
+    } catch {
+      // sessionStorage blocked — treat as not yet flashed.
+    }
+
+    const shouldFlash = unitCount > 1 && !alreadyFlashed;
+    flashAnchor(hash, { scroll: true, flash: shouldFlash });
+    if (shouldFlash) {
+      try {
+        sessionStorage.setItem(storageKey, "1");
+      } catch {
+        // Private window — flash may replay on refresh; harmless.
+      }
+    }
+    // entries is read once loading flips false — intentional, so later
+    // patches don't re-scroll the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
   // Filters/search are per-section, not global — clear them when

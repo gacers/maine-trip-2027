@@ -86,6 +86,11 @@ export default function TripNavHeader({
     if (token && !isAdmin && !isEditor && !hasSeenCreateLoginNudge(trip.slug)) {
       setShowCreateLoginNudge(true);
       markCreateLoginNudgeSeen(trip.slug);
+    } else {
+      // Clear stale true from an earlier visit in this same React tree —
+      // otherwise become-editor → logout remounts CreateLoginPrompt with
+      // defaultOpen still true and the modal pops open again.
+      setShowCreateLoginNudge(false);
     }
   }, [trip.slug, isAdmin, isEditor]);
 
@@ -158,13 +163,10 @@ export default function TripNavHeader({
       <header className={styles["root"]}>
         <div className={styles["top-row"]}>
           <div className={styles["brand"]}>
-            {/* "All Trips ›" only for whoever can actually see that
-                list — an admin's own RLS-scoped session; everyone else
-                gets an empty/meaningless list there anyway (see
-                getAllTrips), so the breadcrumb just collapses to the
-                trip name alone rather than linking somewhere that
-                reads as broken. */}
-            {isAdmin && (
+            {/* "All Trips ›" for anyone with trip access — admins see
+                every trip; editors and invite contributors see only the
+                trips they're linked to (see app/page.tsx). */}
+            {(isAdmin || isEditor || !!contributorToken) && (
               <>
                 <Link href="/" className={styles["brand-crumb"]}>
                   All Trips

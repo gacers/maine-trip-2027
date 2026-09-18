@@ -20,11 +20,23 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [label, setLabel] = useState("");
+  const [email, setEmail] = useState("");
   const [newInvite, setNewInvite] = useState<{ link: string; token: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const apiBase = `/api/trips/${trip.slug}/api-keys`;
+
+  function buildInviteLink(token: string, emailForLink?: string): string {
+    const url = new URL(`/${trip.slug}`, window.location.origin);
+    url.searchParams.set("invite", token);
+    const trimmed = emailForLink?.trim();
+    if (trimmed) url.searchParams.set("email", trimmed);
+    return url.pathname + url.search;
+  }
+
+  function looksLikeEmail(value: string | null | undefined): boolean {
+    return !!value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  }
 
   async function load() {
     setLoading(true);
@@ -48,17 +60,24 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setError("");
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError("Email is required");
+      return;
+    }
     try {
+      // Email is the invite's label too — shows in the list, and Reveal
+      // can re-attach ?email= when the stored label still looks like one.
       const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: label || undefined, role: "contributor" }),
+        body: JSON.stringify({ label: trimmed, role: "contributor" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      const link = `${window.location.origin}/${trip.slug}?invite=${data.token}`;
+      const link = `${window.location.origin}${buildInviteLink(data.token, trimmed)}`;
       setNewInvite({ link, token: data.token });
-      setLabel("");
+      setEmail("");
       setCopied(false);
       load();
     } catch (err) {
@@ -82,7 +101,9 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
       const res = await fetch(`${apiBase}/${id}/reveal`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      const link = `${window.location.origin}/${trip.slug}?invite=${data.token}`;
+      const key = keys.find((k) => k.id === id);
+      const emailForLink = looksLikeEmail(key?.label) ? key!.label!.trim() : undefined;
+      const link = `${window.location.origin}${buildInviteLink(data.token, emailForLink)}`;
       setRevealed((prev) => ({ ...prev, [id]: link }));
     } catch (err) {
       setError((err as Error).message);
@@ -103,8 +124,10 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
   return (
     <div className={styles["wrapper"]}>
       <p className={styles["intro"]}>
-        Share a link so a friend can add, edit, and archive without signing in. They can&apos;t permanently delete
-        anything or change trip settings.
+        Create a site invite by email — they open the link and land with access (and the create-login form
+        prefilled). For Sheet-only sharing, use Google&apos;s share on the spreadsheet itself; every Sheet link
+        already carries its own invite. Invitees can add, edit, and archive, but can&apos;t permanently delete or
+        change trip settings.
       </p>
 
       <SheetAccessBox trip={trip} />
@@ -128,9 +151,11 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
 
       <form onSubmit={handleCreate} className={styles["create-form"]}>
         <input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="Label (e.g. Alex & Sam)"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="their@email.com"
           className={styles["label-input"]}
         />
         <button type="submit" className={styles["create-button"]}>

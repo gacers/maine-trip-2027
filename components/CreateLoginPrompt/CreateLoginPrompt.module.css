@@ -5,6 +5,19 @@
   margin-top: 0.5rem;
 }
 
+/* Don't set position here — DialogContent is already position:fixed;
+   absolute close sits against that. */
+.dialog {
+  /* padding already from Dialog; room for the X in the top-right */
+  padding-top: 2.5rem;
+}
+
+.close-button {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+}
+
 .field {
   display: flex;
   flex-direction: column;

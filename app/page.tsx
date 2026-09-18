@@ -1,8 +1,8 @@
-import Link from "next/link";
-import { getAllTrips } from "@/lib/sections";
-import TripCard from "@/components/TripCard";
+import { getAllTrips, sanitizeTripForClient } from "@/lib/sections";
+import { getAdminUser } from "@/lib/auth";
+import { getEditorTripIds } from "@/lib/tripEditors";
+import AccessibleTripsIndex, { type TripListItem } from "@/components/AccessibleTripsIndex";
 import type { Trip } from "@/lib/types";
-import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -43,62 +43,63 @@ function isPastTrip(trip: Trip, todayIso: string): boolean {
   return !!referenceDate && referenceDate < todayIso;
 }
 
-// The site's home: every trip split into Pending (still ahead, or
-// undated) and Past (completed, or its own dates already gone by),
-// each a 3-across grid of full-bleed photo cards. Replaces the old
-// single flat list — Pending trips are what you're actually planning
-// right now, so they come first.
+function toListItems(trips: Trip[], todayIso: string): TripListItem[] {
+  return trips
+    .map((trip) => {
+      const safe = sanitizeTripForClient(trip)!;
+      return {
+        trip: {
+          id: safe.id,
+          slug: safe.slug,
+          name: safe.name,
+          cover_image: safe.cover_image,
+          start_date: safe.start_date,
+          end_date: safe.end_date,
+          completed: safe.completed,
+        },
+        dateLabel: tripDateLabel(trip.start_date, trip.end_date),
+        past: isPastTrip(trip, todayIso),
+      };
+    })
+    .sort((a, b) => {
+      // Pending first (already split in the client), but keep a stable
+      // overall order within each bucket matching the old page.
+      if (a.past !== b.past) return a.past ? 1 : -1;
+      if (!a.past) {
+        return (a.trip.start_date || "9999").localeCompare(b.trip.start_date || "9999");
+      }
+      return (b.trip.end_date || b.trip.start_date || "").localeCompare(a.trip.end_date || a.trip.start_date || "");
+    });
+}
+
+// The site's home: trips the current viewer can actually open, split
+// into Pending / Past. Admins see every non-archived trip; signed-in
+// editors see only trips they're linked to; anonymous visitors are
+// filtered client-side to trips whose invite token is in localStorage.
 export default async function TripsIndexPage() {
-  const trips = await getAllTrips();
+  const allTrips = await getAllTrips();
   const todayIso = new Date().toISOString().slice(0, 10);
+  const admin = await getAdminUser();
+  const isAdmin = !!admin;
 
-  const pending = trips
-    .filter((t) => !isPastTrip(t, todayIso))
-    .sort((a, b) => (a.start_date || "9999").localeCompare(b.start_date || "9999"));
-  const past = trips
-    .filter((t) => isPastTrip(t, todayIso))
-    .sort((a, b) => (b.end_date || b.start_date || "").localeCompare(a.end_date || a.start_date || ""));
+  let trips = allTrips;
+  let filterByInviteTokens = false;
 
-  return (
-    <main className={styles["root"]}>
-      <h1 className={styles["heading"]}>Trips</h1>
+  if (isAdmin) {
+    // Full list.
+  } else {
+    const editorIds = await getEditorTripIds();
+    if (editorIds.length > 0) {
+      const idSet = new Set(editorIds);
+      trips = allTrips.filter((t) => idSet.has(t.id));
+    } else {
+      // Not signed in as editor — client intersects with invite tokens.
+      filterByInviteTokens = true;
+      trips = allTrips;
+    }
+  }
 
-      {trips.length === 0 ? (
-        <p className={styles["empty-hint"]}>No trips yet.</p>
-      ) : (
-        <>
-          {pending.length > 0 && (
-            <section className={styles["trip-section"]}>
-              <h2 className={styles["section-heading"]}>Pending Trips</h2>
-              <div className={styles["trip-grid"]}>
-                {pending.map((trip) => (
-                  <TripCard key={trip.id} trip={trip} dateLabel={tripDateLabel(trip.start_date, trip.end_date)} />
-                ))}
-              </div>
-            </section>
-          )}
+  const items = toListItems(trips, todayIso);
 
-          {past.length > 0 && (
-            <section className={styles["trip-section"]}>
-              <h2 className={styles["section-heading"]}>Past Trips</h2>
-              <div className={styles["trip-grid"]}>
-                {past.map((trip) => (
-                  <TripCard key={trip.id} trip={trip} dateLabel={tripDateLabel(trip.start_date, trip.end_date)} />
-                ))}
-              </div>
-            </section>
-          )}
-        </>
-      )}
-
-      <div className={styles["actions-row"]}>
-        <Link href="/trips/new" className={styles["new-trip-button"]}>
-          + New trip
-        </Link>
-        <Link href="/settings" className={styles["settings-link"]}>
-          Settings
-        </Link>
-      </div>
-    </main>
-  );
+  return <AccessibleTripsIndex items={items} filterByInviteTokens={filterByInviteTokens} isAdmin={isAdmin} />;
 }

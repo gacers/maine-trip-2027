@@ -2,10 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from "@/components/Dialog";
+import { X } from "lucide-react";
+import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/Dialog";
 import Button from "@/components/Button";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { getOrCreateDeviceId } from "@/lib/inviteClient";
+import { getOrCreateDeviceId, readInviteEmail, markCreateLoginNudgeSeen } from "@/lib/inviteClient";
 import type { PublicTrip } from "@/lib/types";
 import styles from "./CreateLoginPrompt.module.css";
 
@@ -32,7 +33,7 @@ export interface CreateLoginPromptProps {
 export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen = false }: CreateLoginPromptProps) {
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => readInviteEmail(trip.slug) || "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -66,6 +67,9 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
       const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
 
+      // So a later logout (invite token still in localStorage) doesn't
+      // auto-reopen this nudge — same flag the first-visit effect sets.
+      markCreateLoginNudgeSeen(trip.slug);
       setDone(true);
       // The layout above this (TripNavHeader's own parent) re-checks
       // isEditor server-side on every request — without this, the nav
@@ -87,7 +91,12 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
           Create a permanent login
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className={styles["dialog"]}>
+        <DialogClose asChild>
+          <Button variant="ghost" size="sm" aria-label="Close" className={styles["close-button"]}>
+            <X size={18} />
+          </Button>
+        </DialogClose>
         <DialogTitle>Create a permanent login</DialogTitle>
         {done ? (
           <DialogDescription>

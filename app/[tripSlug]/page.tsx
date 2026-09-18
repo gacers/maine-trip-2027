@@ -16,10 +16,10 @@ export default async function TripDefaultPage({
   searchParams,
 }: {
   params: Promise<{ tripSlug: string }>;
-  searchParams: Promise<{ invite?: string }>;
+  searchParams: Promise<{ invite?: string; email?: string }>;
 }) {
   const { tripSlug } = await params;
-  const { invite } = await searchParams;
+  const { invite, email } = await searchParams;
   const trip = await getTripBySlug(tripSlug);
   if (!trip) notFound();
 
@@ -39,9 +39,13 @@ export default async function TripDefaultPage({
     );
   }
 
-  // Forward `?invite=...` through the redirect — otherwise a friend's
-  // invite link would drop the param before SectionPage ever gets a
-  // chance to capture it into localStorage (see lib/inviteClient.ts).
-  const qs = invite ? `?invite=${encodeURIComponent(invite)}` : "";
+  // Forward `?invite=` / `?email=` through the redirect — otherwise a
+  // friend's invite link would drop the params before SectionPage ever
+  // gets a chance to capture them into localStorage (see
+  // lib/inviteClient.ts).
+  const paramsOut = new URLSearchParams();
+  if (invite) paramsOut.set("invite", invite);
+  if (email) paramsOut.set("email", email);
+  const qs = paramsOut.toString() ? `?${paramsOut.toString()}` : "";
   redirect(`/${tripSlug}/${firstGroup.slug}/${firstSection.slug}${qs}`);
 }
