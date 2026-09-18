@@ -59,6 +59,56 @@ export async function sendInviteEmail({ to, tripName, inviteUrl }: SendInviteEma
   }
 }
 
+export interface SendAccessRequestEmailArgs {
+  to: string;
+  tripName: string;
+  tripSlug: string;
+  requesterEmail: string;
+  message?: string;
+  sectionLabel?: string;
+  pageUrl?: string;
+}
+
+// Visitor → trip owner access request (Request Access UI). Public
+// callers; the route picks `to` from app settings, not the client.
+export async function sendAccessRequestEmail({
+  to,
+  tripName,
+  tripSlug,
+  requesterEmail,
+  message,
+  sectionLabel,
+  pageUrl,
+}: SendAccessRequestEmailArgs): Promise<void> {
+  const resend = getResend();
+  const adminUrl = `${siteOrigin()}/${tripSlug}/admin/api-keys`;
+  const { error } = await resend.emails.send({
+    from: fromAddress(),
+    to: [to.trim()],
+    replyTo: requesterEmail.trim(),
+    subject: `Access request: ${tripName}`,
+    html: accessRequestHtml({
+      tripName,
+      requesterEmail,
+      message,
+      sectionLabel,
+      pageUrl,
+      adminUrl,
+    }),
+    text: accessRequestText({
+      tripName,
+      requesterEmail,
+      message,
+      sectionLabel,
+      pageUrl,
+      adminUrl,
+    }),
+  });
+  if (error) {
+    throw new Error(error.message || "Failed to send access request");
+  }
+}
+
 function inviteEmailText({ tripName, inviteUrl }: { tripName: string; inviteUrl: string }): string {
   return [
     `You're invited to help plan ${tripName}.`,
@@ -95,4 +145,74 @@ function escapeHtml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function accessRequestText({
+  tripName,
+  requesterEmail,
+  message,
+  sectionLabel,
+  pageUrl,
+  adminUrl,
+}: {
+  tripName: string;
+  requesterEmail: string;
+  message?: string;
+  sectionLabel?: string;
+  pageUrl?: string;
+  adminUrl: string;
+}): string {
+  const lines = [
+    sectionLabel
+      ? `${requesterEmail} asked for access to "${sectionLabel}" on ${tripName}.`
+      : `${requesterEmail} asked for access to ${tripName}.`,
+  ];
+  if (message?.trim()) {
+    lines.push("", message.trim());
+  }
+  if (pageUrl) {
+    lines.push("", `Page: ${pageUrl}`);
+  }
+  lines.push("", `Create an invite: ${adminUrl}`, "");
+  return lines.join("\n");
+}
+
+function accessRequestHtml({
+  tripName,
+  requesterEmail,
+  message,
+  sectionLabel,
+  pageUrl,
+  adminUrl,
+}: {
+  tripName: string;
+  requesterEmail: string;
+  message?: string;
+  sectionLabel?: string;
+  pageUrl?: string;
+  adminUrl: string;
+}): string {
+  const safeTrip = escapeHtml(tripName);
+  const safeEmail = escapeHtml(requesterEmail);
+  const safeSection = sectionLabel ? escapeHtml(sectionLabel) : "";
+  const safeMessage = message?.trim() ? escapeHtml(message.trim()).replace(/\n/g, "<br />") : "";
+  const safePage = pageUrl ? escapeHtml(pageUrl) : "";
+  const safeAdmin = escapeHtml(adminUrl);
+  const lead = safeSection
+    ? `<strong>${safeEmail}</strong> asked for access to &ldquo;${safeSection}&rdquo; on <strong>${safeTrip}</strong>.`
+    : `<strong>${safeEmail}</strong> asked for access to <strong>${safeTrip}</strong>.`;
+  return `<!DOCTYPE html>
+<html>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #18181b; padding: 24px;">
+    <p style="margin: 0 0 16px;">${lead}</p>
+    ${safeMessage ? `<p style="margin: 0 0 16px; white-space: pre-wrap;">${safeMessage}</p>` : ""}
+    ${safePage ? `<p style="margin: 0 0 16px; font-size: 13px; color: #71717a; word-break: break-all;">Page: ${safePage}</p>` : ""}
+    <p style="margin: 0 0 24px;">
+      <a href="${safeAdmin}" style="display: inline-block; background: #18181b; color: #fff; text-decoration: none; padding: 10px 16px; border-radius: 6px; font-weight: 600;">
+        Open invite admin
+      </a>
+    </p>
+    <p style="margin: 0; font-size: 13px; color: #71717a;">Reply to this email to write them back.</p>
+  </body>
+</html>`;
 }

@@ -22,9 +22,13 @@ export interface LoginPromptProps {
    * claims a trip_editors row (see /claim-editor) so the header flips
    * to Logout instead of staying on Login / cookie hint. */
   contributorToken?: string | null;
-  /** Trip slug required with contributorToken so claim-editor knows
-   * which trip to attach. */
+  /** Trip slug — used with contributorToken for claim-editor, and as
+   * context when signing in from the private-trip gate. */
   tripSlug?: string;
+  /** After a successful sign-in, do a hard navigation reload instead of
+   * router.refresh() — needed on TripAccessGate so the layout re-reads
+   * isEditor with session cookies that soft refresh can race past. */
+  reloadOnSuccess?: boolean;
   /** Extra class for the trigger button — matches RequestAccess's own
    * prop for the same reason (wrapping in a tight nav-bar space). */
   triggerClassName?: string;
@@ -48,6 +52,7 @@ export default function LoginPrompt({
   hasInviteAccess,
   contributorToken,
   tripSlug,
+  reloadOnSuccess = false,
   triggerClassName,
   triggerVariant = "link",
   triggerSize = "sm",
@@ -97,6 +102,10 @@ export default function LoginPrompt({
 
     setLoading(false);
     setOpen(false);
+    if (reloadOnSuccess) {
+      window.location.reload();
+      return;
+    }
     router.refresh();
   }
 

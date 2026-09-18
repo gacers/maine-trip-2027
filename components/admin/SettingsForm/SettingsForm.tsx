@@ -83,8 +83,8 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
       <div className={styles["field"]}>
         <h2 className={styles["field-title"]}>Access request email</h2>
         <p className={styles["field-hint"]}>
-          Shown to visitors without an invite link as who to email for access — see the &quot;Request
-          access&quot; button on a trip page.
+          Site-wide — every trip&apos;s &quot;Request access&quot; button emails this address (via Resend), not a
+          per-trip contact.
         </p>
         <input
           type="email"

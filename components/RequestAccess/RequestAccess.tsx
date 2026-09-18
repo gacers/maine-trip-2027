@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/Dialog";
 import Button, { type ButtonVariant, type ButtonSize } from "@/components/Button";
 import type { PublicTrip, Section } from "@/lib/types";
@@ -25,13 +25,10 @@ export interface RequestAccessProps {
 }
 
 // Shown in place of the Add form to a visitor with no invite link (and
-// no admin session) — the only way for them to get one is to ask, so
-// this builds a mailto: instead of standing up a real backend email
-// flow (no new provider, no API key, nothing that can fail to
-// deliver silently). The trip owner replies with an invite link
-// generated from InviteLinksManager. The actual form lives in a modal
-// (Radix Dialog) rather than expanding inline — this trigger shows up
-// in tight spaces (the nav bar) where growing in place isn't an option.
+// no admin session) — emails the trip owner via Resend (see
+// /api/.../request-access) asking for an invite. The owner replies
+// from their inbox (Reply-To is the requester) or creates an invite in
+// InviteLinksManager.
 export default function RequestAccess({
   trip,
   section,
@@ -40,24 +37,51 @@ export default function RequestAccess({
   triggerVariant = "link",
   triggerSize = "sm",
 }: RequestAccessProps) {
+  const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
 
   if (!contactEmail) return null;
 
-  const subject = `Access request: ${trip.name}`;
-  const bodyLines = [
-    section ? `Hi — I'd like to add to the "${section.label}" list for ${trip.name}.` : `Hi — I'd like access to ${trip.name}.`,
-    message.trim(),
-    "",
-    `Page: ${typeof window !== "undefined" ? window.location.href : ""}`,
-  ].filter(Boolean);
-  const mailtoHref = `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(
-    bodyLines.join("\n")
-  )}`;
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSending(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/trips/${trip.slug}/request-access`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          message: message.trim(),
+          sectionLabel: section?.label,
+          pageUrl: typeof window !== "undefined" ? window.location.href : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't send request");
+      setSent(true);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      setError("");
+      setSent(false);
+      setSending(false);
+    }
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant={triggerVariant} size={triggerSize} className={triggerClassName}>
           Request access
@@ -65,24 +89,60 @@ export default function RequestAccess({
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>Request access</DialogTitle>
-        <DialogDescription>This opens your email app with a message to the trip owner asking for an invite link.</DialogDescription>
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Anything you want to mention (optional)"
-          rows={3}
-          className={styles["textarea"]}
-        />
-        <div className={styles["actions"]}>
-          <Button variant="primary" size="sm" asChild>
-            <a href={mailtoHref}>Open email to request access</a>
-          </Button>
-          <DialogClose asChild>
-            <Button variant="ghost" size="sm">
-              Cancel
-            </Button>
-          </DialogClose>
-        </div>
+        {sent ? (
+          <DialogDescription>
+            Sent — we&apos;ll email you if you get an invite. You can close this.
+          </DialogDescription>
+        ) : (
+          <>
+            <DialogDescription>
+              Sends a message to the trip owner asking for an invite link. Include an email we can reply to.
+            </DialogDescription>
+            <form onSubmit={handleSubmit} className={styles["form"]}>
+              <label className={styles["field"]}>
+                Your email
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={styles["input"]}
+                  autoComplete="email"
+                />
+              </label>
+              <label className={styles["field"]}>
+                Message <span className={styles["optional"]}>(optional)</span>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Anything you want to mention"
+                  rows={3}
+                  className={styles["textarea"]}
+                />
+              </label>
+              {error && <p className={styles["error"]}>{error}</p>}
+              <div className={styles["actions"]}>
+                <Button type="submit" variant="primary" size="sm" disabled={sending}>
+                  {sending ? "Sending..." : "Send request"}
+                </Button>
+                <DialogClose asChild>
+                  <Button type="button" variant="ghost" size="sm">
+                    Cancel
+                  </Button>
+                </DialogClose>
+              </div>
+            </form>
+          </>
+        )}
+        {sent && (
+          <div className={styles["actions"]}>
+            <DialogClose asChild>
+              <Button variant="primary" size="sm">
+                Close
+              </Button>
+            </DialogClose>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
