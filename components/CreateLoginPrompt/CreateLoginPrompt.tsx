@@ -172,7 +172,7 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
 
               <p>Create a permanent login if you don&apos;t have one yet, or sign in if you already do.</p>
 
-              <p>Close modal if you don not want to create a login. You'll still have access to this trip in this specific browser.</p>
+              <p>Close modal if you do not want to create a login. You'll still have access to this trip in this specific browser.</p>
             </DialogDescription>
             <div className={styles["choice-actions"]}>
               <Button type="button" variant="primary" size="sm" onClick={() => goTo("create")}>
