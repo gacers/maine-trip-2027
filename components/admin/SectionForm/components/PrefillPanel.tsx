@@ -13,7 +13,7 @@ export interface PrefillPanelProps {
 }
 
 // Lets an admin pick one real, specific section (this same trip's own,
-// or any other trip's) to copy entries in from — shown only on a past/
+// or any other trip's) to sync entries in from — shown only on a past/
 // "previously visited" tier's own edit page (see SectionForm's
 // looksLikePastTier), and only once there's actually something real to
 // choose from. Every candidate is named explicitly ("<trip> —
@@ -22,6 +22,12 @@ export interface PrefillPanelProps {
 // against a source already applied, or clearing it back out, both go
 // through the same Apply button and the same warn-before-overwriting
 // dance (see applyPrefill's own comment).
+//
+// This is an ONGOING sync, not a one-time copy (see lib/entrySync.ts):
+// this section's own field_defs lock to mirror the source's, and every
+// entry that comes in stays linked to its own source row — an edit
+// (or a brand-new entry) on the source shows up here automatically,
+// with no re-import needed.
 export default function PrefillPanel({ tripSlug, navGroupSlug, sectionSlug, sectionId }: PrefillPanelProps) {
   const [candidates, setCandidates] = useState<CandidateSection[] | null>(null);
   const [selected, setSelected] = useState("");
@@ -58,7 +64,7 @@ export default function PrefillPanel({ tripSlug, navGroupSlug, sectionSlug, sect
       if (existingCount > 0) {
         const confirmed = window.confirm(
           selected
-            ? `This section already has ${existingCount} ${existingCount === 1 ? "entry" : "entries"}. Picking a new source will replace ${existingCount === 1 ? "it" : "them"} with fresh copies from there — continue?`
+            ? `This section already has ${existingCount} ${existingCount === 1 ? "entry" : "entries"}. Picking a new source will replace ${existingCount === 1 ? "it" : "them"} with entries linked from there, synced going forward — continue?`
             : `Remove the ${existingCount} ${existingCount === 1 ? "entry" : "entries"} currently in this section?`
         );
         if (!confirmed) return;
@@ -70,8 +76,12 @@ export default function PrefillPanel({ tripSlug, navGroupSlug, sectionSlug, sect
         body: JSON.stringify({ sectionId, sourceSectionId: selected || undefined, overwrite: existingCount > 0 }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Copy failed");
-      setMessage(selected ? `Copied in ${data.imported} ${data.imported === 1 ? "entry" : "entries"}.` : "Cleared.");
+      if (!res.ok) throw new Error(data.error || "Sync failed");
+      setMessage(
+        selected
+          ? `Synced in ${data.imported} ${data.imported === 1 ? "entry" : "entries"} — this section now updates automatically when the source does.`
+          : "Unlinked and cleared."
+      );
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -83,13 +93,14 @@ export default function PrefillPanel({ tripSlug, navGroupSlug, sectionSlug, sect
 
   return (
     <div className={styles["root"]}>
-      <div className={styles["label"]}>Prefill from another section</div>
+      <div className={styles["label"]}>Sync from another section</div>
       <p className={styles["hint"]}>
-        Copy entries in from an already-documented list — this trip&apos;s own, or another trip&apos;s.
+        Link entries in from an already-documented list — this trip&apos;s own, or another trip&apos;s — and keep them
+        updated automatically when the source changes.
       </p>
       <div className={styles["row"]}>
         <select value={selected} onChange={(e) => setSelected(e.target.value)} className={styles["select"]}>
-          <option value="">— Don&apos;t prefill —</option>
+          <option value="">— Don&apos;t sync —</option>
           {candidates.map((c) => (
             <option key={c.sectionId} value={c.sectionId}>
               {c.tripName} — {c.sectionLabel} ({c.entryCount} {c.entryCount === 1 ? "entry" : "entries"})
