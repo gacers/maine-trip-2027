@@ -165,10 +165,10 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
 
         {step === "choice" && (
           <>
-            <DialogDescription>
+            <DialogDescription className={styles["choice-description"]}>
               <p>Your invite works in this browser — nothing else is required.</p>
               
-             <p>Want access on other devices or browsers?</p>
+              <p>Want access on other devices or browsers?</p>
 
               <p>Create a permanent login if you don&apos;t have one yet, or sign in if you already do.</p>
 
