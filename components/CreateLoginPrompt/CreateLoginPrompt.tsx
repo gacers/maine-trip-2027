@@ -169,6 +169,7 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
               Your invite works in this browser — nothing else is required.
               
               Want access on other devices or browsers?
+              
               Create a permanent login if you don&apos;t have one yet, or sign in if you already do.
             </DialogDescription>
             <div className={styles["choice-actions"]}>
