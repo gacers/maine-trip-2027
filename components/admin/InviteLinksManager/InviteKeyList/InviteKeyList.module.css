@@ -19,12 +19,6 @@
   gap: 0.5rem;
 }
 
-.card-revoked {
-  composes: card;
-  background: var(--color-zinc-50);
-  opacity: 0.6;
-}
-
 .card-top {
   display: flex;
   align-items: center;

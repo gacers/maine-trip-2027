@@ -70,7 +70,12 @@ export default function InviteLinksManager({ trip }: InviteLinksManagerProps) {
       const res = await fetch(apiBase, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setKeys(data.apiKeys.filter((k: ApiKey) => k.role === "contributor"));
+      // Revoked links used to stick around here forever, greyed out
+      // with a "· revoked" label — a revoked link is dead, not a state
+      // worth reviewing later, so drop it from the list entirely
+      // rather than showing a disabled row (the row itself is still in
+      // api_keys, just never rendered).
+      setKeys(data.apiKeys.filter((k: ApiKey) => k.role === "contributor" && !k.revoked));
     } catch (err) {
       setError((err as Error).message);
     } finally {
