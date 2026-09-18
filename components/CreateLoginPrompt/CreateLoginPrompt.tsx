@@ -173,6 +173,7 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
           Create a permanent login
         </Button>
       </DialogTrigger>
+      
       <DialogContent className={styles["dialog"]}>
         <DialogClose asChild>
           <Button variant="ghost" size="sm" aria-label="Close" className={styles["close-button"]}>
