@@ -109,7 +109,10 @@ async function syncFieldDefsForDestination(supabase: SupabaseClient, destination
   if (fdError) throw new Error(fdError.message);
 
   const sourceRank = new Map(sourceIds.map((id, i) => [id, i]));
-  const bySource = [...(allFieldDefs || [])].sort((a, b) => (sourceRank.get(a.section_id) ?? 0) - (sourceRank.get(b.section_id) ?? 0));
+  const bySource = [...(allFieldDefs || [])].sort((a, b) => {
+    const rankDiff = (sourceRank.get(a.section_id) ?? 0) - (sourceRank.get(b.section_id) ?? 0);
+    return rankDiff !== 0 ? rankDiff : (a.sort_order ?? 0) - (b.sort_order ?? 0);
+  });
   const merged = new Map<string, Partial<FieldDef> & { section_id: string }>();
   for (const f of bySource) {
     if (!merged.has(f.key)) merged.set(f.key, f);
