@@ -25,21 +25,44 @@ export interface CreateLoginPromptProps {
   defaultOpen?: boolean;
 }
 
+type Step = "choice" | "create" | "login" | "done";
+
 // Offered to a contributor who's only recognized by this one browser's
-// invite token — a real login does the same thing (add/edit/archive,
-// same as today) but follows them across devices, and survives a
-// private/incognito window a token never does. Purely optional: the
-// existing link keeps working exactly as it always has either way.
+// invite token. First visit opens a soft choice screen (continue /
+// create login / sign in) rather than dumping them straight into a
+// signup form — that felt confusing when the email already had an
+// account ("already registered"). Creating a login is still optional:
+// the invite keeps working in this browser either way.
 export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen = false }: CreateLoginPromptProps) {
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
+  const [step, setStep] = useState<Step>("choice");
   const [email, setEmail] = useState(() => readInviteEmail(trip.slug) || "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [done, setDone] = useState(false);
 
-  async function handleSubmit(e: FormEvent) {
+  function dismissNudge() {
+    markCreateLoginNudgeSeen(trip.slug);
+  }
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      dismissNudge();
+      setError("");
+      setPassword("");
+      setStep("choice");
+    }
+  }
+
+  function goTo(next: Step) {
+    setError("");
+    setPassword("");
+    setStep(next);
+  }
+
+  async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");
@@ -58,7 +81,18 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
         body: JSON.stringify({ email, password, deviceId: getOrCreateDeviceId() }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't create a login");
+      if (!res.ok) {
+        const message = data.error || "Couldn't create a login";
+        // Already have an account — send them to sign-in instead of
+        // leaving them stuck on a create form that can never succeed.
+        if (/already been registered/i.test(message)) {
+          setError("That email already has a login — sign in instead.");
+          setPassword("");
+          setStep("login");
+          return;
+        }
+        throw new Error(message);
+      }
 
       // The account exists now, but creating it server-side doesn't
       // hand this browser a session — a normal sign-in does, and isn't
@@ -67,10 +101,8 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
       const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
 
-      // So a later logout (invite token still in localStorage) doesn't
-      // auto-reopen this nudge — same flag the first-visit effect sets.
-      markCreateLoginNudgeSeen(trip.slug);
-      setDone(true);
+      dismissNudge();
+      setStep("done");
       // The layout above this (TripNavHeader's own parent) re-checks
       // isEditor server-side on every request — without this, the nav
       // bar kept showing "Create a permanent login" until some
@@ -84,10 +116,36 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
     }
   }
 
+  async function handleLogin(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({ email, password });
+      if (signInError) throw signInError;
+      dismissNudge();
+      setOpen(false);
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const title =
+    step === "done"
+      ? "You're set"
+      : step === "login"
+        ? "Sign in"
+        : step === "create"
+          ? "Create a permanent login"
+          : "You're in";
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="link" size="sm">
+        <Button variant="link" size="sm" onClick={() => goTo("choice")}>
           Create a permanent login
         </Button>
       </DialogTrigger>
@@ -97,19 +155,49 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
             <X size={18} />
           </Button>
         </DialogClose>
-        <DialogTitle>Create a permanent login</DialogTitle>
-        {done ? (
+        <DialogTitle>{title}</DialogTitle>
+
+        {step === "done" && (
           <DialogDescription>
             Done — sign in with {email} on any device from now on for the same access.
           </DialogDescription>
-        ) : (
+        )}
+
+        {step === "choice" && (
           <>
             <DialogDescription>
-              A permanent login is not required, but your invite link only works in this browser. A login works on
-              any browser and device if you wish to use the app on multiple devices. I suggest bookmarking the site
-              if you don&apos;t create one. Close this if you do not want to create a login.
+              Your invite works in this browser — nothing else is required. Want access on other devices or browsers?
+              Create a permanent login if you don&apos;t have one yet, or sign in if you already do.
             </DialogDescription>
-            <form onSubmit={handleSubmit} className={styles["form"]}>
+            <div className={styles["choice-actions"]}>
+              <Button type="button" variant="primary" size="sm" onClick={() => goTo("create")}>
+                Create permanent login
+              </Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => goTo("login")}>
+                Sign in
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  dismissNudge();
+                  setOpen(false);
+                }}
+              >
+                Continue for now
+              </Button>
+            </div>
+          </>
+        )}
+
+        {step === "create" && (
+          <>
+            <DialogDescription>
+              A login works on any browser and device. Your invite keeps working in this browser either way — you can
+              close this if you&apos;d rather wait.
+            </DialogDescription>
+            <form onSubmit={handleCreate} className={styles["form"]}>
               <label className={styles["field"]}>
                 Email
                 <input
@@ -132,9 +220,54 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
                 />
               </label>
               {error && <p className={styles["error"]}>{error}</p>}
-              <Button type="submit" variant="primary" size="sm" disabled={saving} className={styles["submit-button"]}>
-                {saving ? "Creating..." : "Create login"}
-              </Button>
+              <div className={styles["form-actions"]}>
+                <Button type="submit" variant="primary" size="sm" disabled={saving}>
+                  {saving ? "Creating..." : "Create login"}
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => goTo("choice")}>
+                  Back
+                </Button>
+              </div>
+            </form>
+          </>
+        )}
+
+        {step === "login" && (
+          <>
+            <DialogDescription>
+              Sign in with an existing permanent login. You already have invite access on this browser — this just
+              attaches your account here too.
+            </DialogDescription>
+            <form onSubmit={handleLogin} className={styles["form"]}>
+              <label className={styles["field"]}>
+                Email
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={styles["input"]}
+                />
+              </label>
+              <label className={styles["field"]}>
+                Password
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={styles["input"]}
+                />
+              </label>
+              {error && <p className={styles["error"]}>{error}</p>}
+              <div className={styles["form-actions"]}>
+                <Button type="submit" variant="primary" size="sm" disabled={saving}>
+                  {saving ? "Signing in..." : "Sign in"}
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => goTo("choice")}>
+                  Back
+                </Button>
+              </div>
             </form>
           </>
         )}

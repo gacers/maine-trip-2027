@@ -37,6 +37,11 @@
   color: var(--color-red-600);
 }
 
-.submit-button {
-  align-self: flex-start;
+.choice-actions,
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
 }
