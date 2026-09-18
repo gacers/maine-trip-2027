@@ -113,11 +113,21 @@ export async function buildDocContent(
     }
 
     // The drive-time/leave-by line between this stop and the previous
-    // one — same conditions RouteConnector uses on the site (both
-    // sides need coordinates), same cache, same car_service ->
-    // "driving" mapping (a car service drives the same roads a regular
-    // car would — see toGoogleTravelMode).
-    if (prevStop && prevStop.lat != null && prevStop.lng != null && stop.lat != null && stop.lng != null) {
+    // one — same conditions the site's own list view uses (both sides
+    // need coordinates, AND never across a day boundary: a new day's
+    // first stop is where you're starting from, usually the lodging
+    // you woke up at, not somewhere you just walked/drove to from
+    // yesterday's last stop), same cache, same car_service -> "driving"
+    // mapping (a car service drives the same roads a regular car
+    // would — see toGoogleTravelMode).
+    if (
+      prevStop &&
+      prevStop.date === stop.date &&
+      prevStop.lat != null &&
+      prevStop.lng != null &&
+      stop.lat != null &&
+      stop.lng != null
+    ) {
       const route = await getOrComputeRoute(
         supabase,
         { lat: prevStop.lat, lng: prevStop.lng },
@@ -133,8 +143,17 @@ export async function buildDocContent(
             line += ` — leave by ${leaveBy.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
           }
         }
+        // A real (level-1) bullet, same mechanism as Kind/"Notes:" —
+        // manually setting indentFirstLine/indentStart on a plain
+        // paragraph to match a bulleted line's own column, tried
+        // twice, never actually rendered where the API's own readback
+        // said it would (confirmed live via a real screenshot: still
+        // flush left despite the request going through) — a real
+        // nested bullet is the one mechanism actually confirmed to
+        // land at the right indent, so this just becomes one too.
         start = text.length;
-        append(`${line}\n`);
+        tabConsumptions.push({ position: start, count: 1 });
+        append(`\t${line}\n`);
         mark(start, "connector");
       }
     }
@@ -283,25 +302,34 @@ function requestsFromContent(text: string, runs: StyleRun[], tabConsumptions: Ta
         },
       });
     } else if (run.style === "connector") {
-      // A single-line, non-bulleted paragraph renders at
-      // indentFirstLine, not indentStart (which only affects a
-      // paragraph's WRAPPED lines) — confirmed live earlier. 72pt here
-      // matches level-1's own native indentStart (Kind/"Notes:"'s own
-      // column, since their hanging bullet indent lands their TEXT
-      // there), which is the "same indent level as Kind" this line
-      // needs to visually match. Plus the italic/dimmed styling
-      // "indent"+"italic" used to be stacked to get, plus a bit of
-      // space below so it doesn't sit jammed against the next stop's
-      // bulleted title right underneath it.
+      // Its own single-paragraph level-1 bullet — same tab-count
+      // mechanism as Kind/"Notes:", own standalone list rather than
+      // sharing one with either neighboring stop (it isn't really a
+      // child of either). Lands at the same native column as Kind
+      // automatically, which manually setting indentFirstLine/
+      // indentStart on a plain paragraph never actually did despite
+      // the API readback agreeing with what was sent (confirmed live
+      // via a real screenshot — still flush left).
+      //
+      // A DIFFERENT preset than "bullet"'s own BULLET_DISC_CIRCLE_SQUARE
+      // is deliberate, not decorative: Docs auto-merges a newly
+      // bulleted paragraph into an immediately-adjacent list that uses
+      // a MATCHING preset (documented behavior) — since a connector
+      // always sits directly between two stops' own bulleted blocks,
+      // matching their preset was silently merging it into whichever
+      // neighbor's list, which then dragged the FOLLOWING stop's own
+      // title down to the connector's own nesting level too (confirmed
+      // live: every title after the first came back nested one level
+      // deep instead of at level 0). A different preset here is what
+      // actually keeps every list independent.
+      requests.push({
+        createParagraphBullets: { range, bulletPreset: "BULLET_ARROW_DIAMOND_DISC" },
+      });
       requests.push({
         updateParagraphStyle: {
           range,
-          paragraphStyle: {
-            indentFirstLine: { magnitude: 72, unit: "PT" },
-            indentStart: { magnitude: 72, unit: "PT" },
-            spaceBelow: { magnitude: 6, unit: "PT" },
-          },
-          fields: "indentFirstLine,indentStart,spaceBelow",
+          paragraphStyle: { spaceBelow: { magnitude: 6, unit: "PT" } },
+          fields: "spaceBelow",
         },
       });
       requests.push({

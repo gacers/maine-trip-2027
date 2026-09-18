@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type DragEvent } from "react";
+import { useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import classNames from "classnames";
 import StopCard from "./StopCard";
 import RouteConnector from "./RouteConnector";
@@ -30,6 +30,12 @@ function laneKey(date: string | null): string {
   return date ?? "__unscheduled__";
 }
 
+interface StuckInfo {
+  left: number;
+  width: number;
+  height: number;
+}
+
 // One column ("lane") per day the itinerary actually touches — not a
 // literal Sun-Sat calendar grid (a trip rarely starts on a Sunday, and
 // that would leave awkward empty lanes on both ends); a lane per date
@@ -57,7 +63,88 @@ export default function WeekView({
   const [dropPosition, setDropPosition] = useState<"before" | "after">("before");
   const [dragOverLane, setDragOverLane] = useState<string | null>(null);
   const lanesRef = useRef<HTMLDivElement>(null);
+  const dayPickerRef = useRef<HTMLDivElement>(null);
   const laneRefs = useRef(new Map<string, HTMLDivElement>());
+  const headerRefs = useRef(new Map<string, HTMLHeadingElement>());
+
+  // A per-lane "pinned to the top of THIS column" header, without the
+  // whole page's own scroll changing at all — real CSS position:sticky
+  // can't do this here (tried twice — see the old comments still in
+  // git history): .lanes needs overflow-x:auto for the horizontal
+  // scroll, and per spec that forces its overflow-y to compute to
+  // "auto" too, which silently makes .lanes — not the page — the
+  // nearest scrolling ancestor a descendant's position:sticky resolves
+  // against, breaking it outright rather than just not sticking.
+  // Bounding each lane's own height to make that container's overflow
+  // "real" fixed the CSS problem but introduced a worse one (reported
+  // live): a nested independently-scrolling column fights a normal
+  // trackpad/mobile scroll gesture instead of just scrolling the page.
+  // This reimplements sticky by hand instead — measuring positions on
+  // scroll/resize and switching a lane's own header to position:fixed
+  // (with a same-height placeholder left behind so nothing jumps)
+  // exactly while that lane's own vertical span crosses the sticky
+  // bars above, and only while it's actually within .lanes' own
+  // horizontally-scrolled viewport (otherwise a "stuck" header would
+  // float past the edge of the lanes row, unclipped by its own
+  // overflow, since position:fixed escapes that).
+  const [stuck, setStuck] = useState<Record<string, StuckInfo | undefined>>({});
+  const [stickTop, setStickTop] = useState(0);
+
+  useLayoutEffect(() => {
+    let raf: number | null = null;
+
+    function recompute() {
+      const newStickTop = dayPickerRef.current?.getBoundingClientRect().bottom ?? 0;
+      const lanesRect = lanesRef.current?.getBoundingClientRect();
+      const next: Record<string, StuckInfo | undefined> = {};
+      let changed = false;
+
+      for (const [key, laneEl] of laneRefs.current) {
+        const laneRect = laneEl.getBoundingClientRect();
+        const headerEl = headerRefs.current.get(key);
+        const headerHeight = headerEl?.getBoundingClientRect().height ?? 0;
+        const horizontallyVisible = !lanesRect || (laneRect.right > lanesRect.left && laneRect.left < lanesRect.right);
+        const isStuck = horizontallyVisible && laneRect.top < newStickTop && laneRect.bottom > newStickTop + headerHeight;
+
+        if (isStuck) {
+          const info = { left: laneRect.left, width: laneRect.width, height: headerHeight };
+          next[key] = info;
+          const prev = stuck[key];
+          if (!prev || prev.left !== info.left || prev.width !== info.width || prev.height !== info.height) changed = true;
+        } else if (stuck[key]) {
+          changed = true;
+        }
+      }
+
+      if (changed) setStuck(next);
+      setStickTop((prevTop) => (prevTop === newStickTop ? prevTop : newStickTop));
+    }
+
+    function onScrollOrResize() {
+      if (raf != null) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        recompute();
+      });
+    }
+
+    recompute();
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize);
+    const lanesEl = lanesRef.current;
+    lanesEl?.addEventListener("scroll", onScrollOrResize, { passive: true });
+    const resizeObserver = new ResizeObserver(onScrollOrResize);
+    if (lanesEl) resizeObserver.observe(lanesEl);
+
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+      lanesEl?.removeEventListener("scroll", onScrollOrResize);
+      resizeObserver.disconnect();
+      if (raf != null) cancelAnimationFrame(raf);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lanes.length]);
 
   function scrollToLane(key: string) {
     // block: "nearest" was the culprit behind a mobile tap landing
@@ -67,14 +154,14 @@ export default function WeekView({
     // page scrolled to wherever it already happened to be rather than
     // jumping to this lane's start. "start" always aligns the lane's
     // own top edge to the top of the scrollable area (offset by
-    // .lane's own scroll-margin-top so the page's sticky header
-    // doesn't cover it).
+    // .lane's own scroll-margin-top so the page's sticky bars don't
+    // cover it).
     laneRefs.current.get(key)?.scrollIntoView({ behavior: "smooth", inline: "start", block: "start" });
   }
 
   return (
     <div className={styles["root"]}>
-      <div className={styles["day-picker"]}>
+      <div className={styles["day-picker"]} ref={dayPickerRef}>
         {lanes.map((lane) => (
           <button key={laneKey(lane.date)} type="button" onClick={() => scrollToLane(laneKey(lane.date))} className={styles["day-pill"]}>
             {formatLaneHeader(lane.date)}
@@ -85,6 +172,7 @@ export default function WeekView({
       <div className={styles["lanes"]} ref={lanesRef}>
         {lanes.map((lane) => {
           const key = laneKey(lane.date);
+          const stuckInfo = stuck[key];
           return (
             <div
               key={key}
@@ -116,7 +204,21 @@ export default function WeekView({
                 setDragOverLane(null);
               }}
             >
-              <h2 className={styles["lane-header"]}>{formatLaneHeader(lane.date)}</h2>
+              {stuckInfo && <div style={{ height: stuckInfo.height }} aria-hidden />}
+              <h2
+                ref={(el) => {
+                  if (el) headerRefs.current.set(key, el);
+                  else headerRefs.current.delete(key);
+                }}
+                className={styles["lane-header"]}
+                style={
+                  stuckInfo
+                    ? { position: "fixed", top: stickTop, left: stuckInfo.left, width: stuckInfo.width }
+                    : undefined
+                }
+              >
+                {formatLaneHeader(lane.date)}
+              </h2>
               {lane.stops.length === 0 ? (
                 <p className={styles["lane-empty"]}>Drag a stop here</p>
               ) : (

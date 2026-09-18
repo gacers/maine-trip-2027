@@ -260,8 +260,17 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
           {stops.map((stop, i) => {
             const prevStop = i > 0 ? stops[i - 1] : null;
             const showDayHeader = i === 0 || prevStop?.date !== stop.date;
+            // Never across a day boundary — a new day's first stop is
+            // where you're starting from (usually the lodging you woke
+            // up at), not somewhere you just walked/drove to from
+            // yesterday's last stop.
             const showConnector =
-              prevStop != null && prevStop.lat != null && prevStop.lng != null && stop.lat != null && stop.lng != null;
+              !showDayHeader &&
+              prevStop != null &&
+              prevStop.lat != null &&
+              prevStop.lng != null &&
+              stop.lat != null &&
+              stop.lng != null;
 
             return (
               <div key={stop.id}>
