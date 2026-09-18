@@ -118,23 +118,18 @@ export async function buildDocContent(
     const time = formatTime(stop.time);
     const prefix = stop.status === "confirmed" ? "✅ " : "";
     const suffix = stop.status === "archived" ? "  (archived)" : stop.status === "tentative" ? "  (tentative)" : "";
-    const titleLine = `${time ? `${time} — ` : ""}${prefix}${stop.title}${suffix}`;
     const titleParaStart = text.length;
-    append(titleLine);
+    append(`${time ? `${time} — ` : ""}${prefix}`);
+    // Spot title carries the location link (entry site / custom URL /
+    // Maps search fallback) — used to be a separate "(directions)"
+    // suffix that wasn't real turn-by-turn directions at all. Actual
+    // A→B directions live on the commute-time line below instead.
+    const titleStart = text.length;
+    append(stop.title);
+    const locationUrl = stop.url || (stop.lat != null && stop.lng != null ? mapsSearchUrl(stop.lat, stop.lng) : null);
+    if (locationUrl) mark(titleStart, "link", locationUrl);
+    append(`${suffix}\n`);
     mark(titleParaStart, stop.status === "confirmed" ? "bold" : "italic");
-
-    // A real link, not just a URL printed as text — the stop's own
-    // link when it has one (its linked entry's own site, or a custom
-    // stop's own URL), falling back to a Google Maps search on its
-    // coordinates so there's still SOME way to get directions from the
-    // doc alone, without the itinerary page open alongside it.
-    const directionsUrl = stop.url || (stop.lat != null && stop.lng != null ? mapsSearchUrl(stop.lat, stop.lng) : null);
-    if (directionsUrl) {
-      const linkStart = text.length;
-      append("  (directions)");
-      mark(linkStart, "link", directionsUrl);
-    }
-    append("\n");
 
     // The Kind label ("Activity"/"Meal"/etc.), and each note line
     // under its own "Notes:" label, as genuine CHILD bullets nested
@@ -214,7 +209,13 @@ export async function buildDocContent(
         const line = `↓ ${route.text} ${ITINERARY_TRAVEL_MODE_CONNECTOR_LABEL[nextStop.travel_mode]}`;
         connectorStart = text.length;
         tabConsumptions.push({ position: connectorStart, count: 1 });
+        // Linked immediately so the range is only this line — route.url
+        // is the same Maps dir URL RouteConnector uses on the site
+        // (origin→destination + travelmode), not a place search. Link
+        // runs are applied last in requestsFromContent so the blue
+        // isn't overwritten by the connector's later italic/grey style.
         append(`\t${line}\n`);
+        mark(connectorStart, "link", route.url);
 
         // Its own child bullet (level 2) under the drive/walk time,
         // same nesting relationship as a note line under "Notes:" —
@@ -240,7 +241,8 @@ export async function buildDocContent(
     // correctly-computed range still left the last visible character
     // before the newline unstyled) — applying "bullet"'s own request
     // FIRST in the batch and only styling the text afterward avoids
-    // that.
+    // that. Connector link was already marked above (tight range); only
+    // the italic/grey style waits until after bullets.
     if (connectorStart != null) mark(connectorStart, "italic");
     if (leaveByStart != null) mark(leaveByStart, "italic");
     mark(leaveByStart ?? connectorStart ?? lastBlockLineStart, "block-end");
@@ -283,7 +285,10 @@ function requestsFromContent(text: string, runs: StyleRun[], tabConsumptions: Ta
     }
     return count;
   }
-  for (const run of runs) {
+  // Links last — connector lines also get italic/grey, and that style
+  // would otherwise paint over the link blue if applied afterward.
+  const orderedRuns = [...runs.filter((r) => r.style !== "link"), ...runs.filter((r) => r.style === "link")];
+  for (const run of orderedRuns) {
     const range = { startIndex: 1 + run.start - shiftFor(run.start), endIndex: 1 + run.end - shiftFor(run.end) };
     if (run.style === "title") {
       requests.push({ updateParagraphStyle: { range, paragraphStyle: { namedStyleType: "TITLE" }, fields: "namedStyleType" } });
