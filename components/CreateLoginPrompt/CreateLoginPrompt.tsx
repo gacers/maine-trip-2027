@@ -166,11 +166,11 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
         {step === "choice" && (
           <>
             <DialogDescription>
-              Your invite works in this browser — nothing else is required.
+              <p>Your invite works in this browser — nothing else is required.</p>
               
-              Want access on other devices or browsers?
-              
-              Create a permanent login if you don&apos;t have one yet, or sign in if you already do.
+             <p>Want access on other devices or browsers?</p>
+
+              <p>Create a permanent login if you don&apos;t have one yet, or sign in if you already do.</p>
             </DialogDescription>
             <div className={styles["choice-actions"]}>
               <Button type="button" variant="primary" size="sm" onClick={() => goTo("create")}>
