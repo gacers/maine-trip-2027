@@ -3,12 +3,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import classNames from "classnames";
 import { captureInviteToken } from "@/lib/inviteClient";
-import AddStopDialog from "./components/AddStopDialog";
-import EditStopDialog from "./components/EditStopDialog";
-import StopCard from "./components/StopCard";
-import RouteConnector from "./components/RouteConnector";
-import DocExportBox from "./components/DocExportBox";
-import WeekView from "./components/WeekView";
+import AddStopDialog from "./AddStopDialog";
+import EditStopDialog from "./EditStopDialog";
+import StopCard from "./StopCard";
+import RouteConnector from "./RouteConnector";
+import DocExportBox from "./DocExportBox";
+import WeekView from "./WeekView";
 import PageLoading from "@/components/PageLoading";
 import type { PublicTrip, ItineraryStop } from "@/lib/types";
 import styles from "./ItineraryPage.module.css";

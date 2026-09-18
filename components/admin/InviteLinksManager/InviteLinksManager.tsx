@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import SheetAccessBox from "./components/SheetAccessBox";
-import InviteKeyList from "./components/InviteKeyList";
+import SheetAccessBox from "./SheetAccessBox";
+import InviteKeyList from "./InviteKeyList";
 import type { Trip, ApiKey } from "@/lib/types";
 import styles from "./InviteLinksManager.module.css";
 

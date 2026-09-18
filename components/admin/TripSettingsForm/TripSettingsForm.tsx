@@ -5,7 +5,7 @@ import Button from "@/components/Button";
 import { fetchForwardGeocode } from "@/lib/geocodeClient";
 import ArchiveUnvisitedButton from "@/components/ArchiveUnvisitedButton";
 import ResetAllRatingsButton from "@/components/ResetAllRatingsButton";
-import DangerZone from "./components/DangerZone";
+import DangerZone from "./DangerZone";
 import type { Trip, NavGroup, MapReferencePoint } from "@/lib/types";
 import styles from "./TripSettingsForm.module.css";
 

@@ -12,11 +12,11 @@ import {
   parseGoogleMapsUrl,
 } from "@/lib/googleUrlHelpers";
 import { computeTripNights } from "@/lib/fieldTypes/price";
-import UrlEntryForm from "./components/UrlEntryForm";
-import PlacePicker from "./components/PlacePicker";
-import DuplicateNotice from "./components/DuplicateNotice";
-import CoreFieldsGrid, { type CoreFields } from "./components/CoreFieldsGrid";
-import PairFieldsBox, { type PairPhase } from "./components/PairFieldsBox";
+import UrlEntryForm from "./UrlEntryForm";
+import PlacePicker from "./PlacePicker";
+import DuplicateNotice from "./DuplicateNotice";
+import CoreFieldsGrid, { type CoreFields } from "./CoreFieldsGrid";
+import PairFieldsBox, { type PairPhase } from "./PairFieldsBox";
 import type { PublicTrip, Section, ClientEntry, PlaceResult, TitleMatch } from "@/lib/types";
 import styles from "./AddEntryForm.module.css";
 

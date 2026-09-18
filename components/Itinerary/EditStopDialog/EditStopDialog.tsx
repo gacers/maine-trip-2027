@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/Dialog";
 import Button from "@/components/Button";
-import StopScheduleFields, { type StopScheduleValues } from "./StopScheduleFields";
+import StopScheduleFields, { type StopScheduleValues } from "../StopScheduleFields";
 import { findTimingConflict } from "../lib/validateStopTiming";
 import type { ItineraryStop } from "@/lib/types";
 import styles from "./EditStopDialog.module.css";

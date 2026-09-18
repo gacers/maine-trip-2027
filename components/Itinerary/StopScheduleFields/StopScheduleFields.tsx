@@ -1,5 +1,5 @@
 import { ITINERARY_TRAVEL_MODE_LABELS } from "@/lib/itineraryTravelMode";
-import DurationInput from "./DurationInput";
+import DurationInput from "../DurationInput";
 import type { ItineraryStopKind, ItineraryStopStatus, ItineraryTravelMode } from "@/lib/types";
 import styles from "./StopScheduleFields.module.css";
 

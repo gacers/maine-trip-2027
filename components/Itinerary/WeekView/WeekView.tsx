@@ -2,9 +2,9 @@
 
 import { useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import classNames from "classnames";
-import StopCard from "./StopCard";
-import RouteConnector from "./RouteConnector";
-import AddStopDialog from "./AddStopDialog";
+import StopCard from "../StopCard";
+import RouteConnector from "../RouteConnector";
+import AddStopDialog from "../AddStopDialog";
 import { groupStopsByDate } from "../lib/groupStopsByDate";
 import type { ItineraryStop, ItineraryStopStatus } from "@/lib/types";
 import styles from "./WeekView.module.css";

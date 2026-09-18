@@ -1,6 +1,6 @@
 import FieldInput from "@/components/FieldInput";
 import type { FieldDef } from "@/lib/types";
-import type { CoreFields } from "./CoreFieldsGrid";
+import type { CoreFields } from "../CoreFieldsGrid";
 import styles from "./PairFieldsBox.module.css";
 
 export type PairPhase = "none" | "input" | "loading" | "ready";

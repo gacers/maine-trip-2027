@@ -14,8 +14,8 @@ import { computeTripNights } from "@/lib/fieldTypes/price";
 import { captureInviteToken } from "@/lib/inviteClient";
 import { flashAnchor } from "@/lib/flashAnchor";
 import { useSectionEntries } from "./useSectionEntries";
-import UtilityControls, { type SortBy } from "./components/UtilityControls";
-import PairedEntryGroup from "./components/PairedEntryGroup";
+import UtilityControls, { type SortBy } from "./UtilityControls";
+import PairedEntryGroup from "./PairedEntryGroup";
 import type { PublicTrip, Section, ClientEntry, EntryUnit, OverviewPin } from "@/lib/types";
 import styles from "./SectionPage.module.css";
 

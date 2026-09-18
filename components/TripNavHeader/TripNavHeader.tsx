@@ -9,7 +9,7 @@ import RequestAccess from "@/components/RequestAccess";
 import CreateLoginPrompt from "@/components/CreateLoginPrompt";
 import LoginPrompt from "@/components/LoginPrompt";
 import LogoutButton from "@/components/LogoutButton";
-import MobileNavDrawer from "./components/MobileNavDrawer";
+import MobileNavDrawer from "./MobileNavDrawer";
 import { captureInviteToken, hasSeenCreateLoginNudge, markCreateLoginNudgeSeen } from "@/lib/inviteClient";
 import { useNavSlot } from "./NavSlot";
 import type { PublicTrip, NavGroup } from "@/lib/types";

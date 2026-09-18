@@ -2,11 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import FieldDefsEditor, { fieldDefToRow, rowToFieldDef, type FieldRow } from "./components/FieldDefsEditor";
-import SectionOptionsFields from "./components/SectionOptionsFields";
-import CounterpartOption from "./components/CounterpartOption";
-import PrefillPanel from "./components/PrefillPanel";
-import DangerZone from "./components/DangerZone";
+import FieldDefsEditor, { fieldDefToRow, rowToFieldDef, type FieldRow } from "./FieldDefsEditor";
+import SectionOptionsFields from "./SectionOptionsFields";
+import CounterpartOption from "./CounterpartOption";
+import PrefillPanel from "./PrefillPanel";
+import DangerZone from "./DangerZone";
 import { VISITED_PREFIX, PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER, looksLikePastTier } from "@/lib/sectionLabels";
 import type { ImportSourceInfo } from "@/lib/entrySync";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
