@@ -43,6 +43,18 @@ export default function OverviewMap({ pins }: OverviewMapProps) {
         position: { lat: p.lat, lng: p.lng },
         map,
         title: p.label,
+        // Same color as this pin's own list row below (see
+        // SectionPage's pinColorByAnchor) — a plain colored circle
+        // reads clearly at a glance and at any zoom, unlike Google's
+        // default red teardrop recolored via icon URL params.
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: p.color,
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 2,
+        },
       });
       marker.addListener("click", () => {
         if (flashAnchor(p.anchor, { scroll: true }) && window.history) {

@@ -6,6 +6,7 @@ import EntryMedia from "@/components/EntryMedia";
 import ListingSection from "@/components/ListingSection";
 import GroupMap from "@/components/GroupMap";
 import SimpleGroupMap from "@/components/SimpleGroupMap";
+import PinDot from "@/components/PinDot";
 import { fetchReverseAddress } from "@/lib/geocodeClient";
 import { hasCoords } from "@/lib/listingUtils";
 import type { ClientEntry, EntryUnit, FieldDef, MapConfig } from "@/lib/types";
@@ -23,6 +24,12 @@ function groupTitle(label: string | null | undefined): string {
 
 export interface PairedEntryGroupProps {
   unit: Extract<EntryUnit, { type: "group" }>;
+  /** This pair's own OverviewMap marker color (see SectionPage's
+   * pinColorByAnchor / lib/pinColors) — a group collapses to one
+   * marker for the whole pair, so this shows once on the shared title
+   * rather than per half. Undefined when the pair's first listing has
+   * no real coordinates and so never got a marker at all. */
+  pinColor?: string;
   fieldDefs: FieldDef[];
   mapConfig?: MapConfig;
   tripSlug: string;
@@ -60,6 +67,7 @@ export interface PairedEntryGroupProps {
 // own row above the shared title, and one shared map below both.
 export default function PairedEntryGroup({
   unit,
+  pinColor,
   fieldDefs,
   mapConfig,
   tripSlug,
@@ -121,7 +129,12 @@ export default function PairedEntryGroup({
       collapsible={collapsible}
       collapsed={isCollapsed}
       onToggleCollapse={() => setCollapsed((c) => !c)}
-      title={groupTitle(unit.listings[0].groupLabel)}
+      title={
+        <>
+          {pinColor && <PinDot color={pinColor} className={styles["title-dot"]} />}
+          {groupTitle(unit.listings[0].groupLabel)}
+        </>
+      }
       addressLabel={firstAddressLabel}
       addressUrl={firstAddressUrl}
       media={

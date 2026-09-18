@@ -22,6 +22,7 @@ import LocationSection from "./LocationSection";
 import EntryEditForm, { type EntryDraft } from "./EntryEditForm";
 import EditableNoteList from "./EditableNoteList";
 import EntryFooter from "./EntryFooter";
+import PinDot from "@/components/PinDot";
 import type { ImportSourceEntryInfo } from "@/lib/entrySync";
 import type { ClientEntry, FieldDef, MapConfig, MapReferencePoint } from "@/lib/types";
 import styles from "./EntryCard.module.css";
@@ -97,10 +98,17 @@ export interface EntryCardProps {
    * takes a whole row's height on its own scrolling down a long list;
    * a grid card is already small, nothing to collapse. */
   collapsible?: boolean;
+  /** This entry's own OverviewMap marker color (see SectionPage's
+   * pinColorByAnchor / lib/pinColors) — undefined when it has no real
+   * coordinates and so never got a marker to match. Only meaningful on
+   * a solo card; a paired half's shared marker/color shows on
+   * ListingSection's own title instead (see PairedEntryGroup). */
+  pinColor?: string;
 }
 
 export default function EntryCard({
   entry,
+  pinColor,
   fieldDefs = [],
   mapConfig,
   tripSlug,
@@ -352,6 +360,7 @@ export default function EntryCard({
           <div className={styles["header-grid"]}>
             <div className={styles["title-column"]}>
               <a href={entry.url ?? undefined} target="_blank" rel="noopener noreferrer" className={styles["title-link"]}>
+                {pinColor && <PinDot color={pinColor} />}
                 {entry.title}
               </a>
               {/* Stays visible collapsed too — unlike the rating row/

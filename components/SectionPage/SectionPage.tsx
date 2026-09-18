@@ -10,6 +10,7 @@ import Button from "@/components/Button";
 import PageLoading from "@/components/PageLoading";
 import { useNavSlot } from "@/components/TripNavHeader/NavSlot";
 import { groupUnits } from "@/lib/groupUnits";
+import { colorForPinIndex } from "@/lib/pinColors";
 import { computeTripNights } from "@/lib/fieldTypes/price";
 import { captureInviteToken } from "@/lib/inviteClient";
 import { flashAnchor } from "@/lib/flashAnchor";
@@ -28,13 +29,23 @@ function defaultSortBy(trip: PublicTrip): SortBy {
   return trip.completed ? "visitedDate" : "newest";
 }
 
-function pinFor(unit: EntryUnit): OverviewPin {
+// Same anchor OverviewMap's click handler scrolls to (ListingSection's
+// own `id` for a group, EntryCard's for a solo entry) — shared by
+// pinFor and renderUnit so a unit's color lookup always matches the
+// pin its own anchor produced.
+function anchorForUnit(unit: EntryUnit): string {
+  const primary = unit.listings[0];
+  return unit.type === "group" ? `group-${primary.id}` : `listing-${primary.id}`;
+}
+
+function pinFor(unit: EntryUnit, color: string): OverviewPin {
   const primary = unit.listings[0];
   return {
-    anchor: unit.type === "group" ? `group-${primary.id}` : `listing-${primary.id}`,
+    anchor: anchorForUnit(unit),
     label: unit.type === "group" ? primary.groupLabel : primary.title,
     lat: primary.lat,
     lng: primary.lng,
+    color,
   };
 }
 
@@ -312,7 +323,12 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         ? unitSortValue(a, sortBy) - unitSortValue(b, sortBy)
         : unitSortValue(b, sortBy) - unitSortValue(a, sortBy)
     );
-  const pins = activeUnits.map(pinFor);
+  const pins = activeUnits.map((unit, i) => pinFor(unit, colorForPinIndex(i)));
+  // Only units that actually get a marker on OverviewMap (it silently
+  // drops anything without real coordinates) earn a PinDot below —
+  // otherwise a location-less entry would show a color with no marker
+  // for it to match.
+  const pinColorByAnchor = new Map(pins.filter((p) => p.lat != null && p.lng != null).map((p) => [p.anchor, p.color]));
 
   // A paired option counts as visited if either half does — practically,
   // marking either listing means "we did this option," not that only
@@ -330,11 +346,13 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   const notVisitedUnits = trip.completed ? activeUnits.filter((u) => !unitIsVisited(u)) : activeUnits;
 
   function renderUnit(unit: EntryUnit) {
+    const pinColor = pinColorByAnchor.get(anchorForUnit(unit));
     if (unit.type === "group") {
       return (
         <PairedEntryGroup
           key={unit.listings.map((e) => e.id).join("-")}
           unit={unit}
+          pinColor={pinColor}
           fieldDefs={fieldDefs}
           mapConfig={mapConfig}
           tripSlug={trip.slug}
@@ -375,6 +393,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
       <EntryCard
         key={entry.id}
         entry={entry}
+        pinColor={pinColor}
         fieldDefs={fieldDefs}
         mapConfig={mapConfig}
         tripSlug={trip.slug}
