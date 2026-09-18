@@ -145,7 +145,7 @@ export default function SheetAccessBox({ trip }: SheetAccessBoxProps) {
               <option value="writer">Can edit</option>
               <option value="reader">Can view</option>
             </select>
-            <button type="submit" disabled={invitingCollab || !collabEmail.trim()} className={styles["action-button"]}>
+            <button type="submit" disabled={invitingCollab || !collabEmail.trim()} className={styles["collab-add-button"]}>
               {invitingCollab ? "Adding..." : "Add"}
             </button>
           </div>

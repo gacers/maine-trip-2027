@@ -79,16 +79,26 @@
 .create-form {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
 }
 
 .label-input {
-  flex: 1 1 10rem;
+  flex: 1 1 12rem;
   min-width: 8rem;
   border-radius: var(--radius);
   border: 1px solid var(--color-zinc-300);
   padding: 0.5rem 0.75rem;
   font-size: var(--text-sm);
+}
+
+.mode-select {
+  border-radius: var(--radius);
+  border: 1px solid var(--color-zinc-300);
+  padding: 0.5rem 0.75rem;
+  font-size: var(--text-sm);
+  background: var(--color-white);
+  font-family: inherit;
 }
 
 .create-button {
@@ -100,4 +110,30 @@
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.new-invite-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.resend-button {
+  font-size: var(--text-xs);
+  color: var(--color-zinc-700);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-weight: var(--font-weight-medium);
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
