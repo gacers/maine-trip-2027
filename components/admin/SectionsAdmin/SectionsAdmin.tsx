@@ -136,13 +136,6 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   async function addTemplate(template: SectionTemplate) {
     setError("");
     setAddingTemplate(template.key);
-    // A brand new trip has nothing to look at yet — once its first
-    // section actually exists, jump straight to it instead of leaving
-    // the admin on this template-picker page needing a manual "Back to
-    // <trip>" click. A trip that already has sections stays here after
-    // adding another (matches deliberately setting up several in one
-    // sitting rather than adding one at a time).
-    const isFirstSection = nav.every((g) => g.sections.length === 0);
     // Houses get one full-width card per row (a lot to show: photos,
     // price, bed/bath counts, a map); Food & Drink and Activities read
     // better in the tighter 3-across compact grid — both tiers of a
@@ -183,12 +176,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to create section");
-        if (isFirstSection) {
-          router.push(`/${trip.slug}`);
-          router.refresh();
-        } else {
-          refresh();
-        }
+        refresh();
         return;
       }
 
@@ -241,12 +229,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
         );
       }
 
-      if (isFirstSection) {
-        router.push(`/${trip.slug}`);
-        router.refresh();
-      } else {
-        refresh();
-      }
+      refresh();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -268,7 +251,6 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   async function addCustomTemplate(template: CustomSectionTemplate) {
     setError("");
     setAddingTemplate(template.template_key);
-    const isFirstSection = nav.every((g) => g.sections.length === 0);
     // Same collapsing the 3 built-in templates already do above for a
     // completed trip — nothing left to decide, so a still-deciding
     // "Options" tier plus its own "Visited"/"Previously ..." counterpart
@@ -318,12 +300,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
         if (!navGroupId) navGroupId = data.section.nav_group_id;
       }
 
-      if (isFirstSection) {
-        router.push(`/${trip.slug}`);
-        router.refresh();
-      } else {
-        refresh();
-      }
+      refresh();
     } catch (err) {
       setError((err as Error).message);
     } finally {
