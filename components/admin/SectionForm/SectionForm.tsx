@@ -27,20 +27,20 @@ export interface SectionFormProps {
   // these down, so it's never actually present here.
   navGroups: Omit<NavGroup, "sections">[];
   section?: Section | null;
-  /** Set when section.import_source_section_id points somewhere real —
-   * resolved server-side (the edit page's own job, not this form's;
-   * it's a cross-trip join). Locks the field editor and shows a link
-   * to the actual source. */
-  importSource?: ImportSourceInfo | null;
+  /** Every source currently feeding this section, in the order they
+   * were added — resolved server-side (the edit page's own job, not
+   * this form's; it's a cross-trip join). A non-empty array locks the
+   * field editor and shows a link to each one. */
+  importSources?: ImportSourceInfo[];
 }
 
 // Shared by both the "New section" and "Edit section" admin pages —
 // the create/update API contract (POST/PATCH) is almost identical, this
 // form just switches which one it calls.
-export default function SectionForm({ trip, navGroups, section, importSource }: SectionFormProps) {
+export default function SectionForm({ trip, navGroups, section, importSources = [] }: SectionFormProps) {
   const router = useRouter();
   const isEdit = !!section;
-  const isLocked = !!section?.import_source_section_id;
+  const isLocked = importSources.length > 0;
   // The section's *current* nav group slug (not whatever the picker
   // below might be pending-moving it to) — this identifies where the
   // record already lives, for both the PATCH URL and the Prefill
@@ -289,16 +289,21 @@ export default function SectionForm({ trip, navGroups, section, importSource }: 
         />
       )}
 
-      {isLocked && importSource && (
+      {isLocked && (
         <p className={styles["sync-banner"]}>
           Fields are synced from{" "}
-          <a
-            href={`/${importSource.tripSlug}/admin/sections/${importSource.navGroupSlug}/${importSource.sectionSlug}/edit`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {importSource.tripName} — {importSource.sectionLabel}
-          </a>
+          {importSources.map((src, i) => (
+            <span key={src.sourceSectionId}>
+              {i > 0 && (i === importSources.length - 1 ? ", and " : ", ")}
+              <a
+                href={`/${src.tripSlug}/admin/sections/${src.navGroupSlug}/${src.sectionSlug}/edit`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {src.tripName} — {src.sectionLabel}
+              </a>
+            </span>
+          ))}
           . Edit them there — changes apply here automatically.
         </p>
       )}

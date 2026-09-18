@@ -278,18 +278,25 @@ export async function findCandidateSectionsForConceptSlug(
 // Previously Visited tier) with notes/concerns seeded from the source
 // as a starting point — both are local-only from here on, editable
 // independently even though the entry itself is otherwise locked (see
-// entrySync's own SYNCED_ENTRY_FIELDS).
+// entrySync's own SYNCED_ENTRY_FIELDS). Ranks continue after whatever
+// this section's own highest rank already is, rather than restarting
+// at 1 — a destination fed by more than one source calls this once per
+// source, and restarting would collide with (and visually reorder)
+// entries a previous source already linked in.
 export async function linkEntriesFromSource(
   supabase: SupabaseClient,
   sourceEntries: EntryRow[],
   destSectionId: string
 ): Promise<number> {
   if (sourceEntries.length === 0) return 0;
+  const { data: existingRows, error: ranksError } = await supabase.from("entries").select("rank").eq("section_id", destSectionId);
+  if (ranksError) throw new Error(ranksError.message);
+  const startRank = (existingRows || []).reduce((max, r) => (r.rank && r.rank > max ? r.rank : max), 0);
   const rows = sourceEntries.map((e, i) => ({
     id: nanoid(8),
     section_id: destSectionId,
     import_source_entry_id: e.id,
-    rank: i + 1,
+    rank: startRank + i + 1,
     status: "active" as const,
     title: e.title,
     url: e.url,

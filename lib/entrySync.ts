@@ -5,21 +5,26 @@ import { exportSection } from "@/lib/sheetsExport";
 import type { EntryRow, FieldDef, Section, Trip } from "@/lib/types";
 
 // One-way sync for a section/entry imported from another one (see
-// migration 0032_entry_import_sync.sql and PrefillPanel's own "Sync
-// from another section" flow). A destination keeps pointing at its
-// own source row via import_source_section_id/import_source_entry_id;
-// these functions are what actually push a source's own changes out
-// to every destination whenever it changes. Always run as the service
-// role, not whatever client the triggering request happened to be
-// authorized as — a source and its destinations routinely belong to
-// DIFFERENT trips, and propagating an edit there is a system
-// consequence of the source's own edit, not something the editing
-// trip's own session has (or needs) direct RLS permission for.
-// Deliberately never throws to a CALLER that isn't itself an explicit
-// sync operation — every call site below treats this as best-effort
-// (same convention as the custom template capture calls elsewhere),
-// so a propagation hiccup can't block the source's own edit from
-// saving.
+// migration 0033_multi_source_import.sql and PrefillPanel's own "Sync
+// from another section" flow). A destination can pull from more than
+// one source at once (section_import_sources is one-destination-to-
+// many-sources) — e.g. one trip's "Past Distilleries" fed by 4 earlier
+// trips' own Distilleries lists side by side, added one at a time
+// without disturbing entries already synced in from the others.
+// entries.import_source_entry_id still links each individual entry to
+// exactly one specific source entry regardless of how many total
+// sources feed its own section. These functions are what actually push
+// a source's own changes out to every destination whenever it
+// changes. Always run as the service role, not whatever client the
+// triggering request happened to be authorized as — a source and its
+// destinations routinely belong to DIFFERENT trips, and propagating an
+// edit there is a system consequence of the source's own edit, not
+// something the editing trip's own session has (or needs) direct RLS
+// permission for. Deliberately never throws to a CALLER that isn't
+// itself an explicit sync operation — every call site below treats
+// this as best-effort (same convention as the custom template capture
+// calls elsewhere), so a propagation hiccup can't block the source's
+// own edit from saving.
 
 // The "shared, objective facts about the place" — flows one-way from
 // a source entry into every entry synced from it. Trip-specific
@@ -49,19 +54,43 @@ async function reExportSection(supabase: SupabaseClient, sectionId: string): Pro
   await exportSection(supabase, trips, section as Section);
 }
 
+export async function isImportDestination(sectionId: string): Promise<boolean> {
+  const supabase = supabaseServiceRole();
+  const { data, error } = await supabase
+    .from("section_import_sources")
+    .select("id")
+    .eq("destination_section_id", sectionId)
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return !!data && data.length > 0;
+}
+
+// Every destination section id currently pulling from this one source
+// — shared by the field_defs/new-entry propagation below.
+async function getDestinationSectionIds(supabase: SupabaseClient, sourceSectionId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("section_import_sources")
+    .select("destination_section_id")
+    .eq("source_section_id", sourceSectionId);
+  if (error) throw new Error(error.message);
+  return (data || []).map((r) => r.destination_section_id);
+}
+
 // Overwrites every destination section's own field_defs to mirror the
 // source's exactly — called after a source section's own field_defs
 // are saved. A synced entry's own `data` is keyed by field `key`, so
 // every destination genuinely needs the same fields, not just
-// similar ones, for that data to stay meaningful.
+// similar ones, for that data to stay meaningful. A destination fed by
+// MULTIPLE sources gets this every time any ONE of them changes —
+// fine as long as every source feeding one destination stays
+// structurally identical (same convention documented in
+// lib/customSectionTemplates.ts's own comment on shared templates);
+// this makes no attempt to reconcile sources that have actually
+// diverged from each other.
 export async function propagateFieldDefsFromSource(sourceSectionId: string): Promise<void> {
   const supabase = supabaseServiceRole();
-  const { data: destSections, error } = await supabase
-    .from("sections")
-    .select("id")
-    .eq("import_source_section_id", sourceSectionId);
-  if (error) throw new Error(error.message);
-  if (!destSections || destSections.length === 0) return;
+  const destSectionIds = await getDestinationSectionIds(supabase, sourceSectionId);
+  if (destSectionIds.length === 0) return;
 
   const { data: sourceFieldDefs, error: fdError } = await supabase
     .from("field_defs")
@@ -70,15 +99,15 @@ export async function propagateFieldDefsFromSource(sourceSectionId: string): Pro
     .order("sort_order");
   if (fdError) throw new Error(fdError.message);
 
-  for (const dest of destSections) {
-    const { error: delError } = await supabase.from("field_defs").delete().eq("section_id", dest.id);
+  for (const destId of destSectionIds) {
+    const { error: delError } = await supabase.from("field_defs").delete().eq("section_id", destId);
     if (delError) throw new Error(delError.message);
     if (sourceFieldDefs && sourceFieldDefs.length > 0) {
-      const rows = sourceFieldDefs.map((f: Partial<FieldDef>) => ({ ...f, section_id: dest.id }));
+      const rows = sourceFieldDefs.map((f: Partial<FieldDef>) => ({ ...f, section_id: destId }));
       const { error: insError } = await supabase.from("field_defs").insert(rows);
       if (insError) throw new Error(insError.message);
     }
-    await reExportSection(supabase, dest.id);
+    await reExportSection(supabase, destId);
   }
 }
 
@@ -114,21 +143,17 @@ export async function propagateEntryUpdateFromSource(sourceEntryId: string): Pro
 // establishes at initial-import time (already-Visited, no pairing).
 export async function propagateNewEntryFromSource(sourceEntry: EntryRow): Promise<void> {
   const supabase = supabaseServiceRole();
-  const { data: destSections, error } = await supabase
-    .from("sections")
-    .select("id")
-    .eq("import_source_section_id", sourceEntry.section_id);
-  if (error) throw new Error(error.message);
-  if (!destSections || destSections.length === 0) return;
+  const destSectionIds = await getDestinationSectionIds(supabase, sourceEntry.section_id);
+  if (destSectionIds.length === 0) return;
 
-  for (const dest of destSections) {
-    const { data: existingRows, error: ranksError } = await supabase.from("entries").select("rank").eq("section_id", dest.id);
+  for (const destId of destSectionIds) {
+    const { data: existingRows, error: ranksError } = await supabase.from("entries").select("rank").eq("section_id", destId);
     if (ranksError) throw new Error(ranksError.message);
     const maxRank = (existingRows || []).reduce((max, r) => (r.rank && r.rank > max ? r.rank : max), 0);
 
     const { error: insError } = await supabase.from("entries").insert({
       id: nanoid(8),
-      section_id: dest.id,
+      section_id: destId,
       import_source_entry_id: sourceEntry.id,
       rank: maxRank + 1,
       status: "active",
@@ -144,11 +169,12 @@ export async function propagateNewEntryFromSource(sourceEntry: EntryRow): Promis
       data: sourceEntry.data,
     });
     if (insError) throw new Error(insError.message);
-    await reExportSection(supabase, dest.id);
+    await reExportSection(supabase, destId);
   }
 }
 
 export interface ImportSourceInfo {
+  sourceSectionId: string;
   tripSlug: string;
   tripName: string;
   navGroupSlug: string;
@@ -156,41 +182,66 @@ export interface ImportSourceInfo {
   sectionLabel: string;
 }
 
-// Resolves a locked section/entry's own source into everything
-// SectionForm/the entry edit form need to show "synced from X" and
-// link straight to it — a plain join, not itself part of the sync
-// mechanism above.
-export async function getImportSourceSectionInfo(sourceSectionId: string): Promise<ImportSourceInfo | null> {
+// Resolves every source currently feeding one destination section into
+// everything SectionForm needs to show "synced from X, Y, Z" and link
+// straight to each — a plain join, not itself part of the sync
+// mechanism above. Empty array (not null) when the section isn't a
+// destination at all, so callers can treat "locked" as simply
+// `sources.length > 0`.
+export async function getImportSourcesForSection(destinationSectionId: string): Promise<ImportSourceInfo[]> {
   const supabase = supabaseServiceRole();
+  const { data: links, error: linksError } = await supabase
+    .from("section_import_sources")
+    .select("source_section_id")
+    .eq("destination_section_id", destinationSectionId)
+    .order("created_at");
+  if (linksError) throw new Error(linksError.message);
+  if (!links || links.length === 0) return [];
+
   const { data, error } = await supabase
     .from("sections")
-    .select("slug, label, nav_groups(slug), trips(slug, name)")
-    .eq("id", sourceSectionId)
-    .maybeSingle();
+    .select("id, slug, label, nav_groups(slug), trips(slug, name)")
+    .in(
+      "id",
+      links.map((l) => l.source_section_id)
+    );
   if (error) throw new Error(error.message);
-  if (!data) return null;
-  const navGroup = data.nav_groups as unknown as { slug: string } | null;
-  const trip = data.trips as unknown as { slug: string; name: string } | null;
-  if (!navGroup || !trip) return null;
-  return {
-    tripSlug: trip.slug,
-    tripName: trip.name,
-    navGroupSlug: navGroup.slug,
-    sectionSlug: data.slug,
-    sectionLabel: data.label,
-  };
+
+  // Preserve section_import_sources' own created-at order (the order
+  // sources were added in), not whatever order the `in(...)` query
+  // happens to return.
+  const byId = new Map((data || []).map((d) => [d.id, d]));
+  const infos: ImportSourceInfo[] = [];
+  for (const link of links) {
+    const d = byId.get(link.source_section_id);
+    if (!d) continue;
+    const navGroup = d.nav_groups as unknown as { slug: string } | null;
+    const trip = d.trips as unknown as { slug: string; name: string } | null;
+    if (!navGroup || !trip) continue;
+    infos.push({
+      sourceSectionId: d.id,
+      tripSlug: trip.slug,
+      tripName: trip.name,
+      navGroupSlug: navGroup.slug,
+      sectionSlug: d.slug,
+      sectionLabel: d.label,
+    });
+  }
+  return infos;
 }
 
-export interface ImportSourceEntryInfo extends ImportSourceInfo {
+export interface ImportSourceEntryInfo extends Omit<ImportSourceInfo, "sourceSectionId"> {
   /** Anchor to jump straight to the source entry's own card — same
    * "#listing-<id>" convention every entry-linking href already uses
    * (see StopCard's own href builder). */
   entryId: string;
 }
 
-// Same idea as getImportSourceSectionInfo, one level down — resolves a
-// locked entry's own source entry into everything the entry edit
-// form needs to link straight to it.
+// Same idea as getImportSourcesForSection, one level down — resolves a
+// locked entry's own ONE source entry (an entry is always linked to a
+// single specific row, never several, regardless of how many total
+// sources feed its section) into everything the entry edit form needs
+// to link straight to it.
 export async function getImportSourceEntryInfo(sourceEntryId: string): Promise<ImportSourceEntryInfo | null> {
   const supabase = supabaseServiceRole();
   const { data, error } = await supabase

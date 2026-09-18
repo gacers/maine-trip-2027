@@ -61,12 +61,6 @@ export interface Section {
    * lets the UI actually show an admin that their Sheet fell out of
    * sync. */
   sheet_sync_error: string | null;
-  /** Set once this section has imported from another one (see
-   * lib/entrySync.ts) — its own field_defs mirror that source's and
-   * can't be edited directly here anymore; edit them on the source
-   * section instead. Null for a source itself, or a section that's
-   * never imported from anywhere. */
-  import_source_section_id: string | null;
   field_defs?: FieldDef[];
 }
 

@@ -110,9 +110,9 @@ export interface RemoveFieldEverywhereResult {
 // touched here, and this is a deliberate, explicitly-confirmed bulk
 // system operation, not a per-trip edit.
 //
-// Skips a section that's itself an entrySync destination
-// (import_source_section_id set) — that section's own fields are
-// already governed by a real, live source elsewhere (see
+// Skips a section that's itself an entrySync destination (has any row
+// in section_import_sources) — that section's own fields are already
+// governed by one or more real, live sources elsewhere (see
 // lib/entrySync.ts); this legacy template-matching mechanism has no
 // business also touching it. Also strips the key from this nav group's
 // own shared template, so a brand-new section created from it later
@@ -129,17 +129,28 @@ export async function removeFieldEverywhere(
   if (groupsError) throw new Error(groupsError.message);
   if (!groups || groups.length === 0) return { sectionsAffected: 0 };
 
-  const { data: sections, error: sectionsError } = await supabase
+  const { data: matchedSections, error: sectionsError } = await supabase
     .from("sections")
     .select("id")
     .in(
       "nav_group_id",
       groups.map((g) => g.id)
     )
-    .in("slug", [conceptSlug, `${conceptSlug}-visited`])
-    .is("import_source_section_id", null);
+    .in("slug", [conceptSlug, `${conceptSlug}-visited`]);
   if (sectionsError) throw new Error(sectionsError.message);
-  if (!sections || sections.length === 0) return { sectionsAffected: 0 };
+  if (!matchedSections || matchedSections.length === 0) return { sectionsAffected: 0 };
+
+  const { data: destRows, error: destError } = await supabase
+    .from("section_import_sources")
+    .select("destination_section_id")
+    .in(
+      "destination_section_id",
+      matchedSections.map((s) => s.id)
+    );
+  if (destError) throw new Error(destError.message);
+  const destinationIds = new Set((destRows || []).map((r) => r.destination_section_id));
+  const sections = matchedSections.filter((s) => !destinationIds.has(s.id));
+  if (sections.length === 0) return { sectionsAffected: 0 };
 
   const sectionIds = sections.map((s) => s.id);
   const { error: delError, count } = await supabase

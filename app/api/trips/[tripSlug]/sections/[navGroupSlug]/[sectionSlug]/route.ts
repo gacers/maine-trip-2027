@@ -3,7 +3,7 @@ import { getTripBySlug, getSectionBySlug, sanitizeTripForClient } from "@/lib/se
 import { requireWriteAccess, requireReadAccess } from "@/lib/auth";
 import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
 import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
-import { propagateFieldDefsFromSource } from "@/lib/entrySync";
+import { propagateFieldDefsFromSource, isImportDestination } from "@/lib/entrySync";
 import type { FieldType, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -93,13 +93,14 @@ export async function PATCH(
     return NextResponse.json({ error: `Invalid cardLayout: ${cardLayout}` }, { status: 400 });
   }
 
-  // A section synced from another one (see lib/entrySync.ts) has its
-  // own field_defs mirrored from the source and locked here — editing
-  // them has to happen on the source section, which then propagates
-  // to every one of its own destinations, this one included.
-  if (fieldDefs !== undefined && section.import_source_section_id) {
+  // A section synced from one or more others (see lib/entrySync.ts)
+  // has its own field_defs mirrored from them and locked here —
+  // editing them has to happen on a source section, which then
+  // propagates to every one of its own destinations, this one
+  // included.
+  if (fieldDefs !== undefined && (await isImportDestination(section.id))) {
     return NextResponse.json(
-      { error: "This section's fields are synced from its import source — edit them there instead." },
+      { error: "This section's fields are synced from its import source(s) — edit them there instead." },
       { status: 400 }
     );
   }
