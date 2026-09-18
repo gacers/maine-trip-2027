@@ -1,6 +1,8 @@
 import { nanoid } from "nanoid";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
-import type { EntryRow, FieldDef } from "@/lib/types";
+import { exportSection } from "@/lib/sheetsExport";
+import type { EntryRow, FieldDef, Section, Trip } from "@/lib/types";
 
 // One-way sync for a section/entry imported from another one (see
 // migration 0032_entry_import_sync.sql and PrefillPanel's own "Sync
@@ -29,6 +31,22 @@ const SYNCED_ENTRY_FIELDS = ["title", "url", "poster_image", "description", "lat
 
 export function isSyncedEntryFieldPatch(patch: Record<string, unknown>): boolean {
   return SYNCED_ENTRY_FIELDS.some((f) => f in patch);
+}
+
+// Re-exports one destination section's own Sheet after a sync
+// propagation touched it — without this, a destination trip's website
+// view updates live but its Sheet (a completely separate, request-
+// scoped write everywhere else in this app) silently goes stale until
+// someone happens to edit that section directly. exportSection itself
+// never throws (see its own comment), so this is already best-effort;
+// a missing trip/section (already deleted mid-propagation) just no-ops
+// rather than erroring the whole propagation.
+async function reExportSection(supabase: SupabaseClient, sectionId: string): Promise<void> {
+  const { data } = await supabase.from("sections").select("*, field_defs(*), trips(*)").eq("id", sectionId).maybeSingle();
+  if (!data) return;
+  const { trips, ...section } = data as Section & { trips: Trip | null };
+  if (!trips) return;
+  await exportSection(supabase, trips, section as Section);
 }
 
 // Overwrites every destination section's own field_defs to mirror the
@@ -60,6 +78,7 @@ export async function propagateFieldDefsFromSource(sourceSectionId: string): Pro
       const { error: insError } = await supabase.from("field_defs").insert(rows);
       if (insError) throw new Error(insError.message);
     }
+    await reExportSection(supabase, dest.id);
   }
 }
 
@@ -74,8 +93,18 @@ export async function propagateEntryUpdateFromSource(sourceEntryId: string): Pro
   const patch: Record<string, unknown> = {};
   for (const field of SYNCED_ENTRY_FIELDS) patch[field] = (source as unknown as Record<string, unknown>)[field];
 
-  const { error: updError } = await supabase.from("entries").update(patch).eq("import_source_entry_id", sourceEntryId);
+  const { data: updated, error: updError } = await supabase
+    .from("entries")
+    .update(patch)
+    .eq("import_source_entry_id", sourceEntryId)
+    .select("section_id");
   if (updError) throw new Error(updError.message);
+
+  // One linked entry per destination SECTION (not per trip — two
+  // sections in the same trip could each import this same source
+  // independently), so re-export each one actually touched.
+  const sectionIds = new Set((updated || []).map((e) => e.section_id));
+  for (const sectionId of sectionIds) await reExportSection(supabase, sectionId);
 }
 
 // Creates a linked copy of a brand-new source entry in every section
@@ -115,6 +144,7 @@ export async function propagateNewEntryFromSource(sourceEntry: EntryRow): Promis
       data: sourceEntry.data,
     });
     if (insError) throw new Error(insError.message);
+    await reExportSection(supabase, dest.id);
   }
 }
 
