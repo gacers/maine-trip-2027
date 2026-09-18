@@ -8,6 +8,7 @@ import CounterpartOption from "./components/CounterpartOption";
 import PrefillPanel from "./components/PrefillPanel";
 import DangerZone from "./components/DangerZone";
 import { VISITED_PREFIX, PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER, looksLikePastTier } from "@/lib/sectionLabels";
+import type { ImportSourceInfo } from "@/lib/entrySync";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionForm.module.css";
 
@@ -26,14 +27,20 @@ export interface SectionFormProps {
   // these down, so it's never actually present here.
   navGroups: Omit<NavGroup, "sections">[];
   section?: Section | null;
+  /** Set when section.import_source_section_id points somewhere real —
+   * resolved server-side (the edit page's own job, not this form's;
+   * it's a cross-trip join). Locks the field editor and shows a link
+   * to the actual source. */
+  importSource?: ImportSourceInfo | null;
 }
 
 // Shared by both the "New section" and "Edit section" admin pages —
 // the create/update API contract (POST/PATCH) is almost identical, this
 // form just switches which one it calls.
-export default function SectionForm({ trip, navGroups, section }: SectionFormProps) {
+export default function SectionForm({ trip, navGroups, section, importSource }: SectionFormProps) {
   const router = useRouter();
   const isEdit = !!section;
+  const isLocked = !!section?.import_source_section_id;
   // The section's *current* nav group slug (not whatever the picker
   // below might be pending-moving it to) — this identifies where the
   // record already lives, for both the PATCH URL and the Prefill
@@ -96,7 +103,11 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
       hasMap,
       supportsRatings,
       cardLayout,
-      fieldDefs: fields.map(rowToFieldDef),
+      // Omitted entirely (not just left unchanged) when locked — the
+      // route rejects a fieldDefs key outright on an imported section
+      // (see its own comment), even one that would resolve to the same
+      // values it already has.
+      fieldDefs: isLocked ? undefined : fields.map(rowToFieldDef),
     };
     if (!isEdit) {
       payload.slug = slug;
@@ -278,7 +289,29 @@ export default function SectionForm({ trip, navGroups, section }: SectionFormPro
         />
       )}
 
-      <FieldDefsEditor fields={fields} onChange={setFields} />
+      {isLocked && importSource && (
+        <p className={styles["sync-banner"]}>
+          Fields are synced from{" "}
+          <a
+            href={`/${importSource.tripSlug}/admin/sections/${importSource.navGroupSlug}/${importSource.sectionSlug}/edit`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {importSource.tripName} — {importSource.sectionLabel}
+          </a>
+          . Edit them there — changes apply here automatically.
+        </p>
+      )}
+      <FieldDefsEditor
+        fields={fields}
+        onChange={setFields}
+        disabled={isLocked}
+        bulkRemoveContext={
+          isEdit && section && currentNavGroupSlug
+            ? { tripSlug: trip.slug, navGroupSlug: currentNavGroupSlug, sectionSlug: section.slug }
+            : undefined
+        }
+      />
 
       {isEdit && section && currentNavGroupSlug && looksLikePastTier(section) && (
         <PrefillPanel

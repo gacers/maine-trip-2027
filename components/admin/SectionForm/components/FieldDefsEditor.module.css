@@ -117,3 +117,32 @@
     text-decoration: underline;
   }
 }
+
+.remove-everywhere-button {
+  justify-self: flex-start;
+  font-size: var(--text-xs);
+  color: var(--color-zinc-500);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover:not(:disabled) {
+    color: var(--color-red-600);
+    text-decoration: underline;
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.bulk-remove-message {
+  font-size: var(--text-sm);
+  color: var(--color-zinc-600);
+}
+
+.bulk-remove-error {
+  font-size: var(--text-sm);
+  color: var(--color-red-600);
+}

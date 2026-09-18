@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import styles from "./StarRating.module.css";
 
 // A 5-star control with half-star granularity. Read-only mode (no
 // onChange) just renders the fill; editable mode overlays two invisible
 // half-width buttons per star so clicking the left/right half of a star
-// sets it to X.5/X.
+// sets it to X.5/X. Hovering a hit target fills stars to that tentative
+// value so half-star selection is visible before click.
 const STAR_COUNT = 5;
 
 interface StarIconProps {
@@ -39,11 +41,13 @@ export interface StarRatingProps {
 export default function StarRating({ value, onChange, size = 20 }: StarRatingProps) {
   const stars = Array.from({ length: STAR_COUNT }, (_, i) => i);
   const editable = typeof onChange === "function";
+  const [hoverValue, setHoverValue] = useState<number | null>(null);
+  const displayValue = hoverValue ?? value ?? 0;
 
   return (
-    <span className={styles["root"]}>
+    <span className={styles["root"]} onPointerLeave={editable ? () => setHoverValue(null) : undefined}>
       {stars.map((i) => {
-        const fillPercent = Math.max(0, Math.min(1, (value ?? 0) - i)) * 100;
+        const fillPercent = Math.max(0, Math.min(1, displayValue - i)) * 100;
         return (
           <span key={i} className={styles["star-box"]} style={{ width: size, height: size }}>
             <StarIcon size={size} filled={false} className={styles["outline"]} />
@@ -56,12 +60,14 @@ export default function StarRating({ value, onChange, size = 20 }: StarRatingPro
                   type="button"
                   aria-label={`Rate ${i + 0.5} out of 5`}
                   className={styles["half-button"]}
+                  onPointerEnter={() => setHoverValue(i + 0.5)}
                   onClick={() => onChange(i + 0.5)}
                 />
                 <button
                   type="button"
                   aria-label={`Rate ${i + 1} out of 5`}
                   className={styles["whole-button"]}
+                  onPointerEnter={() => setHoverValue(i + 1)}
                   onClick={() => onChange(i + 1)}
                 />
               </>

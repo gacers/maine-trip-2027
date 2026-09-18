@@ -8,6 +8,7 @@ import { normalizeListingUrl } from "@/lib/scrape";
 import { extractCount } from "@/lib/fieldTypes/count";
 import { exportSection } from "@/lib/sheetsExport";
 import { sectionHasOptionsTraits } from "@/lib/tripCompletion";
+import { propagateNewEntryFromSource } from "@/lib/entrySync";
 import type { Trip, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -163,6 +164,10 @@ export async function POST(
       data: filledData,
     });
     await exportSection(supabase!, trip, section);
+    // Best-effort — this section might itself be the import source for
+    // one or more other sections (see lib/entrySync.ts), each of which
+    // gets its own linked copy of a brand-new entry added here too.
+    propagateNewEntryFromSource(entry).catch((err) => console.error("New-entry propagation failed:", err));
     return NextResponse.json({ entry: toClientEntry(entry) }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

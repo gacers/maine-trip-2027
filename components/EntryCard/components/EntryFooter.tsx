@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Button from "@/components/Button";
 import ArchiveDialog from "@/components/ArchiveDialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/Dialog";
 import type { ClientEntry } from "@/lib/types";
 import styles from "./EntryFooter.module.css";
 
@@ -24,6 +25,9 @@ export interface EntryFooterProps {
   onSaveEdit: () => void;
   onCancelEdit: () => void;
   onAddPaired?: () => void;
+  /** Admin-only wipe of every rater's score for this option (and its
+   * pair partner when applicable). Only offered while editing. */
+  onResetRankings?: () => void | Promise<void>;
 }
 
 // Delete/Edit/Archive/Restore/Pair — every action a card's own footer
@@ -42,10 +46,24 @@ export default function EntryFooter({
   onSaveEdit,
   onCancelEdit,
   onAddPaired,
+  onResetRankings,
 }: EntryFooterProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const isArchived = entry.status === "archived";
+
+  async function confirmResetRankings() {
+    if (!onResetRankings) return;
+    setResetting(true);
+    try {
+      await onResetRankings();
+      setShowResetDialog(false);
+    } finally {
+      setResetting(false);
+    }
+  }
 
   return (
     <div className={styles["root"]}>
@@ -106,6 +124,30 @@ export default function EntryFooter({
           <Button variant="ghost" size="sm" onClick={onCancelEdit}>
             Cancel
           </Button>
+          {onResetRankings && (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setShowResetDialog(true)}>
+                Reset rankings
+              </Button>
+              <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+                <DialogContent>
+                  <DialogTitle>Reset rankings for this option?</DialogTitle>
+                  <DialogDescription>
+                    Clears every rater&apos;s score for this stay option. This cannot be undone — people will need to
+                    rate it again from scratch.
+                  </DialogDescription>
+                  <div className={styles["dialog-actions"]}>
+                    <Button variant="ghost" size="sm" onClick={() => setShowResetDialog(false)} disabled={resetting}>
+                      Cancel
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={confirmResetRankings} disabled={resetting}>
+                      {resetting ? "Resetting…" : "Reset rankings"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
         </>
       )}
 

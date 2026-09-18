@@ -1,6 +1,7 @@
 import Button from "@/components/Button";
 import FieldInput from "@/components/FieldInput";
 import { MARKER_COLORS } from "../helpers";
+import type { ImportSourceEntryInfo } from "@/lib/entrySync";
 import type { FieldDef } from "@/lib/types";
 import styles from "./EntryEditForm.module.css";
 
@@ -34,6 +35,15 @@ export interface EntryEditFormProps {
   geocoding: boolean;
   geocodeMsg: string;
   onFindCoords: () => void;
+  /** True once this entry syncs from another one (see lib/entrySync.ts)
+   * — disables every shared field below (title/link/photo/description/
+   * fieldDefs/lat/lng); groupLabel and the extra map points stay
+   * editable either way, since those are local to this trip. */
+  locked?: boolean;
+  /** Resolved lazily by EntryCard once actually editing a locked
+   * entry — null while still loading, or if the source couldn't be
+   * resolved (nothing to link to yet, not itself an error to show). */
+  importSource?: ImportSourceEntryInfo | null;
 }
 
 // The full manual-edit form (every field EntryCard's own "Edit
@@ -51,6 +61,8 @@ export default function EntryEditForm({
   geocoding,
   geocodeMsg,
   onFindCoords,
+  locked = false,
+  importSource,
 }: EntryEditFormProps) {
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
 
@@ -69,10 +81,34 @@ export default function EntryEditForm({
 
   return (
     <>
+      {locked && (
+        <p className={styles["sync-banner"]}>
+          {importSource ? (
+            <>
+              Title/link/photo/description/fields are synced from{" "}
+              <a
+                href={`/${importSource.tripSlug}/${importSource.navGroupSlug}/${importSource.sectionSlug}#listing-${importSource.entryId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {importSource.tripName} — {importSource.sectionLabel}
+              </a>
+              . Edit the original there — changes apply here automatically.
+            </>
+          ) : (
+            "Title/link/photo/description/fields are synced from another trip — edit the original there."
+          )}
+        </p>
+      )}
       <div className={styles["grid"]}>
         <label className={styles["field"]}>
           Title
-          <input value={draft.title} onChange={(e) => onChange({ ...draft, title: e.target.value })} className={styles["input"]} />
+          <input
+            value={draft.title}
+            onChange={(e) => onChange({ ...draft, title: e.target.value })}
+            className={styles["input"]}
+            disabled={locked}
+          />
         </label>
         <label className={styles["field"]}>
           Link (optional)
@@ -81,6 +117,7 @@ export default function EntryEditForm({
             onChange={(e) => onChange({ ...draft, url: e.target.value })}
             placeholder="https://..."
             className={styles["input"]}
+            disabled={locked}
           />
         </label>
         <label className={styles["field"]}>
@@ -89,6 +126,7 @@ export default function EntryEditForm({
             value={draft.posterImage}
             onChange={(e) => onChange({ ...draft, posterImage: e.target.value })}
             className={styles["input"]}
+            disabled={locked}
           />
         </label>
         <label className={styles["wide-field"]}>
@@ -98,6 +136,7 @@ export default function EntryEditForm({
             onChange={(e) => onChange({ ...draft, description: e.target.value })}
             rows={4}
             className={styles["input"]}
+            disabled={locked}
           />
         </label>
 
@@ -110,6 +149,7 @@ export default function EntryEditForm({
                 value={draft.data[f.key]}
                 onChange={(v) => onChange({ ...draft, data: { ...draft.data, [f.key]: String(v) } })}
                 tripNights={nightsEstimate}
+                disabled={locked}
               />
             ))}
             {countFields.length > 0 && <p className={styles["count-hint"]}>Count fields auto-fill from the description when left blank.</p>}

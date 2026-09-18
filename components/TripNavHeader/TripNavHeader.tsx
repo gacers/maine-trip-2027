@@ -48,9 +48,10 @@ export interface TripNavHeaderProps {
 // version relocated them into the drawer while it was open — confirmed
 // live as more confusing than useful, disappearing the moment the
 // drawer closed). Utility links are
-// gated on who's actually looking: an admin session gets "All trips"/
-// "Manage", a visitor with neither that nor an invite link gets
-// "Request access", and a contributor (has an invite link, isn't the
+// gated on who's actually looking: an admin session gets the "All
+// Trips ›" breadcrumb prefix (see .brand) and a "Manage" button, a
+// visitor with neither that nor an invite link gets "Request access",
+// and a contributor (has an invite link, isn't the
 // owner) gets neither — they already have what they need on the page.
 export default function TripNavHeader({
   trip,
@@ -148,27 +149,42 @@ export default function TripNavHeader({
   // layout.tsx) has its own nav entirely; this bar's own category tabs
   // and sub-nav/actions row underneath just duplicate it pointlessly
   // there (confirmed live: two full navigation bars stacked on top of
-  // each other). The top row (trip name, All trips/Manage) still makes
-  // sense everywhere, so only the block below this is skipped.
+  // each other). The top row (breadcrumb, Manage) still makes sense
+  // everywhere, so only the block below this is skipped.
   const isAdminRoute = pathname.startsWith(`/${trip.slug}/admin`);
 
   return (
     <>
       <header className={styles["root"]}>
         <div className={styles["top-row"]}>
-          <Link
-            href={nav[0] ? sectionPath(nav[0].slug, nav[0].sections[0].slug) : `/${trip.slug}`}
-            className={styles["brand"]}
-          >
-            {trip.name}
-          </Link>
+          <div className={styles["brand"]}>
+            {/* "All Trips ›" only for whoever can actually see that
+                list — an admin's own RLS-scoped session; everyone else
+                gets an empty/meaningless list there anyway (see
+                getAllTrips), so the breadcrumb just collapses to the
+                trip name alone rather than linking somewhere that
+                reads as broken. */}
+            {isAdmin && (
+              <>
+                <Link href="/" className={styles["brand-crumb"]}>
+                  All Trips
+                </Link>
+                <span className={styles["brand-separator"]} aria-hidden>
+                  ›
+                </span>
+              </>
+            )}
+            <Link
+              href={nav[0] ? sectionPath(nav[0].slug, nav[0].sections[0].slug) : `/${trip.slug}`}
+              className={styles["brand-crumb"]}
+            >
+              {trip.name}
+            </Link>
+          </div>
 
           <div className={styles["actions"]}>
             {isAdmin ? (
               <>
-                <Link href="/" className={styles["action-link"]}>
-                  All trips
-                </Link>
                 {/* This row's own set of buttons stays fixed regardless of
                     trip state — a conditional third item here (an earlier
                     version put Archive Unvisited in this same row) made

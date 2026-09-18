@@ -153,6 +153,7 @@ export function toClientEntry(row: EntryRow | null | undefined): ClientEntry | n
     trip_id,
     extra_markers,
     visited_date,
+    import_source_entry_id,
     data,
     ...rest
   } = row;
@@ -167,6 +168,7 @@ export function toClientEntry(row: EntryRow | null | undefined): ClientEntry | n
     tripId: trip_id,
     extraMarkers: extra_markers || [],
     visitedDate: visited_date,
+    importSourceEntryId: import_source_entry_id,
     ...(data || {}),
   } as ClientEntry;
 }
@@ -264,15 +266,20 @@ export async function findCandidateSectionsForConceptSlug(
     });
 }
 
-// Clones the given entries into `destSectionId` as brand-new,
-// independent rows (fresh ids, no rating history, no pairing) — same
-// "genuinely separate entry" philosophy as findEntryByUrlAnywhere's
-// single-entry reuse, just for a whole section's worth at once. Always
-// lands as already-Visited (that's the whole point of copying it into
-// a Previously Visited tier) and with no groupLabel (the destination
-// tier never supports pairing, and carrying an old pairing across trips
-// would risk a nonsensical cross-trip re-pair later).
-export async function copyEntriesToSection(
+// Clones the given entries into `destSectionId` as new rows LINKED
+// back to their own source (import_source_entry_id — see
+// lib/entrySync.ts, which keeps them synced from here on: an edit to
+// the source's own shared fields propagates into these automatically,
+// and a brand-new entry added to the source later gets its own linked
+// copy created here too). No pairing carried over (the destination
+// tier never supports pairing, and carrying an old pairing across
+// trips would risk a nonsensical cross-trip re-pair later); lands as
+// already-Visited (that's the whole point of importing into a
+// Previously Visited tier) with notes/concerns seeded from the source
+// as a starting point — both are local-only from here on, editable
+// independently even though the entry itself is otherwise locked (see
+// entrySync's own SYNCED_ENTRY_FIELDS).
+export async function linkEntriesFromSource(
   supabase: SupabaseClient,
   sourceEntries: EntryRow[],
   destSectionId: string
@@ -281,6 +288,7 @@ export async function copyEntriesToSection(
   const rows = sourceEntries.map((e, i) => ({
     id: nanoid(8),
     section_id: destSectionId,
+    import_source_entry_id: e.id,
     rank: i + 1,
     status: "active" as const,
     title: e.title,

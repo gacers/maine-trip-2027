@@ -4,6 +4,7 @@ import { getAllEntries, updateEntry, deleteEntry, toClientEntry } from "@/lib/en
 import { requireWriteAccess } from "@/lib/auth";
 import { extractCount } from "@/lib/fieldTypes/count";
 import { exportSection } from "@/lib/sheetsExport";
+import { isSyncedEntryFieldPatch, propagateEntryUpdateFromSource } from "@/lib/entrySync";
 import type { EntryRow, Trip, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -92,11 +93,22 @@ export async function PATCH(
   }
 
   try {
-    if (dataPatch || appendNote || appendConcern) {
-      const all = await getAllEntries(supabase!, section.id);
-      const existing = all.find((e) => e.id === entryId);
-      if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Fetched unconditionally (not just alongside dataPatch/appendNote/
+    // appendConcern like before) — a synced entry's own shared fields
+    // (see lib/entrySync.ts) need this check regardless of which
+    // fields the request actually touches.
+    const all = await getAllEntries(supabase!, section.id);
+    const existing = all.find((e) => e.id === entryId);
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    if (existing.import_source_entry_id && (isSyncedEntryFieldPatch(patch) || dataPatch)) {
+      return NextResponse.json(
+        { error: "This entry's shared fields are synced from its source — edit them there instead." },
+        { status: 400 }
+      );
+    }
+
+    if (dataPatch || appendNote || appendConcern) {
       if (dataPatch) {
         const mergedData: Record<string, unknown> = { ...existing.data, ...dataPatch };
 
@@ -124,6 +136,13 @@ export async function PATCH(
 
     const entry = await updateEntry(supabase!, entryId, patch);
     await exportSection(supabase!, trip, section);
+    // Best-effort — this entry might itself be the import source for
+    // one or more entries elsewhere (see lib/entrySync.ts); harmless
+    // no-op otherwise. Only worth the extra round trip when a synced
+    // field actually changed.
+    if (isSyncedEntryFieldPatch(patch) || dataPatch) {
+      propagateEntryUpdateFromSource(entryId).catch((err) => console.error("Entry sync propagation failed:", err));
+    }
     return NextResponse.json({ entry: toClientEntry(entry) });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

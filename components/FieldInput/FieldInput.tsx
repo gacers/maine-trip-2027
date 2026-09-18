@@ -15,6 +15,7 @@ export interface FieldInputProps {
    * entered, rather than leaving that to be guessed later from
    * whatever the trip's length happens to be by then. */
   tripNights?: number | null;
+  disabled?: boolean;
 }
 
 type PriceMode = "perNight" | "total";
@@ -39,7 +40,7 @@ function amountFrom(raw: string): string {
 // ("$273/night", or "$1,911 for 7 nights" when the trip's length is
 // known) — unambiguous from then on, no runtime guessing involved (see
 // lib/fieldTypes/price.ts's hasStatedRate/extractAvgPerNight).
-function PriceFieldInput({ fieldDef, value, onChange, tripNights }: FieldInputProps) {
+function PriceFieldInput({ fieldDef, value, onChange, tripNights, disabled }: FieldInputProps) {
   const raw = (value as string) || "";
   const [amount, setAmount] = useState(() => amountFrom(raw));
   const [mode, setMode] = useState<PriceMode>(() => priceModeFor(raw));
@@ -75,6 +76,7 @@ function PriceFieldInput({ fieldDef, value, onChange, tripNights }: FieldInputPr
           }}
           placeholder="e.g. 273"
           className={styles["input"]}
+          disabled={disabled}
         />
         <select
           value={mode}
@@ -84,6 +86,7 @@ function PriceFieldInput({ fieldDef, value, onChange, tripNights }: FieldInputPr
             commit(amount, nextMode);
           }}
           className={styles["input"]}
+          disabled={disabled}
         >
           <option value="perNight">per night</option>
           <option value="total">total for stay</option>
@@ -102,9 +105,9 @@ function PriceFieldInput({ fieldDef, value, onChange, tripNights }: FieldInputPr
 // by the field's own type — shared by EntryCard's edit form and
 // AddEntryForm, so a section's fields render identically wherever
 // they're edited without any per-field-name code.
-export default function FieldInput({ fieldDef, value, onChange, tripNights }: FieldInputProps) {
+export default function FieldInput({ fieldDef, value, onChange, tripNights, disabled }: FieldInputProps) {
   if (fieldDef.field_type === "price") {
-    return <PriceFieldInput fieldDef={fieldDef} value={value} onChange={onChange} tripNights={tripNights} />;
+    return <PriceFieldInput fieldDef={fieldDef} value={value} onChange={onChange} tripNights={tripNights} disabled={disabled} />;
   }
   if (fieldDef.field_type === "textarea") {
     return (
@@ -115,6 +118,7 @@ export default function FieldInput({ fieldDef, value, onChange, tripNights }: Fi
           onChange={(e) => onChange(e.target.value)}
           rows={4}
           className={styles["input"]}
+          disabled={disabled}
         />
       </label>
     );
@@ -127,6 +131,7 @@ export default function FieldInput({ fieldDef, value, onChange, tripNights }: Fi
           checked={!!value}
           onChange={(e) => onChange(e.target.checked)}
           className={styles["checkbox"]}
+          disabled={disabled}
         />
         {fieldDef.label}
       </label>
@@ -141,6 +146,7 @@ export default function FieldInput({ fieldDef, value, onChange, tripNights }: Fi
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
           className={styles["input"]}
+          disabled={disabled}
         >
           <option value="">--</option>
           {choices.map((c) => (
@@ -166,6 +172,7 @@ export default function FieldInput({ fieldDef, value, onChange, tripNights }: Fi
         value={(value as string) ?? ""}
         onChange={(e) => onChange(e.target.value)}
         className={styles["input"]}
+        disabled={disabled}
       />
     </label>
   );

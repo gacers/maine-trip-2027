@@ -22,6 +22,7 @@ import LocationSection from "./components/LocationSection";
 import EntryEditForm, { type EntryDraft } from "./components/EntryEditForm";
 import EditableNoteList from "./components/EditableNoteList";
 import EntryFooter from "./components/EntryFooter";
+import type { ImportSourceEntryInfo } from "@/lib/entrySync";
 import type { ClientEntry, FieldDef, MapConfig, MapReferencePoint } from "@/lib/types";
 import styles from "./EntryCard.module.css";
 
@@ -76,6 +77,9 @@ export interface EntryCardProps {
   supportsPairing?: boolean;
   /** Opens SectionPage's PairEntryDialog for this entry specifically. */
   onAddPaired?: () => void;
+  /** Admin-only: wipe every rater's score for this option (parent clears
+   * pair partners too when applicable). Shown in the edit footer. */
+  onResetRankings?: () => void | Promise<void>;
   /** The trip's real length (date range) or estimated one (see
    * lib/fieldTypes/price.ts's computeTripNights) — passed through to
    * FieldInput's own price editor (as tripNights) so its "total for
@@ -117,6 +121,7 @@ export default function EntryCard({
   showRatingControl = true,
   supportsPairing = false,
   onAddPaired,
+  onResetRankings,
   nightsEstimate = null,
   showVisitedControl = false,
   collapsible = false,
@@ -127,6 +132,7 @@ export default function EntryCard({
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
   const [addressLabel, setAddressLabel] = useState<string | null>(null);
+  const [importSource, setImportSource] = useState<ImportSourceEntryInfo | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const isCollapsed = collapsible && collapsed;
   const isArchived = entry.status === "archived";
@@ -235,6 +241,16 @@ export default function EntryCard({
     setAddress("");
     setGeocodeMsg("");
     setIsEditing(true);
+    setImportSource(null);
+    // Lazy — only fetched once actually editing a locked entry, not
+    // eagerly for every entry on the page.
+    if (entry.importSourceEntryId && tripSlug) {
+      const headers = authToken ? { Authorization: `Bearer ${authToken}` } : undefined;
+      fetch(`/api/trips/${tripSlug}/entries/${entry.id}/import-source`, { headers })
+        .then((res) => res.json())
+        .then((data) => setImportSource(data.source || null))
+        .catch(() => {});
+    }
   }
 
   async function handleFindCoords() {
@@ -264,16 +280,27 @@ export default function EntryCard({
       dataPatch[f.key] = f.field_type === "number" || f.field_type === "count" ? (v === "" ? "" : Number(v)) : v;
     }
 
+    // A locked entry's own shared fields (see lib/entrySync.ts) are
+    // read-only in the form above and the route itself rejects them
+    // outright — left out of this patch entirely rather than sent
+    // back unchanged, since groupLabel/extraMarkers below still need
+    // to go through normally either way (those stay local/editable
+    // even once locked).
+    const isLocked = !!entry.importSourceEntryId;
     onPatch(entry.id, {
-      title: draft.title,
-      url: draft.url || null,
-      posterImage: draft.posterImage,
-      description: draft.description,
-      lat: draft.lat === "" ? "" : Number(draft.lat),
-      lng: draft.lng === "" ? "" : Number(draft.lng),
+      ...(isLocked
+        ? {}
+        : {
+            title: draft.title,
+            url: draft.url || null,
+            posterImage: draft.posterImage,
+            description: draft.description,
+            lat: draft.lat === "" ? "" : Number(draft.lat),
+            lng: draft.lng === "" ? "" : Number(draft.lng),
+            data: dataPatch,
+          }),
       groupLabel: draft.groupLabel || "",
       extraMarkers: cleanMarkers,
-      data: dataPatch,
     });
     setIsEditing(false);
     setDraft(null);
@@ -441,6 +468,8 @@ export default function EntryCard({
                   geocoding={geocoding}
                   geocodeMsg={geocodeMsg}
                   onFindCoords={handleFindCoords}
+                  locked={!!entry.importSourceEntryId}
+                  importSource={importSource}
                 />
               </div>
             )}
@@ -498,6 +527,7 @@ export default function EntryCard({
                     setDraft(null);
                   }}
                   onAddPaired={onAddPaired}
+                  onResetRankings={canManage && showRatings ? onResetRankings : undefined}
                 />
               </div>
             )}

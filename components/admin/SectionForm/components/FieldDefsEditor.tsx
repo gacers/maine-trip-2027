@@ -62,6 +62,16 @@ function slugify(s: string): string {
 export interface FieldDefsEditorProps {
   fields: FieldRow[];
   onChange: (fields: FieldRow[]) => void;
+  /** True when this section is synced from another one — see
+   * SectionForm's own isLocked. Renders every row read-only and hides
+   * the add-field controls, rather than not rendering at all, so the
+   * current fields are still visible for reference. */
+  disabled?: boolean;
+  /** Only set once editing a real, already-saved section — lets each
+   * row offer "Remove from all", which needs a real section to anchor
+   * "all sections of this type" to (see removeFieldEverywhere). Absent
+   * while creating a brand-new section. */
+  bulkRemoveContext?: { tripSlug: string; navGroupSlug: string; sectionSlug: string };
 }
 
 function templateToRow(t: CustomFieldTemplate): FieldRow {
@@ -87,8 +97,11 @@ function templateToRow(t: CustomFieldTemplate): FieldRow {
 // (any section, any trip — see lib/customFieldTemplates.ts) instead of
 // starting blank, the same "build it once, reuse it everywhere" idea
 // SectionsAdmin's own template buttons give whole nav groups.
-export default function FieldDefsEditor({ fields, onChange }: FieldDefsEditorProps) {
+export default function FieldDefsEditor({ fields, onChange, disabled = false, bulkRemoveContext }: FieldDefsEditorProps) {
   const [templates, setTemplates] = useState<CustomFieldTemplate[]>([]);
+  const [bulkRemoving, setBulkRemoving] = useState<string | null>(null);
+  const [bulkRemoveMessage, setBulkRemoveMessage] = useState("");
+  const [bulkRemoveError, setBulkRemoveError] = useState("");
 
   useEffect(() => {
     fetch("/api/field-templates", { cache: "no-store" })
@@ -115,6 +128,44 @@ export default function FieldDefsEditor({ fields, onChange }: FieldDefsEditorPro
     onChange(fields.filter((_, idx) => idx !== i));
   }
 
+  // Removes this field (by key) from EVERY section of the same "type"
+  // across every trip — not just this one — so an unwanted field gets
+  // fixed once at the template level instead of being visited section
+  // by section. Immediate, not deferred to the form's own Save button:
+  // it's already saved server-side (and this row is removed locally
+  // too) the moment it's confirmed, since it necessarily touches rows
+  // this form has no other way to reach.
+  async function removeFieldEverywhere(i: number) {
+    if (!bulkRemoveContext) return;
+    const field = fields[i];
+    const confirmed = window.confirm(
+      `Remove "${field.label || field.key}" from every section of this type, on every trip? This can't be undone.`
+    );
+    if (!confirmed) return;
+
+    setBulkRemoving(field.key);
+    setBulkRemoveMessage("");
+    setBulkRemoveError("");
+    try {
+      const { tripSlug, navGroupSlug, sectionSlug } = bulkRemoveContext;
+      const res = await fetch(`/api/trips/${tripSlug}/sections/${navGroupSlug}/${sectionSlug}/remove-field-everywhere`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fieldKey: field.key }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Remove failed");
+      removeField(i);
+      setBulkRemoveMessage(
+        `Removed from ${data.sectionsAffected} ${data.sectionsAffected === 1 ? "section" : "sections"} (this one included).`
+      );
+    } catch (err) {
+      setBulkRemoveError((err as Error).message);
+    } finally {
+      setBulkRemoving(null);
+    }
+  }
+
   // Already-added keys don't need to be offered again — picking one a
   // second time would just collide with the row already on the form.
   const availableTemplates = templates.filter((t) => !fields.some((f) => f.key === t.field_key));
@@ -123,33 +174,37 @@ export default function FieldDefsEditor({ fields, onChange }: FieldDefsEditorPro
     <div className={styles["root"]}>
       <div className={styles["header"]}>
         <h3 className={styles["title"]}>Fields</h3>
-        <div className={styles["header-actions"]}>
-          {availableTemplates.length > 0 && (
-            <select
-              value=""
-              onChange={(e) => {
-                if (e.target.value) addTemplateField(e.target.value);
-              }}
-              className={styles["template-select"]}
-            >
-              <option value="">+ Add existing field...</option>
-              {availableTemplates.map((t) => (
-                <option key={t.field_key} value={t.field_key}>
-                  {t.label} ({t.field_type})
-                </option>
-              ))}
-            </select>
-          )}
-          <button type="button" onClick={addField} className={styles["add-button"]}>
-            + Add blank field
-          </button>
-        </div>
+        {!disabled && (
+          <div className={styles["header-actions"]}>
+            {availableTemplates.length > 0 && (
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) addTemplateField(e.target.value);
+                }}
+                className={styles["template-select"]}
+              >
+                <option value="">+ Add existing field...</option>
+                {availableTemplates.map((t) => (
+                  <option key={t.field_key} value={t.field_key}>
+                    {t.label} ({t.field_type})
+                  </option>
+                ))}
+              </select>
+            )}
+            <button type="button" onClick={addField} className={styles["add-button"]}>
+              + Add blank field
+            </button>
+          </div>
+        )}
       </div>
       {fields.length === 0 && (
         <p className={styles["no-fields-hint"]}>
           No custom fields yet — title/url/photo/description/notes/concerns are always tracked.
         </p>
       )}
+      {bulkRemoveMessage && <p className={styles["bulk-remove-message"]}>{bulkRemoveMessage}</p>}
+      {bulkRemoveError && <p className={styles["bulk-remove-error"]}>{bulkRemoveError}</p>}
       <div className={styles["row-list"]}>
         {fields.map((f, i) => (
           <div key={i} className={styles["row"]}>
@@ -159,11 +214,17 @@ export default function FieldDefsEditor({ fields, onChange }: FieldDefsEditorPro
                 value={f.key}
                 onChange={(e) => updateField(i, { key: slugify(e.target.value).replace(/-/g, "_") })}
                 className={styles["row-input"]}
+                disabled={disabled}
               />
             </label>
             <label className={styles["row-field"]}>
               Label
-              <input value={f.label} onChange={(e) => updateField(i, { label: e.target.value })} className={styles["row-input"]} />
+              <input
+                value={f.label}
+                onChange={(e) => updateField(i, { label: e.target.value })}
+                className={styles["row-input"]}
+                disabled={disabled}
+              />
             </label>
             <label className={styles["row-field"]}>
               Type
@@ -171,6 +232,7 @@ export default function FieldDefsEditor({ fields, onChange }: FieldDefsEditorPro
                 value={f.field_type}
                 onChange={(e) => updateField(i, { field_type: e.target.value as FieldType })}
                 className={styles["row-input"]}
+                disabled={disabled}
               >
                 {FIELD_TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -182,7 +244,12 @@ export default function FieldDefsEditor({ fields, onChange }: FieldDefsEditorPro
             {(f.field_type === "select" || f.field_type === "count") && (
               <label className={styles["row-wide-field"]}>
                 {f.field_type === "select" ? "Choices (comma-separated)" : "Aliases (comma-separated, optional)"}
-                <input value={f.optionsText} onChange={(e) => updateField(i, { optionsText: e.target.value })} className={styles["row-input"]} />
+                <input
+                  value={f.optionsText}
+                  onChange={(e) => updateField(i, { optionsText: e.target.value })}
+                  className={styles["row-input"]}
+                  disabled={disabled}
+                />
               </label>
             )}
             <label className={styles["overview-field"]}>
@@ -191,12 +258,28 @@ export default function FieldDefsEditor({ fields, onChange }: FieldDefsEditorPro
                 checked={f.show_on_overview}
                 onChange={(e) => updateField(i, { show_on_overview: e.target.checked })}
                 className={styles["small-checkbox"]}
+                disabled={disabled}
               />
               Overview
             </label>
-            <button type="button" onClick={() => removeField(i)} className={styles["remove-button"]}>
-              Remove
-            </button>
+            {!disabled && (
+              <>
+                <button type="button" onClick={() => removeField(i)} className={styles["remove-button"]}>
+                  Remove
+                </button>
+                {bulkRemoveContext && (
+                  <button
+                    type="button"
+                    onClick={() => removeFieldEverywhere(i)}
+                    disabled={bulkRemoving === f.key}
+                    className={styles["remove-everywhere-button"]}
+                    title="Remove this field from every section of this type, on every trip"
+                  >
+                    {bulkRemoving === f.key ? "Removing..." : "Remove from all"}
+                  </button>
+                )}
+              </>
+            )}
           </div>
         ))}
       </div>

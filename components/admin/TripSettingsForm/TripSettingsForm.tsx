@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Button from "@/components/Button";
 import { fetchForwardGeocode } from "@/lib/geocodeClient";
 import ArchiveUnvisitedButton from "@/components/ArchiveUnvisitedButton";
+import ResetAllRatingsButton from "@/components/ResetAllRatingsButton";
 import DangerZone from "./components/DangerZone";
 import type { Trip, NavGroup, MapReferencePoint } from "@/lib/types";
 import styles from "./TripSettingsForm.module.css";
@@ -187,6 +188,13 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
       {trip.completed && (
         <div>
           <ArchiveUnvisitedButton trip={trip} nav={nav} />
+        </div>
+      )}
+      {/* Only worth showing when at least one section on this trip uses
+          star ratings — otherwise there's nothing to wipe. */}
+      {nav.some((g) => g.sections.some((s) => s.supports_ratings)) && (
+        <div>
+          <ResetAllRatingsButton trip={trip} nav={nav} />
         </div>
       )}
       <label className={styles["checkbox-field"]}>

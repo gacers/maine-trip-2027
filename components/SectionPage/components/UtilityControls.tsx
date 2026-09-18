@@ -14,9 +14,11 @@ import {
 import type { PublicTrip, Section, ClientEntry, FieldDef } from "@/lib/types";
 import styles from "./UtilityControls.module.css";
 
-export type SortBy = "myScore" | "averageScore" | "visitedDate";
+export type SortBy = "newest" | "oldest" | "myScore" | "averageScore" | "visitedDate";
 
 export const SORT_BY_LABELS: Record<SortBy, string> = {
+  newest: "Newest",
+  oldest: "Oldest",
   myScore: "My Score",
   averageScore: "Average Score",
   visitedDate: "Date",
@@ -201,6 +203,8 @@ export default function UtilityControls({
           <DropdownMenuContent>
             <DropdownMenuLabel>Sort by</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => onSortByChange(v as SortBy)}>
+              <DropdownMenuRadioItem value="newest">Newest</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="oldest">Oldest</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="myScore">My Score</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="averageScore">Average Score</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>

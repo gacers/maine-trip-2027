@@ -21,10 +21,11 @@ import styles from "./SectionPage.module.css";
 
 // Once a trip is marked completed, what's left to look at is "what did
 // we actually do, in what order" rather than "which of these should we
-// pick" — Date (visitedDate) reads better as the default than whatever
-// this section used for deciding beforehand.
+// pick" — Date (visitedDate) reads better as the default than Newest.
+// Pending trips default to Newest so re-rating an option doesn't jump
+// it around the list the way Average Score / My Score sorts do.
 function defaultSortBy(trip: PublicTrip): SortBy {
-  return trip.completed ? "visitedDate" : "averageScore";
+  return trip.completed ? "visitedDate" : "newest";
 }
 
 function pinFor(unit: EntryUnit): OverviewPin {
@@ -63,8 +64,8 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   const [showArchived, setShowArchived] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(() => new Set());
   const [searchQuery, setSearchQuery] = useState("");
-  // myScore | averageScore | visitedDate — defaults to whichever
-  // concept this section actually has.
+  // newest | oldest | myScore | averageScore | visitedDate — defaults
+  // to Newest for pending trips, visited Date once completed.
   const [sortBy, setSortBy] = useState<SortBy>(defaultSortBy(trip));
   const [contributorToken, setContributorToken] = useState<string | null>(null);
   // Which solo entry (if any) is currently mid-"+ Add paired option" —
@@ -256,7 +257,8 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // either takes the better of the two, same "at least this good" idea.
   // Date instead takes the earliest of the two (a pair's stay/visit
   // "started" then), and sorts unset last regardless of direction (an
-  // unchecked item has no place in a chronological list).
+  // unchecked item has no place in a chronological list). Newest takes
+  // the latest createdAt across the unit; Oldest the earliest.
   function unitSortValue(unit: EntryUnit, key: SortBy): number {
     if (key === "visitedDate") {
       const dates = unit.listings
@@ -264,13 +266,20 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         .filter((v): v is number => v != null && !Number.isNaN(v));
       return dates.length > 0 ? Math.min(...dates) : Infinity;
     }
+    if (key === "newest" || key === "oldest") {
+      const dates = unit.listings
+        .map((l) => (l.createdAt ? new Date(l.createdAt).getTime() : null))
+        .filter((v): v is number => v != null && !Number.isNaN(v));
+      if (dates.length === 0) return key === "oldest" ? Infinity : -Infinity;
+      return key === "newest" ? Math.max(...dates) : Math.min(...dates);
+    }
     const values = unit.listings.map((l) => l[key] as number | null | undefined).filter((v): v is number => v != null);
     return values.length > 0 ? Math.max(...values) : -Infinity;
   }
 
-  // Date sorts ascending (earliest first) — score-based sorts want the
-  // highest first instead.
-  const ascendingSort = sortBy === "visitedDate";
+  // Oldest / visited Date sort ascending; Newest and score sorts want
+  // the highest / most recent first.
+  const ascendingSort = sortBy === "visitedDate" || sortBy === "oldest";
   const activeUnits = groupUnits(active)
     .filter((u) => unitMatchesFilters(u) && unitMatchesSearch(u))
     .sort((a, b) =>
@@ -308,6 +317,11 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
           onPatch={handlePatch}
           onDelete={handleDelete}
           onRate={handleRate}
+          onResetRankings={
+            canManage && showRatings
+              ? () => Promise.all(unit.listings.map((e) => clearAllRatings(e.id))).then(() => undefined)
+              : undefined
+          }
           canManage={canManage}
           canContribute={canContribute}
           showRatings={showRatings}
@@ -343,6 +357,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         onPatch={handlePatch}
         onDelete={handleDelete}
         onRate={handleRate}
+        onResetRankings={canManage && showRatings ? () => clearAllRatings(entry.id) : undefined}
         canManage={canManage}
         canContribute={canContribute}
         showRatings={showRatings}

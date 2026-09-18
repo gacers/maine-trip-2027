@@ -30,6 +30,8 @@ export interface PairedEntryGroupProps {
   onPatch: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
   onRate: (id: string, score: number | null) => void;
+  /** Admin wipe of every rater's scores for this pair (both halves). */
+  onResetRankings?: () => void | Promise<void>;
   canManage: boolean;
   canContribute: boolean;
   showRatings: boolean;
@@ -65,6 +67,7 @@ export default function PairedEntryGroup({
   onPatch,
   onDelete,
   onRate,
+  onResetRankings,
   canManage,
   canContribute,
   showRatings,
@@ -193,6 +196,7 @@ export default function PairedEntryGroup({
               onPatch={onPatch}
               onDelete={onDelete}
               onRate={onRate}
+              onResetRankings={onResetRankings}
               canManage={canManage}
               canContribute={canContribute}
               bare

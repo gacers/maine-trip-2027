@@ -3,6 +3,7 @@ import { getTripBySlug, getSectionBySlug, sanitizeTripForClient } from "@/lib/se
 import { requireWriteAccess, requireReadAccess } from "@/lib/auth";
 import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
 import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
+import { propagateFieldDefsFromSource } from "@/lib/entrySync";
 import type { FieldType, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -90,6 +91,17 @@ export async function PATCH(
 
   if (cardLayout !== undefined && !VALID_CARD_LAYOUTS.includes(cardLayout)) {
     return NextResponse.json({ error: `Invalid cardLayout: ${cardLayout}` }, { status: 400 });
+  }
+
+  // A section synced from another one (see lib/entrySync.ts) has its
+  // own field_defs mirrored from the source and locked here — editing
+  // them has to happen on the source section, which then propagates
+  // to every one of its own destinations, this one included.
+  if (fieldDefs !== undefined && section.import_source_section_id) {
+    return NextResponse.json(
+      { error: "This section's fields are synced from its import source — edit them there instead." },
+      { status: 400 }
+    );
   }
 
   const patch: Record<string, unknown> = {};
@@ -191,6 +203,12 @@ export async function PATCH(
           }).catch((err) => console.error("Field template capture failed:", err));
         }
       }
+
+      // Best-effort — this section might itself be the import source
+      // for one or more other sections (possibly on other trips
+      // entirely), whose own field_defs need to stay mirrored to
+      // whatever just got saved here.
+      propagateFieldDefsFromSource(section.id).catch((err) => console.error("Field defs propagation failed:", err));
     }
 
     // Not getSectionBySlug(trip.id, navGroupSlug, sectionSlug) here —
