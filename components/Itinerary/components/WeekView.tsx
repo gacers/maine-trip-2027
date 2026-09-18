@@ -116,22 +116,24 @@ export default function WeekView({
         for (const [key, laneEl] of laneRefs.current) {
           const laneRect = laneEl.getBoundingClientRect();
           const headerEl = headerRefs.current.get(key);
-          const headerHeight = headerEl?.getBoundingClientRect().height ?? 0;
+          const laneStyle = window.getComputedStyle(laneEl);
+          const paddingTop = parseFloat(laneStyle.paddingTop) || 0;
+          const paddingLeft = parseFloat(laneStyle.paddingLeft) || 0;
+          const paddingRight = parseFloat(laneStyle.paddingRight) || 0;
+          // Stick when the *header* would cross under the bars above —
+          // not when .lane's own top does. .lane has padding, so using
+          // laneRect.top stuck the header early (while it was still
+          // below the sticky bar) and made it look like the column
+          // itself was the snap target.
+          const headerFlowTop = laneRect.top + paddingTop;
+          const headerHeight = headerEl?.offsetHeight ?? 0;
           const horizontallyVisible = !lanesRect || (laneRect.right > lanesRect.left && laneRect.left < lanesRect.right);
-          const isStuck = horizontallyVisible && laneRect.top < newStickTop && laneRect.bottom > newStickTop + headerHeight;
+          const isStuck = horizontallyVisible && headerFlowTop < newStickTop && laneRect.bottom > newStickTop + headerHeight;
 
           if (isStuck) {
-            // Derived from .lane's own box + its real computed
-            // padding, not the header element's own rect — once the
-            // header itself is position:fixed, its own rect just
-            // reflects whatever we last told it to be, which would
-            // turn this into a feedback loop (reading back exactly
-            // what was set, never correcting toward .lane's actual
-            // current position) instead of an honest recomputation
-            // each time.
-            const laneStyle = window.getComputedStyle(laneEl);
-            const paddingLeft = parseFloat(laneStyle.paddingLeft) || 0;
-            const paddingRight = parseFloat(laneStyle.paddingRight) || 0;
+            // left/width derived from .lane's own box + padding, not the
+            // header element's rect — once the header is position:fixed,
+            // its own rect just reflects whatever we last told it to be.
             const info: StuckInfo = {
               left: laneRect.left + paddingLeft,
               width: laneRect.width - paddingLeft - paddingRight,

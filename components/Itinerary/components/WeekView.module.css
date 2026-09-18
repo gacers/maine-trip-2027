@@ -114,13 +114,16 @@
    this here; see .lane's own comment). Needs an opaque background
    matching .lane's own — cards keep scrolling past underneath it once
    it's actually pinned (position:fixed), and without one they'd show
-   straight through instead of the header reading as a solid bar. */
+   straight through instead of the header reading as a solid bar.
+   Equal top/bottom padding so the date isn't flush to the border; the
+   lane's own gap keeps a little air between this border and the first
+   card. */
 .lane-header {
   font-size: var(--text-sm);
   font-weight: var(--font-weight-bold);
   color: var(--color-zinc-700);
   background: var(--color-zinc-50);
-  padding-bottom: 0.25rem;
+  padding: 0.5rem 0;
   border-bottom: 1px solid var(--color-zinc-200);
 }
 
