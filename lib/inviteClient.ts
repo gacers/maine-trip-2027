@@ -47,6 +47,19 @@ function writeInviteEmail(tripSlug: string, email: string): void {
   }
 }
 
+// Drop this trip's browser invite after they upgrade to a permanent
+// login (create or claim-editor). Otherwise Logout leaves the invite
+// token in place and they can still edit — which feels like logout
+// didn't work. Invite email prefill goes too; nudge flag can stay.
+export function clearInviteAccess(tripSlug: string): void {
+  try {
+    window.localStorage.removeItem(storageKey(tripSlug));
+    window.localStorage.removeItem(emailStorageKey(tripSlug));
+  } catch {
+    // Private window / blocked storage — nothing to clear.
+  }
+}
+
 // Slugs this browser has a stored invite token for — used by the All
 // Trips index to show only trips an anonymous contributor can open.
 export function listInviteTripSlugs(): string[] {

@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/Dialog";
 import Button from "@/components/Button";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { getOrCreateDeviceId, readInviteEmail, markCreateLoginNudgeSeen } from "@/lib/inviteClient";
+import { getOrCreateDeviceId, readInviteEmail, markCreateLoginNudgeSeen, clearInviteAccess } from "@/lib/inviteClient";
 import type { PublicTrip } from "@/lib/types";
 import styles from "./CreateLoginPrompt.module.css";
 
@@ -102,6 +102,9 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
       if (signInError) throw signInError;
 
       dismissNudge();
+      // Permanent login replaces browser invite access — clear the
+      // token so Logout actually removes edit rights on this device.
+      clearInviteAccess(trip.slug);
       setStep("done");
       // The layout above this (TripNavHeader's own parent) re-checks
       // isEditor server-side on every request — without this, the nav
@@ -144,6 +147,7 @@ export default function CreateLoginPrompt({ trip, contributorToken, defaultOpen 
       if (!res.ok) throw new Error(data.error || "Couldn't link this trip to your login");
 
       dismissNudge();
+      clearInviteAccess(trip.slug);
       setOpen(false);
       router.refresh();
     } catch (err) {

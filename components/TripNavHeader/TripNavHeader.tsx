@@ -10,7 +10,7 @@ import CreateLoginPrompt from "@/components/CreateLoginPrompt";
 import LoginPrompt from "@/components/LoginPrompt";
 import LogoutButton from "@/components/LogoutButton";
 import MobileNavDrawer from "./MobileNavDrawer";
-import { captureInviteToken, hasSeenCreateLoginNudge, markCreateLoginNudgeSeen } from "@/lib/inviteClient";
+import { captureInviteToken, hasSeenCreateLoginNudge, markCreateLoginNudgeSeen, clearInviteAccess } from "@/lib/inviteClient";
 import { useNavSlot } from "./NavSlot";
 import type { PublicTrip, NavGroup } from "@/lib/types";
 import styles from "./TripNavHeader.module.css";
@@ -76,6 +76,15 @@ export default function TripNavHeader({
 
   useEffect(() => {
     const token = captureInviteToken(trip.slug);
+    // Permanent session replaces invite access — drop any leftover
+    // token so Logout can't fall back to browser-cookie editing.
+    if ((isAdmin || isEditor) && token) {
+      clearInviteAccess(trip.slug);
+      setContributorToken(null);
+      setAccessChecked(true);
+      setShowCreateLoginNudge(false);
+      return;
+    }
     setContributorToken(token);
     setAccessChecked(true);
     // Surface the "you can make this permanent" offer up front on a

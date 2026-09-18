@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from "@/components/Dialog";
 import Button from "@/components/Button";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { getOrCreateDeviceId } from "@/lib/inviteClient";
+import { getOrCreateDeviceId, clearInviteAccess } from "@/lib/inviteClient";
 import type { ButtonVariant, ButtonSize } from "@/components/Button";
 import styles from "./LoginPrompt.module.css";
 
@@ -87,6 +87,7 @@ export default function LoginPrompt({
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Couldn't link this trip to your login");
+        clearInviteAccess(tripSlug);
       } catch (err) {
         setLoading(false);
         setError((err as Error).message);
