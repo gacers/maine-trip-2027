@@ -195,6 +195,7 @@ export async function buildDocContent(
     // day's first stop is where you're starting from, not somewhere
     // you just traveled to from yesterday's last stop).
     let connectorStart: number | null = null;
+    let leaveByStart: number | null = null;
     if (
       nextStop &&
       nextStop.date === stop.date &&
@@ -210,32 +211,39 @@ export async function buildDocContent(
         toGoogleTravelMode(nextStop.travel_mode)
       ).catch(() => null);
       if (route) {
-        let line = `↓ ${route.text} ${ITINERARY_TRAVEL_MODE_CONNECTOR_LABEL[nextStop.travel_mode]}`;
+        const line = `↓ ${route.text} ${ITINERARY_TRAVEL_MODE_CONNECTOR_LABEL[nextStop.travel_mode]}`;
+        connectorStart = text.length;
+        tabConsumptions.push({ position: connectorStart, count: 1 });
+        append(`\t${line}\n`);
+
+        // Its own child bullet (level 2) under the drive/walk time,
+        // same nesting relationship as a note line under "Notes:" —
+        // not appended onto the same line with an em-dash anymore.
         if (nextStop.time) {
           const arrival = new Date(`${nextStop.date}T${nextStop.time.slice(0, 5)}:00`);
           if (!Number.isNaN(arrival.getTime())) {
             const leaveBy = new Date(arrival.getTime() - route.durationSeconds * 1000);
-            line += ` — leave by ${leaveBy.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+            leaveByStart = text.length;
+            tabConsumptions.push({ position: leaveByStart, count: 2 });
+            append(`\t\tLeave by ${leaveBy.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}\n`);
           }
         }
-        connectorStart = text.length;
-        tabConsumptions.push({ position: connectorStart, count: 1 });
-        append(`\t${line}\n`);
       }
     }
 
     mark(titleParaStart, "bullet");
     // Deliberately AFTER the "bullet" mark above, not right where the
-    // connector text was appended — createParagraphBullets, once
-    // applied to a range covering this paragraph, was silently
-    // clobbering character-level text style on the paragraph's own
-    // trailing character(s) (confirmed live: requesting italic on the
-    // full, correctly-computed range still left the last visible
-    // character before the newline unstyled) — applying "bullet"'s own
-    // request FIRST in the batch and only styling the text afterward
-    // avoids that.
+    // connector/leave-by text was appended — createParagraphBullets,
+    // once applied to a range covering these paragraphs, was silently
+    // clobbering character-level text style on their own trailing
+    // character(s) (confirmed live: requesting italic on the full,
+    // correctly-computed range still left the last visible character
+    // before the newline unstyled) — applying "bullet"'s own request
+    // FIRST in the batch and only styling the text afterward avoids
+    // that.
     if (connectorStart != null) mark(connectorStart, "italic");
-    mark(connectorStart ?? lastBlockLineStart, "block-end");
+    if (leaveByStart != null) mark(leaveByStart, "italic");
+    mark(leaveByStart ?? connectorStart ?? lastBlockLineStart, "block-end");
     append("\n");
   }
 
