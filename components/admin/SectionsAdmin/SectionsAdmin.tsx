@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SECTION_TEMPLATES, type SectionTemplate } from "@/lib/sectionTemplates";
 import type { CustomSectionTemplate } from "@/lib/customSectionTemplates";
-import { PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER } from "@/lib/sectionLabels";
+import { PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER, looksLikePastTier } from "@/lib/sectionLabels";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionsAdmin.module.css";
 
@@ -269,6 +269,20 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     setError("");
     setAddingTemplate(template.template_key);
     const isFirstSection = nav.every((g) => g.sections.length === 0);
+    // Same collapsing the 3 built-in templates already do above for a
+    // completed trip — nothing left to decide, so a still-deciding
+    // "Options" tier plus its own "Visited"/"Previously ..." counterpart
+    // is one section too many (confirmed live: adding a custom
+    // "Distilleries" template to an already-completed trip created
+    // both, unlike the built-ins). Sections here have no fixed
+    // possible/previous shape to key off of the way SECTION_TEMPLATES
+    // does, so this keys off content instead — whichever section
+    // already reads as the past tier (see looksLikePastTier) — and
+    // falls back to every section as-is if none does (a template with
+    // no visited/previous counterpart in the first place has nothing
+    // to collapse).
+    const pastTierSections = template.sections.filter(looksLikePastTier);
+    const sectionsToCreate = trip.completed && pastTierSections.length > 0 ? pastTierSections : template.sections;
     try {
       let navGroupId: string | undefined;
       // Array order is intentional (the primary section is always
@@ -276,13 +290,16 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       // doubles as a real sort_order instead of leaving every section
       // tied at the route's own bare default, which is exactly what
       // let real trips' display order come out inconsistent/reversed.
-      for (const [i, s] of template.sections.entries()) {
+      for (const [i, s] of sectionsToCreate.entries()) {
         const res = await fetch(apiBase, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             slug: s.slug,
-            label: s.label,
+            // Plain category naming ("Distilleries," not "Visited
+            // Distilleries") once collapsed to one section — same
+            // reasoning as the built-ins' own trip.completed branch.
+            label: trip.completed && pastTierSections.length > 0 ? template.nav_group_label : s.label,
             subNavLabel: s.subNavLabel,
             addPlaceholder: s.addPlaceholder,
             emptyMessage: s.emptyMessage,
