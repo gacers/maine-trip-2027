@@ -213,21 +213,32 @@ export default function TripNavHeader({
             ) : (
               accessChecked && (
                 <>
-                  <LoginPrompt hasInviteAccess={!!contributorToken} />
-                  {showCreateLogin && (
-                    <CreateLoginPrompt
-                      trip={trip}
-                      contributorToken={contributorToken!}
-                      defaultOpen={showCreateLoginNudge}
-                    />
-                  )}
-                  {showRequestAccess && (
-                    <RequestAccess
-                      trip={trip}
-                      section={activeSection!}
-                      contactEmail={contactEmail}
-                      triggerClassName={styles["request-access-trigger"]}
-                    />
+                  {!!contributorToken ? (
+                    <div className={styles["invite-access"]}>
+                      <div className={styles["invite-access-links"]}>
+                        <LoginPrompt hasInviteAccess />
+                        {showCreateLogin && (
+                          <CreateLoginPrompt
+                            trip={trip}
+                            contributorToken={contributorToken!}
+                            defaultOpen={showCreateLoginNudge}
+                          />
+                        )}
+                      </div>
+                      <p className={styles["invite-access-hint"]}>(current access via browser cookie)</p>
+                    </div>
+                  ) : (
+                    <>
+                      <LoginPrompt />
+                      {showRequestAccess && (
+                        <RequestAccess
+                          trip={trip}
+                          section={activeSection!}
+                          contactEmail={contactEmail}
+                          triggerClassName={styles["request-access-trigger"]}
+                        />
+                      )}
+                    </>
                   )}
                 </>
               )
