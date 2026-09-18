@@ -66,10 +66,11 @@ interface TabConsumption {
 // style runs (character ranges into that same string) — one insertText
 // covering the full text, then one paragraph/text-style request per
 // run, is far simpler than trying to insert and style paragraph by
-// paragraph one at a time. ✓-confirmed stops read as the normal/solid
-// entry; tentative/archived are italicized (Docs' nearest equivalent
-// to "dimmed") rather than hidden — same "keep discarded options
-// visible" posture as the web page itself.
+// paragraph one at a time. ✅-confirmed stops read as the normal/solid
+// entry (same emoji the site's own StopCard uses, not a plain "✓" —
+// keeps the two consistent); tentative/archived are italicized (Docs'
+// nearest equivalent to "dimmed") rather than hidden — same "keep
+// discarded options visible" posture as the web page itself.
 //
 // Async now (was pure text-building before) — computing the drive-
 // time/leave-by line between two coordinate-bearing stops needs a real
@@ -115,7 +116,7 @@ export async function buildDocContent(
     }
 
     const time = formatTime(stop.time);
-    const prefix = stop.status === "confirmed" ? "✓ " : "";
+    const prefix = stop.status === "confirmed" ? "✅ " : "";
     const suffix = stop.status === "archived" ? "  (archived)" : stop.status === "tentative" ? "  (tentative)" : "";
     const titleLine = `${time ? `${time} — ` : ""}${prefix}${stop.title}${suffix}`;
     const titleParaStart = text.length;
@@ -220,11 +221,20 @@ export async function buildDocContent(
         connectorStart = text.length;
         tabConsumptions.push({ position: connectorStart, count: 1 });
         append(`\t${line}\n`);
-        mark(connectorStart, "italic");
       }
     }
 
     mark(titleParaStart, "bullet");
+    // Deliberately AFTER the "bullet" mark above, not right where the
+    // connector text was appended — createParagraphBullets, once
+    // applied to a range covering this paragraph, was silently
+    // clobbering character-level text style on the paragraph's own
+    // trailing character(s) (confirmed live: requesting italic on the
+    // full, correctly-computed range still left the last visible
+    // character before the newline unstyled) — applying "bullet"'s own
+    // request FIRST in the batch and only styling the text afterward
+    // avoids that.
+    if (connectorStart != null) mark(connectorStart, "italic");
     mark(connectorStart ?? lastBlockLineStart, "block-end");
     append("\n");
   }

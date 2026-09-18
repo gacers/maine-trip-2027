@@ -96,45 +96,57 @@ export default function WeekView({
     function recompute() {
       const newStickTop = dayPickerRef.current?.getBoundingClientRect().bottom ?? 0;
       const lanesRect = lanesRef.current?.getBoundingClientRect();
-      const next: Record<string, StuckInfo | undefined> = {};
-      let changed = false;
 
-      for (const [key, laneEl] of laneRefs.current) {
-        const laneRect = laneEl.getBoundingClientRect();
-        const headerEl = headerRefs.current.get(key);
-        const headerHeight = headerEl?.getBoundingClientRect().height ?? 0;
-        const horizontallyVisible = !lanesRect || (laneRect.right > lanesRect.left && laneRect.left < lanesRect.right);
-        const isStuck = horizontallyVisible && laneRect.top < newStickTop && laneRect.bottom > newStickTop + headerHeight;
+      // The comparison against "what was stuck before" has to happen
+      // INSIDE setStuck's own updater, reading its own prevStuck
+      // argument — not the `stuck` variable from this closure. This
+      // effect only re-runs when lanes.length changes (see its own
+      // deps), so a `stuck` read from the outer scope stays frozen at
+      // whatever it was on that last run, not the actual current
+      // value after any of the setStuck calls a scroll/resize already
+      // triggered since. Confirmed live as the actual bug behind
+      // headers not un-sticking at the right point: once ANY lane was
+      // stuck, prevStuck[key] was always the ORIGINAL (empty) object,
+      // so "just this lane un-stuck and nothing else did" produced
+      // no signal to actually update React's state at all.
+      setStuck((prevStuck) => {
+        const next: Record<string, StuckInfo | undefined> = {};
+        let changed = false;
 
-        if (isStuck) {
-          // Derived from .lane's own box + its real computed padding,
-          // not the header element's own rect — once the header itself
-          // is position:fixed, its own rect just reflects whatever we
-          // last told it to be, which would turn this into a feedback
-          // loop (reading back exactly what was set, never correcting
-          // toward .lane's actual current position) instead of an
-          // honest recomputation each time. This is also what was
-          // wrong before: using .lane's OUTER rect directly ignored
-          // its own padding, landing the fixed header flush with the
-          // lane's border instead of inset to match its un-stuck
-          // position.
-          const laneStyle = window.getComputedStyle(laneEl);
-          const paddingLeft = parseFloat(laneStyle.paddingLeft) || 0;
-          const paddingRight = parseFloat(laneStyle.paddingRight) || 0;
-          const info = {
-            left: laneRect.left + paddingLeft,
-            width: laneRect.width - paddingLeft - paddingRight,
-            height: headerHeight,
-          };
-          next[key] = info;
-          const prev = stuck[key];
-          if (!prev || prev.left !== info.left || prev.width !== info.width || prev.height !== info.height) changed = true;
-        } else if (stuck[key]) {
-          changed = true;
+        for (const [key, laneEl] of laneRefs.current) {
+          const laneRect = laneEl.getBoundingClientRect();
+          const headerEl = headerRefs.current.get(key);
+          const headerHeight = headerEl?.getBoundingClientRect().height ?? 0;
+          const horizontallyVisible = !lanesRect || (laneRect.right > lanesRect.left && laneRect.left < lanesRect.right);
+          const isStuck = horizontallyVisible && laneRect.top < newStickTop && laneRect.bottom > newStickTop + headerHeight;
+
+          if (isStuck) {
+            // Derived from .lane's own box + its real computed
+            // padding, not the header element's own rect — once the
+            // header itself is position:fixed, its own rect just
+            // reflects whatever we last told it to be, which would
+            // turn this into a feedback loop (reading back exactly
+            // what was set, never correcting toward .lane's actual
+            // current position) instead of an honest recomputation
+            // each time.
+            const laneStyle = window.getComputedStyle(laneEl);
+            const paddingLeft = parseFloat(laneStyle.paddingLeft) || 0;
+            const paddingRight = parseFloat(laneStyle.paddingRight) || 0;
+            const info: StuckInfo = {
+              left: laneRect.left + paddingLeft,
+              width: laneRect.width - paddingLeft - paddingRight,
+              height: headerHeight,
+            };
+            next[key] = info;
+            const prev = prevStuck[key];
+            if (!prev || prev.left !== info.left || prev.width !== info.width || prev.height !== info.height) changed = true;
+          } else if (prevStuck[key]) {
+            changed = true;
+          }
         }
-      }
 
-      if (changed) setStuck(next);
+        return changed ? next : prevStuck;
+      });
       setStickTop((prevTop) => (prevTop === newStickTop ? prevTop : newStickTop));
     }
 
@@ -161,7 +173,6 @@ export default function WeekView({
       resizeObserver.disconnect();
       if (raf != null) cancelAnimationFrame(raf);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lanes.length]);
 
   function scrollToLane(key: string) {
