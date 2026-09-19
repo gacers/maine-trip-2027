@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 import { exportSection } from "@/lib/sheetsExport";
-import { isImportDestination } from "@/lib/entrySync";
+import { isImportDestination, propagateFieldDefsFromSource } from "@/lib/entrySync";
 import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
 import type { Section, FieldType } from "@/lib/types";
 
@@ -93,6 +93,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       required: body.required === true,
       options: (body.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
     }).catch((err) => console.error("Field template capture failed:", err));
+
+    // Same as the sections PATCH route — adding a field via the entry
+    // form's own picker used to only update THIS section, so destinations
+    // synced from it kept their old field_defs and never showed the new
+    // field (or its value) on cards even after the entry's own `data`
+    // had propagated.
+    propagateFieldDefsFromSource(sectionId).catch((err) => console.error("Field defs propagation failed:", err));
 
     const { data: freshSection, error: freshError } = await supabase!
       .from("sections")
