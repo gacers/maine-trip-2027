@@ -204,3 +204,22 @@
   }
 }
 
+.remove-link {
+  font-size: var(--text-sm);
+  color: var(--color-red-600);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:disabled {
+    color: var(--color-zinc-400);
+    cursor: default;
+  }
+}
+

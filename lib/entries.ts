@@ -41,6 +41,43 @@ export interface ReusableEntryMatch {
   sectionLabel: string;
 }
 
+type EntryWithTripInfo = EntryRow & { sections: { label: string; trips: { name: string } } };
+
+function toReusableMatch(row: EntryWithTripInfo): ReusableEntryMatch {
+  const { sections, ...entry } = row;
+  return { entry: entry as EntryRow, tripName: sections.trips.name, sectionLabel: sections.label };
+}
+
+// Walks a chain of import_source_entry_id links up to whichever entry
+// at the top has none of its own — the real, original documentation,
+// not a live-synced copy of it. Needed because the *same* real place
+// can now legitimately turn up more than once in a title/url search
+// once one trip has already synced it in from another (confirmed live
+// as genuinely confusing: "Urban Farm Fermentory" showing once from
+// Maine 2020 and again from Maine 2018, when Maine 2020's own copy IS
+// just Maine 2018's, live-synced). Referencing the 2020 copy instead of
+// the 2018 original wouldn't just look confusing — propagation only
+// travels one hop (see lib/entrySync.ts), so a second-generation
+// reference like that would silently stop receiving updates the
+// moment the ORIGINAL (not the copy it pointed at) changes. Bounded
+// depth against a pathological cycle, though one should never exist.
+async function resolveRootEntry(supabase: SupabaseClient, row: EntryWithTripInfo): Promise<ReusableEntryMatch> {
+  let current = row;
+  const seen = new Set<string>([current.id]);
+  for (let hops = 0; current.import_source_entry_id && hops < 10; hops++) {
+    const { data, error } = await supabase
+      .from("entries")
+      .select("*, sections!inner(label, trips!inner(name))")
+      .eq("id", current.import_source_entry_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data || seen.has(data.id)) break;
+    seen.add(data.id);
+    current = data as EntryWithTripInfo;
+  }
+  return toReusableMatch(current);
+}
+
 // The same spot referenced in a *different* trip or section — entries
 // has no unique constraint on url on purpose (the same restaurant
 // legitimately shows up in more than one trip, or in both a trip's
@@ -49,7 +86,11 @@ export interface ReusableEntryMatch {
 // match is. Only ever consulted after that same-section check already
 // came back empty (see the preview route). Public read (entries' own
 // RLS: `select using (true)`) — this app has one owner across every
-// trip, no per-user isolation to respect here.
+// trip, no per-user isolation to respect here. Resolved to its root
+// entry (see resolveRootEntry) before returning — the entries POST
+// route links straight to whatever this hands back, so it always
+// needs to be the real original, never one of its own live-synced
+// copies.
 export async function findEntryByUrlAnywhere(
   supabase: SupabaseClient,
   url: string,
@@ -65,20 +106,20 @@ export async function findEntryByUrlAnywhere(
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const { sections, ...entry } = data as EntryRow & { sections: { label: string; trips: { name: string } } };
-  return { entry: entry as EntryRow, tripName: sections.trips.name, sectionLabel: sections.label };
+  return resolveRootEntry(supabase, data as EntryWithTripInfo);
 }
 
 // Live search-as-you-type across every trip/section's entries by title
 // — same "suggestion to reuse" idea as findEntryByUrlAnywhere above,
 // just keyed by name instead of a pasted link (for someone typing a
-// place from memory rather than pasting its URL). Same "never blocks,
-// just offers" semantics: picking a match still creates a genuinely
-// independent row (see the preview route's own comment on why notes/
-// rank/section-specific fields are never carried over either way).
-// Its own route requires read access to the *calling* trip (see
-// requireReadAccess) — once past that, the results themselves are
-// still cross-trip on purpose, same as findEntryByUrlAnywhere.
+// place from memory rather than pasting its URL). Every result is
+// resolved to its own root entry (see resolveRootEntry) and then
+// deduplicated by that root's id — a place already synced into more
+// than one of the matched trips would otherwise show up once per copy,
+// all pointing at the same real original anyway. Its own route
+// requires read access to the *calling* trip (see requireReadAccess)
+// — once past that, the results themselves are still cross-trip on
+// purpose, same as findEntryByUrlAnywhere.
 export async function searchEntriesByTitle(
   supabase: SupabaseClient,
   query: string,
@@ -93,10 +134,16 @@ export async function searchEntriesByTitle(
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw new Error(error.message);
-  return (data as (EntryRow & { sections: { label: string; trips: { name: string } } })[]).map((row) => {
-    const { sections, ...entry } = row;
-    return { entry: entry as EntryRow, tripName: sections.trips.name, sectionLabel: sections.label };
-  });
+
+  const resolved = await Promise.all((data as EntryWithTripInfo[]).map((row) => resolveRootEntry(supabase, row)));
+  const seenIds = new Set<string>();
+  const deduped: ReusableEntryMatch[] = [];
+  for (const match of resolved) {
+    if (seenIds.has(match.entry.id)) continue;
+    seenIds.add(match.entry.id);
+    deduped.push(match);
+  }
+  return deduped;
 }
 
 export async function createEntry(

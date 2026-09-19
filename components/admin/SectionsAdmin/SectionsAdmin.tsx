@@ -33,6 +33,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   const [nav, setNav] = useState(initialNav);
   const [error, setError] = useState("");
   const [addingTemplate, setAddingTemplate] = useState<string | null>(null);
+  const [removingSectionId, setRemovingSectionId] = useState<string | null>(null);
   const [customTemplates, setCustomTemplates] = useState<CustomSectionTemplate[]>([]);
   // Native HTML5 drag and drop, id of whichever nav group is currently
   // being dragged. Only whole groups are draggable — see reorderGroups
@@ -85,6 +86,31 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       refresh();
     } catch (err) {
       setError((err as Error).message);
+    }
+  }
+
+  // Same DELETE the section's own edit-page DangerZone uses (every
+  // entry/field_defs row cascades via the DB's own `on delete
+  // cascade`) — offered right here too so removing one doesn't need a
+  // detour through Edit first. Plain confirm rather than DangerZone's
+  // own type-the-name dance — this is still one deliberate click plus
+  // an explicit "yes," not a stray misclick, and "Enabled" right next
+  // to it already covers "hide it without losing anything" for
+  // anyone who wasn't sure this was permanent.
+  async function removeSection(section: Section, navGroupSlug: string) {
+    if (!window.confirm(`Permanently delete "${section.label}" and every entry in it? This can't be undone.`)) {
+      return;
+    }
+    setError("");
+    setRemovingSectionId(section.id);
+    try {
+      const res = await fetch(`${apiBase}/${navGroupSlug}/${section.slug}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).error || "Delete failed");
+      refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setRemovingSectionId(null);
     }
   }
 
@@ -475,6 +501,14 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                       >
                         Edit
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => removeSection(section, group.slug)}
+                        disabled={removingSectionId === section.id}
+                        className={styles["remove-link"]}
+                      >
+                        {removingSectionId === section.id ? "Removing..." : "Remove"}
+                      </button>
                     </div>
                   </div>
                 ))}

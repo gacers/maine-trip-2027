@@ -141,11 +141,26 @@ export async function POST(
     // any other entrySync link (see lib/entrySync.ts). Notes/concerns
     // stay exactly what was typed into this trip's own form: genuinely
     // local commentary, not something to inherit or merge.
+    // Walks up to whatever's at the TOP of any import_source_entry_id
+    // chain — lib/entries.ts's own search/preview results already
+    // resolve to this before ever reaching the client, but a link
+    // straight to a live-synced COPY instead of the real original
+    // would silently stop receiving updates once more than one hop
+    // away (propagation only travels one hop — see lib/entrySync.ts),
+    // so this is worth guaranteeing here too regardless of what the
+    // client actually sent.
     let matchedSource: EntryRow | null = null;
     if (importSourceEntryId) {
-      const { data: sourceRow, error: sourceError } = await supabase!.from("entries").select("*").eq("id", importSourceEntryId).maybeSingle();
-      if (sourceError) throw new Error(sourceError.message);
-      matchedSource = sourceRow;
+      let nextId: string | null = importSourceEntryId;
+      const seen = new Set<string>();
+      for (let hops = 0; nextId && hops < 10; hops++) {
+        const { data: sourceRow, error: sourceError } = await supabase!.from("entries").select("*").eq("id", nextId).maybeSingle();
+        if (sourceError) throw new Error(sourceError.message);
+        if (!sourceRow || seen.has(sourceRow.id)) break;
+        seen.add(sourceRow.id);
+        matchedSource = sourceRow;
+        nextId = sourceRow.import_source_entry_id;
+      }
     }
 
     let entry;
