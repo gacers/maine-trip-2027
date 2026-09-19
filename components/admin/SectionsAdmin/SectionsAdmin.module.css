@@ -107,21 +107,6 @@
   gap: 0.5rem;
 }
 
-.template-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.template-counterpart-label {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: var(--text-xs);
-  color: var(--color-zinc-500);
-  white-space: nowrap;
-}
-
 .template-button {
   border-radius: var(--radius-full);
   border: 1px solid var(--color-zinc-300);

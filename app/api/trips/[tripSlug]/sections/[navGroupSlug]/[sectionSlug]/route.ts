@@ -289,6 +289,28 @@ export async function DELETE(
   try {
     const { error } = await supabase!.from("sections").delete().eq("id", section.id);
     if (error) throw new Error(error.message);
+
+    // An empty nav group left behind after its last section is gone
+    // isn't just clutter — SectionsAdmin's own template buttons key
+    // off nav_groups existing at all to decide whether a template's
+    // already "used" (see existingGroupLabels), so a leftover empty
+    // one permanently blocked that same template from ever being
+    // added again (confirmed live). Best-effort: a trip's own count
+    // check is a courtesy, not something worth failing this delete
+    // over if it errors.
+    const { count, error: countError } = section.nav_group_id
+      ? await supabase!.from("sections").select("id", { count: "exact", head: true }).eq("nav_group_id", section.nav_group_id)
+      : { count: null, error: null };
+    if (section.nav_group_id && !countError && count === 0) {
+      await supabase!
+        .from("nav_groups")
+        .delete()
+        .eq("id", section.nav_group_id)
+        .then(({ error: deleteGroupError }) => {
+          if (deleteGroupError) console.error("Empty nav group cleanup failed:", deleteGroupError);
+        });
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

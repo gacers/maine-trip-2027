@@ -35,15 +35,6 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   const [addingTemplate, setAddingTemplate] = useState<string | null>(null);
   const [removingSectionId, setRemovingSectionId] = useState<string | null>(null);
   const [customTemplates, setCustomTemplates] = useState<CustomSectionTemplate[]>([]);
-  // Which custom templates (by template_key) should also get a
-  // "Visited ..." counterpart created alongside them — confirmed live
-  // as a real gap: "+ New section" already offers this, but the quick
-  // template buttons here never did, so every trip that reused a
-  // single-section custom template (e.g. "Shops") ended up with no way
-  // to track previously-visited ones at all without a manual follow-up
-  // section. Only offered for a template that doesn't already look
-  // like it has one (see templateHasPastTier below).
-  const [counterpartTemplates, setCounterpartTemplates] = useState<Set<string>>(new Set());
   // Native HTML5 drag and drop, id of whichever nav group is currently
   // being dragged. Only whole groups are draggable — see reorderGroups
   // below for why sections themselves aren't independently reorderable.
@@ -58,7 +49,13 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   const [dropPosition, setDropPosition] = useState<"before" | "after">("before");
 
   const apiBase = `/api/trips/${trip.slug}/sections`;
-  const existingGroupLabels = new Set(nav.map((g) => g.label));
+  // Only a group that actually still has a section in it counts as
+  // "existing" — removing a group's last section (see removeSection)
+  // used to leave the empty group behind, permanently blocking that
+  // same template's own button from ever being clickable again
+  // (confirmed live: Car Services/Shops/Wineries all stuck showing
+  // "✓ already exists" after their one section was removed).
+  const existingGroupLabels = new Set(nav.filter((g) => g.sections.length > 0).map((g) => g.label));
 
   // Every custom nav group any trip has ever built — see
   // lib/customSectionTemplates.ts. Not trip-scoped, so this loads once
@@ -236,6 +233,16 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       const possibleData = await possibleRes.json();
       if (!possibleRes.ok) throw new Error(possibleData.error || "Failed to create section");
 
+      // Asked right after the primary section actually exists, not a
+      // checkbox set in advance — one click to add, decide the
+      // counterpart right after seeing it worked (see AGENTS.md-style
+      // reasoning: this used to always silently create both halves,
+      // no way to add just one without deleting the other afterward).
+      if (!window.confirm(`Also create a "${template.previous.label}" counterpart for "${template.possible.label}"?`)) {
+        refresh();
+        return;
+      }
+
       const previousRes = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -276,25 +283,17 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     return template.sections.some(looksLikePastTier);
   }
 
-  function toggleCounterpartTemplate(templateKey: string, checked: boolean) {
-    setCounterpartTemplates((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(templateKey);
-      else next.delete(templateKey);
-      return next;
-    });
-  }
-
   // Recreates a custom template's whole nav group — one, two, or
   // however many sections it was captured with (see
   // lib/customSectionTemplates.ts) — in the same one-nav-group-per-call
   // shape the built-in templates use above: the first section names the
   // new nav group, every one after reuses the id that came back. A
-  // template that doesn't already have its own past tier gets the same
-  // "Visited ..." counterpart "+ New section" offers, when its own
-  // checkbox (see counterpartTemplates) is checked — same shape
-  // SectionForm's own addCounterpart builds, keyed off the template's
-  // primary section rather than a freshly-typed label/slug.
+  // template that doesn't already have its own past tier gets asked
+  // right after (see addTemplate's own identical confirm) whether to
+  // also create the same "Visited ..." counterpart "+ New section"
+  // offers — same shape SectionForm's own addCounterpart builds, keyed
+  // off the template's primary section rather than a freshly-typed
+  // label/slug.
   async function addCustomTemplate(template: CustomSectionTemplate) {
     setError("");
     setAddingTemplate(template.template_key);
@@ -349,10 +348,16 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
 
       // Only when there was nothing to collapse (a completed trip's own
       // "nothing left to decide" branch above already leaves no
-      // Options/Visited split to add a counterpart to) and the
-      // checkbox was actually checked.
-      if (!trip.completed && pastTierSections.length === 0 && counterpartTemplates.has(template.template_key)) {
-        const primary = template.sections[0];
+      // Options/Visited split to add a counterpart to) and the answer
+      // is yes — asked right after the primary section actually
+      // exists, not a checkbox set in advance (see addTemplate's own
+      // identical confirm).
+      const primary = template.sections[0];
+      if (
+        !trip.completed &&
+        pastTierSections.length === 0 &&
+        window.confirm(`Also create a "${VISITED_PREFIX} ${primary.label}" counterpart for "${template.nav_group_label}"?`)
+      ) {
         const primaryLabel = primary.label;
         const counterpartRes = await fetch(apiBase, {
           method: "POST",
@@ -403,7 +408,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
         <p className={styles["templates-hint"]}>
           {trip.completed
             ? "Trip is Completed, so each template creates one plain section — new entries come in already checked off Visited."
-            : 'Each creates an "Options" / "Before" pair — fully editable afterward.'}
+            : 'Each creates an "Options" section, then asks if you also want a "Before" counterpart — fully editable afterward.'}
         </p>
         <div className={styles["template-subheading"]}>Defaults</div>
         <div className={styles["template-list"]}>
@@ -433,37 +438,21 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
             <div className={styles["template-list"]}>
               {customTemplates.map((t) => {
                 const exists = existingGroupLabels.has(t.nav_group_label);
-                // A template that already has its own past tier (was
-                // captured with one, or built up over time from
-                // several trips) has nothing to add here — same
-                // reasoning as addCustomTemplate's own collapsing.
-                const offerCounterpart = !exists && !trip.completed && !templateHasPastTier(t);
                 return (
-                  <div key={t.template_key} className={styles["template-item"]}>
-                    <button
-                      type="button"
-                      disabled={exists || addingTemplate === t.template_key}
-                      onClick={() => addCustomTemplate(t)}
-                      className={styles["template-button"]}
-                      title={exists ? `${t.nav_group_label} already exists` : undefined}
-                    >
-                      {addingTemplate === t.template_key
-                        ? "Adding..."
-                        : exists
-                          ? `${t.nav_group_label} ✓`
-                          : `+ ${t.nav_group_label}`}
-                    </button>
-                    {offerCounterpart && (
-                      <label className={styles["template-counterpart-label"]}>
-                        <input
-                          type="checkbox"
-                          checked={counterpartTemplates.has(t.template_key)}
-                          onChange={(e) => toggleCounterpartTemplate(t.template_key, e.target.checked)}
-                        />
-                        + Visited counterpart too
-                      </label>
-                    )}
-                  </div>
+                  <button
+                    key={t.template_key}
+                    type="button"
+                    disabled={exists || addingTemplate === t.template_key}
+                    onClick={() => addCustomTemplate(t)}
+                    className={styles["template-button"]}
+                    title={exists ? `${t.nav_group_label} already exists` : undefined}
+                  >
+                    {addingTemplate === t.template_key
+                      ? "Adding..."
+                      : exists
+                        ? `${t.nav_group_label} ✓`
+                        : `+ ${t.nav_group_label}`}
+                  </button>
                 );
               })}
             </div>
