@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SECTION_TEMPLATES, type SectionTemplate } from "@/lib/sectionTemplates";
 import type { CustomSectionTemplate } from "@/lib/customSectionTemplates";
-import { PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER, looksLikePastTier } from "@/lib/sectionLabels";
+import { PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER, VISITED_PREFIX, looksLikePastTier } from "@/lib/sectionLabels";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionsAdmin.module.css";
 
@@ -35,6 +35,15 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   const [addingTemplate, setAddingTemplate] = useState<string | null>(null);
   const [removingSectionId, setRemovingSectionId] = useState<string | null>(null);
   const [customTemplates, setCustomTemplates] = useState<CustomSectionTemplate[]>([]);
+  // Which custom templates (by template_key) should also get a
+  // "Visited ..." counterpart created alongside them — confirmed live
+  // as a real gap: "+ New section" already offers this, but the quick
+  // template buttons here never did, so every trip that reused a
+  // single-section custom template (e.g. "Shops") ended up with no way
+  // to track previously-visited ones at all without a manual follow-up
+  // section. Only offered for a template that doesn't already look
+  // like it has one (see templateHasPastTier below).
+  const [counterpartTemplates, setCounterpartTemplates] = useState<Set<string>>(new Set());
   // Native HTML5 drag and drop, id of whichever nav group is currently
   // being dragged. Only whole groups are draggable — see reorderGroups
   // below for why sections themselves aren't independently reorderable.
@@ -263,17 +272,29 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     }
   }
 
+  function templateHasPastTier(template: CustomSectionTemplate): boolean {
+    return template.sections.some(looksLikePastTier);
+  }
+
+  function toggleCounterpartTemplate(templateKey: string, checked: boolean) {
+    setCounterpartTemplates((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(templateKey);
+      else next.delete(templateKey);
+      return next;
+    });
+  }
+
   // Recreates a custom template's whole nav group — one, two, or
   // however many sections it was captured with (see
   // lib/customSectionTemplates.ts) — in the same one-nav-group-per-call
   // shape the built-in templates use above: the first section names the
   // new nav group, every one after reuses the id that came back. A
-  // single-section template that needs a Previously Visited counterpart
-  // too gets one the normal way afterward — "+ New section" (which
-  // already has its own "add a counterpart" option), or by adding one
-  // by hand and using its own Edit page's Prefill panel to populate it
-  // from wherever this template's own history actually lives (see
-  // SectionForm's PrefillPanel) — not decided blindly here up front.
+  // template that doesn't already have its own past tier gets the same
+  // "Visited ..." counterpart "+ New section" offers, when its own
+  // checkbox (see counterpartTemplates) is checked — same shape
+  // SectionForm's own addCounterpart builds, keyed off the template's
+  // primary section rather than a freshly-typed label/slug.
   async function addCustomTemplate(template: CustomSectionTemplate) {
     setError("");
     setAddingTemplate(template.template_key);
@@ -324,6 +345,38 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `Failed to create "${s.label}"`);
         if (!navGroupId) navGroupId = data.section.nav_group_id;
+      }
+
+      // Only when there was nothing to collapse (a completed trip's own
+      // "nothing left to decide" branch above already leaves no
+      // Options/Visited split to add a counterpart to) and the
+      // checkbox was actually checked.
+      if (!trip.completed && pastTierSections.length === 0 && counterpartTemplates.has(template.template_key)) {
+        const primary = template.sections[0];
+        const primaryLabel = primary.label;
+        const counterpartRes = await fetch(apiBase, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug: `${primary.slug}-visited`,
+            label: `${VISITED_PREFIX} ${primaryLabel}`,
+            subNavLabel: VISITED_PREFIX,
+            addPlaceholder: `Paste a link for a ${primaryLabel.toLowerCase()} you've already been to...`,
+            emptyMessage: `No previous ${primaryLabel.toLowerCase()} yet — paste a link above.`,
+            supportsPairing: false,
+            hasMap: false,
+            supportsRatings: false,
+            cardLayout: primary.cardLayout,
+            navGroupId,
+            fieldDefs: primary.fieldDefs,
+            skipTemplateCapture: true,
+            sortOrder: PAST_TIER_SORT_ORDER,
+          }),
+        });
+        const counterpartData = await counterpartRes.json();
+        if (!counterpartRes.ok) {
+          throw new Error(`Created "${template.nav_group_label}", but its counterpart failed: ${counterpartData.error || "unknown error"}`);
+        }
       }
 
       refresh();
@@ -380,21 +433,37 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
             <div className={styles["template-list"]}>
               {customTemplates.map((t) => {
                 const exists = existingGroupLabels.has(t.nav_group_label);
+                // A template that already has its own past tier (was
+                // captured with one, or built up over time from
+                // several trips) has nothing to add here — same
+                // reasoning as addCustomTemplate's own collapsing.
+                const offerCounterpart = !exists && !trip.completed && !templateHasPastTier(t);
                 return (
-                  <button
-                    key={t.template_key}
-                    type="button"
-                    disabled={exists || addingTemplate === t.template_key}
-                    onClick={() => addCustomTemplate(t)}
-                    className={styles["template-button"]}
-                    title={exists ? `${t.nav_group_label} already exists` : undefined}
-                  >
-                    {addingTemplate === t.template_key
-                      ? "Adding..."
-                      : exists
-                        ? `${t.nav_group_label} ✓`
-                        : `+ ${t.nav_group_label}`}
-                  </button>
+                  <div key={t.template_key} className={styles["template-item"]}>
+                    <button
+                      type="button"
+                      disabled={exists || addingTemplate === t.template_key}
+                      onClick={() => addCustomTemplate(t)}
+                      className={styles["template-button"]}
+                      title={exists ? `${t.nav_group_label} already exists` : undefined}
+                    >
+                      {addingTemplate === t.template_key
+                        ? "Adding..."
+                        : exists
+                          ? `${t.nav_group_label} ✓`
+                          : `+ ${t.nav_group_label}`}
+                    </button>
+                    {offerCounterpart && (
+                      <label className={styles["template-counterpart-label"]}>
+                        <input
+                          type="checkbox"
+                          checked={counterpartTemplates.has(t.template_key)}
+                          onChange={(e) => toggleCounterpartTemplate(t.template_key, e.target.checked)}
+                        />
+                        + Visited counterpart too
+                      </label>
+                    )}
+                  </div>
                 );
               })}
             </div>
