@@ -89,6 +89,11 @@
 }
 
 .title-edit-row {
+  /* .title-area's own align-items:flex-start would otherwise shrink
+     this row (and so the input inside it) down to its own content
+     width instead of the full width available next to it — confirmed
+     live as a cramped, barely-fits-the-text edit box. */
+  align-self: stretch;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -130,6 +135,13 @@
 
 .clear-score-button {
   color: var(--color-zinc-400);
+}
+
+.group-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.375rem;
 }
 
 .delete-group-wrapper {

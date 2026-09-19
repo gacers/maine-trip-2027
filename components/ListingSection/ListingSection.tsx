@@ -147,11 +147,6 @@ export default function ListingSection({
           ) : (
             <div className={styles["title-row"]}>
               <h2 className={styles["title"]}>{title}</h2>
-              {canArchiveGroup && onEditTitle && (
-                <button type="button" onClick={startEditTitle} className={styles["edit-title-button"]}>
-                  Edit
-                </button>
-              )}
             </div>
           )}
           {/* Stays visible collapsed too — same reasoning as EntryCard's
@@ -184,12 +179,21 @@ export default function ListingSection({
           )}
         </div>
         <div className={styles["controls"]}>
-          {!isCollapsed && canArchiveGroup && onDeleteGroup && (
-            <div className={styles["delete-group-wrapper"]}>
-              <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog(true)}>
-                Delete group
-              </Button>
-              <ArchiveDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog} onConfirm={archiveGroup} />
+          {!isCollapsed && canArchiveGroup && (onDeleteGroup || (onEditTitle && !isEditingTitle)) && (
+            <div className={styles["group-actions"]}>
+              {onDeleteGroup && (
+                <div className={styles["delete-group-wrapper"]}>
+                  <Button variant="danger" size="sm" onClick={() => setShowArchiveDialog(true)}>
+                    Delete group
+                  </Button>
+                  <ArchiveDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog} onConfirm={archiveGroup} />
+                </div>
+              )}
+              {onEditTitle && !isEditingTitle && (
+                <button type="button" onClick={startEditTitle} className={styles["edit-title-button"]}>
+                  Edit Title
+                </button>
+              )}
             </div>
           )}
           {/* While there's still a photo row, PairedEntryGroup hosts
