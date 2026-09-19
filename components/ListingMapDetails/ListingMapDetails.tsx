@@ -44,9 +44,9 @@ export default function ListingMapDetails({
       {showReferencePoints && (
         <div>
           <h3 className={styles["heading"]}>Driving Times</h3>
-          <BulletList>
+          <BulletList className={styles["driving-list"]}>
             {originInfo && (
-              <li>
+              <li className={styles["dest-item"]}>
                 <a href={originInfo.url} target="_blank" rel="noopener noreferrer" className={styles["link"]}>
                   {originLabel} &rarr; house: {originInfo.text}
                 </a>

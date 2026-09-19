@@ -25,13 +25,29 @@
   color: var(--color-zinc-400);
 }
 
-/* Colors this one <li>'s own bullet (not its text — BulletList's
-   shared .root sets the text color for every list in the app, Notes/
-   Concerns included, and this file has no business touching that) to
-   match the same reference point's pin color on the map above, set
-   per-item via the --bullet-color custom property. Falls back to the
-   plain default color when a destination has none (the origin's own
-   "X -> house" row, which isn't one of the map's own colored pins). */
-.dest-item::marker {
-  color: var(--bullet-color, currentColor);
+/* Custom discs instead of ::marker — marker font-size is too small to
+   read as a color key next to the map pins, and bumping it also
+   stretches line height. A ::before disc keeps text size alone and
+   lets us match pin colors at a readable size. list-style none on the
+   list itself so the origin row (no --bullet-color) doesn't also keep
+   BulletList's tiny default disc beside the custom one. */
+.driving-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.dest-item {
+  list-style: none;
+  position: relative;
+  padding-left: 1.125rem;
+}
+.dest-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.35em;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: var(--bullet-color, currentColor);
 }
