@@ -97,3 +97,19 @@
   font-weight: var(--font-weight-medium);
   background: var(--color-zinc-100);
 }
+
+/* Sheet / Sort / Filter / Mark-all — portaled in by UtilityControls.
+   Collapses when empty (no section actions on this page). */
+.actions-slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.actions-slot:empty {
+  display: none;
+}
+.actions-slot:not(:empty) {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-zinc-200);
+}

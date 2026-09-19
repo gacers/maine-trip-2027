@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import AddEntryDialog from "@/components/AddEntryDialog";
 import Button from "@/components/Button";
 import {
@@ -11,6 +12,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/DropdownMenu";
+import { useNavSlot } from "@/components/TripNavHeader/NavSlot";
 import type { PublicTrip, Section, ClientEntry, FieldDef } from "@/lib/types";
 import styles from "./UtilityControls.module.css";
 
@@ -53,35 +55,31 @@ export interface UtilityControlsProps {
   onMarkAllVisited?: () => void;
 }
 
-function GearIcon() {
-  return (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
-}
-
 // Off for now — decided against a search box for the time being, but
 // SectionPage's whole matching pipeline (searchQuery state, the
 // title/group-label matcher, clearing on section nav) is left wired up
 // underneath so this is a one-line flip to bring back, not a rebuild.
 const SEARCH_ENABLED = false;
 
-// Add / Google Sheet link / Filter / Sort — everything that isn't the
-// entries themselves. Portaled into TripNavHeader's sub-nav row by
-// SectionPage itself (see NavSlot); this component doesn't know or
-// care where it ends up rendered.
-export default function UtilityControls({
-  trip,
-  section,
-  navGroupSlug,
-  authToken,
-  canContribute,
-  canManage = false,
-  onAdded,
-  onRequestPairExisting,
-  sheetUrl,
+type SecondaryActionsProps = {
+  sheetHref: string | null;
+  filterFieldDefs: FieldDef[];
+  activeFilters: Set<string>;
+  onToggleFilter: (key: string) => void;
+  onClearFilters: () => void;
+  showRatings: boolean;
+  sortBy: SortBy;
+  onSortByChange: (v: SortBy) => void;
+  searchQuery: string;
+  onSearchQueryChange: (v: string) => void;
+  onMarkAllVisited?: () => void;
+};
+
+// Sheet / Filter / Sort / Mark-all — everything except +Add. Rendered
+// twice (desktop header + mobile drawer) rather than relocated, so
+// each surface keeps a stable home; state still lives on SectionPage.
+function SecondaryActions({
+  sheetHref,
   filterFieldDefs,
   activeFilters,
   onToggleFilter,
@@ -92,62 +90,21 @@ export default function UtilityControls({
   searchQuery,
   onSearchQueryChange,
   onMarkAllVisited,
-}: UtilityControlsProps) {
-  // #gid=<sheet_gid> jumps straight to this section's own tab instead
-  // of landing on whichever tab the spreadsheet last had open — null
-  // until this section's first export, in which case it just opens the
-  // spreadsheet as before.
-  const sheetHref = sheetUrl && (section.sheet_gid != null ? `${sheetUrl}#gid=${section.sheet_gid}` : sheetUrl);
-
+}: SecondaryActionsProps) {
   return (
     <>
-      {canContribute && (
-        <AddEntryDialog
-          trip={trip}
-          section={section}
-          navGroupSlug={navGroupSlug}
-          authToken={authToken}
-          onAdded={onAdded}
-          onRequestPairExisting={section.supports_pairing ? onRequestPairExisting : undefined}
-          canManage={canManage}
-        />
+      {sheetHref && (
+        <Button variant="secondary" size="sm" asChild>
+          <a href={sheetHref} target="_blank" rel="noopener noreferrer">
+            Google Sheet
+          </a>
+        </Button>
       )}
 
-      {/* A completed trip gets the settings menu instead of a bare
-          Sheet link — "mark everything visited" is exactly the kind of
-          thing that's only useful there (documenting a trip after the
-          fact, one entry at a time, is the actual case that prompted
-          this), and folding the Sheet link in alongside it means one
-          menu instead of an ever-growing row of separate buttons. */}
-      {canContribute && trip.completed ? (
-        (onMarkAllVisited || sheetHref) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="sm" aria-label="Section settings">
-                <GearIcon />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {onMarkAllVisited && <DropdownMenuItem onSelect={onMarkAllVisited}>Mark all as Visited</DropdownMenuItem>}
-              {sheetHref && (
-                <DropdownMenuItem asChild>
-                  <a href={sheetHref} target="_blank" rel="noopener noreferrer">
-                    Google Sheet
-                  </a>
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )
-      ) : (
-        canContribute &&
-        sheetHref && (
-          <Button variant="secondary" size="sm" asChild>
-            <a href={sheetHref} target="_blank" rel="noopener noreferrer">
-              Google Sheet
-            </a>
-          </Button>
-        )
+      {onMarkAllVisited && (
+        <Button variant="secondary" size="sm" onClick={onMarkAllVisited}>
+          Mark all Visited
+        </Button>
       )}
 
       {SEARCH_ENABLED && (
@@ -216,6 +173,78 @@ export default function UtilityControls({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+    </>
+  );
+}
+
+// Add / Google Sheet / Filter / Sort — everything that isn't the
+// entries themselves. Portaled into TripNavHeader's nav row by
+// SectionPage (see NavSlot). Completed and in-progress trips share the
+// same shape now (bare Google Sheet button, not a gear menu) — "Mark
+// all Visited" is just another secondary button when the trip is
+// Completed. Below 1024px only +Add stays in the header; Sheet/Sort/
+// Filter/Mark-all portal into the burger drawer instead.
+export default function UtilityControls({
+  trip,
+  section,
+  navGroupSlug,
+  authToken,
+  canContribute,
+  canManage = false,
+  onAdded,
+  onRequestPairExisting,
+  sheetUrl,
+  filterFieldDefs,
+  activeFilters,
+  onToggleFilter,
+  onClearFilters,
+  showRatings,
+  sortBy,
+  onSortByChange,
+  searchQuery,
+  onSearchQueryChange,
+  onMarkAllVisited,
+}: UtilityControlsProps) {
+  const navSlot = useNavSlot();
+  // #gid=<sheet_gid> jumps straight to this section's own tab instead
+  // of landing on whichever tab the spreadsheet last had open — null
+  // until this section's first export, in which case it just opens the
+  // spreadsheet as before.
+  const sheetHref = sheetUrl && (section.sheet_gid != null ? `${sheetUrl}#gid=${section.sheet_gid}` : sheetUrl);
+
+  const secondary = (
+    <SecondaryActions
+      sheetHref={sheetHref}
+      filterFieldDefs={filterFieldDefs}
+      activeFilters={activeFilters}
+      onToggleFilter={onToggleFilter}
+      onClearFilters={onClearFilters}
+      showRatings={showRatings}
+      sortBy={sortBy}
+      onSortByChange={onSortByChange}
+      searchQuery={searchQuery}
+      onSearchQueryChange={onSearchQueryChange}
+      onMarkAllVisited={onMarkAllVisited}
+    />
+  );
+
+  return (
+    <>
+      {canContribute && (
+        <AddEntryDialog
+          trip={trip}
+          section={section}
+          navGroupSlug={navGroupSlug}
+          authToken={authToken}
+          onAdded={onAdded}
+          onRequestPairExisting={section.supports_pairing ? onRequestPairExisting : undefined}
+          canManage={canManage}
+        />
+      )}
+
+      <div className={styles["secondary-desktop"]}>{secondary}</div>
+
+      {navSlot?.mobileActionsSlot && createPortal(<div className={styles["secondary-mobile"]}>{secondary}</div>, navSlot.mobileActionsSlot)}
     </>
   );
 }

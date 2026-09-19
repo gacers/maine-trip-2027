@@ -32,19 +32,27 @@ export interface MobileNavDrawerProps {
    * Itinerary page, currently the only one — shown above the trip's
    * own category groups. */
   extraLink?: { href: string; label: string };
+  /** Slot for section actions (Sheet/Sort/Filter) — UtilityControls
+   * portals into this below 1024px so those stay out of the sticky
+   * header (only +Add remains next to the hamburger). */
+  onActionsSlotChange?: (el: HTMLDivElement | null) => void;
 }
 
 // Replaces the old anchored Radix DropdownMenu — a small popover reads
 // fine for a short flat list, but confirmed live as too cramped once
 // there's more than a couple of groups. A full-screen panel instead,
-// with real tap targets. Nav links only — this section's own action
-// row (Add/Google Sheet/Sort/filter) stays visible in the header
-// itself, same row as this drawer's own trigger, at every width; an
-// earlier version tried relocating it in here while open, confirmed
-// live as more annoying than useful (it disappeared from the header
-// the moment the drawer closed, on top of "go up a level, not into the
-// hamburger" being the more obviously useful shape for it anyway).
-export default function MobileNavDrawer({ nav, pathname, sectionPath, open, onOpenChange, extraLink }: MobileNavDrawerProps) {
+// with real tap targets. Category/section links live here; below
+// 1024px so do Sheet/Sort/Filter (portaled via onActionsSlotChange) —
+// only +Add stays in the sticky header next to the hamburger.
+export default function MobileNavDrawer({
+  nav,
+  pathname,
+  sectionPath,
+  open,
+  onOpenChange,
+  extraLink,
+  onActionsSlotChange,
+}: MobileNavDrawerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
@@ -61,6 +69,8 @@ export default function MobileNavDrawer({ nav, pathname, sectionPath, open, onOp
             </Button>
           </DialogClose>
         </div>
+
+        <div ref={(el) => onActionsSlotChange?.(el)} className={styles["actions-slot"]} />
 
         <nav className={styles["nav-groups"]} aria-label="Trip categories">
           {extraLink && (

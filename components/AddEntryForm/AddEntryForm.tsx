@@ -13,7 +13,7 @@ import {
 } from "@/lib/googleUrlHelpers";
 import { computeTripNights } from "@/lib/fieldTypes/price";
 import UrlEntryForm from "./UrlEntryForm";
-import PlacePicker from "./PlacePicker";
+import PlacePicker from "@/components/PlacePicker";
 import DuplicateNotice from "./DuplicateNotice";
 import CoreFieldsGrid, { type CoreFields } from "./CoreFieldsGrid";
 import PairFieldsBox, { type PairPhase } from "./PairFieldsBox";

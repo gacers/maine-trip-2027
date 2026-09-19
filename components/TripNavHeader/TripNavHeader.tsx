@@ -43,12 +43,9 @@ export interface TripNavHeaderProps {
 // Previous), so there's always at most one extra row, never a hover-
 // menu. Collapses to a single hamburger below 1024px, where the flat
 // row doesn't reliably fit — opens a full-screen drawer
-// (MobileNavDrawer) listing every group/section, rather than a small
-// anchored popover; this section's own actions stay right where they
-// are, same row as the hamburger itself, at every width (an earlier
-// version relocated them into the drawer while it was open — confirmed
-// live as more confusing than useful, disappearing the moment the
-// drawer closed). Utility links are
+// (MobileNavDrawer) listing every group/section plus this section's
+// Sheet/Sort/Filter actions; only +Add stays in the sticky header next
+// to the hamburger. Utility links are
 // gated on who's actually looking: an admin session gets the "All
 // Trips ›" breadcrumb prefix (see .brand) and a "Manage" button, a
 // visitor with neither that nor an invite link gets "Request access",
@@ -296,20 +293,15 @@ export default function TripNavHeader({
                 extraLink={isAdmin ? { href: itineraryPath, label: "Itinerary" } : undefined}
                 open={drawerOpen}
                 onOpenChange={setDrawerOpen}
+                onActionsSlotChange={navSlot?.setMobileActionsSlot}
               />
             </div>
 
-            {/* This section's own actions (Add/Google Sheet/Sort/filter
-                — see NavSlot) live right here, same row as the
-                hamburger, at every width — not tucked inside the
-                hamburger menu itself (confirmed live as more useful
-                kept one tap away rather than two), and not a separate
-                row below either. Always mounted, even with nothing to
-                portal in yet, so the slot always has a stable home the
-                moment SectionPage's own utilityControls first appears.
-                Collapses to zero visible size on its own (a pure CSS
-                :has() rule) rather than an empty gap whenever there's
-                genuinely nothing to show. */}
+            {/* +Add always lives here; Sheet/Sort/Filter sit beside it
+                from 1024px up (UtilityControls) and portal into the
+                burger drawer below that. Always mounted so the slot
+                has a stable home the moment SectionPage's controls
+                appear. Collapses to zero when empty via :has()/:empty. */}
             <div ref={(el) => navSlot?.setSlot(el)} className={styles["nav-slot-target"]} />
           </div>
 

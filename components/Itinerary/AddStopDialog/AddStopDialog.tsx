@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from "@/components/Dialog";
 import Button from "@/components/Button";
-import PlacePicker from "@/components/AddEntryForm/PlacePicker";
+import PlacePicker from "@/components/PlacePicker";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import StopScheduleFields, { type StopScheduleValues } from "../StopScheduleFields";
 import { findTimingConflict } from "../lib/validateStopTiming";
