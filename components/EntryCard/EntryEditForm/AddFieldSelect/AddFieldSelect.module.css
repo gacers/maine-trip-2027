@@ -1,0 +1,18 @@
+.root {
+  grid-column: 1 / -1;
+}
+
+.select {
+  font-size: var(--text-sm);
+  color: var(--color-zinc-700);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-zinc-300);
+  padding: 0.25rem 0.5rem;
+  max-width: 16rem;
+}
+
+.error {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-red-600);
+}

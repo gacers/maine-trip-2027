@@ -1,5 +1,6 @@
 import Button from "@/components/Button";
 import FieldInput from "@/components/FieldInput";
+import AddFieldSelect from "./AddFieldSelect";
 import { MARKER_COLORS } from "../helpers";
 import type { ImportSourceEntryInfo } from "@/lib/entrySync";
 import type { FieldDef } from "@/lib/types";
@@ -44,6 +45,12 @@ export interface EntryEditFormProps {
    * entry — null while still loading, or if the source couldn't be
    * resolved (nothing to link to yet, not itself an error to show). */
   importSource?: ImportSourceEntryInfo | null;
+  /** This entry's own section id, and the trip whose admin access
+   * actually gates it — see AddFieldSelect below. Undefined (not just
+   * a falsy sectionId) whenever the viewer isn't an admin, which hides
+   * the control entirely rather than rendering it disabled. */
+  tripSlug?: string;
+  sectionId?: string;
 }
 
 // The full manual-edit form (every field EntryCard's own "Edit
@@ -63,6 +70,8 @@ export default function EntryEditForm({
   onFindCoords,
   locked = false,
   importSource,
+  tripSlug,
+  sectionId,
 }: EntryEditFormProps) {
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
 
@@ -140,7 +149,7 @@ export default function EntryEditForm({
           />
         </label>
 
-        {fieldDefs.length > 0 && (
+        {(fieldDefs.length > 0 || (!locked && tripSlug && sectionId)) && (
           <div className={styles["field-defs-grid"]}>
             {fieldDefs.map((f) => (
               <FieldInput
@@ -153,6 +162,9 @@ export default function EntryEditForm({
               />
             ))}
             {countFields.length > 0 && <p className={styles["count-hint"]}>Count fields auto-fill from the description when left blank.</p>}
+            {!locked && tripSlug && sectionId && (
+              <AddFieldSelect tripSlug={tripSlug} sectionId={sectionId} existingKeys={fieldDefs.map((f) => f.key)} />
+            )}
           </div>
         )}
 

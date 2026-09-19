@@ -494,6 +494,8 @@ export default function EntryCard({
                   onFindCoords={handleFindCoords}
                   locked={!!entry.importSourceEntryId}
                   importSource={importSource}
+                  tripSlug={canManage ? tripSlug : undefined}
+                  sectionId={entry.sectionId}
                 />
               </div>
             )}
