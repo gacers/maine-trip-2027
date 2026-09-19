@@ -426,6 +426,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         navGroupSlug={navGroupSlug}
         authToken={authToken}
         canContribute={canContribute}
+        canManage={canManage}
         onAdded={handleAdded}
         onRequestPairExisting={section.supports_pairing ? requestPair : undefined}
         sheetUrl={sheetUrl}

@@ -20,6 +20,9 @@ export interface AddEntryDialogProps {
    * doesn't have that flow wired up (there isn't one today, but this
    * keeps the two components decoupled) still works. */
   onRequestPairExisting?: (entry: ClientEntry) => void;
+  /** Forwarded straight through to AddEntryForm's own canManage — gates
+   * its AddFieldSelect (a schema-level change to the section). */
+  canManage?: boolean;
 }
 
 // The Add form used to sit inline, always expanded, at the bottom of
@@ -40,6 +43,7 @@ export default function AddEntryDialog({
   authToken,
   onAdded,
   onRequestPairExisting,
+  canManage = false,
 }: AddEntryDialogProps) {
   const [open, setOpen] = useState(false);
 
@@ -65,6 +69,7 @@ export default function AddEntryDialog({
           onSaveComplete={() => setOpen(false)}
           authToken={authToken}
           onRequestPairExisting={onRequestPairExisting ? handleRequestPairExisting : undefined}
+          canManage={canManage}
           bare
         />
       </DialogContent>

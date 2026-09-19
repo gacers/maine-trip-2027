@@ -92,6 +92,11 @@ export interface AddEntryFormProps {
    * PairEntryDialog itself doesn't need this — it's already the
    * pairing flow). */
   onRequestPairExisting?: (entry: ClientEntry) => void;
+  /** Gates AddFieldSelect's own "+ Add existing/new field..." control —
+   * a schema-level change to this section, same admin-only bar
+   * FieldDefsEditor/EntryEditForm's own copy of this control already
+   * holds to. Contributors get everything else this form can do. */
+  canManage?: boolean;
 }
 
 export default function AddEntryForm({
@@ -99,6 +104,7 @@ export default function AddEntryForm({
   section,
   navGroupSlug,
   onAdded,
+  canManage = false,
   onSaveComplete,
   authToken = null,
   bare = false,
@@ -624,6 +630,8 @@ export default function AddEntryForm({
               geocodeMsg={geocodeMsg}
               onFindCoords={handleFindCoords}
               disabled={!!reusedEntryId}
+              tripSlug={canManage ? trip.slug : undefined}
+              sectionId={section.id}
             />
             <PairFieldsBox
               supportsPairing={!!section.supports_pairing}

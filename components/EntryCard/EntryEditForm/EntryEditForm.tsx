@@ -1,6 +1,6 @@
 import Button from "@/components/Button";
 import FieldInput from "@/components/FieldInput";
-import AddFieldSelect from "./AddFieldSelect";
+import AddFieldSelect from "@/components/AddFieldSelect";
 import { MARKER_COLORS } from "../helpers";
 import type { ImportSourceEntryInfo } from "@/lib/entrySync";
 import type { FieldDef } from "@/lib/types";

@@ -1,4 +1,5 @@
 import FieldInput from "@/components/FieldInput";
+import AddFieldSelect from "@/components/AddFieldSelect";
 import type { FieldDef } from "@/lib/types";
 import styles from "./CoreFieldsGrid.module.css";
 
@@ -33,6 +34,12 @@ export interface CoreFieldsGridProps {
    * Concerns stay editable either way — genuinely local to this trip,
    * never part of the sync. */
   disabled?: boolean;
+  /** This section's own id, and the trip whose admin access actually
+   * gates it — see AddFieldSelect. Undefined (not just a falsy
+   * sectionId) whenever the viewer isn't an admin, which hides the
+   * control entirely rather than rendering it disabled. */
+  tripSlug?: string;
+  sectionId?: string;
 }
 
 // Title/photo/description/section-specific fields/coordinates/notes/
@@ -53,6 +60,8 @@ export default function CoreFieldsGrid({
   geocodeMsg,
   onFindCoords,
   disabled = false,
+  tripSlug,
+  sectionId,
 }: CoreFieldsGridProps) {
   return (
     <>
@@ -86,7 +95,7 @@ export default function CoreFieldsGrid({
         />
       </label>
 
-      {fieldDefs.length > 0 && (
+      {(fieldDefs.length > 0 || (!disabled && tripSlug && sectionId)) && (
         <div className={styles["field-defs-grid"]}>
           {fieldDefs.map((f) => (
             <FieldInput
@@ -100,6 +109,9 @@ export default function CoreFieldsGrid({
           ))}
           {fieldDefs.some((f) => f.field_type === "count") && !disabled && (
             <p className={styles["count-hint"]}>Leave count fields blank to auto-fill from the description.</p>
+          )}
+          {!disabled && tripSlug && sectionId && (
+            <AddFieldSelect tripSlug={tripSlug} sectionId={sectionId} existingKeys={fieldDefs.map((f) => f.key)} />
           )}
         </div>
       )}

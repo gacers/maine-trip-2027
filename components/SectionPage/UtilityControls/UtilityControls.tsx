@@ -30,6 +30,9 @@ export interface UtilityControlsProps {
   navGroupSlug: string;
   authToken: string | null;
   canContribute: boolean;
+  /** Forwarded to AddEntryDialog's own canManage — gates AddFieldSelect
+   * inside the Add form (a schema-level change to the section). */
+  canManage?: boolean;
   onAdded: (entry: ClientEntry) => void;
   onRequestPairExisting?: (entry: ClientEntry) => void;
   sheetUrl: string | null;
@@ -75,6 +78,7 @@ export default function UtilityControls({
   navGroupSlug,
   authToken,
   canContribute,
+  canManage = false,
   onAdded,
   onRequestPairExisting,
   sheetUrl,
@@ -105,6 +109,7 @@ export default function UtilityControls({
           authToken={authToken}
           onAdded={onAdded}
           onRequestPairExisting={section.supports_pairing ? onRequestPairExisting : undefined}
+          canManage={canManage}
         />
       )}
 

@@ -1,0 +1,112 @@
+.root {
+  grid-column: 1 / -1;
+}
+
+.select {
+  font-size: var(--text-sm);
+  color: var(--color-zinc-700);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-zinc-300);
+  padding: 0.25rem 0.5rem;
+  max-width: 16rem;
+}
+
+.create-link {
+  font-size: var(--text-sm);
+  color: var(--color-blue-600);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.error {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-red-600);
+}
+
+.create-form {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-zinc-200);
+  background: var(--color-zinc-50);
+  padding: 0.5rem;
+}
+
+.create-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--text-xs);
+  color: var(--color-zinc-600);
+}
+
+.create-wide-field {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--text-xs);
+  color: var(--color-zinc-600);
+}
+
+.create-input {
+  border-radius: var(--radius);
+  border: 1px solid var(--color-zinc-300);
+  padding: 0.25rem 0.5rem;
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
+.create-overview-field {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--text-xs);
+  color: var(--color-zinc-600);
+  padding-bottom: 0.375rem;
+}
+
+.create-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.create-submit {
+  border-radius: var(--radius);
+  border: none;
+  background: var(--color-zinc-900);
+  color: var(--color-white);
+  font-size: var(--text-sm);
+  padding: 0.375rem 0.75rem;
+  cursor: pointer;
+
+  &:disabled {
+    background: var(--color-zinc-300);
+    cursor: default;
+  }
+}
+
+.create-cancel {
+  font-size: var(--text-sm);
+  color: var(--color-zinc-500);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
