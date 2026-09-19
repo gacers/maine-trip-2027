@@ -1,0 +1,19 @@
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--color-zinc-700);
+  margin: 0.5rem 0 1rem;
+}
+
+.checkbox {
+  height: 1rem;
+  width: 1rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}

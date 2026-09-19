@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { SECTION_TEMPLATES, type SectionTemplate } from "@/lib/sectionTemplates";
 import type { CustomSectionTemplate } from "@/lib/customSectionTemplates";
 import { PRIMARY_TIER_SORT_ORDER, PAST_TIER_SORT_ORDER, VISITED_PREFIX, looksLikePastTier } from "@/lib/sectionLabels";
+import AddSectionDialog from "./AddSectionDialog";
 import type { PublicTrip, NavGroup, Section } from "@/lib/types";
 import styles from "./SectionsAdmin.module.css";
 
@@ -34,6 +35,13 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   const [error, setError] = useState("");
   const [addingTemplate, setAddingTemplate] = useState<string | null>(null);
   const [removingSectionId, setRemovingSectionId] = useState<string | null>(null);
+  // Which template a click is currently asking "add a Visited
+  // counterpart too?" about, via AddSectionDialog — null whenever
+  // nothing has anything to ask (a completed trip, or a template that
+  // already has its own past tier) skips this and just adds directly.
+  const [pendingAdd, setPendingAdd] = useState<{ kind: "builtin"; template: SectionTemplate } | { kind: "custom"; template: CustomSectionTemplate } | null>(
+    null
+  );
   const [customTemplates, setCustomTemplates] = useState<CustomSectionTemplate[]>([]);
   // Native HTML5 drag and drop, id of whichever nav group is currently
   // being dragged. Only whole groups are draggable — see reorderGroups
@@ -165,7 +173,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     }
   }
 
-  async function addTemplate(template: SectionTemplate) {
+  async function addTemplate(template: SectionTemplate, withCounterpart: boolean) {
     setError("");
     setAddingTemplate(template.key);
     // Houses get one full-width card per row (a lot to show: photos,
@@ -233,12 +241,11 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
       const possibleData = await possibleRes.json();
       if (!possibleRes.ok) throw new Error(possibleData.error || "Failed to create section");
 
-      // Asked right after the primary section actually exists, not a
-      // checkbox set in advance — one click to add, decide the
-      // counterpart right after seeing it worked (see AGENTS.md-style
-      // reasoning: this used to always silently create both halves,
-      // no way to add just one without deleting the other afterward).
-      if (!window.confirm(`Also create a "${template.previous.label}" counterpart for "${template.possible.label}"?`)) {
+      // Decided in AddSectionDialog before this ever runs, not a plain
+      // browser confirm — this used to always silently create both
+      // halves, no way to add just one without deleting the other
+      // afterward.
+      if (!withCounterpart) {
         refresh();
         return;
       }
@@ -288,13 +295,12 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
   // lib/customSectionTemplates.ts) — in the same one-nav-group-per-call
   // shape the built-in templates use above: the first section names the
   // new nav group, every one after reuses the id that came back. A
-  // template that doesn't already have its own past tier gets asked
-  // right after (see addTemplate's own identical confirm) whether to
-  // also create the same "Visited ..." counterpart "+ New section"
-  // offers — same shape SectionForm's own addCounterpart builds, keyed
-  // off the template's primary section rather than a freshly-typed
-  // label/slug.
-  async function addCustomTemplate(template: CustomSectionTemplate) {
+  // template that doesn't already have its own past tier can also get
+  // the same "Visited ..." counterpart "+ New section" offers, decided
+  // in AddSectionDialog before this ever runs — same shape SectionForm's
+  // own addCounterpart builds, keyed off the template's primary section
+  // rather than a freshly-typed label/slug.
+  async function addCustomTemplate(template: CustomSectionTemplate, withCounterpart: boolean) {
     setError("");
     setAddingTemplate(template.template_key);
     // Same collapsing the 3 built-in templates already do above for a
@@ -348,16 +354,10 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
 
       // Only when there was nothing to collapse (a completed trip's own
       // "nothing left to decide" branch above already leaves no
-      // Options/Visited split to add a counterpart to) and the answer
-      // is yes — asked right after the primary section actually
-      // exists, not a checkbox set in advance (see addTemplate's own
-      // identical confirm).
+      // Options/Visited split to add a counterpart to) and the dialog's
+      // own checkbox was actually checked.
       const primary = template.sections[0];
-      if (
-        !trip.completed &&
-        pastTierSections.length === 0 &&
-        window.confirm(`Also create a "${VISITED_PREFIX} ${primary.label}" counterpart for "${template.nav_group_label}"?`)
-      ) {
+      if (!trip.completed && pastTierSections.length === 0 && withCounterpart) {
         const primaryLabel = primary.label;
         const counterpartRes = await fetch(apiBase, {
           method: "POST",
@@ -392,6 +392,28 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
     }
   }
 
+  // A completed trip, or a custom template that already has its own
+  // past tier, has nothing to ask about — same collapsing logic
+  // addTemplate/addCustomTemplate already apply internally, checked
+  // here too so the dialog never opens promising a choice that
+  // wouldn't actually do anything.
+  function handleTemplateClick(t: SectionTemplate) {
+    if (trip.completed) addTemplate(t, false);
+    else setPendingAdd({ kind: "builtin", template: t });
+  }
+
+  function handleCustomTemplateClick(t: CustomSectionTemplate) {
+    if (trip.completed || templateHasPastTier(t)) addCustomTemplate(t, false);
+    else setPendingAdd({ kind: "custom", template: t });
+  }
+
+  async function handlePendingAddConfirm(withCounterpart: boolean) {
+    if (!pendingAdd) return;
+    if (pendingAdd.kind === "builtin") await addTemplate(pendingAdd.template, withCounterpart);
+    else await addCustomTemplate(pendingAdd.template, withCounterpart);
+    setPendingAdd(null);
+  }
+
   return (
     <div className={styles["root"]}>
       <div className={styles["header"]}>
@@ -419,7 +441,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                 key={t.key}
                 type="button"
                 disabled={exists || addingTemplate === t.key}
-                onClick={() => addTemplate(t)}
+                onClick={() => handleTemplateClick(t)}
                 className={styles["template-button"]}
                 title={exists ? `${t.navGroupLabel} already exists` : undefined}
               >
@@ -443,7 +465,7 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
                     key={t.template_key}
                     type="button"
                     disabled={exists || addingTemplate === t.template_key}
-                    onClick={() => addCustomTemplate(t)}
+                    onClick={() => handleCustomTemplateClick(t)}
                     className={styles["template-button"]}
                     title={exists ? `${t.nav_group_label} already exists` : undefined}
                   >
@@ -459,6 +481,21 @@ export default function SectionsAdmin({ trip, nav: initialNav }: SectionsAdminPr
           </>
         )}
       </div>
+
+      {pendingAdd && (
+        <AddSectionDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setPendingAdd(null);
+          }}
+          primaryLabel={pendingAdd.kind === "builtin" ? pendingAdd.template.possible.label : pendingAdd.template.nav_group_label}
+          counterpartLabel={
+            pendingAdd.kind === "builtin" ? pendingAdd.template.previous.label : `${VISITED_PREFIX} ${pendingAdd.template.sections[0].label}`
+          }
+          onConfirm={handlePendingAddConfirm}
+          creating={addingTemplate === (pendingAdd.kind === "builtin" ? pendingAdd.template.key : pendingAdd.template.template_key)}
+        />
+      )}
 
       {nav.every((g) => g.sections.length === 0) && (
         <p className={styles["empty-hint"]}>No sections yet — add one from a template above, or create a custom one.</p>
