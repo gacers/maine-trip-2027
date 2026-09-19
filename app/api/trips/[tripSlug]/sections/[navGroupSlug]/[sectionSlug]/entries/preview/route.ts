@@ -44,15 +44,14 @@ export async function POST(
   if (existing) return NextResponse.json({ duplicate: true, existing });
 
   // Someone's already documented this exact place in another trip or
-  // section — reuse its core facts (title/description/photo/location)
-  // instead of re-scraping (which might not even work a second time
-  // against a site that blocks repeat automated requests) or making
-  // the visitor retype everything by hand. Notes/concerns/rank/status
-  // and any section-specific field (price, counts, type checkboxes)
-  // are deliberately NOT reused — those are exactly what's meant to
-  // vary per trip/section, and the row being created here is a
-  // genuinely independent one regardless of where its starting data
-  // came from.
+  // section — link to it (see the entries POST route's own
+  // importSourceEntryId handling) instead of re-scraping (which might
+  // not even work a second time against a site that blocks repeat
+  // automated requests) or making the visitor retype everything by
+  // hand. Shared fields (title/description/photo/location/section
+  // fields) stay locked to that row and update automatically when it
+  // does; notes/concerns are the one thing that's genuinely local to
+  // this trip, left for the form itself to collect.
   const reused = await findEntryByUrlAnywhere(supabase!, normalizedUrl, section.id);
   if (reused) {
     return NextResponse.json({
@@ -68,7 +67,7 @@ export async function POST(
         warnings: [],
         cookieWarning: null,
       },
-      reusedFrom: { tripName: reused.tripName, sectionLabel: reused.sectionLabel },
+      reusedFrom: { entryId: reused.entry.id, tripName: reused.tripName, sectionLabel: reused.sectionLabel },
     });
   }
 

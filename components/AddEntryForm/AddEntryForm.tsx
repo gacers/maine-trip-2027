@@ -120,11 +120,17 @@ export default function AddEntryForm({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [cookieWarning, setCookieWarning] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<ClientEntry | null>(null);
-  // Set when the preview route found this same URL already documented
-  // in a different trip/section and reused its core facts instead of
-  // re-scraping — shown as a small note so it's clear where the
-  // pre-filled fields came from (see the preview route).
+  // Set when the preview route (or the title-match dropdown, via
+  // pickTitleMatch) found this same real place already documented
+  // elsewhere — shown as a small note, and reusedEntryId (below) is
+  // what actually makes the new entry a live reference to it (see
+  // postEntry) rather than an independent copy.
   const [reusedFrom, setReusedFrom] = useState<{ tripName: string; sectionLabel: string } | null>(null);
+  // The matched entry's own id — shared fields lock to it (disabled in
+  // CoreFieldsGrid below) since they're about to be overridden by
+  // whatever's actually stored there anyway; notes/concerns stay
+  // editable, the one thing genuinely local to this trip.
+  const [reusedEntryId, setReusedEntryId] = useState<string | null>(null);
   const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [address, setAddress] = useState("");
@@ -216,6 +222,7 @@ export default function AddEntryForm({
     setWarnings([]);
     setCookieWarning(null);
     setReusedFrom({ tripName: match.tripName, sectionLabel: match.sectionLabel });
+    setReusedEntryId(match.id);
     setTitleMatches([]);
     setPhase("editing");
   }
@@ -244,6 +251,7 @@ export default function AddEntryForm({
     setCookieWarning(null);
     setDuplicate(null);
     setReusedFrom(null);
+    setReusedEntryId(null);
     setPlaceResults([]);
     setAddress("");
     setGeocodeMsg("");
@@ -264,6 +272,7 @@ export default function AddEntryForm({
     setWarnings([]);
     setCookieWarning(null);
     setReusedFrom(null);
+    setReusedEntryId(null);
     setErrorMsg("");
     setPhase("editing");
   }
@@ -378,7 +387,8 @@ export default function AddEntryForm({
         setData(initialData());
         setWarnings(s.warnings || []);
         setCookieWarning(s.cookieWarning || null);
-        setReusedFrom(resData.reusedFrom || null);
+        setReusedFrom(resData.reusedFrom ? { tripName: resData.reusedFrom.tripName, sectionLabel: resData.reusedFrom.sectionLabel } : null);
+        setReusedEntryId(resData.reusedFrom?.entryId || null);
         setPhase("editing");
       } catch (err) {
         setErrorMsg((err as Error).message);
@@ -441,15 +451,27 @@ export default function AddEntryForm({
     setData(initialData());
     setWarnings([]);
     setCookieWarning(null);
+    setReusedFrom(null);
+    setReusedEntryId(null);
     setPlaceResults([]);
     setPhase("editing");
   }
 
-  async function postEntry(entryUrl: string, entryFields: CoreFields, entryData: Record<string, unknown>, groupLabel: string | null) {
+  // importSourceEntryId is only ever the PRIMARY listing's own match
+  // (reusedEntryId, from this same form's url/title-match flow) — the
+  // pair's own second listing has no reuse-detection of its own yet,
+  // so its own postEntry call must never inherit the primary's.
+  async function postEntry(
+    entryUrl: string,
+    entryFields: CoreFields,
+    entryData: Record<string, unknown>,
+    groupLabel: string | null,
+    importSourceEntryId: string | null = null
+  ) {
     const res = await fetch(apiBase, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({ url: entryUrl, ...entryFields, groupLabel, data: entryData }),
+      body: JSON.stringify({ url: entryUrl, ...entryFields, groupLabel, data: entryData, importSourceEntryId }),
     });
     const resData = await res.json();
     return { ok: res.ok, status: res.status, data: resData };
@@ -492,7 +514,7 @@ export default function AddEntryForm({
     const groupLabel =
       fields.groupLabel.trim() || (paired ? deriveGroupLabel(fields.title, pairFieldsToSave.title) : "") || null;
     try {
-      const r1 = await postEntry(url, fields, data, groupLabel);
+      const r1 = await postEntry(url, fields, data, groupLabel, reusedEntryId);
       let entry1: ClientEntry | null = null;
       if (r1.ok) {
         entry1 = r1.data.entry;
@@ -574,8 +596,9 @@ export default function AddEntryForm({
         <form onSubmit={handleSave} className={styles["edit-form"]}>
           {reusedFrom && (
             <p className={styles["reused-notice"]}>
-              Reused details from &quot;{reusedFrom.sectionLabel}&quot; in {reusedFrom.tripName} — edit freely, it&apos;s
-              a separate entry.
+              Linked to the same place already documented in &quot;{reusedFrom.sectionLabel}&quot; in{" "}
+              {reusedFrom.tripName} — shared details stay in sync automatically; notes/concerns below are yours to
+              add.
             </p>
           )}
           {cookieWarning && <p className={styles["cookie-warning"]}>{cookieWarning}</p>}
@@ -600,6 +623,7 @@ export default function AddEntryForm({
               geocoding={geocoding}
               geocodeMsg={geocodeMsg}
               onFindCoords={handleFindCoords}
+              disabled={!!reusedEntryId}
             />
             <PairFieldsBox
               supportsPairing={!!section.supports_pairing}

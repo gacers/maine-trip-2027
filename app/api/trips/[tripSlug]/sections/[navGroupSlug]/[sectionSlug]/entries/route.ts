@@ -8,8 +8,8 @@ import { normalizeListingUrl } from "@/lib/scrape";
 import { extractCount } from "@/lib/fieldTypes/count";
 import { exportSection } from "@/lib/sheetsExport";
 import { sectionHasOptionsTraits } from "@/lib/tripCompletion";
-import { propagateNewEntryFromSource } from "@/lib/entrySync";
-import type { Trip, Section } from "@/lib/types";
+import { propagateNewEntryFromSource, seedMissingFieldDefsFromSource } from "@/lib/entrySync";
+import type { Trip, Section, EntryRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -89,6 +89,10 @@ export async function POST(
   }
 
   const { url, title, posterImage, description, lat, lng, notes, concerns, groupLabel, data } = body;
+  // Set by AddEntryForm when the preview route's own findEntryByUrlAnywhere
+  // found this exact url already documented elsewhere and the admin
+  // kept the match (didn't change the url away from it) — see below.
+  const importSourceEntryId = typeof body.importSourceEntryId === "string" ? body.importSourceEntryId.trim() || null : null;
   if (!title) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
@@ -117,20 +121,6 @@ export async function POST(
     const all = await getAllEntries(supabase!, section.id);
     const maxRank = all.reduce((max, e) => (e.rank && e.rank > max ? e.rank : max), 0);
 
-    // Auto-fill any "count"-type field not explicitly given, from the
-    // description text — generalizes today's bedroom/bed/bathroom
-    // auto-extraction to whichever count fields this section defines.
-    const filledData: Record<string, unknown> = { ...(data || {}) };
-    for (const fieldDef of section.field_defs || []) {
-      if (fieldDef.field_type === "count" && fieldDef.storage === "jsonb") {
-        const has = filledData[fieldDef.key] !== undefined && filledData[fieldDef.key] !== "";
-        if (!has) {
-          const extracted = extractCount(description, fieldDef);
-          if (extracted !== "") filledData[fieldDef.key] = extracted;
-        }
-      }
-    }
-
     // A completed trip's own non-options sections (no ranking/ratings/
     // pairing — see sectionHasOptionsTraits) are pure documentation:
     // whatever gets added is something that actually happened, not a
@@ -141,28 +131,86 @@ export async function POST(
     // human decision either way.
     const autoVisited = trip.completed && !sectionHasOptionsTraits(section);
 
-    const entry = await createEntry(supabase!, {
-      id: nanoid(8),
-      section_id: section.id,
-      rank: maxRank + 1,
-      status: "active",
-      title,
-      url: normalizedUrl,
-      poster_image: posterImage || null,
-      description: description || null,
-      // A "Start blank"/never-geocoded entry sends these as "" (the
-      // client's own empty-input default), not undefined — `?? null`
-      // alone doesn't catch that, and an empty string sent straight to
-      // a double precision column is a real Postgres error, not a
-      // silent no-op.
-      lat: lat === "" || lat == null ? null : lat,
-      lng: lng === "" || lng == null ? null : lng,
-      notes: notes || null,
-      concerns: concerns || null,
-      group_label: groupLabel || null,
-      visited: autoVisited,
-      data: filledData,
-    });
+    // Same real place already documented somewhere else — link to it
+    // instead of copying its facts into an independent row (see the
+    // preview route's own findEntryByUrlAnywhere, which is what found
+    // this in the first place). Shared fields come from THAT row's
+    // current values, not whatever the client happened to submit for
+    // them (locked/disabled in the form for exactly this reason) — an
+    // edit there propagates here automatically from here on, same as
+    // any other entrySync link (see lib/entrySync.ts). Notes/concerns
+    // stay exactly what was typed into this trip's own form: genuinely
+    // local commentary, not something to inherit or merge.
+    let matchedSource: EntryRow | null = null;
+    if (importSourceEntryId) {
+      const { data: sourceRow, error: sourceError } = await supabase!.from("entries").select("*").eq("id", importSourceEntryId).maybeSingle();
+      if (sourceError) throw new Error(sourceError.message);
+      matchedSource = sourceRow;
+    }
+
+    let entry;
+    if (matchedSource) {
+      // Additive only — brings in any field key the matched entry's own
+      // `data` actually uses that this section doesn't already have,
+      // without touching (or locking) anything this section already
+      // defines.
+      await seedMissingFieldDefsFromSource(matchedSource.section_id, section.id);
+      entry = await createEntry(supabase!, {
+        id: nanoid(8),
+        section_id: section.id,
+        rank: maxRank + 1,
+        status: "active",
+        import_source_entry_id: matchedSource.id,
+        title: matchedSource.title,
+        url: matchedSource.url,
+        poster_image: matchedSource.poster_image,
+        description: matchedSource.description,
+        lat: matchedSource.lat,
+        lng: matchedSource.lng,
+        notes: notes || null,
+        concerns: concerns || null,
+        group_label: groupLabel || null,
+        visited: autoVisited,
+        data: matchedSource.data,
+      });
+    } else {
+      // Auto-fill any "count"-type field not explicitly given, from the
+      // description text — generalizes today's bedroom/bed/bathroom
+      // auto-extraction to whichever count fields this section defines.
+      const filledData: Record<string, unknown> = { ...(data || {}) };
+      for (const fieldDef of section.field_defs || []) {
+        if (fieldDef.field_type === "count" && fieldDef.storage === "jsonb") {
+          const has = filledData[fieldDef.key] !== undefined && filledData[fieldDef.key] !== "";
+          if (!has) {
+            const extracted = extractCount(description, fieldDef);
+            if (extracted !== "") filledData[fieldDef.key] = extracted;
+          }
+        }
+      }
+
+      entry = await createEntry(supabase!, {
+        id: nanoid(8),
+        section_id: section.id,
+        rank: maxRank + 1,
+        status: "active",
+        title,
+        url: normalizedUrl,
+        poster_image: posterImage || null,
+        description: description || null,
+        // A "Start blank"/never-geocoded entry sends these as "" (the
+        // client's own empty-input default), not undefined — `?? null`
+        // alone doesn't catch that, and an empty string sent straight
+        // to a double precision column is a real Postgres error, not a
+        // silent no-op.
+        lat: lat === "" || lat == null ? null : lat,
+        lng: lng === "" || lng == null ? null : lng,
+        notes: notes || null,
+        concerns: concerns || null,
+        group_label: groupLabel || null,
+        visited: autoVisited,
+        data: filledData,
+      });
+    }
     await exportSection(supabase!, trip, section);
     // Best-effort — this section might itself be the import source for
     // one or more other sections (see lib/entrySync.ts), each of which

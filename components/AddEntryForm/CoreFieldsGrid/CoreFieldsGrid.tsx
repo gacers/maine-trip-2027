@@ -25,6 +25,14 @@ export interface CoreFieldsGridProps {
   geocoding: boolean;
   geocodeMsg: string;
   onFindCoords: () => void;
+  /** True once this new entry is linked to an already-documented place
+   * elsewhere (see AddEntryForm's reusedEntryId) — every shared field
+   * here is about to be overridden by that row's own current values
+   * regardless of whatever's typed in, so they're locked read-only
+   * instead of inviting an edit that gets silently discarded. Notes/
+   * Concerns stay editable either way — genuinely local to this trip,
+   * never part of the sync. */
+  disabled?: boolean;
 }
 
 // Title/photo/description/section-specific fields/coordinates/notes/
@@ -44,6 +52,7 @@ export default function CoreFieldsGrid({
   geocoding,
   geocodeMsg,
   onFindCoords,
+  disabled = false,
 }: CoreFieldsGridProps) {
   return (
     <>
@@ -51,6 +60,7 @@ export default function CoreFieldsGrid({
         Title
         <input
           required
+          disabled={disabled}
           value={fields.title}
           onChange={(e) => onFieldsChange({ ...fields, title: e.target.value })}
           className={styles["input"]}
@@ -59,6 +69,7 @@ export default function CoreFieldsGrid({
       <label className={styles["wide-field"]}>
         Photo URL
         <input
+          disabled={disabled}
           value={fields.posterImage}
           onChange={(e) => onFieldsChange({ ...fields, posterImage: e.target.value })}
           className={styles["input"]}
@@ -67,6 +78,7 @@ export default function CoreFieldsGrid({
       <label className={styles["wide-field"]}>
         Description (one bullet per line, optional)
         <textarea
+          disabled={disabled}
           value={fields.description}
           onChange={(e) => onFieldsChange({ ...fields, description: e.target.value })}
           rows={3}
@@ -83,9 +95,10 @@ export default function CoreFieldsGrid({
               value={data[f.key]}
               onChange={(v) => onDataChange({ ...data, [f.key]: v })}
               tripNights={tripNights}
+              disabled={disabled}
             />
           ))}
-          {fieldDefs.some((f) => f.field_type === "count") && (
+          {fieldDefs.some((f) => f.field_type === "count") && !disabled && (
             <p className={styles["count-hint"]}>Leave count fields blank to auto-fill from the description.</p>
           )}
         </div>
@@ -93,27 +106,39 @@ export default function CoreFieldsGrid({
 
       <label className={styles["field"]}>
         Latitude
-        <input value={fields.lat} onChange={(e) => onFieldsChange({ ...fields, lat: e.target.value })} className={styles["input"]} />
+        <input
+          disabled={disabled}
+          value={fields.lat}
+          onChange={(e) => onFieldsChange({ ...fields, lat: e.target.value })}
+          className={styles["input"]}
+        />
       </label>
       <label className={styles["field"]}>
         Longitude
-        <input value={fields.lng} onChange={(e) => onFieldsChange({ ...fields, lng: e.target.value })} className={styles["input"]} />
+        <input
+          disabled={disabled}
+          value={fields.lng}
+          onChange={(e) => onFieldsChange({ ...fields, lng: e.target.value })}
+          className={styles["input"]}
+        />
       </label>
-      <div className={styles["wide-field"]}>
-        <label>Or find lat/lng from an address</label>
-        <div className={styles["geocode-row"]}>
-          <input
-            value={address}
-            onChange={(e) => onAddressChange(e.target.value)}
-            placeholder="e.g. 129 State Route 32, New Harbor, ME"
-            className={styles["geocode-input"]}
-          />
-          <button type="button" onClick={onFindCoords} disabled={geocoding || !address.trim()} className={styles["find-button"]}>
-            {geocoding ? "Finding..." : "Find"}
-          </button>
+      {!disabled && (
+        <div className={styles["wide-field"]}>
+          <label>Or find lat/lng from an address</label>
+          <div className={styles["geocode-row"]}>
+            <input
+              value={address}
+              onChange={(e) => onAddressChange(e.target.value)}
+              placeholder="e.g. 129 State Route 32, New Harbor, ME"
+              className={styles["geocode-input"]}
+            />
+            <button type="button" onClick={onFindCoords} disabled={geocoding || !address.trim()} className={styles["find-button"]}>
+              {geocoding ? "Finding..." : "Find"}
+            </button>
+          </div>
+          {geocodeMsg && <p className={styles["geocode-msg"]}>{geocodeMsg}</p>}
         </div>
-        {geocodeMsg && <p className={styles["geocode-msg"]}>{geocodeMsg}</p>}
-      </div>
+      )}
       <label className={styles["wide-field"]}>
         Notes
         <textarea
