@@ -219,7 +219,12 @@ export default function EntryCard({
   // Any boolean field flips on an eyebrow tag when true (e.g. "Closed",
   // "Bar", "Restaurant") — generic by field *type*, not by name, so any
   // boolean field an admin adds to any section gets this for free.
-  const activeBooleanFields = fieldDefs.filter((f) => f.field_type === "boolean" && entry[f.key]);
+  // Coerce string "true"/"false" too — EntryEditForm used to String()
+  // checkbox values, so older saves may still be strings; !!"false" is
+  // truthy and would leave the badge stuck on.
+  const activeBooleanFields = fieldDefs.filter(
+    (f) => f.field_type === "boolean" && (entry[f.key] === true || entry[f.key] === "true")
+  );
   // Colors are assigned from the section's full boolean field list (not
   // just this entry's active ones), in that list's own defined order —
   // so a given type always lands on the same color everywhere it shows
@@ -246,9 +251,15 @@ export default function EntryCard({
   }
 
   function startEdit() {
-    const dataDraft: Record<string, string> = {};
+    const dataDraft: Record<string, string | boolean> = {};
     fieldDefs.forEach((f) => {
-      dataDraft[f.key] = (entry[f.key] as string) ?? "";
+      const raw = entry[f.key];
+      if (f.field_type === "boolean") {
+        // Heal older stringified checkbox saves ("true"/"false").
+        dataDraft[f.key] = raw === true || raw === "true";
+      } else {
+        dataDraft[f.key] = (raw as string) ?? "";
+      }
     });
     setDraft({
       title: entry.title || "",
@@ -300,7 +311,13 @@ export default function EntryCard({
     const dataPatch: Record<string, unknown> = {};
     for (const f of fieldDefs) {
       const v = draft.data[f.key];
-      dataPatch[f.key] = f.field_type === "number" || f.field_type === "count" ? (v === "" ? "" : Number(v)) : v;
+      if (f.field_type === "boolean") {
+        dataPatch[f.key] = v === true || v === "true";
+      } else if (f.field_type === "number" || f.field_type === "count") {
+        dataPatch[f.key] = v === "" ? "" : Number(v);
+      } else {
+        dataPatch[f.key] = v;
+      }
     }
 
     // A locked entry's own shared fields (see lib/entrySync.ts) are

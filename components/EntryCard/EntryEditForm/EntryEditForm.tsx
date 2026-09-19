@@ -22,7 +22,7 @@ export interface EntryDraft {
   lng: string | number;
   groupLabel: string;
   extraMarkers: DraftMarker[];
-  data: Record<string, string>;
+  data: Record<string, string | boolean>;
 }
 
 export interface EntryEditFormProps {
@@ -156,7 +156,7 @@ export default function EntryEditForm({
                 key={f.key}
                 fieldDef={f}
                 value={draft.data[f.key]}
-                onChange={(v) => onChange({ ...draft, data: { ...draft.data, [f.key]: String(v) } })}
+                onChange={(v) => onChange({ ...draft, data: { ...draft.data, [f.key]: v } })}
                 tripNights={nightsEstimate}
                 disabled={locked}
               />
