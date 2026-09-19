@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
 import { exportSection } from "@/lib/sheetsExport";
+import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
 import type { EntryRow, FieldDef, Section, Trip } from "@/lib/types";
 
 // One-way sync for a section/entry imported from another one (see
@@ -92,6 +93,34 @@ async function getDestinationSectionIds(supabase: SupabaseClient, sourceSectionI
 // `key`, so every destination genuinely needs a field for every key
 // any of its sources actually uses, not just the ones the most-
 // recently-changed source happens to have.
+// Best-effort — same convention as the sections POST/PATCH routes'
+// own capture, applied here too so a field that only ever arrived at
+// a section via propagation (never through the ordinary New/Edit
+// Section form directly) still ends up pickable everywhere else via
+// FieldDefsEditor's "+ Add existing field..." (confirmed live as a
+// real gap: several fields — Ferry, Oyster Farm, Seafood Shack, Tea,
+// Tour — existed on real sections for a long time without ever
+// reaching custom_field_templates, since nothing had captured them
+// when they were first added; backfilled once directly, this call is
+// what keeps it from happening again for anything the *sync* paths
+// bring in.
+async function captureFieldTemplates(supabase: SupabaseClient, sectionId: string, fields: Partial<FieldDef>[]): Promise<void> {
+  if (fields.length === 0) return;
+  const { data: section } = await supabase.from("sections").select("trip_id").eq("id", sectionId).maybeSingle();
+  if (!section) return;
+  for (const f of fields) {
+    if (!f.key || !f.label || !f.field_type) continue;
+    await upsertCustomFieldTemplate(supabase, section.trip_id, {
+      key: f.key,
+      label: f.label,
+      field_type: f.field_type,
+      show_on_overview: !!f.show_on_overview,
+      required: !!f.required,
+      options: f.options || undefined,
+    }).catch((err) => console.error("Field template capture failed:", err));
+  }
+}
+
 async function syncFieldDefsForDestination(supabase: SupabaseClient, destinationSectionId: string): Promise<void> {
   const { data: links, error: linksError } = await supabase
     .from("section_import_sources")
@@ -125,6 +154,7 @@ async function syncFieldDefsForDestination(supabase: SupabaseClient, destination
     const rows = mergedDefs.map(({ section_id: _sourceId, ...f }, i) => ({ ...f, section_id: destinationSectionId, sort_order: i }));
     const { error: insError } = await supabase.from("field_defs").insert(rows);
     if (insError) throw new Error(insError.message);
+    await captureFieldTemplates(supabase, destinationSectionId, rows);
   }
   await reExportSection(supabase, destinationSectionId);
 }
@@ -174,6 +204,7 @@ export async function seedMissingFieldDefsFromSource(sourceSectionId: string, de
   const rows = missing.map((f) => ({ ...f, section_id: destinationSectionId, sort_order: nextSortOrder++ }));
   const { error: insError } = await supabase.from("field_defs").insert(rows);
   if (insError) throw new Error(insError.message);
+  await captureFieldTemplates(supabase, destinationSectionId, rows);
 }
 
 // Copies a source entry's own current shared fields into every entry
