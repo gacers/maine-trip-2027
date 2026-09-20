@@ -100,8 +100,6 @@ export default function AccessibleTripsIndex({
       />
 
       <main className={styles["root"]}>
-        <h1 className={styles["heading"]}>Trips</h1>
-
         {!ready ? (
           <p className={styles["empty-hint"]}>Loading…</p>
         ) : visible.length === 0 ? (
