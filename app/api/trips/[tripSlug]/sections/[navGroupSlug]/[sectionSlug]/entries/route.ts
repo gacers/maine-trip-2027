@@ -182,6 +182,7 @@ export async function POST(
         description: matchedSource.description,
         lat: matchedSource.lat,
         lng: matchedSource.lng,
+        country: matchedSource.country ?? trip.country ?? null,
         notes: notes || null,
         concerns: concerns || null,
         group_label: groupLabel || null,
@@ -219,6 +220,7 @@ export async function POST(
         // silent no-op.
         lat: lat === "" || lat == null ? null : lat,
         lng: lng === "" || lng == null ? null : lng,
+        country: trip.country || null,
         notes: notes || null,
         concerns: concerns || null,
         group_label: groupLabel || null,

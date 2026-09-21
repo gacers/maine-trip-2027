@@ -47,6 +47,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { data, error } = await supabase!.from("trips").update(patch).eq("id", trip.id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Stamp entries that never got a country of their own — creation
+  // stamps trip.country going forward; this covers the "just set country
+  // on an existing trip" case without overwriting a place that already
+  // has one.
+  if ("country" in patch && patch.country) {
+    await supabase!
+      .from("entries")
+      .update({ country: patch.country })
+      .eq("trip_id", trip.id)
+      .or("country.is.null,country.eq.");
+  }
+
   // Completed status changes what every tab's own header/highlighting/
   // row order looks like (see lib/sheetsExport.ts's unitTier/
   // applyActiveRowHighlight) — without re-exporting here, a Sheet that

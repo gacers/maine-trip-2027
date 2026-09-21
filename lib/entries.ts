@@ -373,6 +373,7 @@ export async function linkEntriesFromSource(
     description: e.description,
     lat: e.lat,
     lng: e.lng,
+    country: e.country,
     notes: e.notes,
     concerns: e.concerns,
     group_label: null,

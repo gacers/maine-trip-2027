@@ -90,7 +90,7 @@ export async function getCatalogForCategory(categorySlug: SiteCategorySlug): Pro
       tripId: trip.id,
       tripSlug: trip.slug,
       tripName: trip.name,
-      country: trip.country || null,
+      country: (row.country as string | null) || trip.country || null,
       navGroupSlug: nav.slug,
       sectionSlug: section.slug,
       sectionLabel: section.label,

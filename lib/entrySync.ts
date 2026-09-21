@@ -33,7 +33,7 @@ import type { EntryRow, FieldDef, Section, Trip } from "@/lib/types";
 // local to each trip even once linked, since those are genuinely
 // about THIS trip's own relationship to the place, not the place
 // itself.
-const SYNCED_ENTRY_FIELDS = ["title", "url", "poster_image", "description", "lat", "lng", "data"] as const;
+const SYNCED_ENTRY_FIELDS = ["title", "url", "poster_image", "description", "lat", "lng", "country", "data"] as const;
 
 export function isSyncedEntryFieldPatch(patch: Record<string, unknown>): boolean {
   return SYNCED_ENTRY_FIELDS.some((f) => f in patch);
@@ -264,6 +264,7 @@ export async function propagateNewEntryFromSource(sourceEntry: EntryRow): Promis
       description: sourceEntry.description,
       lat: sourceEntry.lat,
       lng: sourceEntry.lng,
+      country: sourceEntry.country,
       notes: sourceEntry.notes,
       concerns: sourceEntry.concerns,
       visited: true,

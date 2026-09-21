@@ -128,7 +128,7 @@ export async function importUnvisitedOptions(categorySlug: SiteCategorySlug): Pr
       description: c.entry.description,
       lat: c.entry.lat,
       lng: c.entry.lng,
-      country: c.country,
+      country: c.entry.country || c.country,
       sourceEntryId: c.entry.id,
     });
     imported += 1;

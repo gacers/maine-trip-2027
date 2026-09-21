@@ -193,6 +193,8 @@ export interface ClientEntry {
   description: string | null;
   lat: number | null;
   lng: number | null;
+  /** Place country — stamped from the trip at creation, not shown in UI. */
+  country: string | null;
   extraMarkers: MapReferencePoint[];
   groupLabel: string;
   createdAt: string;
@@ -238,6 +240,8 @@ export interface EntryRow {
   description: string | null;
   lat: number | null;
   lng: number | null;
+  /** Place country — stamped from the trip at creation, not shown in UI. */
+  country: string | null;
   extra_markers: MapReferencePoint[] | null;
   group_label: string | null;
   visited: boolean;
