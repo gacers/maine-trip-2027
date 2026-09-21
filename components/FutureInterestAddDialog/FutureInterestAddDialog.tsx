@@ -15,9 +15,10 @@ import {
   parseGoogleMapsUrl,
 } from "@/lib/googleUrlHelpers";
 import { searchPlacesByText } from "@/lib/googlePlaces";
+import { FOOD_DRINK_TYPE_FIELD_DEFS, type TemplateFieldDef } from "@/lib/sectionTemplates";
 import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
 import type { FutureInterestItem } from "@/lib/futureInterest";
-import type { PlaceResult } from "@/lib/types";
+import type { FieldDef, PlaceResult } from "@/lib/types";
 import dialogStyles from "@/components/AddEntryDialog/AddEntryDialog.module.css";
 import formStyles from "@/components/AddEntryForm/AddEntryForm.module.css";
 
@@ -45,17 +46,36 @@ const PLACEHOLDERS: Record<SiteCategorySlug, string> = {
   wineries: "Paste a link for a winery...",
 };
 
+function asFieldDef(f: TemplateFieldDef): FieldDef {
+  return {
+    id: f.key,
+    section_id: "",
+    key: f.key,
+    label: f.label,
+    field_type: f.field_type,
+    storage: "jsonb",
+    core_column: null,
+    options: f.options || null,
+    sort_order: 0,
+    show_on_overview: f.show_on_overview,
+    required: false,
+  };
+}
+
 type Phase = "idle" | "loading" | "editing" | "picking" | "saving";
 
 // Same Add dialog chrome + UrlEntryForm / Places / core fields as trip
 // section Add — saves to Future Interest for the current category tab
-// instead of a trip section.
+// instead of a trip section. Food & Drink also picks type tags here.
 export default function FutureInterestAddDialog({ categorySlug, onAdded }: FutureInterestAddDialogProps) {
   const categoryLabel = siteCategoryLabel(categorySlug);
+  const typeFieldDefs =
+    categorySlug === "food-drink" ? FOOD_DRINK_TYPE_FIELD_DEFS.map(asFieldDef) : [];
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [fields, setFields] = useState<CoreFields>(CORE_INITIAL);
+  const [typeData, setTypeData] = useState<Record<string, unknown>>({});
   const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -72,6 +92,7 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
     setUrl("");
     setPhase("idle");
     setFields(CORE_INITIAL);
+    setTypeData({});
     setPlaceResults([]);
     setErrorMsg("");
     setWarnings([]);
@@ -184,8 +205,19 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
       setErrorMsg("Title is required.");
       return;
     }
+    if (categorySlug === "food-drink") {
+      const picked = FOOD_DRINK_TYPE_FIELD_DEFS.some((f) => typeData[f.key] === true);
+      if (!picked) {
+        setErrorMsg("Pick at least one type (Restaurant, Bar, …).");
+        return;
+      }
+    }
     setPhase("saving");
     setErrorMsg("");
+    const data: Record<string, unknown> = {};
+    for (const f of typeFieldDefs) {
+      if (typeData[f.key] === true) data[f.key] = true;
+    }
     try {
       const res = await fetch("/api/future-interest", {
         method: "POST",
@@ -198,11 +230,12 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
           description: fields.description.trim() || null,
           lat: fields.lat === "" ? null : Number(fields.lat),
           lng: fields.lng === "" ? null : Number(fields.lng),
+          data,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Save failed");
-      onAdded(data.item);
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Save failed");
+      onAdded(resData.item);
       setOpen(false);
       reset();
     } catch (err) {
@@ -255,10 +288,10 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
                 <CoreFieldsGrid
                   fields={fields}
                   onFieldsChange={setFields}
-                  fieldDefs={[]}
+                  fieldDefs={typeFieldDefs}
                   tripNights={null}
-                  data={{}}
-                  onDataChange={() => {}}
+                  data={typeData}
+                  onDataChange={setTypeData}
                   address={address}
                   onAddressChange={setAddress}
                   geocoding={false}

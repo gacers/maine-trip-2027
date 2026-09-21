@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import classNames from "classnames";
 import OverviewMap from "@/components/OverviewMap";
 import Button from "@/components/Button";
 import FutureInterestAddDialog from "@/components/FutureInterestAddDialog";
+import FutureInterestCard from "./FutureInterestCard";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
 import type { FutureInterestItem } from "@/lib/futureInterest";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
@@ -110,6 +112,8 @@ export default function FutureInterestPage({ categorySlug, categoryLabel, initia
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
+  const gridClass = categorySlug === "stays" ? styles["grid-2"] : styles["grid-3"];
+
   return (
     <main className={styles["root"]}>
       <div className={styles["toolbar"]}>
@@ -150,41 +154,15 @@ export default function FutureInterestPage({ categorySlug, categoryLabel, initia
           Nothing here yet — use + Add in the nav, or bring in unvisited Options from your trips.
         </p>
       ) : (
-        <ul className={styles["list"]}>
+        <ul className={classNames(styles["list"], gridClass)}>
           {visible.map((item) => (
-            <li key={item.id} id={`fi-${item.id}`} className={styles["card"]}>
-              {item.poster_image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.poster_image} alt="" className={styles["thumb"]} />
-              ) : (
-                <div className={styles["thumb-empty"]} />
-              )}
-              <div className={styles["card-body"]}>
-                <div className={styles["card-meta"]}>
-                  {item.country ? <span>{item.country}</span> : null}
-                  {item.visited ? <span>Visited</span> : null}
-                </div>
-                <h2 className={styles["card-title"]}>
-                  {item.url ? (
-                    <a href={item.url} target="_blank" rel="noopener noreferrer">
-                      {item.title || "Untitled"}
-                    </a>
-                  ) : (
-                    item.title || "Untitled"
-                  )}
-                </h2>
-                {item.description ? <p className={styles["card-desc"]}>{item.description}</p> : null}
-                <div className={styles["card-actions"]}>
-                  {!item.visited && (
-                    <Button variant="secondary" size="sm" onClick={() => markVisited(item.id)}>
-                      Mark visited
-                    </Button>
-                  )}
-                  <Button variant="danger" size="sm" onClick={() => removeItem(item.id)}>
-                    Remove
-                  </Button>
-                </div>
-              </div>
+            <li key={item.id}>
+              <FutureInterestCard
+                item={item}
+                categorySlug={categorySlug}
+                onMarkVisited={markVisited}
+                onRemove={removeItem}
+              />
             </li>
           ))}
         </ul>

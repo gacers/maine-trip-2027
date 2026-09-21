@@ -123,7 +123,7 @@ for (const template of SECTION_TEMPLATES) {
 // specific enough to a coastal Maine trip that they don't belong in
 // every new trip's starting point; add them by hand via the Section
 // Designer if a trip actually needs them.
-const FOOD_DRINK_TYPE_FIELD_DEFS: TemplateFieldDef[] = [
+export const FOOD_DRINK_TYPE_FIELD_DEFS: TemplateFieldDef[] = [
   { key: "restaurant", label: "Restaurant", field_type: "boolean", show_on_overview: true },
   { key: "bar", label: "Bar", field_type: "boolean", show_on_overview: true },
   { key: "cafe", label: "Cafe", field_type: "boolean", show_on_overview: true },
@@ -142,7 +142,7 @@ for (const template of SECTION_TEMPLATES) {
 }
 
 // Same idea, for Activities' own type tags.
-const ACTIVITIES_TYPE_FIELD_DEFS: TemplateFieldDef[] = [
+export const ACTIVITIES_TYPE_FIELD_DEFS: TemplateFieldDef[] = [
   { key: "hike", label: "Hike", field_type: "boolean", show_on_overview: true },
   { key: "kayak", label: "Kayak", field_type: "boolean", show_on_overview: true },
   { key: "boatTour", label: "Boat Tour", field_type: "boolean", show_on_overview: true },

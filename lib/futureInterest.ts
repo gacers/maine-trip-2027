@@ -2,6 +2,11 @@ import { nanoid } from "nanoid";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
 import { getCatalogForCategory } from "@/lib/catalog";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
+import {
+  ACTIVITIES_TYPE_FIELD_DEFS,
+  FOOD_DRINK_TYPE_FIELD_DEFS,
+  type TemplateFieldDef,
+} from "@/lib/sectionTemplates";
 
 export interface FutureInterestItem {
   id: string;
@@ -100,6 +105,23 @@ export async function deleteFutureInterestItem(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+function typeDataFromEntry(
+  categorySlug: SiteCategorySlug,
+  entry: Record<string, unknown>
+): Record<string, unknown> {
+  const defs: TemplateFieldDef[] =
+    categorySlug === "food-drink"
+      ? FOOD_DRINK_TYPE_FIELD_DEFS
+      : categorySlug === "activities"
+        ? ACTIVITIES_TYPE_FIELD_DEFS
+        : [];
+  const data: Record<string, unknown> = {};
+  for (const f of defs) {
+    if (entry[f.key] === true || entry[f.key] === "true") data[f.key] = true;
+  }
+  return data;
+}
+
 // Import unvisited Options-tier catalog entries for this category that
 // aren't already linked via source_entry_id (or matching URL).
 export async function importUnvisitedOptions(categorySlug: SiteCategorySlug): Promise<{ imported: number }> {
@@ -129,6 +151,7 @@ export async function importUnvisitedOptions(categorySlug: SiteCategorySlug): Pr
       lat: c.entry.lat,
       lng: c.entry.lng,
       country: c.entry.country || c.country,
+      data: typeDataFromEntry(categorySlug, c.entry as unknown as Record<string, unknown>),
       sourceEntryId: c.entry.id,
     });
     imported += 1;
