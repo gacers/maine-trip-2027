@@ -1,6 +1,7 @@
 "use client";
 
 import FieldInput from "@/components/FieldInput";
+import AddTypeField from "@/components/FutureInterestPage/AddTypeField";
 import type { FieldDef } from "@/lib/types";
 import styles from "@/components/EntryCard/EntryEditForm/EntryEditForm.module.css";
 
@@ -18,11 +19,18 @@ export interface FutureInterestEditFormProps {
   draft: FutureInterestDraft;
   onChange: (draft: FutureInterestDraft) => void;
   typeFieldDefs: FieldDef[];
+  onTypeFieldsChange: (defs: FieldDef[]) => void;
+  /** Show type tags + create-new control (Food & Drink / Activities). */
+  showTypes: boolean;
 }
 
-// FI-only edit form — same chrome as EntryEditForm for the fields
-// Future Interest actually stores (no pairing / extra map markers).
-export default function FutureInterestEditForm({ draft, onChange, typeFieldDefs }: FutureInterestEditFormProps) {
+export default function FutureInterestEditForm({
+  draft,
+  onChange,
+  typeFieldDefs,
+  onTypeFieldsChange,
+  showTypes,
+}: FutureInterestEditFormProps) {
   return (
     <div className={styles["grid"]}>
       <label className={styles["field"]}>
@@ -61,7 +69,7 @@ export default function FutureInterestEditForm({ draft, onChange, typeFieldDefs 
         />
       </label>
 
-      {typeFieldDefs.length > 0 && (
+      {showTypes && (
         <div className={styles["field-defs-grid"]}>
           {typeFieldDefs.map((f) => (
             <FieldInput
@@ -72,6 +80,13 @@ export default function FutureInterestEditForm({ draft, onChange, typeFieldDefs 
               tripNights={null}
             />
           ))}
+          <AddTypeField
+            existingKeys={typeFieldDefs.map((f) => f.key)}
+            onAdd={(field) => {
+              onTypeFieldsChange([...typeFieldDefs, field]);
+              onChange({ ...draft, data: { ...draft.data, [field.key]: true } });
+            }}
+          />
         </div>
       )}
 

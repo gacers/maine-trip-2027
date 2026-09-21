@@ -32,25 +32,46 @@ function typeDefsForCategory(slug: SiteCategorySlug): TemplateFieldDef[] {
   return [];
 }
 
-function asFieldDef(f: TemplateFieldDef): FieldDef {
+function asFieldDef(f: { key: string; label: string; field_type?: string; show_on_overview?: boolean; options?: unknown }): FieldDef {
   return {
     id: f.key,
     section_id: "",
     key: f.key,
     label: f.label,
-    field_type: f.field_type,
+    field_type: (f.field_type as FieldDef["field_type"]) || "boolean",
     storage: "jsonb",
     core_column: null,
-    options: f.options || null,
+    options: (f.options as FieldDef["options"]) || null,
     sort_order: 0,
-    show_on_overview: f.show_on_overview,
+    show_on_overview: f.show_on_overview ?? true,
     required: false,
   };
 }
 
-function draftFromItem(item: FutureInterestItem, typeDefs: TemplateFieldDef[]): FutureInterestDraft {
+function humanizeKey(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Template types plus any custom boolean keys already on this item. */
+function resolveTypeFieldDefs(slug: SiteCategorySlug, data: Record<string, unknown> | null | undefined): FieldDef[] {
+  const base = typeDefsForCategory(slug).map(asFieldDef);
+  if (slug !== "food-drink" && slug !== "activities") return base;
+  const known = new Set(base.map((f) => f.key));
+  const extras: FieldDef[] = [];
+  for (const [key, value] of Object.entries(data || {})) {
+    if (known.has(key)) continue;
+    if (value !== true && value !== "true" && value !== false && value !== "false") continue;
+    extras.push(asFieldDef({ key, label: humanizeKey(key) }));
+  }
+  return [...base, ...extras];
+}
+
+function draftFromItem(item: FutureInterestItem, typeFieldDefs: FieldDef[]): FutureInterestDraft {
   const data: Record<string, string | boolean> = {};
-  for (const f of typeDefs) {
+  for (const f of typeFieldDefs) {
     data[f.key] = item.data?.[f.key] === true || item.data?.[f.key] === "true";
   }
   return {
@@ -72,17 +93,18 @@ export default function FutureInterestCard({
   onRemove,
 }: FutureInterestCardProps) {
   const isStays = categorySlug === "stays";
-  const typeDefs = typeDefsForCategory(categorySlug);
-  const typeFieldDefs = typeDefs.map(asFieldDef);
+  const showTypes = categorySlug === "food-drink" || categorySlug === "activities";
+  const displayTypeDefs = resolveTypeFieldDefs(categorySlug, item.data);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<FutureInterestDraft | null>(null);
+  const [editTypeDefs, setEditTypeDefs] = useState<FieldDef[]>([]);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const activeBooleanFields = typeDefs
-    .filter((f) => item.data?.[f.key] === true || item.data?.[f.key] === "true")
-    .map(asFieldDef);
-  const badgeVariants = assignBadgeVariants(typeDefs.map((f) => f.key));
+  const activeBooleanFields = displayTypeDefs.filter(
+    (f) => item.data?.[f.key] === true || item.data?.[f.key] === "true"
+  );
+  const badgeVariants = assignBadgeVariants(displayTypeDefs.map((f) => f.key));
 
   const mediaEntry = {
     posterImage: item.poster_image,
@@ -99,7 +121,9 @@ export default function FutureInterestCard({
   const titleHref = item.url || mapsUrl || undefined;
 
   function startEdit() {
-    setDraft(draftFromItem(item, typeDefs));
+    const defs = resolveTypeFieldDefs(categorySlug, item.data);
+    setEditTypeDefs(defs);
+    setDraft(draftFromItem(item, defs));
     setErrorMsg("");
     setIsEditing(true);
   }
@@ -107,6 +131,7 @@ export default function FutureInterestCard({
   function cancelEdit() {
     setIsEditing(false);
     setDraft(null);
+    setEditTypeDefs([]);
     setErrorMsg("");
   }
 
@@ -117,7 +142,7 @@ export default function FutureInterestCard({
       return;
     }
     if (categorySlug === "food-drink") {
-      const picked = typeDefs.some((f) => draft.data[f.key] === true);
+      const picked = Object.values(draft.data).some((v) => v === true);
       if (!picked) {
         setErrorMsg("Pick at least one type (Restaurant, Bar, …).");
         return;
@@ -126,8 +151,8 @@ export default function FutureInterestCard({
     setSaving(true);
     setErrorMsg("");
     const data: Record<string, unknown> = {};
-    for (const f of typeDefs) {
-      if (draft.data[f.key] === true) data[f.key] = true;
+    for (const [key, value] of Object.entries(draft.data)) {
+      if (value === true) data[key] = true;
     }
     try {
       const res = await fetch(`/api/future-interest/${item.id}`, {
@@ -148,6 +173,7 @@ export default function FutureInterestCard({
       onUpdated(resData.item);
       setIsEditing(false);
       setDraft(null);
+      setEditTypeDefs([]);
     } catch (err) {
       setErrorMsg((err as Error).message);
     } finally {
@@ -162,7 +188,13 @@ export default function FutureInterestCard({
         {isEditing && draft ? (
           <div className={styles["section"]}>
             {errorMsg ? <p className={styles["error"]}>{errorMsg}</p> : null}
-            <FutureInterestEditForm draft={draft} onChange={setDraft} typeFieldDefs={typeFieldDefs} />
+            <FutureInterestEditForm
+              draft={draft}
+              onChange={setDraft}
+              typeFieldDefs={editTypeDefs}
+              onTypeFieldsChange={setEditTypeDefs}
+              showTypes={showTypes}
+            />
             <div className={styles["actions"]}>
               <Button variant="primary" size="sm" onClick={saveEdit} disabled={saving}>
                 {saving ? "Saving…" : "Save"}

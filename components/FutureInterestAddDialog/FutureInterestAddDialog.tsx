@@ -15,10 +15,15 @@ import {
   parseGoogleMapsUrl,
 } from "@/lib/googleUrlHelpers";
 import { searchPlacesByText } from "@/lib/googlePlaces";
-import { FOOD_DRINK_TYPE_FIELD_DEFS, type TemplateFieldDef } from "@/lib/sectionTemplates";
+import {
+  ACTIVITIES_TYPE_FIELD_DEFS,
+  FOOD_DRINK_TYPE_FIELD_DEFS,
+  type TemplateFieldDef,
+} from "@/lib/sectionTemplates";
 import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
 import type { FutureInterestItem } from "@/lib/futureInterest";
 import type { FieldDef, PlaceResult } from "@/lib/types";
+import AddTypeField from "@/components/FutureInterestPage/AddTypeField";
 import dialogStyles from "@/components/AddEntryDialog/AddEntryDialog.module.css";
 import formStyles from "@/components/AddEntryForm/AddEntryForm.module.css";
 
@@ -69,19 +74,27 @@ type Phase = "idle" | "loading" | "editing" | "picking" | "saving";
 // instead of a trip section. Food & Drink also picks type tags here.
 export default function FutureInterestAddDialog({ categorySlug, onAdded }: FutureInterestAddDialogProps) {
   const categoryLabel = siteCategoryLabel(categorySlug);
-  const typeFieldDefs =
-    categorySlug === "food-drink" ? FOOD_DRINK_TYPE_FIELD_DEFS.map(asFieldDef) : [];
+  const showTypes = categorySlug === "food-drink" || categorySlug === "activities";
+  const baseTypeDefs =
+    categorySlug === "food-drink"
+      ? FOOD_DRINK_TYPE_FIELD_DEFS.map(asFieldDef)
+      : categorySlug === "activities"
+        ? ACTIVITIES_TYPE_FIELD_DEFS.map(asFieldDef)
+        : [];
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [fields, setFields] = useState<CoreFields>(CORE_INITIAL);
   const [typeData, setTypeData] = useState<Record<string, unknown>>({});
+  const [extraTypeDefs, setExtraTypeDefs] = useState<FieldDef[]>([]);
   const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [cookieWarning, setCookieWarning] = useState<string | null>(null);
   const [address, setAddress] = useState("");
   const [geocodeMsg, setGeocodeMsg] = useState("");
+
+  const typeFieldDefs = [...baseTypeDefs, ...extraTypeDefs];
 
   useEffect(() => {
     if (!open) reset();
@@ -93,6 +106,7 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
     setPhase("idle");
     setFields(CORE_INITIAL);
     setTypeData({});
+    setExtraTypeDefs([]);
     setPlaceResults([]);
     setErrorMsg("");
     setWarnings([]);
@@ -206,7 +220,7 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
       return;
     }
     if (categorySlug === "food-drink") {
-      const picked = FOOD_DRINK_TYPE_FIELD_DEFS.some((f) => typeData[f.key] === true);
+      const picked = Object.values(typeData).some((v) => v === true);
       if (!picked) {
         setErrorMsg("Pick at least one type (Restaurant, Bar, …).");
         return;
@@ -215,8 +229,8 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
     setPhase("saving");
     setErrorMsg("");
     const data: Record<string, unknown> = {};
-    for (const f of typeFieldDefs) {
-      if (typeData[f.key] === true) data[f.key] = true;
+    for (const [key, value] of Object.entries(typeData)) {
+      if (value === true) data[key] = true;
     }
     try {
       const res = await fetch("/api/future-interest", {
@@ -300,6 +314,15 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
                     setGeocodeMsg("Enter lat/lng above, or go back and search by place name.")
                   }
                 />
+                {showTypes && (
+                  <AddTypeField
+                    existingKeys={typeFieldDefs.map((f) => f.key)}
+                    onAdd={(field) => {
+                      setExtraTypeDefs((prev) => [...prev, field]);
+                      setTypeData((d) => ({ ...d, [field.key]: true }));
+                    }}
+                  />
+                )}
               </div>
 
               <div className={formStyles["actions"]}>

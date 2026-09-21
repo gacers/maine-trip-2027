@@ -146,9 +146,7 @@ export default function FutureInterestPage({ categorySlug, categoryLabel, initia
       {message ? <p className={styles["message"]}>{message}</p> : null}
 
       {pins.some((p) => p.lat != null && p.lng != null) ? (
-        <div className={styles["map-wrap"]}>
-          <OverviewMap pins={pins} />
-        </div>
+        <OverviewMap pins={pins} />
       ) : (
         <p className={styles["empty"]}>No mapped places in this filter.</p>
       )}

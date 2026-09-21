@@ -82,9 +82,7 @@ export default function CatalogPage({ categoryLabel, initialItems }: CatalogPage
       </div>
 
       {pins.some((p) => p.lat != null && p.lng != null) ? (
-        <div className={styles["map-wrap"]}>
-          <OverviewMap pins={pins} />
-        </div>
+        <OverviewMap pins={pins} />
       ) : (
         <p className={styles["empty"]}>No mapped places in this filter.</p>
       )}
