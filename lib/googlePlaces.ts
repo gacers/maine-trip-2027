@@ -77,6 +77,6 @@ export async function searchPlacesByText(query: string): Promise<PlaceResult[]> 
     lng: p.location ? p.location.lng() : null,
     website: p.websiteURI || null,
     mapsUrl: p.googleMapsURI || null,
-    photoUrl: p.photos && p.photos[0] ? p.photos[0].getURI({ maxWidth: 400 }) : null,
+    photoUrl: p.photos && p.photos[0] ? p.photos[0].getURI({ maxWidth: 1200 }) : null,
   }));
 }
