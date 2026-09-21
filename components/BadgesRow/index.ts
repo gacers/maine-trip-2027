@@ -1,2 +1,2 @@
-export { default } from "./BadgesRow";
-export type { BadgesRowProps, BadgeItem } from "./BadgesRow";
+export { default, Badge, assignBadgeVariants } from "./BadgesRow";
+export type { BadgesRowProps, BadgeItem, BadgeVariant, BadgeProps } from "./BadgesRow";

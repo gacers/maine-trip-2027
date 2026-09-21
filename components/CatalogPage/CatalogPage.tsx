@@ -4,8 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import OverviewMap from "@/components/OverviewMap";
 import Button from "@/components/Button";
-import { assignBadgeVariants, type BadgeVariant } from "@/components/Badge";
-import BadgesRow, { type BadgeItem } from "@/components/BadgesRow";
+import BadgesRow, { Badge, assignBadgeVariants, type BadgeItem, type BadgeVariant } from "@/components/BadgesRow";
 import type { CatalogItem, SectionTier } from "@/lib/catalog";
 import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./CatalogPage.module.css";
@@ -20,9 +19,11 @@ export interface CatalogPageProps {
 
 type TierFilter = "all" | SectionTier;
 
-function catalogStatusLabel(item: CatalogItem): "Visited" | "Option" {
-  if (item.tiers.includes("previously-visited") || item.entry.visited) return "Visited";
-  return "Option";
+function catalogStatusBadge(item: CatalogItem): BadgeItem {
+  if (item.tiers.includes("previously-visited") || item.entry.visited) {
+    return { key: "status-visited", label: "Visited", variant: "neutral" };
+  }
+  return { key: "status-option", label: "Option", variant: "teal" };
 }
 
 function catalogTypeBadges(
@@ -139,7 +140,10 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
         <p className={styles["empty"]}>No places match these filters.</p>
       ) : (
         <ul className={styles["list"]}>
-          {visible.map((item) => (
+          {visible.map((item) => {
+            const status = catalogStatusBadge(item);
+            const types = catalogTypeBadges(item, fieldDefs, badgeVariants);
+            return (
             <li key={item.entry.id} id={`catalog-${item.entry.id}`} className={styles["card"]}>
               {item.entry.posterImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -150,8 +154,11 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
               <div className={styles["card-body"]}>
                 <div className={styles["card-heading"]}>
                   <div className={styles["card-tags"]}>
-                    <span className={styles["card-status"]}>{catalogStatusLabel(item)} -</span>
-                    <BadgesRow items={catalogTypeBadges(item, fieldDefs, badgeVariants)} />
+                    <Badge variant={status.variant}>{status.label}</Badge>
+                    <span className={styles["card-tags-dash"]} aria-hidden>
+                      -
+                    </span>
+                    <BadgesRow items={types} />
                   </div>
                   <div className={styles["card-meta"]}>
                     {item.country ? <span>{item.country}</span> : null}
@@ -179,7 +186,8 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
                 </div>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </main>
