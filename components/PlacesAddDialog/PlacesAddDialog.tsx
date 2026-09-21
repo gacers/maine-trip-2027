@@ -77,7 +77,7 @@ export default function PlacesAddDialog({
   onFieldDefsChanged,
 }: PlacesAddDialogProps) {
   const categoryLabel = siteCategoryLabel(categorySlug);
-  const showTypes = categorySlug === "food-drink" || categorySlug === "activities";
+  const showTypes = true; // Closed/Moved (+ any type tags) on every category
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");

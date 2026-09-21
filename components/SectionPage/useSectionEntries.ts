@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getOrCreateDeviceId } from "@/lib/inviteClient";
+import { flattenEntryDataPatch } from "@/lib/statusFields";
 import type { PublicTrip, Section, ClientEntry } from "@/lib/types";
 
 export interface UseSectionEntriesArgs {
@@ -88,8 +89,13 @@ export function useSectionEntries({ trip, section, navGroupSlug, authToken, canC
   const loading = entriesQuery.isPending;
   const error = mutationError || (entriesQuery.isError ? (entriesQuery.error as Error).message : "");
 
-  function applyLocalPatch(id: string, patch: Partial<ClientEntry>) {
-    queryClient.setQueryData<ClientEntry[]>(entriesQueryKey, (old) => old?.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  function applyLocalPatch(id: string, patch: Partial<ClientEntry> & { data?: Record<string, unknown> }) {
+    // EntryCard saves section fields under `data`, but ClientEntry keeps
+    // those keys flat (see toClientEntry). Spread `data` up so Moved /
+    // moved_from_* show immediately instead of only after a refetch.
+    queryClient.setQueryData<ClientEntry[]>(entriesQueryKey, (old) =>
+      old?.map((e) => (e.id === id ? flattenEntryDataPatch(e, patch as Record<string, unknown>) : e))
+    );
   }
 
   // Every mutation below follows the same shape: a plain useMutation

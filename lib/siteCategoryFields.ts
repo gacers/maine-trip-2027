@@ -3,8 +3,10 @@ import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
 import {
   ACTIVITIES_TYPE_FIELD_DEFS,
   FOOD_DRINK_TYPE_FIELD_DEFS,
+  STATUS_FIELD_DEFS,
   type TemplateFieldDef,
 } from "@/lib/sectionTemplates";
+import { isStatusBooleanKey, MOVED_ADDRESS_KEY } from "@/lib/statusFields";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
 import type { FieldDef, FieldType } from "@/lib/types";
 
@@ -42,35 +44,33 @@ function asFieldDef(f: TemplateFieldDef, sectionId = ""): FieldDef {
   };
 }
 
-function baseDefsForCategory(slug: string): TemplateFieldDef[] {
-  if (slug === "food-drink") {
-    return [
-      { key: "closed", label: "Closed", field_type: "boolean", show_on_overview: true },
-      { key: "moved", label: "Moved", field_type: "boolean", show_on_overview: true },
-      { key: "moved_address", label: "New address", field_type: "text", show_on_overview: true },
-      ...FOOD_DRINK_TYPE_FIELD_DEFS,
-    ];
-  }
-  if (slug === "activities") {
-    return [
-      { key: "closed", label: "Closed", field_type: "boolean", show_on_overview: true },
-      { key: "moved", label: "Moved", field_type: "boolean", show_on_overview: true },
-      { key: "moved_address", label: "New address", field_type: "text", show_on_overview: true },
-      ...ACTIVITIES_TYPE_FIELD_DEFS,
-    ];
-  }
+function isProtectedStatusKey(key: string): boolean {
+  return isStatusBooleanKey(key) || key === MOVED_ADDRESS_KEY;
+}
+
+/** Suggested type tags when seeding a new Food & Drink / Activities schema.
+ * Not re-forced onto sections — admins trim per section in the designer. */
+export function defaultTypeDefsForCategory(slug: string): TemplateFieldDef[] {
+  if (slug === "food-drink") return FOOD_DRINK_TYPE_FIELD_DEFS;
+  if (slug === "activities") return ACTIVITIES_TYPE_FIELD_DEFS;
   return [];
 }
 
-/** Insert any missing built-in Closed/Moved fields onto one section,
- * and keep them pinned at the front (Closed → Moved → New address →
- * types) so they don't bury under later type tags. */
+/** Status + optional starter types (Manage empty-state / docs). */
+export function baseDefsForCategory(slug: string): TemplateFieldDef[] {
+  return [...STATUS_FIELD_DEFS, ...defaultTypeDefsForCategory(slug)];
+}
+
+/**
+ * Pin Closed / Moved / New address onto every section (any category).
+ * Type tags are NOT re-added — remove them in Section Designer / Manage
+ * and they stay gone.
+ */
 export async function ensureBaseFieldDefsOnSection(
   sectionId: string,
-  categorySlug: string
+  _categorySlug?: string
 ): Promise<void> {
-  const base = baseDefsForCategory(categorySlug);
-  if (base.length === 0) return;
+  const base = STATUS_FIELD_DEFS;
   const supabase = supabaseServiceRole();
   const { data: existing } = await supabase
     .from("field_defs")
@@ -89,7 +89,6 @@ export async function ensureBaseFieldDefsOnSection(
       show_on_overview: f.show_on_overview,
       required: false,
       options: f.options || null,
-      // Temporary high sort — normalized below with the rest of base.
       sort_order: 1000 + have.size,
     });
     if (error) throw new Error(error.message);
@@ -103,13 +102,13 @@ export async function ensureBaseFieldDefsOnSection(
     .order("sort_order", { ascending: true });
   if (!allDefs?.length) return;
 
-  const baseKeys = base.map((f) => f.key);
-  const baseKeySet = new Set(baseKeys);
-  const extras = allDefs.filter((r) => !baseKeySet.has(r.key));
+  const statusKeys = base.map((f) => f.key);
+  const statusKeySet = new Set(statusKeys);
+  const extras = allDefs.filter((r) => !statusKeySet.has(r.key));
   const byKey = new Map(allDefs.map((r) => [r.key, r]));
 
   let sortOrder = 0;
-  for (const key of baseKeys) {
+  for (const key of statusKeys) {
     const row = byKey.get(key);
     if (!row) continue;
     if (row.sort_order !== sortOrder) {
@@ -125,17 +124,15 @@ export async function ensureBaseFieldDefsOnSection(
   }
 }
 
-/** Prefer base status/type order, then any extra section keys. */
-export function mergeBaseFieldDefs(categorySlug: string, fieldDefs: FieldDef[]): FieldDef[] {
-  const base = baseDefsForCategory(categorySlug);
-  if (base.length === 0) return fieldDefs;
+/** Prefer status fields at the front; never invent missing type tags. */
+export function mergeBaseFieldDefs(_categorySlug: string, fieldDefs: FieldDef[]): FieldDef[] {
   const byKey = new Map(fieldDefs.map((f) => [f.key, f]));
-  for (const f of base) {
+  for (const f of STATUS_FIELD_DEFS) {
     if (!byKey.has(f.key)) byKey.set(f.key, asFieldDef(f));
   }
   const ordered: FieldDef[] = [];
   const seen = new Set<string>();
-  for (const f of base) {
+  for (const f of STATUS_FIELD_DEFS) {
     const row = byKey.get(f.key);
     if (row) {
       ordered.push(row);
@@ -184,13 +181,13 @@ export async function syncFutureInterestTypesToCategory(categorySlug: string): P
 }
 
 /** Union of field_defs used on any trip section in this site category —
- * so Future Interests shows the same type checkboxes as trip cards. */
+ * so Future Interests shows the same type checkboxes as trip cards.
+ * Always includes Closed/Moved; type tags come from live sections only. */
 export async function getFieldDefsForSiteCategory(categorySlug: string): Promise<FieldDef[]> {
   const supabase = supabaseServiceRole();
   const byKey = new Map<string, FieldDef>();
-  const base = baseDefsForCategory(categorySlug);
 
-  for (const f of base) {
+  for (const f of STATUS_FIELD_DEFS) {
     byKey.set(f.key, asFieldDef(f));
   }
 
@@ -200,7 +197,14 @@ export async function getFieldDefsForSiteCategory(categorySlug: string): Promise
     .eq("slug", categorySlug);
   if (ngError) throw new Error(ngError.message);
   const navIds = (navGroups || []).map((g) => g.id);
-  if (navIds.length === 0) return [...byKey.values()];
+
+  if (navIds.length === 0) {
+    // No trip sections yet — seed starter types so Manage isn't empty.
+    for (const f of defaultTypeDefsForCategory(categorySlug)) {
+      byKey.set(f.key, asFieldDef(f));
+    }
+    return orderStatusFirst([...byKey.values()]);
+  }
 
   const { data: sections, error: secError } = await supabase
     .from("sections")
@@ -209,14 +213,15 @@ export async function getFieldDefsForSiteCategory(categorySlug: string): Promise
     .eq("enabled", true);
   if (secError) throw new Error(secError.message);
   const sectionIds = (sections || []).map((s) => s.id);
-  if (sectionIds.length === 0) return [...byKey.values()];
-
-  // Ensure Closed / Moved / New address exist on every live section so
-  // trip cards pick them up without a manual Manage save.
-  if (base.length > 0) {
-    for (const sectionId of sectionIds) {
-      await ensureBaseFieldDefsOnSection(sectionId, categorySlug);
+  if (sectionIds.length === 0) {
+    for (const f of defaultTypeDefsForCategory(categorySlug)) {
+      byKey.set(f.key, asFieldDef(f));
     }
+    return orderStatusFirst([...byKey.values()]);
+  }
+
+  for (const sectionId of sectionIds) {
+    await ensureBaseFieldDefsOnSection(sectionId, categorySlug);
   }
 
   const { data: defs, error: defError } = await supabase
@@ -230,22 +235,27 @@ export async function getFieldDefsForSiteCategory(categorySlug: string): Promise
     if (!byKey.has(row.key)) byKey.set(row.key, { ...row, section_id: "", id: row.key });
   }
 
-  // Prefer base order for status/type keys, then any extra section keys.
+  return orderStatusFirst([...byKey.values()]);
+}
+
+function orderStatusFirst(defs: FieldDef[]): FieldDef[] {
   const ordered: FieldDef[] = [];
   const seen = new Set<string>();
-  for (const f of base) {
-    const row = byKey.get(f.key);
+  for (const f of STATUS_FIELD_DEFS) {
+    const row = defs.find((d) => d.key === f.key);
     if (row) {
       ordered.push(row);
       seen.add(f.key);
     }
   }
-  for (const [key, row] of byKey) {
-    if (seen.has(key)) continue;
+  for (const row of defs) {
+    if (seen.has(row.key)) continue;
     ordered.push(row);
+    seen.add(row.key);
   }
   return ordered;
 }
+
 
 export interface SiteCategoryFieldInput {
   categorySlug: string;
@@ -394,9 +404,8 @@ export async function syncFieldsForSiteCategory(
 
   for (const key of previousKeys) {
     if (nextKeys.has(key)) continue;
-    // Keep built-in type/closed/moved fields — they're always part of the
-    // category schema even when no trip section has them yet.
-    if (baseDefsForCategory(categorySlug).some((f) => f.key === key)) continue;
+    // Closed / Moved / New address stay — type tags may be removed.
+    if (isProtectedStatusKey(key)) continue;
     if (sectionIds.length === 0) continue;
     await supabase.from("field_defs").delete().in("section_id", sectionIds).eq("key", key);
   }

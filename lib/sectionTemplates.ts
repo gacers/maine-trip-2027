@@ -125,9 +125,8 @@ const MOVED_ADDRESS_FIELD_DEF: TemplateFieldDef = {
   show_on_overview: true,
 };
 for (const template of SECTION_TEMPLATES) {
-  if (template.key === "foodDrink" || template.key === "activities") {
-    template.fieldDefs = [...template.fieldDefs, CLOSED_FIELD_DEF, MOVED_FIELD_DEF, MOVED_ADDRESS_FIELD_DEF];
-  }
+  // Closed / Moved are site-wide status — every starter section gets them.
+  template.fieldDefs = [...template.fieldDefs, CLOSED_FIELD_DEF, MOVED_FIELD_DEF, MOVED_ADDRESS_FIELD_DEF];
 }
 
 // Food & Drink's own type tags — same generic boolean-field-as-filter/
@@ -169,3 +168,11 @@ for (const template of SECTION_TEMPLATES) {
     template.fieldDefs = [...template.fieldDefs, ...ACTIVITIES_TYPE_FIELD_DEFS];
   }
 }
+
+/** Closed / Moved / New address — shared across every section kind. */
+export const STATUS_FIELD_DEFS: TemplateFieldDef[] = [
+  CLOSED_FIELD_DEF,
+  MOVED_FIELD_DEF,
+  MOVED_ADDRESS_FIELD_DEF,
+];
+

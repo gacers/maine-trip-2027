@@ -51,6 +51,17 @@ function catalogTypeBadges(
       variant: statusBadgeVariant(f.key) ?? badgeVariants[f.key],
     });
   }
+  // Global Closed/Moved even when this category's field list hasn't caught up.
+  for (const key of ["closed", "moved"] as const) {
+    if (known.has(key)) continue;
+    const value = item.entry[key];
+    if (value !== true && value !== "true") continue;
+    items.push({
+      key,
+      label: key === "closed" ? "Closed" : "Moved",
+      variant: statusBadgeVariant(key) ?? "neutral",
+    });
+  }
   for (const [key, value] of Object.entries(item.entry)) {
     if (known.has(key) || key === "visited" || isStatusBooleanKey(key)) continue;
     if (value !== true && value !== "true") continue;
@@ -61,7 +72,7 @@ function catalogTypeBadges(
       variant: badgeVariants[key] ?? "neutral",
     });
   }
-  return items;
+  return orderBooleanBadgeFields(items);
 }
 
 // Cross-trip browse for one category (Stays, Food & Drink, …) — map of

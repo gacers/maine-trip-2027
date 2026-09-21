@@ -25,6 +25,7 @@ import EntryFooter from "./EntryFooter";
 import AvailabilityLinks, { type DateRange } from "./AvailabilityLinks";
 import { withAvailabilityDates } from "@/lib/listingAvailability";
 import {
+  applyMovedLocationChange,
   isStatusBooleanKey,
   isTruthyFlag,
   MOVED_ADDRESS_KEY,
@@ -33,7 +34,6 @@ import {
   oldLocationMapsUrl,
   orderBooleanBadgeFields,
   statusBadgeVariant,
-  withMovedFromStash,
 } from "@/lib/statusFields";
 import type { ImportSourceEntryInfo } from "@/lib/entrySync";
 import type { ClientEntry, FieldDef, MapConfig, MapReferencePoint } from "@/lib/types";
@@ -172,6 +172,8 @@ export default function EntryCard({
   const [addressLabel, setAddressLabel] = useState<string | null>(null);
   const [importSource, setImportSource] = useState<ImportSourceEntryInfo | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  /** Pin when Edit opened — Find/save must stash this, not the already-updated draft coords. */
+  const [priorCoords, setPriorCoords] = useState<{ lat: number; lng: number } | null>(null);
   const isCollapsed = collapsible && collapsed;
   const isArchived = entry.status === "archived";
   const extraMarkers = parseExtraMarkers(entry.extraMarkers);
@@ -250,9 +252,30 @@ export default function EntryCard({
   // Coerce string "true"/"false" too — EntryEditForm used to String()
   // checkbox values, so older saves may still be strings; !!"false" is
   // truthy and would leave the badge stuck on.
+  // Closed/Moved also surface from entry data even when the section's
+  // field_defs list hasn't caught up yet (global status).
+  const booleanDefsByKey = new Map(
+    fieldDefs.filter((f) => f.field_type === "boolean").map((f) => [f.key, f])
+  );
+  for (const key of ["closed", "moved"] as const) {
+    if (!isTruthyFlag(entry[key]) || booleanDefsByKey.has(key)) continue;
+    booleanDefsByKey.set(key, {
+      id: key,
+      section_id: "",
+      key,
+      label: key === "closed" ? "Closed" : "Moved",
+      field_type: "boolean",
+      storage: "jsonb",
+      core_column: null,
+      options: null,
+      sort_order: 0,
+      show_on_overview: true,
+      required: false,
+    });
+  }
   const activeBooleanFields = orderBooleanBadgeFields(
-    fieldDefs.filter(
-      (f) => f.field_type === "boolean" && (entry[f.key] === true || entry[f.key] === "true")
+    [...booleanDefsByKey.values()].filter(
+      (f) => entry[f.key] === true || entry[f.key] === "true"
     )
   );
   // Colors are assigned from the section's full boolean field list (not
@@ -302,6 +325,13 @@ export default function EntryCard({
     if (entry[MOVED_FROM_LNG_KEY] != null && entry[MOVED_FROM_LNG_KEY] !== "") {
       dataDraft[MOVED_FROM_LNG_KEY] = String(entry[MOVED_FROM_LNG_KEY]);
     }
+    const priorLat = entry.lat == null ? null : Number(entry.lat);
+    const priorLng = entry.lng == null ? null : Number(entry.lng);
+    setPriorCoords(
+      priorLat != null && priorLng != null && !Number.isNaN(priorLat) && !Number.isNaN(priorLng)
+        ? { lat: priorLat, lng: priorLng }
+        : null
+    );
     setDraft({
       title: entry.title || "",
       url: entry.url || "",
@@ -336,7 +366,14 @@ export default function EntryCard({
       const { lat, lng, formattedAddress } = await fetchForwardGeocode(tripSlug, address, authToken);
       setDraft((d) => {
         if (!d) return d;
-        const data = withMovedFromStash({ ...d.data }, d.lat, d.lng) as EntryDraft["data"];
+        const data = applyMovedLocationChange({
+          data: { ...d.data },
+          priorLat: priorCoords?.lat,
+          priorLng: priorCoords?.lng,
+          nextLat: lat,
+          nextLng: lng,
+          fromAddressFind: true,
+        }) as EntryDraft["data"];
         if (isTruthyFlag(data.moved)) {
           data[MOVED_ADDRESS_KEY] = formattedAddress;
         }
@@ -361,7 +398,13 @@ export default function EntryCard({
       .filter((m) => m.label && m.lat !== "" && m.lng !== "")
       .map((m) => ({ label: m.label, color: m.color, lat: Number(m.lat), lng: Number(m.lng) }));
 
-    const stashed = withMovedFromStash({ ...draft.data }, draft.lat, draft.lng);
+    const stashed = applyMovedLocationChange({
+      data: { ...draft.data },
+      priorLat: priorCoords?.lat,
+      priorLng: priorCoords?.lng,
+      nextLat: draft.lat,
+      nextLng: draft.lng,
+    });
     const dataPatch: Record<string, unknown> = {};
     for (const f of fieldDefs) {
       const v = stashed[f.key];
@@ -378,6 +421,9 @@ export default function EntryCard({
     }
     if (stashed[MOVED_FROM_LNG_KEY] != null && stashed[MOVED_FROM_LNG_KEY] !== "") {
       dataPatch[MOVED_FROM_LNG_KEY] = Number(stashed[MOVED_FROM_LNG_KEY]);
+    }
+    if (typeof stashed[MOVED_ADDRESS_KEY] === "string" && stashed[MOVED_ADDRESS_KEY]) {
+      dataPatch[MOVED_ADDRESS_KEY] = stashed[MOVED_ADDRESS_KEY];
     }
 
     // A locked entry's own shared fields (see lib/entrySync.ts) are
@@ -404,6 +450,7 @@ export default function EntryCard({
     });
     setIsEditing(false);
     setDraft(null);
+    setPriorCoords(null);
   }
 
   function archive(reason: string) {
@@ -567,9 +614,9 @@ export default function EntryCard({
 
             {!isEditing && isMoved && oldMapsUrl ? (
               <div className={styles["section"]}>
-                <h3 className={styles["section-heading"]}>Old address</h3>
+                <h3 className={styles["section-heading"]}>Old Address</h3>
                 <a href={oldMapsUrl} target="_blank" rel="noopener noreferrer" className={styles["address-link"]}>
-                  View on map
+                  Open in Google Maps
                 </a>
               </div>
             ) : null}
@@ -587,6 +634,8 @@ export default function EntryCard({
                   geocoding={geocoding}
                   geocodeMsg={geocodeMsg}
                   onFindCoords={handleFindCoords}
+                  priorLat={priorCoords?.lat ?? null}
+                  priorLng={priorCoords?.lng ?? null}
                   locked={!!entry.importSourceEntryId}
                   importSource={importSource}
                   tripSlug={canManage ? tripSlug : undefined}
@@ -648,6 +697,7 @@ export default function EntryCard({
                   onCancelEdit={() => {
                     setIsEditing(false);
                     setDraft(null);
+                    setPriorCoords(null);
                   }}
                   onAddPaired={onAddPaired}
                   onResetRankings={canManage && showRatings ? onResetRankings : undefined}

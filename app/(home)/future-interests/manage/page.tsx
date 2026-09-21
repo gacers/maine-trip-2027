@@ -12,14 +12,15 @@ export default async function FutureInterestsManagePage() {
   const canAccess = await canAccessSiteCatalog();
   if (!canAccess) redirect("/");
 
-  const [settings, ...fieldResults] = await Promise.all([
-    getSurfaceCategorySettings("future-interests"),
-    ...SITE_CATEGORIES.map((c) => getFieldDefsForSiteCategory(c.slug)),
-  ]);
+  const settings = await getSurfaceCategorySettings("future-interests");
+  const slugs = [
+    ...new Set([...SITE_CATEGORIES.map((c) => c.slug), ...settings.categories.map((c) => c.slug)]),
+  ];
+  const fieldResults = await Promise.all(slugs.map((slug) => getFieldDefsForSiteCategory(slug)));
 
   const initialFieldsByCategory: Record<string, FieldDef[]> = {};
-  SITE_CATEGORIES.forEach((c, i) => {
-    initialFieldsByCategory[c.slug] = fieldResults[i];
+  slugs.forEach((slug, i) => {
+    initialFieldsByCategory[slug] = fieldResults[i];
   });
 
   return (

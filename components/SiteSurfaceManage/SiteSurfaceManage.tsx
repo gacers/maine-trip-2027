@@ -9,7 +9,7 @@ import FieldDefsEditor, {
   rowToFieldDef,
   type FieldRow,
 } from "@/components/admin/SectionForm/FieldDefsEditor";
-import { SITE_CATEGORIES, type SiteCategorySlug } from "@/lib/siteCategories";
+import { SITE_CATEGORIES } from "@/lib/siteCategories";
 import {
   SURFACE_DEFAULT_CATEGORIES,
   type SurfaceCategory,
@@ -26,7 +26,7 @@ export interface SiteSurfaceManageProps {
   initialCategories?: SurfaceCategory[];
 }
 
-const EDITABLE_CATEGORIES: SiteCategorySlug[] = ["food-drink", "activities"];
+const EDITABLE_CATEGORIES = SITE_CATEGORIES.map((c) => c.slug);
 
 interface CustomTemplateOption {
   slug: string;
@@ -42,11 +42,14 @@ export default function SiteSurfaceManage({
 }: SiteSurfaceManageProps) {
   const router = useRouter();
   const showCategoryManage = surface === "places" || surface === "future-interests";
-  const [activeCategory, setActiveCategory] = useState<SiteCategorySlug>("food-drink");
+  const [activeCategory, setActiveCategory] = useState<string>("food-drink");
   const [rowsByCategory, setRowsByCategory] = useState<Record<string, FieldRow[]>>(() => {
     const init: Record<string, FieldRow[]> = {};
     for (const c of SITE_CATEGORIES) {
       init[c.slug] = (initialFieldsByCategory[c.slug] || []).map(fieldDefToRow);
+    }
+    for (const [slug, defs] of Object.entries(initialFieldsByCategory)) {
+      if (!init[slug]) init[slug] = defs.map(fieldDefToRow);
     }
     return init;
   });
@@ -55,6 +58,21 @@ export default function SiteSurfaceManage({
   const [busySlug, setBusySlug] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const fieldCategoryTabs: { slug: string; label: string }[] = showCategoryManage
+    ? [
+        ...EDITABLE_CATEGORIES.map((slug) => ({
+          slug,
+          label: SITE_CATEGORIES.find((c) => c.slug === slug)?.label || slug,
+        })),
+        ...categories
+          .filter((c) => c.enabled && !EDITABLE_CATEGORIES.includes(c.slug as (typeof EDITABLE_CATEGORIES)[number]))
+          .map((c) => ({ slug: c.slug, label: c.label })),
+      ]
+    : EDITABLE_CATEGORIES.map((slug) => ({
+        slug,
+        label: SITE_CATEGORIES.find((c) => c.slug === slug)?.label || slug,
+      }));
 
   useEffect(() => {
     if (!showCategoryManage) return;
@@ -267,9 +285,27 @@ export default function SiteSurfaceManage({
                         Enabled
                       </label>
                       {c.enabled ? (
-                        <Link href={`/${surface}/${c.slug}`} className={styles["edit-link"]}>
-                          Open
-                        </Link>
+                        <>
+                          <button
+                            type="button"
+                            className={styles["edit-link"]}
+                            onClick={() => {
+                              setActiveCategory(c.slug);
+                              if (!rowsByCategory[c.slug]) {
+                                setRowsByCategory((prev) => ({
+                                  ...prev,
+                                  [c.slug]: (initialFieldsByCategory[c.slug] || []).map(fieldDefToRow),
+                                }));
+                              }
+                              document.getElementById("type-fields")?.scrollIntoView({ behavior: "smooth" });
+                            }}
+                          >
+                            Fields
+                          </button>
+                          <Link href={`/${surface}/${c.slug}`} className={styles["edit-link"]}>
+                            Open
+                          </Link>
+                        </>
                       ) : null}
                       <button
                         type="button"
@@ -288,20 +324,22 @@ export default function SiteSurfaceManage({
         </>
       ) : null}
 
-      <section className={styles["section"]}>
-        <h2 className={styles["section-title"]}>Type fields</h2>
+      <section className={styles["section"]} id="type-fields">
+        <h2 className={styles["section-title"]}>Status &amp; type fields</h2>
         <p className={styles["hint"]}>
-          Changes apply to every trip section in this category (and Future Interests / Places cards that use them).
+          Closed and Moved are always available. Type tags (Restaurant, Hike, …) are per category —
+          trim what you don&apos;t need here, or on a trip section&apos;s Edit page for that section only.
+          Saving here updates every trip section in the selected category.
         </p>
         <div className={styles["category-tabs"]}>
-          {EDITABLE_CATEGORIES.map((slug) => (
+          {fieldCategoryTabs.map((tab) => (
             <button
-              key={slug}
+              key={tab.slug}
               type="button"
-              className={activeCategory === slug ? styles["tab-active"] : styles["tab"]}
-              onClick={() => setActiveCategory(slug)}
+              className={activeCategory === tab.slug ? styles["tab-active"] : styles["tab"]}
+              onClick={() => setActiveCategory(tab.slug)}
             >
-              {SITE_CATEGORIES.find((c) => c.slug === slug)?.label || slug}
+              {tab.label}
             </button>
           ))}
         </div>

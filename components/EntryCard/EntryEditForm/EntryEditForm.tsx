@@ -2,7 +2,7 @@ import Button from "@/components/Button";
 import FieldInput from "@/components/FieldInput";
 import AddFieldSelect from "@/components/AddFieldSelect";
 import { MARKER_COLORS } from "../helpers";
-import { visibleFieldDefsForEdit, withMovedFromStash } from "@/lib/statusFields";
+import { visibleFieldDefsForEdit, stashMovedFrom, isTruthyFlag } from "@/lib/statusFields";
 import type { ImportSourceEntryInfo } from "@/lib/entrySync";
 import type { FieldDef } from "@/lib/types";
 import styles from "./EntryEditForm.module.css";
@@ -37,6 +37,10 @@ export interface EntryEditFormProps {
   geocoding: boolean;
   geocodeMsg: string;
   onFindCoords: () => void;
+  /** Pin when edit started — used when Moved turns on so Old Address
+   * keeps the original spot even if lat/lng were already edited. */
+  priorLat?: number | null;
+  priorLng?: number | null;
   /** True once this entry syncs from another one (see lib/entrySync.ts)
    * — disables every shared field below (title/link/photo/description/
    * fieldDefs/lat/lng); groupLabel and the extra map points stay
@@ -79,6 +83,8 @@ export default function EntryEditForm({
   geocoding,
   geocodeMsg,
   onFindCoords,
+  priorLat = null,
+  priorLng = null,
   locked = false,
   importSource,
   tripSlug,
@@ -172,8 +178,12 @@ export default function EntryEditForm({
                 value={draft.data[f.key]}
                 onChange={(v) => {
                   let data: Record<string, string | boolean> = { ...draft.data, [f.key]: v as string | boolean };
-                  if (f.key === "moved") {
-                    data = withMovedFromStash(data, draft.lat, draft.lng) as Record<string, string | boolean>;
+                  if (f.key === "moved" && isTruthyFlag(v)) {
+                    data = stashMovedFrom(
+                      data,
+                      priorLat ?? draft.lat,
+                      priorLng ?? draft.lng
+                    ) as Record<string, string | boolean>;
                   }
                   onChange({ ...draft, data });
                 }}
