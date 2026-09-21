@@ -90,6 +90,10 @@ export default function HomeShell({
 
   const placesTabs = placesCategoryTabs ?? SITE_CATEGORIES;
   const fiTabs = futureInterestsCategoryTabs ?? SITE_CATEGORIES;
+  const placesHref = placesTabs[0] ? `/places/${placesTabs[0].slug}` : "/places/manage";
+  const futureInterestsHref = fiTabs[0]
+    ? `/future-interests/${fiTabs[0].slug}`
+    : "/future-interests/manage";
   const categoryTabs =
     categoryBasePath === "/places"
       ? placesTabs
@@ -130,6 +134,8 @@ export default function HomeShell({
             categoryTabs={categoryTabs}
             placesCategoryTabs={placesTabs}
             futureInterestsCategoryTabs={fiTabs}
+            placesHref={placesHref}
+            futureInterestsHref={futureInterestsHref}
           />
         ) : null}
       </div>

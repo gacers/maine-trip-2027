@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import Button from "@/components/Button";
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/NavigationMenu";
 import { SITE_CATEGORIES } from "@/lib/siteCategories";
+import { usePrefetchSurfaceList } from "@/lib/surfaceListQueries";
 import SiteStackMobileDrawer from "./SiteStackMobileDrawer";
 import styles from "./SiteStackNav.module.css";
 
@@ -25,22 +26,11 @@ export interface SiteStackNavProps {
   placesCategoryTabs?: readonly { slug: string; label: string }[];
   /** Future Interests enabled tabs (mobile drawer FI group). */
   futureInterestsCategoryTabs?: readonly { slug: string; label: string }[];
+  /** First Places category path — stack link target (no /places redirect). */
+  placesHref?: string;
+  /** First FI category path — stack link target. */
+  futureInterestsHref?: string;
 }
-
-const STACK = [
-  { href: "/", label: "Trips", match: (path: string) => path === "/" },
-  { href: "/categories/stays", label: "Categories", match: (path: string) => path.startsWith("/categories") },
-  {
-    href: "/places",
-    label: "Places",
-    match: (path: string) => path.startsWith("/places"),
-  },
-  {
-    href: "/future-interests",
-    label: "Future Interests",
-    match: (path: string) => path.startsWith("/future-interests"),
-  },
-] as const;
 
 // Sticky Trips | Categories | Places | Future Interests bar for the home
 // surface only (see app/(home)/layout). Same collapse as trip
@@ -54,10 +44,32 @@ export default function SiteStackNav({
   categoryTabs,
   placesCategoryTabs,
   futureInterestsCategoryTabs,
+  placesHref = "/places/stays",
+  futureInterestsHref = "/future-interests/stays",
 }: SiteStackNavProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const tabs = categoryTabs ?? SITE_CATEGORIES;
+  const prefetch = usePrefetchSurfaceList();
+
+  const stack = [
+    { href: "/", label: "Trips", match: (path: string) => path === "/" },
+    {
+      href: "/categories/stays",
+      label: "Categories",
+      match: (path: string) => path.startsWith("/categories"),
+    },
+    {
+      href: placesHref,
+      label: "Places",
+      match: (path: string) => path.startsWith("/places"),
+    },
+    {
+      href: futureInterestsHref,
+      label: "Future Interests",
+      match: (path: string) => path.startsWith("/future-interests"),
+    },
+  ] as const;
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
@@ -78,6 +90,8 @@ export default function SiteStackNav({
           manageHref={manageHref}
           placesCategoryTabs={placesCategoryTabs}
           futureInterestsCategoryTabs={futureInterestsCategoryTabs}
+          placesHref={placesHref}
+          futureInterestsHref={futureInterestsHref}
         />
         <div className={styles["mobile-actions"]}>
           {manageHref ? (
@@ -93,8 +107,8 @@ export default function SiteStackNav({
         <div className={styles["nav-row"]}>
           <NavigationMenu className={styles["menu"]} aria-label="Site sections">
             <NavigationMenuList>
-              {STACK.map((item) => (
-                <NavigationMenuItem key={item.href}>
+              {stack.map((item) => (
+                <NavigationMenuItem key={item.label}>
                   <NavigationMenuLink asChild active={item.match(pathname)}>
                     <Link href={item.href}>{item.label}</Link>
                   </NavigationMenuLink>
@@ -116,7 +130,12 @@ export default function SiteStackNav({
                 {tabs.map((c) => (
                   <NavigationMenuItem key={c.slug}>
                     <NavigationMenuLink asChild size="sm" active={categorySlug === c.slug}>
-                      <Link href={`${categoryBasePath}/${c.slug}`}>{c.label}</Link>
+                      <Link
+                        href={`${categoryBasePath}/${c.slug}`}
+                        onPointerEnter={() => prefetch(categoryBasePath, c.slug)}
+                      >
+                        {c.label}
+                      </Link>
                     </NavigationMenuLink>
                   </NavigationMenuItem>
                 ))}

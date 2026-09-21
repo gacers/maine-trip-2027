@@ -2,22 +2,24 @@
 
 import { useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
+import { useQueryClient } from "@tanstack/react-query";
 import OverviewMap from "@/components/OverviewMap";
 import PlacesAddDialog from "@/components/PlacesAddDialog";
 import type { AddedFieldPayload } from "@/components/AddFieldSelect";
+import PageLoading from "@/components/PageLoading";
 import PlaceCard from "./PlaceCard";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
 import type { PlaceItem } from "@/lib/placesShared";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
 import type { SurfaceCardLayout } from "@/lib/siteSurfaceShared";
 import { defaultCardLayout, defaultSupportsConcerns } from "@/lib/siteSurfaceShared";
+import { placesListKey, usePlacesList } from "@/lib/surfaceListQueries";
 import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./PlacesPage.module.css";
 
 export interface PlacesPageProps {
   categorySlug: SiteCategorySlug;
   categoryLabel: string;
-  initialItems: PlaceItem[];
   initialFieldDefs: FieldDef[];
   geocodeTripSlug?: string;
   cardLayout?: SurfaceCardLayout;
@@ -27,20 +29,16 @@ export interface PlacesPageProps {
 export default function PlacesPage({
   categorySlug,
   categoryLabel,
-  initialItems,
   initialFieldDefs,
   geocodeTripSlug,
   cardLayout = defaultCardLayout(categorySlug),
   showConcerns = defaultSupportsConcerns(categorySlug),
 }: PlacesPageProps) {
   const homeActions = useHomeActions();
-  const [items, setItems] = useState(initialItems);
+  const queryClient = useQueryClient();
+  const { items, loading, error } = usePlacesList(categorySlug);
   const [fieldDefs, setFieldDefs] = useState(initialFieldDefs);
   const [countryFilter, setCountryFilter] = useState("all");
-
-  useEffect(() => {
-    setItems(initialItems);
-  }, [initialItems]);
 
   useEffect(() => {
     setFieldDefs(initialFieldDefs);
@@ -78,16 +76,16 @@ export default function PlacesPage({
         onFieldDefsChanged={handleFieldDefsChanged}
         showConcerns={showConcerns}
         onAdded={(item) => {
-          if (item.category_slug === categorySlug) {
-            setItems((prev) => [item, ...prev]);
-          }
+          if (item.category_slug !== categorySlug) return;
+          queryClient.setQueryData<PlaceItem[]>(placesListKey(categorySlug), (old) => [
+            item,
+            ...(old ?? []),
+          ]);
         }}
       />
     );
-  }, [homeActions?.setCategoryActions, categorySlug, fieldDefs, showConcerns]);
+  }, [homeActions?.setCategoryActions, categorySlug, fieldDefs, showConcerns, queryClient]);
 
-  // Clear the nav slot only when leaving this page — not when fieldDefs
-  // updates mid-add (that remount closed the dialog after "+ Add field").
   useEffect(() => {
     const setActions = homeActions?.setCategoryActions;
     if (!setActions) return;
@@ -121,13 +119,17 @@ export default function PlacesPage({
   );
 
   function handleUpdated(item: PlaceItem) {
-    setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+    queryClient.setQueryData<PlaceItem[]>(placesListKey(categorySlug), (old) =>
+      old?.map((i) => (i.id === item.id ? item : i))
+    );
   }
 
   async function removeItem(id: string) {
     const res = await fetch(`/api/places/${id}`, { method: "DELETE" });
     if (!res.ok) return;
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    queryClient.setQueryData<PlaceItem[]>(placesListKey(categorySlug), (old) =>
+      old?.filter((i) => i.id !== id)
+    );
   }
 
   const layoutClass =
@@ -136,6 +138,8 @@ export default function PlacesPage({
       : cardLayout === "grid-2"
         ? styles["grid-2"]
         : styles["list-layout"];
+
+  if (loading) return <PageLoading />;
 
   return (
     <main className={styles["root"]}>
@@ -155,6 +159,8 @@ export default function PlacesPage({
           </label>
         </div>
       </div>
+
+      {error ? <p className={styles["empty"]}>{error}</p> : null}
 
       {pins.some((p) => p.lat != null && p.lng != null) ? (
         <OverviewMap pins={pins} />

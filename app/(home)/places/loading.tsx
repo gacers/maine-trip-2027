@@ -1,5 +1,5 @@
-import PageLoading from "@/components/PageLoading";
+import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 
 export default function PlacesLoading() {
-  return <PageLoading />;
+  return <SurfacePageSkeleton />;
 }

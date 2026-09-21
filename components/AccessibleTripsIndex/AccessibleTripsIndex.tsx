@@ -10,6 +10,8 @@ export interface TripListItem {
   trip: Pick<PublicTrip, "id" | "slug" | "name" | "cover_image" | "start_date" | "end_date" | "completed">;
   dateLabel: string | null;
   past: boolean;
+  /** Direct path into the trip (first enabled section when available). */
+  href: string;
 }
 
 export interface AccessibleTripsIndexProps {
@@ -63,8 +65,8 @@ export default function AccessibleTripsIndex({ items, filterByInviteTokens }: Ac
               <div className={styles["trip-grid"]}>
                 {visible
                   .filter((i) => !i.past)
-                  .map(({ trip, dateLabel }) => (
-                    <TripCard key={trip.id} trip={trip} dateLabel={dateLabel} />
+                  .map(({ trip, dateLabel, href }) => (
+                    <TripCard key={trip.id} trip={trip} dateLabel={dateLabel} href={href} />
                   ))}
               </div>
             </section>
@@ -76,8 +78,8 @@ export default function AccessibleTripsIndex({ items, filterByInviteTokens }: Ac
               <div className={styles["trip-grid"]}>
                 {visible
                   .filter((i) => i.past)
-                  .map(({ trip, dateLabel }) => (
-                    <TripCard key={trip.id} trip={trip} dateLabel={dateLabel} />
+                  .map(({ trip, dateLabel, href }) => (
+                    <TripCard key={trip.id} trip={trip} dateLabel={dateLabel} href={href} />
                   ))}
               </div>
             </section>

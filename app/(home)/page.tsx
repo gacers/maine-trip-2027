@@ -1,4 +1,4 @@
-import { getAllTrips, sanitizeTripForClient } from "@/lib/sections";
+import { getAllTrips, getTripNav, sanitizeTripForClient } from "@/lib/sections";
 import { getAdminUser } from "@/lib/auth";
 import { getEditorTripIds } from "@/lib/tripEditors";
 import { supabaseServer } from "@/lib/supabaseServer";
@@ -7,11 +7,6 @@ import type { Trip } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-// A real date range once a trip has an end_date set (see
-// TripSettingsForm/NewTripForm), not just "July 2027" for the whole
-// thing — collapses shared month/year rather than repeating them
-// ("July 1–8, 2027", "Dec 28, 2027 – Jan 3, 2028"). Falls back to the
-// old month/year-only label when there's no end date yet.
 function tripDateLabel(startDate: string | null | undefined, endDate: string | null | undefined): string | null {
   if (!startDate) return null;
   const start = new Date(startDate);
@@ -34,19 +29,24 @@ function tripDateLabel(startDate: string | null | undefined, endDate: string | n
   return `${startLabel} – ${endLabel}`;
 }
 
-// Past = explicitly marked Completed (see TripSettingsForm) OR its own
-// end date (or start date, if that's all it has) has already gone by.
-// Everything else — no dates yet, or dates still ahead — is Pending,
-// the first/default list.
 function isPastTrip(trip: Trip, todayIso: string): boolean {
   if (trip.completed) return true;
   const referenceDate = trip.end_date || trip.start_date;
   return !!referenceDate && referenceDate < todayIso;
 }
 
-function toListItems(trips: Trip[], todayIso: string): TripListItem[] {
+async function tripHref(trip: Trip): Promise<string> {
+  const nav = await getTripNav(trip.id);
+  const firstGroup = nav.find((g) => g.sections.some((s) => s.enabled));
+  const firstSection = firstGroup?.sections.find((s) => s.enabled);
+  if (!firstGroup || !firstSection) return `/${trip.slug}`;
+  return `/${trip.slug}/${firstGroup.slug}/${firstSection.slug}`;
+}
+
+async function toListItems(trips: Trip[], todayIso: string): Promise<TripListItem[]> {
+  const hrefs = await Promise.all(trips.map((t) => tripHref(t)));
   return trips
-    .map((trip) => {
+    .map((trip, i) => {
       const safe = sanitizeTripForClient(trip)!;
       return {
         trip: {
@@ -60,6 +60,7 @@ function toListItems(trips: Trip[], todayIso: string): TripListItem[] {
         },
         dateLabel: tripDateLabel(trip.start_date, trip.end_date),
         past: isPastTrip(trip, todayIso),
+        href: hrefs[i],
       };
     })
     .sort((a, b) => {
@@ -71,9 +72,6 @@ function toListItems(trips: Trip[], todayIso: string): TripListItem[] {
     });
 }
 
-// The site's home Trips tab — trips the current viewer can actually
-// open, split into Pending / Past. Chrome (header + stack nav) lives
-// in the (home) layout.
 export default async function TripsIndexPage() {
   const allTrips = await getAllTrips();
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -101,7 +99,7 @@ export default async function TripsIndexPage() {
     }
   }
 
-  const items = toListItems(trips, todayIso);
+  const items = await toListItems(trips, todayIso);
 
   return (
     <AccessibleTripsIndex

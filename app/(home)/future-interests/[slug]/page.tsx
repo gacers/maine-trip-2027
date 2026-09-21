@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import { canAccessSiteCatalog } from "@/lib/auth";
-import { listFutureInterestView } from "@/lib/futureInterest";
 import { getAllTrips } from "@/lib/sections";
-import {
-  getFieldDefsForSiteCategory,
-  syncFutureInterestTypesToCategory,
-} from "@/lib/siteCategoryFields";
+import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
 import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
-import { getSurfaceCategorySettings, isCategoryEnabled, cardLayoutForCategory, supportsConcernsForCategory } from "@/lib/siteSurfaceSettings";
+import {
+  cardLayoutForCategory,
+  getSurfaceCategorySettings,
+  isCategoryEnabled,
+  supportsConcernsForCategory,
+} from "@/lib/siteSurfaceSettings";
 import FutureInterestPage from "@/components/FutureInterestPage";
 
 export const dynamic = "force-dynamic";
@@ -30,15 +31,10 @@ export default async function FutureInterestSlugPage({ params }: { params: Promi
   if (!isCategoryEnabled(settings, slug)) notFound();
 
   const categorySlug = slug as SiteCategorySlug;
-  if (slug === "food-drink" || slug === "activities") {
-    await syncFutureInterestTypesToCategory(categorySlug);
-  }
-
   const label =
     settings.categories.find((c) => c.slug === slug)?.label || siteCategoryLabel(slug);
 
-  const [items, trips, fieldDefs] = await Promise.all([
-    listFutureInterestView(categorySlug),
+  const [trips, fieldDefs] = await Promise.all([
     getAllTrips(),
     getFieldDefsForSiteCategory(slug),
   ]);
@@ -46,7 +42,6 @@ export default async function FutureInterestSlugPage({ params }: { params: Promi
     <FutureInterestPage
       categorySlug={categorySlug}
       categoryLabel={label}
-      initialItems={items}
       initialFieldDefs={fieldDefs}
       geocodeTripSlug={trips[0]?.slug}
       cardLayout={cardLayoutForCategory(settings, slug)}

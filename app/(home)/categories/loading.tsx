@@ -1,5 +1,5 @@
-import PageLoading from "@/components/PageLoading";
+import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 
 export default function CategoriesLoading() {
-  return <PageLoading />;
+  return <SurfacePageSkeleton />;
 }

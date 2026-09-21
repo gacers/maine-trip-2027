@@ -29,3 +29,24 @@
   font-weight: var(--font-weight-medium);
   text-decoration: none;
 }
+
+.section-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+}
+
+.section-link {
+  color: var(--color-blue-600);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+
+.section-link:hover {
+  text-decoration: underline;
+}

@@ -10,20 +10,15 @@ import styles from "./TripCard.module.css";
 export interface TripCardProps {
   trip: Pick<Trip, "slug" | "name" | "cover_image" | "start_date" | "end_date">;
   dateLabel: string | null;
+  /** Defaults to /{slug}; home passes the first section path instead. */
+  href?: string;
 }
 
-// A full-bleed photo card — the trip's name and date range overlaid on
-// its own cover image (see TripSettingsForm), title on top, dates
-// underneath, both sitting on a bottom gradient scrim for legibility.
-// A trip with no cover image yet (or one whose pasted URL has since
-// gone stale — there's no real upload, so a hosting site rotating its
-// link or a listing coming down is a real risk) still renders a plain
-// gradient tile rather than a broken-image icon or being skipped.
-export default function TripCard({ trip, dateLabel }: TripCardProps) {
+export default function TripCard({ trip, dateLabel, href }: TripCardProps) {
   const [imageFailed, setImageFailed] = useState(false);
   const showPhoto = trip.cover_image && !imageFailed;
   return (
-    <Link href={`/${trip.slug}`} className={styles["root"]}>
+    <Link href={href || `/${trip.slug}`} className={styles["root"]}>
       <div className={styles["photo-frame"]}>
         {showPhoto ? (
           <Image

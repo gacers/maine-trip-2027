@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { canAccessSiteCatalog } from "@/lib/auth";
-import { getCatalogForCategory } from "@/lib/catalog";
 import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
 import { isSiteCategorySlug, siteCategoryLabel } from "@/lib/siteCategories";
 import {
@@ -33,15 +32,11 @@ export default async function CategorySlugPage({ params }: { params: Promise<{ s
   const label =
     settings.categories.find((c) => c.slug === slug)?.label || siteCategoryLabel(slug);
 
-  const [items, fieldDefs] = await Promise.all([
-    getCatalogForCategory(slug),
-    getFieldDefsForSiteCategory(slug),
-  ]);
+  const fieldDefs = await getFieldDefsForSiteCategory(slug);
   return (
     <CatalogPage
       categorySlug={slug}
       categoryLabel={label}
-      initialItems={items}
       fieldDefs={fieldDefs}
       cardLayout={cardLayoutForCategory(settings, slug)}
     />

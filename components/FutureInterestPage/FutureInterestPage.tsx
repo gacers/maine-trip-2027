@@ -2,22 +2,24 @@
 
 import { useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
+import { useQueryClient } from "@tanstack/react-query";
 import OverviewMap from "@/components/OverviewMap";
 import FutureInterestAddDialog from "@/components/FutureInterestAddDialog";
 import type { AddedFieldPayload } from "@/components/AddFieldSelect";
+import PageLoading from "@/components/PageLoading";
 import FutureInterestCard from "./FutureInterestCard";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
 import type { FutureInterestViewItem } from "@/lib/futureInterest";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
 import type { SurfaceCardLayout } from "@/lib/siteSurfaceShared";
 import { defaultCardLayout, defaultSupportsConcerns } from "@/lib/siteSurfaceShared";
+import { futureInterestsListKey, useFutureInterestList } from "@/lib/surfaceListQueries";
 import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./FutureInterestPage.module.css";
 
 export interface FutureInterestPageProps {
   categorySlug: SiteCategorySlug;
   categoryLabel: string;
-  initialItems: FutureInterestViewItem[];
   initialFieldDefs: FieldDef[];
   /** Trip slug for EntryCard geocode lookups (admin session). */
   geocodeTripSlug?: string;
@@ -28,20 +30,16 @@ export interface FutureInterestPageProps {
 export default function FutureInterestPage({
   categorySlug,
   categoryLabel,
-  initialItems,
   initialFieldDefs,
   geocodeTripSlug,
   cardLayout = defaultCardLayout(categorySlug),
   showConcerns = defaultSupportsConcerns(categorySlug),
 }: FutureInterestPageProps) {
   const homeActions = useHomeActions();
-  const [items, setItems] = useState(initialItems);
+  const queryClient = useQueryClient();
+  const { items, loading, error } = useFutureInterestList(categorySlug);
   const [fieldDefs, setFieldDefs] = useState(initialFieldDefs);
   const [countryFilter, setCountryFilter] = useState("all");
-
-  useEffect(() => {
-    setItems(initialItems);
-  }, [initialItems]);
 
   useEffect(() => {
     setFieldDefs(initialFieldDefs);
@@ -79,16 +77,17 @@ export default function FutureInterestPage({
         onFieldDefsChanged={handleFieldDefsChanged}
         showConcerns={showConcerns}
         onAdded={(item) => {
-          if (item.category_slug === categorySlug) {
-            setItems((prev) => [{ ...item, kind: "manual" as const }, ...prev]);
-          }
+          if (item.category_slug !== categorySlug) return;
+          const row: FutureInterestViewItem = { ...item, kind: "manual" };
+          queryClient.setQueryData<FutureInterestViewItem[]>(
+            futureInterestsListKey(categorySlug),
+            (old) => [row, ...(old ?? [])]
+          );
         }}
       />
     );
-  }, [homeActions?.setCategoryActions, categorySlug, fieldDefs, showConcerns]);
+  }, [homeActions?.setCategoryActions, categorySlug, fieldDefs, showConcerns, queryClient]);
 
-  // Clear the nav slot only when leaving this page — not when fieldDefs
-  // updates mid-add (that remount closed the dialog after "+ Add field").
   useEffect(() => {
     const setActions = homeActions?.setCategoryActions;
     if (!setActions) return;
@@ -111,7 +110,6 @@ export default function FutureInterestPage({
     });
   }, [items, countryFilter]);
 
-  // EntryCard anchors are #listing-<id> — match so map pins jump correctly.
   const pins: OverviewPin[] = useMemo(
     () =>
       visible.map((item) => ({
@@ -125,10 +123,16 @@ export default function FutureInterestPage({
 
   function handleUpdated(item: FutureInterestViewItem) {
     if (item.visited) {
-      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      queryClient.setQueryData<FutureInterestViewItem[]>(
+        futureInterestsListKey(categorySlug),
+        (old) => old?.filter((i) => i.id !== item.id)
+      );
       return;
     }
-    setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+    queryClient.setQueryData<FutureInterestViewItem[]>(
+      futureInterestsListKey(categorySlug),
+      (old) => old?.map((i) => (i.id === item.id ? item : i))
+    );
   }
 
   async function removeItem(id: string) {
@@ -137,7 +141,10 @@ export default function FutureInterestPage({
       const res = await fetch(`/api/future-interests/${id}`, { method: "DELETE" });
       if (!res.ok) return;
     }
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    queryClient.setQueryData<FutureInterestViewItem[]>(
+      futureInterestsListKey(categorySlug),
+      (old) => old?.filter((i) => i.id !== id)
+    );
   }
 
   const layoutClass =
@@ -146,6 +153,8 @@ export default function FutureInterestPage({
       : cardLayout === "grid-2"
         ? styles["grid-2"]
         : styles["list-layout"];
+
+  if (loading) return <PageLoading />;
 
   return (
     <main className={styles["root"]}>
@@ -165,6 +174,8 @@ export default function FutureInterestPage({
           </label>
         </div>
       </div>
+
+      {error ? <p className={styles["empty"]}>{error}</p> : null}
 
       {pins.some((p) => p.lat != null && p.lng != null) ? (
         <OverviewMap pins={pins} />

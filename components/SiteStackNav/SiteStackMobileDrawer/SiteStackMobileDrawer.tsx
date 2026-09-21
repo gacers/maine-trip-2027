@@ -29,6 +29,8 @@ export interface SiteStackMobileDrawerProps {
   manageHref?: string;
   placesCategoryTabs?: readonly { slug: string; label: string }[];
   futureInterestsCategoryTabs?: readonly { slug: string; label: string }[];
+  placesHref?: string;
+  futureInterestsHref?: string;
 }
 
 // Same Dialog drawer as trip MobileNavDrawer — Trips / Categories /
@@ -40,6 +42,8 @@ export default function SiteStackMobileDrawer({
   manageHref,
   placesCategoryTabs,
   futureInterestsCategoryTabs,
+  placesHref = "/places/stays",
+  futureInterestsHref = "/future-interests/stays",
 }: SiteStackMobileDrawerProps) {
   const onTrips = pathname === "/";
   const onCategories = pathname.startsWith("/categories");
@@ -79,12 +83,15 @@ export default function SiteStackMobileDrawer({
               </Link>
             </DialogClose>
             <DialogClose asChild>
-              <Link href="/places" className={onPlaces ? styles["nav-link-active"] : styles["nav-link"]}>
+              <Link href={placesHref} className={onPlaces ? styles["nav-link-active"] : styles["nav-link"]}>
                 Places
               </Link>
             </DialogClose>
             <DialogClose asChild>
-              <Link href="/future-interests" className={onFutureInterest ? styles["nav-link-active"] : styles["nav-link"]}>
+              <Link
+                href={futureInterestsHref}
+                className={onFutureInterest ? styles["nav-link-active"] : styles["nav-link"]}
+              >
                 Future Interests
               </Link>
             </DialogClose>

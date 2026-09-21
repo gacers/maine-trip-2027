@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { canAccessSiteCatalog } from "@/lib/auth";
 import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
 import { SITE_CATEGORIES } from "@/lib/siteCategories";
-import { getSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
+import { enabledCategoryTabs, getSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
 import SiteSurfaceManage from "@/components/SiteSurfaceManage";
 import type { FieldDef } from "@/lib/types";
 
@@ -13,6 +13,7 @@ export default async function FutureInterestsManagePage() {
   if (!canAccess) redirect("/");
 
   const settings = await getSurfaceCategorySettings("future-interests");
+  const firstTab = enabledCategoryTabs(settings)[0];
   const slugs = [
     ...new Set([...SITE_CATEGORIES.map((c) => c.slug), ...settings.categories.map((c) => c.slug)]),
   ];
@@ -27,7 +28,7 @@ export default async function FutureInterestsManagePage() {
     <SiteSurfaceManage
       surface="future-interests"
       title="Manage Future Interests"
-      backHref="/future-interests"
+      backHref={firstTab ? `/future-interests/${firstTab.slug}` : "/future-interests"}
       initialFieldsByCategory={initialFieldsByCategory}
       initialCategories={settings.categories}
     />

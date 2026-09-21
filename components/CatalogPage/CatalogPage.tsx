@@ -15,13 +15,14 @@ import {
 } from "@/lib/statusFields";
 import type { SurfaceCardLayout } from "@/lib/siteSurfaceShared";
 import { defaultCardLayout } from "@/lib/siteSurfaceShared";
+import { useCatalogList } from "@/lib/surfaceListQueries";
 import type { FieldDef, OverviewPin } from "@/lib/types";
+import PageLoading from "@/components/PageLoading";
 import styles from "./CatalogPage.module.css";
 
 export interface CatalogPageProps {
   categorySlug: string;
   categoryLabel: string;
-  initialItems: CatalogItem[];
   /** Boolean type labels (Restaurant, Bar, …) for badge pills. */
   fieldDefs?: FieldDef[];
   cardLayout?: SurfaceCardLayout;
@@ -84,10 +85,10 @@ function catalogTypeBadges(
 export default function CatalogPage({
   categorySlug,
   categoryLabel,
-  initialItems,
   fieldDefs = [],
   cardLayout = defaultCardLayout(categorySlug),
 }: CatalogPageProps) {
+  const { items, loading, error } = useCatalogList(categorySlug);
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
 
@@ -101,19 +102,19 @@ export default function CatalogPage({
 
   const countries = useMemo(() => {
     const set = new Set<string>();
-    for (const item of initialItems) {
+    for (const item of items) {
       if (item.country) set.add(item.country);
     }
     return [...set].sort((a, b) => a.localeCompare(b));
-  }, [initialItems]);
+  }, [items]);
 
   const visible = useMemo(() => {
-    return initialItems.filter((item) => {
+    return items.filter((item) => {
       if (countryFilter !== "all" && (item.country || "") !== countryFilter) return false;
       if (tierFilter !== "all" && !item.tiers.includes(tierFilter)) return false;
       return true;
     });
-  }, [initialItems, countryFilter, tierFilter]);
+  }, [items, countryFilter, tierFilter]);
 
   const pins: OverviewPin[] = useMemo(
     () =>
@@ -145,6 +146,8 @@ export default function CatalogPage({
         ? "(max-width: 40rem) 100vw, 50vw"
         : "(max-width: 40rem) 100vw, 72rem";
 
+  if (loading) return <PageLoading />;
+
   return (
     <main className={styles["root"]}>
       <div className={styles["toolbar"]}>
@@ -175,6 +178,8 @@ export default function CatalogPage({
           </label>
         </div>
       </div>
+
+      {error ? <p className={styles["empty"]}>{error}</p> : null}
 
       {pins.some((p) => p.lat != null && p.lng != null) ? (
         <OverviewMap pins={pins} />

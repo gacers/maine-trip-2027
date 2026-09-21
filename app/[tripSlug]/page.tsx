@@ -1,16 +1,12 @@
 import Link from "next/link";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getTripBySlug, getTripNav } from "@/lib/sections";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
-// Visiting a bare trip URL (/{tripSlug}) redirects to its first section,
-// e.g. /maine-2027 -> /maine-2027/houses — matching how "/" used to just
-// be the listings page directly. A brand-new trip has no sections yet
-// (the New Trip flow sends you straight to the Section Designer, but
-// nothing stops you from navigating away first) — show a way back to
-// it instead of a bare 404.
+// Bare trip URL (/{tripSlug}) — list enabled sections. Invite/email query
+// params are kept on each link so SectionPage can still capture them.
 export default async function TripDefaultPage({
   params,
   searchParams,
@@ -24,10 +20,18 @@ export default async function TripDefaultPage({
   if (!trip) notFound();
 
   const nav = await getTripNav(trip.id);
-  const firstGroup = nav.find((g) => g.sections.some((s) => s.enabled));
-  const firstSection = firstGroup?.sections.find((s) => s.enabled);
+  const sections = nav.flatMap((g) =>
+    g.sections
+      .filter((s) => s.enabled)
+      .map((s) => ({ groupSlug: g.slug, groupLabel: g.label, section: s }))
+  );
 
-  if (!firstGroup || !firstSection) {
+  const paramsOut = new URLSearchParams();
+  if (invite) paramsOut.set("invite", invite);
+  if (email) paramsOut.set("email", email);
+  const qs = paramsOut.toString() ? `?${paramsOut.toString()}` : "";
+
+  if (sections.length === 0) {
     return (
       <main className={styles["root"]}>
         <h1 className={styles["trip-name"]}>{trip.name}</h1>
@@ -39,13 +43,22 @@ export default async function TripDefaultPage({
     );
   }
 
-  // Forward `?invite=` / `?email=` through the redirect — otherwise a
-  // friend's invite link would drop the params before SectionPage ever
-  // gets a chance to capture them into localStorage (see
-  // lib/inviteClient.ts).
-  const paramsOut = new URLSearchParams();
-  if (invite) paramsOut.set("invite", invite);
-  if (email) paramsOut.set("email", email);
-  const qs = paramsOut.toString() ? `?${paramsOut.toString()}` : "";
-  redirect(`/${tripSlug}/${firstGroup.slug}/${firstSection.slug}${qs}`);
+  return (
+    <main className={styles["root"]}>
+      <h1 className={styles["trip-name"]}>{trip.name}</h1>
+      <p className={styles["empty-hint"]}>Pick a section to open.</p>
+      <ul className={styles["section-list"]}>
+        {sections.map(({ groupSlug, groupLabel, section }) => (
+          <li key={`${groupSlug}-${section.slug}`}>
+            <Link
+              href={`/${tripSlug}/${groupSlug}/${section.slug}${qs}`}
+              className={styles["section-link"]}
+            >
+              {groupLabel} — {section.sub_nav_label || section.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
 }

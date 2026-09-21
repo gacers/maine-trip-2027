@@ -138,18 +138,6 @@ export async function listFutureInterest(
   return (data || []) as FutureInterestItem[];
 }
 
-/** Drop leftover copies from the old "Bring in from Options" import —
- * Options now appear live by reference. */
-async function pruneCatalogCopies(categorySlug: string): Promise<void> {
-  const supabase = supabaseServiceRole();
-  const { error } = await supabase
-    .from("future_interest_items")
-    .delete()
-    .eq("category_slug", categorySlug)
-    .not("source_entry_id", "is", null);
-  if (error) throw new Error(error.message);
-}
-
 /**
  * Future Interests list: every unvisited Options-tier catalog place
  * (live reference) plus manually added FI-only rows — only while this
@@ -164,8 +152,6 @@ export async function listFutureInterestView(categorySlug: string): Promise<Futu
     // browse view too (nav already hides the tab).
     return [];
   }
-
-  await pruneCatalogCopies(categorySlug);
 
   const [catalog, manualRows] = await Promise.all([
     getCatalogForCategory(categorySlug),

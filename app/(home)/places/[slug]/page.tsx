@@ -1,10 +1,14 @@
 import { notFound } from "next/navigation";
 import { canAccessSiteCatalog } from "@/lib/auth";
-import { listPlaces } from "@/lib/places";
 import { getAllTrips } from "@/lib/sections";
 import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
 import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
-import { getSurfaceCategorySettings, isCategoryEnabled, cardLayoutForCategory, supportsConcernsForCategory } from "@/lib/siteSurfaceSettings";
+import {
+  cardLayoutForCategory,
+  getSurfaceCategorySettings,
+  isCategoryEnabled,
+  supportsConcernsForCategory,
+} from "@/lib/siteSurfaceSettings";
 import PlacesPage from "@/components/PlacesPage";
 
 export const dynamic = "force-dynamic";
@@ -30,8 +34,7 @@ export default async function PlacesSlugPage({ params }: { params: Promise<{ slu
   const label =
     settings.categories.find((c) => c.slug === slug)?.label || siteCategoryLabel(slug);
 
-  const [items, trips, fieldDefs] = await Promise.all([
-    listPlaces(categorySlug),
+  const [trips, fieldDefs] = await Promise.all([
     getAllTrips(),
     getFieldDefsForSiteCategory(categorySlug),
   ]);
@@ -39,7 +42,6 @@ export default async function PlacesSlugPage({ params }: { params: Promise<{ slu
     <PlacesPage
       categorySlug={categorySlug}
       categoryLabel={label}
-      initialItems={items}
       initialFieldDefs={fieldDefs}
       geocodeTripSlug={trips[0]?.slug}
       cardLayout={cardLayoutForCategory(settings, slug)}
