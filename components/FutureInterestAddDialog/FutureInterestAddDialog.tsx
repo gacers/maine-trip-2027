@@ -3,89 +3,201 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle } from "@/components/Dialog";
 import Button from "@/components/Button";
-import { SITE_CATEGORIES, type SiteCategorySlug } from "@/lib/siteCategories";
+import PlacePicker from "@/components/PlacePicker";
+import UrlEntryForm from "@/components/AddEntryForm/UrlEntryForm";
+import CoreFieldsGrid, { type CoreFields } from "@/components/AddEntryForm/CoreFieldsGrid";
+import {
+  isPlainUrl,
+  isGoogleMapsShareUrl,
+  isGoogleSearchUrl,
+  isGoogleMapsUrl,
+  extractGoogleSearchQuery,
+  parseGoogleMapsUrl,
+} from "@/lib/googleUrlHelpers";
+import { searchPlacesByText } from "@/lib/googlePlaces";
+import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
 import type { FutureInterestItem } from "@/lib/futureInterest";
-import styles from "./FutureInterestAddDialog.module.css";
+import type { PlaceResult } from "@/lib/types";
+import dialogStyles from "@/components/AddEntryDialog/AddEntryDialog.module.css";
+import formStyles from "@/components/AddEntryForm/AddEntryForm.module.css";
 
 export interface FutureInterestAddDialogProps {
-  defaultCategory: SiteCategorySlug;
+  categorySlug: SiteCategorySlug;
   onAdded: (item: FutureInterestItem) => void;
 }
 
-// Sticky-nav +Add for Future Interest — URL scrape or blank form, with
-// a required category pick (the five site section types).
-export default function FutureInterestAddDialog({ defaultCategory, onAdded }: FutureInterestAddDialogProps) {
+const CORE_INITIAL: CoreFields = {
+  title: "",
+  posterImage: "",
+  description: "",
+  lat: "",
+  lng: "",
+  notes: "",
+  concerns: "",
+  groupLabel: "",
+};
+
+const PLACEHOLDERS: Record<SiteCategorySlug, string> = {
+  stays: "Paste a link for a place to stay...",
+  "food-drink": "Paste a link for a bar or restaurant we like...",
+  activities: "Paste a link for a hike, tour, or activity...",
+  distilleries: "Paste a link for a distillery...",
+  wineries: "Paste a link for a winery...",
+};
+
+type Phase = "idle" | "loading" | "editing" | "picking" | "saving";
+
+// Same Add dialog chrome + UrlEntryForm / Places / core fields as trip
+// section Add — saves to Future Interest for the current category tab
+// instead of a trip section.
+export default function FutureInterestAddDialog({ categorySlug, onAdded }: FutureInterestAddDialogProps) {
+  const categoryLabel = siteCategoryLabel(categorySlug);
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"url" | "blank">("url");
-  const [categorySlug, setCategorySlug] = useState<SiteCategorySlug>(defaultCategory);
   const [url, setUrl] = useState("");
-  const [title, setTitle] = useState("");
-  const [posterImage, setPosterImage] = useState("");
-  const [description, setDescription] = useState("");
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [fields, setFields] = useState<CoreFields>(CORE_INITIAL);
+  const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [cookieWarning, setCookieWarning] = useState<string | null>(null);
+  const [address, setAddress] = useState("");
+  const [geocodeMsg, setGeocodeMsg] = useState("");
 
   useEffect(() => {
-    if (open) setCategorySlug(defaultCategory);
-  }, [open, defaultCategory]);
+    if (!open) reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   function reset() {
-    setMode("url");
     setUrl("");
-    setTitle("");
-    setPosterImage("");
-    setDescription("");
-    setLat("");
-    setLng("");
-    setError("");
+    setPhase("idle");
+    setFields(CORE_INITIAL);
+    setPlaceResults([]);
+    setErrorMsg("");
+    setWarnings([]);
+    setCookieWarning(null);
+    setAddress("");
+    setGeocodeMsg("");
+  }
+
+  function startBlank() {
+    setUrl("");
+    setFields(CORE_INITIAL);
+    setWarnings([]);
+    setCookieWarning(null);
+    setErrorMsg("");
+    setPhase("editing");
   }
 
   async function handlePreview(e: FormEvent) {
     e.preventDefault();
-    if (!url.trim()) return;
-    setBusy(true);
-    setError("");
-    try {
-      const res = await fetch("/api/future-interest/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Preview failed");
-      const s = data.scraped || {};
-      setUrl(s.normalizedUrl || s.url || url);
-      setTitle(s.title || "");
-      setPosterImage(s.posterImage || "");
-      setDescription(s.description || "");
-      if (s.lat != null) setLat(String(s.lat));
-      if (s.lng != null) setLng(String(s.lng));
-      setMode("blank");
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
+    const raw = url.trim();
+    if (!raw) return;
+    setPhase("loading");
+    setErrorMsg("");
+
+    const isGoogleUrl = isGoogleMapsShareUrl(raw) || isGoogleSearchUrl(raw) || isGoogleMapsUrl(raw);
+
+    if (isPlainUrl(raw) && !isGoogleUrl) {
+      try {
+        const res = await fetch("/api/future-interest/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: raw }),
+        });
+        const resData = await res.json();
+        if (!res.ok) {
+          setErrorMsg(resData.error || "Something went wrong.");
+          setPhase("idle");
+          return;
+        }
+        const s = resData.scraped || {};
+        setFields({
+          ...CORE_INITIAL,
+          title: s.title || "",
+          posterImage: s.posterImage || "",
+          description: s.description || "",
+          lat: s.lat ?? "",
+          lng: s.lng ?? "",
+        });
+        setUrl(s.normalizedUrl || s.url || raw);
+        setWarnings(s.warnings || []);
+        setCookieWarning(s.cookieWarning || null);
+        setPhase("editing");
+      } catch (err) {
+        setErrorMsg((err as Error).message);
+        setPhase("idle");
+      }
+      return;
     }
+
+    try {
+      let query = raw;
+      if (isGoogleSearchUrl(raw)) {
+        query = extractGoogleSearchQuery(raw) || raw;
+      } else if (isGoogleMapsShareUrl(raw)) {
+        const res = await fetch("/api/resolve-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: raw }),
+        });
+        const resolveData = await res.json();
+        if (!res.ok) throw new Error(resolveData.error || "Couldn't resolve that link");
+        query = parseGoogleMapsUrl(resolveData.resolvedUrl).name || resolveData.resolvedUrl;
+      } else if (isGoogleMapsUrl(raw)) {
+        query = parseGoogleMapsUrl(raw).name || raw;
+      }
+
+      const results = await searchPlacesByText(query);
+      if (results.length === 0) {
+        setErrorMsg("No matching places found — try a more specific search, or paste the listing's direct link.");
+        setPhase("idle");
+        return;
+      }
+      setPlaceResults(results);
+      setPhase("picking");
+    } catch (err) {
+      setErrorMsg((err as Error).message);
+      setPhase("idle");
+    }
+  }
+
+  function choosePlace(place: PlaceResult) {
+    setFields({
+      ...CORE_INITIAL,
+      title: place.title || "",
+      posterImage: place.photoUrl || "",
+      description: place.summary || place.category || "",
+      lat: place.lat ?? "",
+      lng: place.lng ?? "",
+    });
+    setUrl(place.website || place.mapsUrl || url);
+    setWarnings([]);
+    setCookieWarning(null);
+    setPlaceResults([]);
+    setPhase("editing");
   }
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setError("");
+    if (!fields.title.trim()) {
+      setErrorMsg("Title is required.");
+      return;
+    }
+    setPhase("saving");
+    setErrorMsg("");
     try {
       const res = await fetch("/api/future-interest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           categorySlug,
-          title: title.trim() || null,
+          title: fields.title.trim() || null,
           url: url.trim() || null,
-          posterImage: posterImage.trim() || null,
-          description: description.trim() || null,
-          lat: lat === "" ? null : Number(lat),
-          lng: lng === "" ? null : Number(lng),
+          posterImage: fields.posterImage.trim() || null,
+          description: fields.description.trim() || null,
+          lat: fields.lat === "" ? null : Number(fields.lat),
+          lng: fields.lng === "" ? null : Number(fields.lng),
         }),
       });
       const data = await res.json();
@@ -94,104 +206,80 @@ export default function FutureInterestAddDialog({ defaultCategory, onAdded }: Fu
       setOpen(false);
       reset();
     } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
+      setErrorMsg((err as Error).message);
+      setPhase("editing");
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) reset();
-      }}
-    >
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="primary" size="sm">
-          + Add
+          + Add to {categoryLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className={styles["content"]}>
-        <DialogTitle>Add to Future Interest</DialogTitle>
-        <label className={styles["field"]}>
-          Category
-          <select
-            value={categorySlug}
-            onChange={(e) => setCategorySlug(e.target.value as SiteCategorySlug)}
-            className={styles["input"]}
-            required
-          >
-            {SITE_CATEGORIES.map((c) => (
-              <option key={c.slug} value={c.slug}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
+      <DialogContent className={dialogStyles["content"]}>
+        <DialogTitle>Add to {categoryLabel}</DialogTitle>
+        <div>
+          {(phase === "idle" || phase === "loading") && (
+            <UrlEntryForm
+              url={url}
+              onUrlChange={setUrl}
+              loading={phase === "loading"}
+              placeholder={PLACEHOLDERS[categorySlug]}
+              onSubmit={handlePreview}
+              onStartBlank={startBlank}
+              titleMatches={[]}
+              onPickTitleMatch={() => {}}
+            />
+          )}
 
-        {mode === "url" ? (
-          <form onSubmit={handlePreview} className={styles["form"]}>
-            <label className={styles["field"]}>
-              URL
-              <input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://..."
-                className={styles["input"]}
-                required
-              />
-            </label>
-            <div className={styles["actions"]}>
-              <Button type="submit" variant="primary" size="sm" disabled={busy || !url.trim()}>
-                {busy ? "Looking up…" : "Look up URL"}
-              </Button>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setMode("blank")}>
-                Blank entry
-              </Button>
-            </div>
-            {error && <p className={styles["error"]}>{error}</p>}
-          </form>
-        ) : (
-          <form onSubmit={handleSave} className={styles["form"]}>
-            <label className={styles["field"]}>
-              Title
-              <input value={title} onChange={(e) => setTitle(e.target.value)} className={styles["input"]} required />
-            </label>
-            <label className={styles["field"]}>
-              URL
-              <input value={url} onChange={(e) => setUrl(e.target.value)} className={styles["input"]} />
-            </label>
-            <label className={styles["field"]}>
-              Photo URL
-              <input value={posterImage} onChange={(e) => setPosterImage(e.target.value)} className={styles["input"]} />
-            </label>
-            <label className={styles["field"]}>
-              Description
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={styles["input"]} />
-            </label>
-            <div className={styles["row"]}>
-              <label className={styles["field"]}>
-                Lat
-                <input value={lat} onChange={(e) => setLat(e.target.value)} className={styles["input"]} />
-              </label>
-              <label className={styles["field"]}>
-                Lng
-                <input value={lng} onChange={(e) => setLng(e.target.value)} className={styles["input"]} />
-              </label>
-            </div>
-            <div className={styles["actions"]}>
-              <Button type="submit" variant="primary" size="sm" disabled={busy || !title.trim()}>
-                {busy ? "Saving…" : "Save"}
-              </Button>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setMode("url")}>
-                Back to URL
-              </Button>
-            </div>
-            {error && <p className={styles["error"]}>{error}</p>}
-          </form>
-        )}
+          {errorMsg && <p className={formStyles["error-msg"]}>{errorMsg}</p>}
+
+          {phase === "picking" && placeResults.length > 0 && (
+            <PlacePicker places={placeResults} onChoose={choosePlace} onCancel={reset} />
+          )}
+
+          {(phase === "editing" || phase === "saving") && (
+            <form onSubmit={handleSave} className={formStyles["edit-form"]}>
+              {cookieWarning && <p className={formStyles["cookie-warning"]}>{cookieWarning}</p>}
+              {warnings.length > 0 && (
+                <ul className={formStyles["warnings-list"]}>
+                  {warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              )}
+
+              <div className={formStyles["grid"]}>
+                <CoreFieldsGrid
+                  fields={fields}
+                  onFieldsChange={setFields}
+                  fieldDefs={[]}
+                  tripNights={null}
+                  data={{}}
+                  onDataChange={() => {}}
+                  address={address}
+                  onAddressChange={setAddress}
+                  geocoding={false}
+                  geocodeMsg={geocodeMsg}
+                  onFindCoords={() =>
+                    setGeocodeMsg("Enter lat/lng above, or go back and search by place name.")
+                  }
+                />
+              </div>
+
+              <div className={formStyles["actions"]}>
+                <button type="submit" disabled={phase === "saving"} className={formStyles["primary-button"]}>
+                  {phase === "saving" ? "Saving..." : "Save"}
+                </button>
+                <button type="button" onClick={reset} className={formStyles["cancel-button"]}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

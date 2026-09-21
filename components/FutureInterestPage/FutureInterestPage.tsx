@@ -33,7 +33,7 @@ export default function FutureInterestPage({ categorySlug, categoryLabel, initia
     if (!setActions) return;
     setActions(
       <FutureInterestAddDialog
-        defaultCategory={categorySlug}
+        categorySlug={categorySlug}
         onAdded={(item) => {
           if (item.category_slug === categorySlug) {
             setItems((prev) => [item, ...prev]);
