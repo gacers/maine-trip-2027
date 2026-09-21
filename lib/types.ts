@@ -193,7 +193,9 @@ export interface ClientEntry {
   description: string | null;
   lat: number | null;
   lng: number | null;
-  /** Place country — stamped from the trip at creation, not shown in UI. */
+  /** Place region — reverse-geocoded from lat/lng (US state or country),
+   * falling back to the trip's country. Hidden from the UI; used by
+   * Categories / Future Interest filters. */
   country: string | null;
   extraMarkers: MapReferencePoint[];
   groupLabel: string;
@@ -240,7 +242,9 @@ export interface EntryRow {
   description: string | null;
   lat: number | null;
   lng: number | null;
-  /** Place country — stamped from the trip at creation, not shown in UI. */
+  /** Place region — reverse-geocoded from lat/lng (US state or country),
+   * falling back to the trip's country. Hidden from the UI; used by
+   * Categories / Future Interest filters. */
   country: string | null;
   extra_markers: MapReferencePoint[] | null;
   group_label: string | null;

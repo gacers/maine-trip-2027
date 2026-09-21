@@ -5,6 +5,7 @@ import { requireWriteAccess } from "@/lib/auth";
 import { extractCount } from "@/lib/fieldTypes/count";
 import { exportSection } from "@/lib/sheetsExport";
 import { isSyncedEntryFieldPatch, propagateEntryUpdateFromSource } from "@/lib/entrySync";
+import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
 import type { EntryRow, Trip, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -132,6 +133,13 @@ export async function PATCH(
       if (appendConcern) {
         patch.concerns = existing.concerns ? `${existing.concerns}\n${appendConcern}` : appendConcern;
       }
+    }
+
+    // Re-resolve region when coordinates change (US → state, else country).
+    if ("lat" in patch || "lng" in patch) {
+      const nextLat = "lat" in patch ? patch.lat : existing.lat;
+      const nextLng = "lng" in patch ? patch.lng : existing.lng;
+      patch.country = await resolveEntryCountry(supabase!, nextLat, nextLng, trip.country);
     }
 
     const entry = await updateEntry(supabase!, entryId, patch);

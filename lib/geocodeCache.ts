@@ -35,7 +35,7 @@ interface GoogleGeocodeResponse {
     formatted_address: string;
     geometry: { location: { lat: number; lng: number } };
     types: string[];
-    address_components: { long_name: string; types: string[] }[];
+    address_components: { long_name: string; short_name: string; types: string[] }[];
   }[];
 }
 
@@ -51,6 +51,28 @@ async function callGoogleGeocode(params: Record<string, string>): Promise<Google
 
 export interface ReverseAddressResult {
   formattedAddress: string;
+}
+
+export interface CountryResult {
+  /** Country name, or US state when the place is in the United States. */
+  country: string;
+}
+
+// Prefer US state (administrative_area_level_1) over "United States" so
+// Categories filters can tell Maine apart from New York / Connecticut.
+// Everywhere else uses the country long_name.
+function regionFromGeocodeResults(results: GoogleGeocodeResponse["results"]): string | null {
+  for (const r of results) {
+    const comps = r.address_components || [];
+    const countryComp = comps.find((c) => c.types.includes("country"));
+    if (!countryComp) continue;
+    if (countryComp.short_name === "US" || countryComp.long_name === "United States") {
+      const stateComp = comps.find((c) => c.types.includes("administrative_area_level_1"));
+      if (stateComp?.long_name) return stateComp.long_name;
+    }
+    return countryComp.long_name;
+  }
+  return null;
 }
 
 // For the address line under a listing's title (EntryCard) — was
@@ -70,6 +92,35 @@ export async function getOrComputeReverseAddress(
   if (data.status !== "OK" || !data.results?.[0]) return null;
 
   const result: ReverseAddressResult = { formattedAddress: data.results[0].formatted_address };
+  await setCached(supabase, key, result);
+
+  // Same Google response also carries region — stash it under its own
+  // key so entry-country lookups don't re-hit Google for this point.
+  const country = regionFromGeocodeResults(data.results);
+  if (country) await setCached(supabase, `place-region:${round(lat)},${round(lng)}`, { country } satisfies CountryResult);
+
+  return result;
+}
+
+// Region of a lat/lng for entry.country — US state when in the United
+// States, otherwise country name. Same Google call as reverse-address
+// when that path runs first; own cache key otherwise.
+export async function getOrComputeCountry(
+  supabase: SupabaseClient,
+  lat: number,
+  lng: number
+): Promise<CountryResult | null> {
+  const key = `place-region:${round(lat)},${round(lng)}`;
+  const cached = await getCached<CountryResult>(supabase, key);
+  if (cached) return cached;
+
+  const data = await callGoogleGeocode({ latlng: `${lat},${lng}` });
+  if (data.status !== "OK" || !data.results?.length) return null;
+
+  const country = regionFromGeocodeResults(data.results);
+  if (!country) return null;
+
+  const result: CountryResult = { country };
   await setCached(supabase, key, result);
   return result;
 }

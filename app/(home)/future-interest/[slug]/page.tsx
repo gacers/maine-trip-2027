@@ -15,7 +15,7 @@ export default async function FutureInterestSlugPage({ params }: { params: Promi
     return (
       <main style={{ maxWidth: "72rem", margin: "0 auto", padding: "3rem 1rem" }}>
         <p style={{ color: "var(--color-zinc-500)", textAlign: "center" }}>
-          Sign in as an admin or trip editor to manage Future Interest.
+          Sign in as an admin to manage Future Interest.
         </p>
       </main>
     );

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSiteEditorAccess } from "@/lib/auth";
 import { deleteFutureInterestItem, updateFutureInterestItem } from "@/lib/futureInterest";
+import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
 import { isSiteCategorySlug } from "@/lib/siteCategories";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +9,7 @@ export const revalidate = 0;
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { error: authError } = await requireSiteEditorAccess();
+  const { error: authError, supabase } = await requireSiteEditorAccess();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   let body: Record<string, unknown>;
@@ -25,7 +26,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if ("description" in body) patch.description = body.description ?? null;
   if ("lat" in body) patch.lat = body.lat === "" || body.lat == null ? null : Number(body.lat);
   if ("lng" in body) patch.lng = body.lng === "" || body.lng == null ? null : Number(body.lng);
-  if ("country" in body) patch.country = body.country || null;
   if ("visited" in body) patch.visited = !!body.visited;
   if ("data" in body && body.data && typeof body.data === "object") patch.data = body.data;
   if (typeof body.categorySlug === "string" && isSiteCategorySlug(body.categorySlug)) {
@@ -37,6 +37,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   try {
+    if ("lat" in patch || "lng" in patch) {
+      const { data: existing } = await supabase!
+        .from("future_interest_items")
+        .select("lat, lng")
+        .eq("id", id)
+        .maybeSingle();
+      const nextLat = "lat" in patch ? (patch.lat as number | null) : (existing?.lat as number | null | undefined);
+      const nextLng = "lng" in patch ? (patch.lng as number | null) : (existing?.lng as number | null | undefined);
+      patch.country = await resolveEntryCountry(supabase!, nextLat, nextLng, null);
+    }
+
     const item = await updateFutureInterestItem(id, patch);
     return NextResponse.json({ item });
   } catch (err) {

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSiteEditorAccess } from "@/lib/auth";
 import { createFutureInterestItem, listFutureInterest } from "@/lib/futureInterest";
+import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
 import { isSiteCategorySlug } from "@/lib/siteCategories";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { error: authError } = await requireSiteEditorAccess();
+  const { error: authError, supabase } = await requireSiteEditorAccess();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   let body: Record<string, unknown>;
@@ -41,15 +42,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const lat = typeof body.lat === "number" ? body.lat : body.lat === null ? null : undefined;
+    const lng = typeof body.lng === "number" ? body.lng : body.lng === null ? null : undefined;
+    const country = await resolveEntryCountry(supabase!, lat, lng, null);
+
     const item = await createFutureInterestItem({
       categorySlug,
       title: typeof body.title === "string" ? body.title : null,
       url: typeof body.url === "string" ? body.url : null,
       posterImage: typeof body.posterImage === "string" ? body.posterImage : null,
       description: typeof body.description === "string" ? body.description : null,
-      lat: typeof body.lat === "number" ? body.lat : body.lat === null ? null : undefined,
-      lng: typeof body.lng === "number" ? body.lng : body.lng === null ? null : undefined,
-      country: typeof body.country === "string" ? body.country : null,
+      lat,
+      lng,
+      country,
       data: body.data && typeof body.data === "object" ? (body.data as Record<string, unknown>) : {},
       sourceEntryId: typeof body.sourceEntryId === "string" ? body.sourceEntryId : null,
     });

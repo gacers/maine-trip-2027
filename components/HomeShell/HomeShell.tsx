@@ -21,9 +21,9 @@ export interface HomeShellProps {
 }
 
 // Shared chrome for `/`, `/categories/*`, `/future-interest/*` — header
-// + sticky Trips | Categories | Future Interest stack. Category sub-tabs
-// appear automatically from the path. Future Interest +Add portals in
-// via useHomeActions().
+// always; Trips | Categories | Future Interest stack for admins only.
+// Category sub-tabs appear automatically from the path. Future Interest
+// +Add portals in via useHomeActions().
 export default function HomeShell({ isAdmin, isSignedIn, children }: HomeShellProps) {
   const pathname = usePathname();
   const homeActions = useHomeActions();
@@ -88,11 +88,13 @@ export default function HomeShell({ isAdmin, isSignedIn, children }: HomeShellPr
             )
           }
         />
-        <SiteStackNav
-          categoryBasePath={categoryBasePath}
-          categorySlug={categorySlug}
-          categoryActions={categoryBasePath === "/future-interest" ? homeActions?.categoryActions : undefined}
-        />
+        {isAdmin ? (
+          <SiteStackNav
+            categoryBasePath={categoryBasePath}
+            categorySlug={categorySlug}
+            categoryActions={categoryBasePath === "/future-interest" ? homeActions?.categoryActions : undefined}
+          />
+        ) : null}
       </div>
       {children}
     </>

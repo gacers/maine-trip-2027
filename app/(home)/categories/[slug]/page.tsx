@@ -15,7 +15,7 @@ export default async function CategorySlugPage({ params }: { params: Promise<{ s
     return (
       <main style={{ maxWidth: "72rem", margin: "0 auto", padding: "3rem 1rem" }}>
         <p style={{ color: "var(--color-zinc-500)", textAlign: "center" }}>
-          Sign in as an admin or trip editor to browse categories across trips.
+          Sign in as an admin to browse categories across trips.
         </p>
       </main>
     );

@@ -315,18 +315,17 @@ export async function requireAdmin(): Promise<
 // Site-wide catalog / Future Interest — admin OR any trip editor.
 // Invite-link bearers are deliberately excluded (cross-trip aggregates
 // must not leak trips an invite token doesn't cover).
+/** Admin-only gate for Categories / Future Interest APIs. */
 export async function requireSiteEditorAccess(): Promise<
   { supabase: SupabaseClient; error?: undefined } | { error: WriteAccessError; supabase?: undefined }
 > {
   const admin = await getAdminUser();
   if (admin) return { supabase: supabaseServiceRole() };
-  const editorIds = await getEditorTripIds();
-  if (editorIds.length > 0) return { supabase: supabaseServiceRole() };
   return { error: { status: 401, message: "Sign in required" } };
 }
 
-/** True when the current session may open Categories / Future Interest. */
+/** True when the current session may open Categories / Future Interest
+ * (admin-only — editors and invite users just see Trips). */
 export async function canAccessSiteCatalog(): Promise<boolean> {
-  if (await getAdminUser()) return true;
-  return (await getEditorTripIds()).length > 0;
+  return !!(await getAdminUser());
 }

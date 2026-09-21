@@ -176,13 +176,12 @@ export default function TripNavHeader({
       <SiteHeader
         brand={
           <>
-            {/* "All Trips ›" for anyone with trip access — admins see
-                every trip; editors and invite contributors see only the
-                trips they're linked to (see app/page.tsx). */}
+            {/* "Home ›" for admins (site stack lives on /); "All Trips ›"
+                for editors and invite contributors who only see trips. */}
             {(isAdmin || isEditor || !!contributorToken) && (
               <>
                 <Link href="/" className={siteHeaderStyles["brand-crumb"]}>
-                  All Trips
+                  {isAdmin ? "Home" : "All Trips"}
                 </Link>
                 <span className={siteHeaderStyles["brand-separator"]} aria-hidden>
                   ›

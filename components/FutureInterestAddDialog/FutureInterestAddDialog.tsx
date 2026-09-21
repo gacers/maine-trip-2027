@@ -22,7 +22,6 @@ export default function FutureInterestAddDialog({ defaultCategory, onAdded }: Fu
   const [title, setTitle] = useState("");
   const [posterImage, setPosterImage] = useState("");
   const [description, setDescription] = useState("");
-  const [country, setCountry] = useState("");
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,7 +37,6 @@ export default function FutureInterestAddDialog({ defaultCategory, onAdded }: Fu
     setTitle("");
     setPosterImage("");
     setDescription("");
-    setCountry("");
     setLat("");
     setLng("");
     setError("");
@@ -86,7 +84,6 @@ export default function FutureInterestAddDialog({ defaultCategory, onAdded }: Fu
           url: url.trim() || null,
           posterImage: posterImage.trim() || null,
           description: description.trim() || null,
-          country: country.trim() || null,
           lat: lat === "" ? null : Number(lat),
           lng: lng === "" ? null : Number(lng),
         }),
@@ -173,10 +170,6 @@ export default function FutureInterestAddDialog({ defaultCategory, onAdded }: Fu
             <label className={styles["field"]}>
               Description
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={styles["input"]} />
-            </label>
-            <label className={styles["field"]}>
-              Country
-              <input value={country} onChange={(e) => setCountry(e.target.value)} className={styles["input"]} />
             </label>
             <div className={styles["row"]}>
               <label className={styles["field"]}>

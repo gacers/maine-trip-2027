@@ -9,6 +9,7 @@ import { extractCount } from "@/lib/fieldTypes/count";
 import { exportSection } from "@/lib/sheetsExport";
 import { sectionHasOptionsTraits } from "@/lib/tripCompletion";
 import { propagateNewEntryFromSource, seedMissingFieldDefsFromSource } from "@/lib/entrySync";
+import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
 import type { Trip, Section, EntryRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -170,6 +171,11 @@ export async function POST(
       // without touching (or locking) anything this section already
       // defines.
       await seedMissingFieldDefsFromSource(matchedSource.section_id, section.id);
+      const sourceLat = matchedSource.lat;
+      const sourceLng = matchedSource.lng;
+      const country =
+        matchedSource.country ||
+        (await resolveEntryCountry(supabase!, sourceLat, sourceLng, trip.country));
       entry = await createEntry(supabase!, {
         id: nanoid(8),
         section_id: section.id,
@@ -182,7 +188,7 @@ export async function POST(
         description: matchedSource.description,
         lat: matchedSource.lat,
         lng: matchedSource.lng,
-        country: matchedSource.country ?? trip.country ?? null,
+        country,
         notes: notes || null,
         concerns: concerns || null,
         group_label: groupLabel || null,
@@ -204,6 +210,10 @@ export async function POST(
         }
       }
 
+      const entryLat = lat === "" || lat == null ? null : lat;
+      const entryLng = lng === "" || lng == null ? null : lng;
+      const country = await resolveEntryCountry(supabase!, entryLat, entryLng, trip.country);
+
       entry = await createEntry(supabase!, {
         id: nanoid(8),
         section_id: section.id,
@@ -218,9 +228,9 @@ export async function POST(
         // alone doesn't catch that, and an empty string sent straight
         // to a double precision column is a real Postgres error, not a
         // silent no-op.
-        lat: lat === "" || lat == null ? null : lat,
-        lng: lng === "" || lng == null ? null : lng,
-        country: trip.country || null,
+        lat: entryLat,
+        lng: entryLng,
+        country,
         notes: notes || null,
         concerns: concerns || null,
         group_label: groupLabel || null,
