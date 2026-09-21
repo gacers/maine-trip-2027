@@ -5,21 +5,53 @@ import Link from "next/link";
 import OverviewMap from "@/components/OverviewMap";
 import Button from "@/components/Button";
 import type { CatalogItem, SectionTier } from "@/lib/catalog";
-import type { OverviewPin } from "@/lib/types";
+import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./CatalogPage.module.css";
 
 export interface CatalogPageProps {
   categorySlug: string;
   categoryLabel: string;
   initialItems: CatalogItem[];
+  /** Boolean type labels (Restaurant, Bar, …) for the card tag line. */
+  fieldDefs?: FieldDef[];
 }
 
 type TierFilter = "all" | SectionTier;
 
+function catalogStatusLabel(item: CatalogItem): "Visited" | "Option" {
+  if (item.tiers.includes("previously-visited") || item.entry.visited) return "Visited";
+  return "Option";
+}
+
+function catalogTypeLabels(item: CatalogItem, fieldDefs: FieldDef[]): string[] {
+  const booleanDefs = fieldDefs.filter((f) => f.field_type === "boolean");
+  const labels: string[] = [];
+  const known = new Set<string>();
+  for (const f of booleanDefs) {
+    known.add(f.key);
+    const value = item.entry[f.key];
+    if (value === true || value === "true") labels.push(f.label);
+  }
+  // True booleans on the entry that aren't in shared defs yet.
+  for (const [key, value] of Object.entries(item.entry)) {
+    if (known.has(key) || key === "visited") continue;
+    if (value !== true && value !== "true") continue;
+    if (typeof value !== "boolean" && value !== "true") continue;
+    labels.push(key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
+  }
+  return labels;
+}
+
+function catalogTagLine(item: CatalogItem, fieldDefs: FieldDef[]): string {
+  const status = catalogStatusLabel(item);
+  const types = catalogTypeLabels(item, fieldDefs);
+  return types.length > 0 ? `${status} - ${types.join(" ")}` : status;
+}
+
 // Cross-trip browse for one category (Stays, Food & Drink, …) — map of
 // visible pins, country + Options/Previously-Visited filters, cards for
 // original entries only (synced copies listed as trips on the card).
-export default function CatalogPage({ categoryLabel, initialItems }: CatalogPageProps) {
+export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [] }: CatalogPageProps) {
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
 
@@ -100,6 +132,7 @@ export default function CatalogPage({ categoryLabel, initialItems }: CatalogPage
                 <div className={styles["thumb-empty"]} />
               )}
               <div className={styles["card-body"]}>
+                <p className={styles["card-tags"]}>{catalogTagLine(item, fieldDefs)}</p>
                 <div className={styles["card-meta"]}>
                   {item.country ? <span>{item.country}</span> : null}
                   {item.trips.length > 0 ? (

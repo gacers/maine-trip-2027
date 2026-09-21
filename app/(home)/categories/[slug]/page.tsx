@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { canAccessSiteCatalog } from "@/lib/auth";
 import { getCatalogForCategory } from "@/lib/catalog";
+import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
 import { isSiteCategorySlug, siteCategoryLabel } from "@/lib/siteCategories";
 import CatalogPage from "@/components/CatalogPage";
 
@@ -21,6 +22,16 @@ export default async function CategorySlugPage({ params }: { params: Promise<{ s
     );
   }
 
-  const items = await getCatalogForCategory(slug);
-  return <CatalogPage categorySlug={slug} categoryLabel={siteCategoryLabel(slug)} initialItems={items} />;
+  const [items, fieldDefs] = await Promise.all([
+    getCatalogForCategory(slug),
+    getFieldDefsForSiteCategory(slug),
+  ]);
+  return (
+    <CatalogPage
+      categorySlug={slug}
+      categoryLabel={siteCategoryLabel(slug)}
+      initialItems={items}
+      fieldDefs={fieldDefs}
+    />
+  );
 }
