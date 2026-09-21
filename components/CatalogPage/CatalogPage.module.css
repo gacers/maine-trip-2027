@@ -97,10 +97,17 @@
 .card-body {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 1rem;
   padding: 0.875rem;
   min-width: 0;
   flex: 1;
+}
+
+.card-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .card-meta {
@@ -144,5 +151,4 @@
 
 .card-actions {
   margin-top: auto;
-  padding-top: 0.5rem;
 }

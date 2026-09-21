@@ -158,24 +158,26 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
                 <div className={styles["thumb-empty"]} />
               )}
               <div className={styles["card-body"]}>
-                <BadgesRow items={catalogBadges(item, fieldDefs, badgeVariants)} />
-                <div className={styles["card-meta"]}>
-                  {item.country ? <span>{item.country}</span> : null}
-                  {item.trips.length > 0 ? (
-                    <span className={styles["trips"]}>
-                      {item.country ? " · " : null}
-                      {item.trips.map((t, i) => (
-                        <span key={`${t.tripId}-${t.sectionLabel}`}>
-                          {i > 0 ? ", " : null}
-                          <Link href={t.href} className={styles["trip-link"]}>
-                            {t.tripName}
-                          </Link>
-                        </span>
-                      ))}
-                    </span>
-                  ) : null}
+                <div className={styles["card-heading"]}>
+                  <BadgesRow items={catalogBadges(item, fieldDefs, badgeVariants)} />
+                  <div className={styles["card-meta"]}>
+                    {item.country ? <span>{item.country}</span> : null}
+                    {item.trips.length > 0 ? (
+                      <span className={styles["trips"]}>
+                        {item.country ? " · " : null}
+                        {item.trips.map((t, i) => (
+                          <span key={`${t.tripId}-${t.sectionLabel}`}>
+                            {i > 0 ? ", " : null}
+                            <Link href={t.href} className={styles["trip-link"]}>
+                              {t.tripName}
+                            </Link>
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
+                  </div>
+                  <h2 className={styles["card-title"]}>{item.entry.title || "Untitled"}</h2>
                 </div>
-                <h2 className={styles["card-title"]}>{item.entry.title || "Untitled"}</h2>
                 {item.entry.description ? <p className={styles["card-desc"]}>{item.entry.description}</p> : null}
                 <div className={styles["card-actions"]}>
                   <Button variant="secondary" size="sm" asChild>
