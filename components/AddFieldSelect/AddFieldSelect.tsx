@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CustomFieldTemplate } from "@/lib/customFieldTemplates";
 import type { FieldType } from "@/lib/types";
@@ -116,8 +116,7 @@ export default function AddFieldSelect({
     });
   }
 
-  async function handleCreateSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function handleCreateSubmit() {
     const label = newLabel.trim();
     if (!label) return;
     const key = slugifyKey(label);
@@ -146,8 +145,11 @@ export default function AddFieldSelect({
   }
 
   if (creating) {
+    // Not a <form> — this control often sits inside an entry/Places add
+    // form, and nested forms are invalid HTML (browsers can treat the
+    // submit as the outer Save and close the dialog).
     return (
-      <form onSubmit={handleCreateSubmit} className={styles["create-form"]}>
+      <div className={styles["create-form"]}>
         <label className={styles["create-field"]}>
           Label
           <input
@@ -155,6 +157,13 @@ export default function AddFieldSelect({
             required
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                void handleCreateSubmit();
+              }
+            }}
             className={styles["create-input"]}
           />
         </label>
@@ -179,7 +188,12 @@ export default function AddFieldSelect({
           Overview
         </label>
         <div className={styles["create-actions"]}>
-          <button type="submit" disabled={adding || !newLabel.trim()} className={styles["create-submit"]}>
+          <button
+            type="button"
+            disabled={adding || !newLabel.trim()}
+            onClick={() => void handleCreateSubmit()}
+            className={styles["create-submit"]}
+          >
             {adding ? "Adding..." : "Add field"}
           </button>
           <button type="button" onClick={() => setCreating(false)} className={styles["create-cancel"]}>
@@ -187,7 +201,7 @@ export default function AddFieldSelect({
           </button>
         </div>
         {error && <p className={styles["error"]}>{error}</p>}
-      </form>
+      </div>
     );
   }
 

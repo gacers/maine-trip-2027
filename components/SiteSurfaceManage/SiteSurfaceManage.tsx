@@ -54,7 +54,6 @@ export default function SiteSurfaceManage({
   const [customTemplates, setCustomTemplates] = useState<CustomTemplateOption[]>([]);
   const [busySlug, setBusySlug] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -90,11 +89,9 @@ export default function SiteSurfaceManage({
 
   async function addCategory(slug: string, label: string) {
     setBusySlug(slug);
-    setMessage("");
     setError("");
     try {
       await apiAction({ action: "add", slug, label });
-      setMessage(`Added ${label}.`);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -104,11 +101,9 @@ export default function SiteSurfaceManage({
 
   async function toggleEnabled(slug: string, enabled: boolean) {
     setBusySlug(slug);
-    setMessage("");
     setError("");
     try {
       await apiAction({ action: "setEnabled", slug, enabled });
-      setMessage(enabled ? `Enabled ${slug}.` : `Disabled ${slug} — data kept; re-enable anytime.`);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -126,11 +121,9 @@ export default function SiteSurfaceManage({
       return;
     }
     setBusySlug(cat.slug);
-    setMessage("");
     setError("");
     try {
       await apiAction({ action: "remove", slug: cat.slug });
-      setMessage(`Removed ${cat.label}.`);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -140,7 +133,6 @@ export default function SiteSurfaceManage({
 
   async function saveFields() {
     setSaving(true);
-    setMessage("");
     setError("");
     try {
       const rows = rowsByCategory[activeCategory] || [];
@@ -167,7 +159,6 @@ export default function SiteSurfaceManage({
         ...prev,
         [activeCategory]: (data.fields as FieldDef[]).map(fieldDefToRow),
       }));
-      setMessage(`Saved ${activeCategory} fields.`);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -196,7 +187,6 @@ export default function SiteSurfaceManage({
         </div>
       </div>
 
-      {message ? <p className={styles["message"]}>{message}</p> : null}
       {error ? <p className={styles["error"]}>{error}</p> : null}
 
       {showCategoryManage ? (

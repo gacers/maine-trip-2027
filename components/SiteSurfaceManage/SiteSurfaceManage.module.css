@@ -242,12 +242,6 @@
   margin-top: 0.5rem;
 }
 
-.message {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-zinc-600);
-}
-
 .error {
   margin: 0;
   font-size: var(--text-sm);

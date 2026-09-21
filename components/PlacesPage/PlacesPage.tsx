@@ -31,7 +31,6 @@ export default function PlacesPage({
   const [items, setItems] = useState(initialItems);
   const [fieldDefs, setFieldDefs] = useState(initialFieldDefs);
   const [countryFilter, setCountryFilter] = useState("all");
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     setItems(initialItems);
@@ -75,12 +74,18 @@ export default function PlacesPage({
           if (item.category_slug === categorySlug) {
             setItems((prev) => [item, ...prev]);
           }
-          setMessage("Added.");
         }}
       />
     );
-    return () => setActions(null);
   }, [homeActions?.setCategoryActions, categorySlug, fieldDefs]);
+
+  // Clear the nav slot only when leaving this page — not when fieldDefs
+  // updates mid-add (that remount closed the dialog after "+ Add field").
+  useEffect(() => {
+    const setActions = homeActions?.setCategoryActions;
+    if (!setActions) return;
+    return () => setActions(null);
+  }, [homeActions?.setCategoryActions]);
 
   const countries = useMemo(() => {
     const set = new Set<string>();
@@ -138,7 +143,6 @@ export default function PlacesPage({
           </label>
         </div>
       </div>
-      {message ? <p className={styles["message"]}>{message}</p> : null}
 
       {pins.some((p) => p.lat != null && p.lng != null) ? (
         <OverviewMap pins={pins} />
