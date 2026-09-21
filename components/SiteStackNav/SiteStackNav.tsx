@@ -26,18 +26,18 @@ const STACK = [
   { href: "/", label: "Trips", match: (path: string) => path === "/" },
   { href: "/categories/stays", label: "Categories", match: (path: string) => path.startsWith("/categories") },
   {
-    href: "/future-interests/stays",
-    label: "Future Interests",
-    match: (path: string) => path.startsWith("/future-interests"),
-  },
-  {
     href: "/places",
     label: "Places",
     match: (path: string) => path.startsWith("/places"),
   },
+  {
+    href: "/future-interests/stays",
+    label: "Future Interests",
+    match: (path: string) => path.startsWith("/future-interests"),
+  },
 ] as const;
 
-// Sticky Trips | Categories | Future Interests | Places bar for the home
+// Sticky Trips | Categories | Places | Future Interests bar for the home
 // surface only (see app/(home)/layout). Same collapse as trip
 // TripNavHeader: below 1024px only the hamburger (+ Add when present)
 // stays visible.
