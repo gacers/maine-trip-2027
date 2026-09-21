@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import EntryCard from "@/components/EntryCard";
-import type { PlaceItem } from "@/lib/places";
+import { placeToClientEntry, type PlaceItem } from "@/lib/places";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
-import type { ClientEntry, FieldDef, FieldType } from "@/lib/types";
+import type { FieldDef, FieldType } from "@/lib/types";
 
 export interface PlaceCardProps {
   item: PlaceItem;
@@ -17,40 +17,6 @@ export interface PlaceCardProps {
 
 const NOTES_KEY = "__notes";
 const CONCERNS_KEY = "__concerns";
-
-export function placeToClientEntry(item: PlaceItem): ClientEntry {
-  const raw = { ...(item.data || {}) };
-  const notes = typeof raw[NOTES_KEY] === "string" ? (raw[NOTES_KEY] as string) : null;
-  const concerns = typeof raw[CONCERNS_KEY] === "string" ? (raw[CONCERNS_KEY] as string) : null;
-  delete raw[NOTES_KEY];
-  delete raw[CONCERNS_KEY];
-
-  return {
-    id: item.id,
-    sectionId: "",
-    tripId: "",
-    rank: 0,
-    status: "active",
-    title: item.title,
-    url: item.url,
-    posterImage: item.poster_image,
-    description: item.description,
-    lat: item.lat,
-    lng: item.lng,
-    country: item.country,
-    notes,
-    concerns,
-    archiveReason: "",
-    groupLabel: "",
-    extraMarkers: [],
-    createdAt: item.created_at,
-    updatedAt: item.updated_at,
-    visited: item.visited,
-    visitedDate: null,
-    importSourceEntryId: null,
-    ...raw,
-  } as ClientEntry;
-}
 
 function bulletsJoin(existing: string | null | undefined, append: string): string {
   const cur = (existing || "").trim();
@@ -81,8 +47,8 @@ function mergeItemDataKeys(defs: FieldDef[], data: Record<string, unknown>): Fie
   return [...defs, ...extras];
 }
 
-// Places are already-known spots — always visited, no Options badge /
-// catalog merge. Same EntryCard chrome as Future Interests.
+// Places are already-known spots — always visited. Same EntryCard chrome
+// as Future Interests; Categories merges these rows in as Visited.
 export default function PlaceCard({
   item,
   categorySlug,

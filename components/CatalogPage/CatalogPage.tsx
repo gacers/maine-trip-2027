@@ -162,10 +162,14 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
                 <div className={styles["card-heading"]}>
                   <div className={styles["card-tags"]}>
                     <Badge variant={status.variant}>{status.label}</Badge>
-                    <span className={styles["card-tags-dash"]} aria-hidden>
-                      -
-                    </span>
-                    <BadgesRow items={types} />
+                    {types.length > 0 ? (
+                      <>
+                        <span className={styles["card-tags-dash"]} aria-hidden>
+                          -
+                        </span>
+                        <BadgesRow items={types} />
+                      </>
+                    ) : null}
                   </div>
                   <div className={styles["card-meta"]}>
                     {item.country ? <span>{item.country}</span> : null}
@@ -188,7 +192,9 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
                 {item.entry.description ? <p className={styles["card-desc"]}>{item.entry.description}</p> : null}
                 <div className={styles["card-actions"]}>
                   <Button variant="secondary" size="sm" asChild>
-                    <Link href={item.href}>Open original</Link>
+                    <Link href={item.href}>
+                      {item.trips.length > 0 ? "Open original" : "Open in Places"}
+                    </Link>
                   </Button>
                 </div>
               </div>

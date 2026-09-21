@@ -3,8 +3,8 @@ import { getAdminUser } from "@/lib/auth";
 import { getEditorTripIds } from "@/lib/tripEditors";
 import { getAllTrips } from "@/lib/sections";
 import { toClientEntry } from "@/lib/entries";
+import { listPlaces, placeToClientEntry, type PlaceItem } from "@/lib/places";
 import type { ClientEntry, EntryRow } from "@/lib/types";
-import type { SiteCategorySlug } from "@/lib/siteCategories";
 
 export type SectionTier = "options" | "previously-visited" | "other";
 
@@ -26,7 +26,7 @@ export interface CatalogItem {
   tiers: SectionTier[];
   /** Every trip this place appears in (original + synced copies). */
   trips: CatalogTripRef[];
-  /** Href into the original's trip section. */
+  /** Href into the original's trip section, or Places for manual rows. */
   href: string;
 }
 
@@ -55,10 +55,18 @@ function resolveRootId(row: EntryRow, byId: Map<string, EntryRow>): string {
   return current.id;
 }
 
-// Every active entry in enabled sections whose nav group slug matches
-// `categorySlug`, across trips the current session can access — collapsed
-// to original entries only (synced copies become trip appearances).
-export async function getCatalogForCategory(categorySlug: string): Promise<CatalogItem[]> {
+function placeToCatalogItem(place: PlaceItem, categorySlug: string): CatalogItem {
+  const entry = placeToClientEntry(place);
+  return {
+    entry,
+    country: place.country,
+    tiers: place.visited ? ["previously-visited"] : ["other"],
+    trips: [],
+    href: `/places/${categorySlug}#listing-${place.id}`,
+  };
+}
+
+async function getTripCatalogItems(categorySlug: string): Promise<CatalogItem[]> {
   const access = await accessibleTripIds();
   if (access !== "all" && access.length === 0) return [];
 
@@ -191,7 +199,32 @@ export async function getCatalogForCategory(categorySlug: string): Promise<Catal
     });
   }
 
-  // Stable title order for the grid.
+  return items;
+}
+
+// Trip entries in this category (across accessible trips) plus manual
+// Places rows — Places fill in known spots that aren't on any trip yet.
+// Synced entry copies collapse to the original; Places that already
+// match a trip entry (same source_entry_id or URL) are skipped.
+export async function getCatalogForCategory(categorySlug: string): Promise<CatalogItem[]> {
+  const [tripItems, places] = await Promise.all([
+    getTripCatalogItems(categorySlug),
+    listPlaces(categorySlug),
+  ]);
+
+  const items = [...tripItems];
+  const seenIds = new Set(items.map((i) => i.entry.id));
+  const seenUrls = new Set(items.map((i) => i.entry.url).filter((u): u is string => !!u));
+
+  for (const place of places) {
+    if (place.source_entry_id && seenIds.has(place.source_entry_id)) continue;
+    if (place.url && seenUrls.has(place.url)) continue;
+    if (seenIds.has(place.id)) continue;
+    items.push(placeToCatalogItem(place, categorySlug));
+    seenIds.add(place.id);
+    if (place.url) seenUrls.add(place.url);
+  }
+
   items.sort((a, b) => (a.entry.title || "").localeCompare(b.entry.title || ""));
   return items;
 }
