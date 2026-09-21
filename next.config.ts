@@ -64,6 +64,20 @@ function patchCssModulesNaming(rules: WebpackRule[] | undefined): void {
 }
 
 const nextConfig: NextConfig = {
+  images: {
+    // Poster URLs come from many hosts (Airbnb, VRBO, Flickr, Google
+    // Places, Instagram CDN, …). Optimization still runs through
+    // /_next/image; this only allowlists which remotes may be fetched.
+    remotePatterns: [
+      { protocol: "https", hostname: "**" },
+      { protocol: "http", hostname: "**" },
+    ],
+    // Next 16 requires an explicit quality allowlist.
+    qualities: [75],
+    // Cache optimized variants longer so repeat views (Categories scroll,
+    // back-nav) hit disk/CDN instead of re-fetching the remote.
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
+  },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   webpack(config: any) {
     patchCssModulesNaming(config.module?.rules as WebpackRule[] | undefined);

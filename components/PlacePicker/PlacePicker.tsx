@@ -1,4 +1,5 @@
 import type { PlaceResult } from "@/lib/types";
+import Image from "@/components/Image";
 import styles from "./PlacePicker.module.css";
 
 export interface PlacePickerProps {
@@ -17,8 +18,14 @@ export default function PlacePicker({ places, onChoose, onCancel }: PlacePickerP
       {places.map((place) => (
         <button key={place.id} type="button" onClick={() => onChoose(place)} className={styles["place"]}>
           {place.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={place.photoUrl} alt="" className={styles["photo"]} />
+            <Image
+              src={place.photoUrl}
+              alt=""
+              width={48}
+              height={48}
+              sizes="48px"
+              className={styles["photo"]}
+            />
           ) : (
             <div className={styles["photo-fallback"]} />
           )}

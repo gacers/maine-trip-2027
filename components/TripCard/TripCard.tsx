@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Calendar } from "lucide-react";
+import Image from "@/components/Image";
 import type { Trip } from "@/lib/types";
 import styles from "./TripCard.module.css";
 
@@ -25,8 +26,13 @@ export default function TripCard({ trip, dateLabel }: TripCardProps) {
     <Link href={`/${trip.slug}`} className={styles["root"]}>
       <div className={styles["photo-frame"]}>
         {showPhoto ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={trip.cover_image!} alt="" className={styles["photo"]} onError={() => setImageFailed(true)} />
+          <Image
+            src={trip.cover_image!}
+            alt=""
+            fill
+            sizes="(max-width: 40rem) 100vw, (max-width: 64rem) 50vw, 33vw"
+            onError={() => setImageFailed(true)}
+          />
         ) : (
           <div className={styles["photo-fallback"]} />
         )}

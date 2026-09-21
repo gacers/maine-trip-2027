@@ -5,6 +5,7 @@ import Link from "next/link";
 import OverviewMap from "@/components/OverviewMap";
 import Button from "@/components/Button";
 import BadgesRow, { Badge, assignBadgeVariants, type BadgeItem, type BadgeVariant } from "@/components/BadgesRow";
+import Image from "@/components/Image";
 import type { CatalogItem, SectionTier } from "@/lib/catalog";
 import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./CatalogPage.module.css";
@@ -146,8 +147,14 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
             return (
             <li key={item.entry.id} id={`catalog-${item.entry.id}`} className={styles["card"]}>
               {item.entry.posterImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.entry.posterImage} alt="" className={styles["thumb"]} />
+                <div className={styles["thumb"]}>
+                  <Image
+                    src={item.entry.posterImage}
+                    alt=""
+                    fill
+                    sizes="(max-width: 40rem) 100vw, 50vw"
+                  />
+                </div>
               ) : (
                 <div className={styles["thumb-empty"]} />
               )}

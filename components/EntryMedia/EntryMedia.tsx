@@ -3,6 +3,7 @@
 import { useState } from "react";
 import classNames from "classnames";
 import { ChevronUp } from "lucide-react";
+import Image from "@/components/Image";
 import type { ClientEntry } from "@/lib/types";
 import styles from "./EntryMedia.module.css";
 
@@ -68,14 +69,20 @@ export default function EntryMedia({
           ? styles["root-medium"]
           : styles["root"];
 
+  const sizes = compact
+    ? "(max-width: 40rem) 100vw, 33vw"
+    : large || medium
+      ? "(max-width: 40rem) 100vw, 50vw"
+      : "(max-width: 40rem) 100vw, (max-width: 64rem) 50vw, 33vw";
+
   return (
     <div className={sizeClass}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={entry.posterImage}
         alt={entry.title ?? ""}
+        fill
+        sizes={sizes}
         className={classNames(styles["media-img"], collapsed && styles["media-img-collapsed"])}
-        loading="lazy"
         onError={() => setFailed(true)}
       />
       {/* Only while there's still a photo to sit on — collapsing hands
