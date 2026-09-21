@@ -17,17 +17,15 @@ import {
 } from "@/lib/googleUrlHelpers";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
-import type { FutureInterestItem } from "@/lib/futureInterest";
+import type { PlaceItem } from "@/lib/places";
 import type { FieldDef, PlaceResult } from "@/lib/types";
 import dialogStyles from "@/components/AddEntryDialog/AddEntryDialog.module.css";
 import formStyles from "@/components/AddEntryForm/AddEntryForm.module.css";
 
-export interface FutureInterestAddDialogProps {
+export interface PlacesAddDialogProps {
   categorySlug: SiteCategorySlug;
-  /** Same field defs trip cards use for this category (types + extras). */
   fieldDefs: FieldDef[];
-  onAdded: (item: FutureInterestItem) => void;
-  /** Parent refreshes shared fieldDefs after a type is created here. */
+  onAdded: (item: PlaceItem) => void;
   onFieldDefsChanged?: (field: AddedFieldPayload) => void;
 }
 
@@ -43,9 +41,9 @@ const CORE_INITIAL: CoreFields = {
 };
 
 const PLACEHOLDERS: Record<SiteCategorySlug, string> = {
-  stays: "Paste a link for a place to stay...",
-  "food-drink": "Paste a link for a bar or restaurant we like...",
-  activities: "Paste a link for a hike, tour, or activity...",
+  stays: "Paste a link for a place we stay...",
+  "food-drink": "Paste a link for a regular spot...",
+  activities: "Paste a link for an activity we know...",
   distilleries: "Paste a link for a distillery...",
   wineries: "Paste a link for a winery...",
 };
@@ -68,16 +66,12 @@ function asLocalFieldDef(field: AddedFieldPayload): FieldDef {
   };
 }
 
-// Same Add dialog chrome + UrlEntryForm / Places / core fields as trip
-// section Add — saves to Future Interests for the current category tab
-// instead of a trip section. Type pickers use the shared AddFieldSelect
-// so new types land on trip cards too.
-export default function FutureInterestAddDialog({
+export default function PlacesAddDialog({
   categorySlug,
   fieldDefs: initialFieldDefs,
   onAdded,
   onFieldDefsChanged,
-}: FutureInterestAddDialogProps) {
+}: PlacesAddDialogProps) {
   const categoryLabel = siteCategoryLabel(categorySlug);
   const showTypes = categorySlug === "food-drink" || categorySlug === "activities";
   const [open, setOpen] = useState(false);
@@ -141,7 +135,7 @@ export default function FutureInterestAddDialog({
 
     if (isPlainUrl(raw) && !isGoogleUrl) {
       try {
-        const res = await fetch("/api/future-interests/preview", {
+        const res = await fetch("/api/places/preview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: raw }),
@@ -239,7 +233,7 @@ export default function FutureInterestAddDialog({
       if (value === true) data[key] = true;
     }
     try {
-      const res = await fetch("/api/future-interests", {
+      const res = await fetch("/api/places", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -274,7 +268,7 @@ export default function FutureInterestAddDialog({
         </Button>
       </DialogTrigger>
       <DialogContent className={dialogStyles["content"]}>
-        <DialogTitle>Add to {categoryLabel}</DialogTitle>
+        <DialogTitle>Add to Places — {categoryLabel}</DialogTitle>
         <div>
           {(phase === "idle" || phase === "loading") && (
             <UrlEntryForm

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogClose } from "@/components/Dialog";
 import Button from "@/components/Button";
-import { SITE_CATEGORIES } from "@/lib/siteCategories";
+import { SITE_CATEGORIES, type SiteCategorySlug } from "@/lib/siteCategories";
 import styles from "./SiteStackMobileDrawer.module.css";
 
 function MenuIcon() {
@@ -26,14 +26,25 @@ export interface SiteStackMobileDrawerProps {
   pathname: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  manageHref?: string;
+  /** When on Places, only these category tabs (Manage can hide some). */
+  placesCategoryTabs?: readonly { slug: SiteCategorySlug; label: string }[];
 }
 
 // Same Dialog drawer as trip MobileNavDrawer — Trips / Categories /
-// Future Interest plus each category tab in one mobile menu.
-export default function SiteStackMobileDrawer({ pathname, open, onOpenChange }: SiteStackMobileDrawerProps) {
+// Future Interests / Places plus each category tab in one mobile menu.
+export default function SiteStackMobileDrawer({
+  pathname,
+  open,
+  onOpenChange,
+  manageHref,
+  placesCategoryTabs,
+}: SiteStackMobileDrawerProps) {
   const onTrips = pathname === "/";
   const onCategories = pathname.startsWith("/categories");
-  const onFutureInterest = pathname.startsWith("/future-interest");
+  const onFutureInterest = pathname.startsWith("/future-interests");
+  const onPlaces = pathname.startsWith("/places");
+  const placesTabs = placesCategoryTabs ?? SITE_CATEGORIES;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -67,12 +78,24 @@ export default function SiteStackMobileDrawer({ pathname, open, onOpenChange }: 
             </DialogClose>
             <DialogClose asChild>
               <Link
-                href="/future-interest/stays"
+                href="/future-interests/stays"
                 className={onFutureInterest ? styles["nav-link-active"] : styles["nav-link"]}
               >
-                Future Interest
+                Future Interests
               </Link>
             </DialogClose>
+            <DialogClose asChild>
+              <Link href="/places" className={onPlaces ? styles["nav-link-active"] : styles["nav-link"]}>
+                Places
+              </Link>
+            </DialogClose>
+            {manageHref ? (
+              <DialogClose asChild>
+                <Link href={manageHref} className={styles["nav-link"]}>
+                  Manage
+                </Link>
+              </DialogClose>
+            ) : null}
           </div>
 
           <div className={styles["nav-group"]}>
@@ -91,12 +114,27 @@ export default function SiteStackMobileDrawer({ pathname, open, onOpenChange }: 
           </div>
 
           <div className={styles["nav-group"]}>
-            <div className={styles["nav-group-label"]}>Future Interest</div>
+            <div className={styles["nav-group-label"]}>Future Interests</div>
             {SITE_CATEGORIES.map((c) => {
-              const href = `/future-interest/${c.slug}`;
+              const href = `/future-interests/${c.slug}`;
               const active = pathname === href;
               return (
                 <DialogClose asChild key={`fi-${c.slug}`}>
+                  <Link href={href} className={active ? styles["nav-link-active"] : styles["nav-link"]}>
+                    {c.label}
+                  </Link>
+                </DialogClose>
+              );
+            })}
+          </div>
+
+          <div className={styles["nav-group"]}>
+            <div className={styles["nav-group-label"]}>Places</div>
+            {placesTabs.map((c) => {
+              const href = `/places/${c.slug}`;
+              const active = pathname === href;
+              return (
+                <DialogClose asChild key={`pl-${c.slug}`}>
                   <Link href={href} className={active ? styles["nav-link-active"] : styles["nav-link"]}>
                     {c.label}
                   </Link>

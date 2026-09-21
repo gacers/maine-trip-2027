@@ -51,7 +51,7 @@ export interface EntryEditFormProps {
    * the control entirely rather than rendering it disabled. */
   tripSlug?: string;
   sectionId?: string;
-  /** Future Interest — same AddFieldSelect, writes site-category fields. */
+  /** Future Interests — same AddFieldSelect, writes site-category fields. */
   categorySlug?: string;
   onFieldAdded?: (field: {
     key: string;

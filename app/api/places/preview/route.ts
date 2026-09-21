@@ -5,8 +5,8 @@ import { scrapeListing, normalizeListingUrl } from "@/lib/scrape";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Site-level URL preview for Future Interest Add — same scrape as trip
-// entry preview, without needing a trip/section context.
+// Site-level URL preview for Places Add — same scrape as trip / FI
+// preview, without needing a trip/section context.
 export async function POST(request: NextRequest) {
   const { error: authError } = await requireSiteEditorAccess();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });

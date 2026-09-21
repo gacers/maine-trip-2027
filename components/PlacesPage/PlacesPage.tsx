@@ -3,31 +3,30 @@
 import { useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
 import OverviewMap from "@/components/OverviewMap";
-import FutureInterestAddDialog from "@/components/FutureInterestAddDialog";
+import PlacesAddDialog from "@/components/PlacesAddDialog";
 import type { AddedFieldPayload } from "@/components/AddFieldSelect";
-import FutureInterestCard from "./FutureInterestCard";
+import PlaceCard from "./PlaceCard";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
-import type { FutureInterestViewItem } from "@/lib/futureInterest";
+import type { PlaceItem } from "@/lib/places";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
 import type { FieldDef, OverviewPin } from "@/lib/types";
-import styles from "./FutureInterestPage.module.css";
+import styles from "./PlacesPage.module.css";
 
-export interface FutureInterestPageProps {
+export interface PlacesPageProps {
   categorySlug: SiteCategorySlug;
   categoryLabel: string;
-  initialItems: FutureInterestViewItem[];
+  initialItems: PlaceItem[];
   initialFieldDefs: FieldDef[];
-  /** Trip slug for EntryCard geocode lookups (admin session). */
   geocodeTripSlug?: string;
 }
 
-export default function FutureInterestPage({
+export default function PlacesPage({
   categorySlug,
   categoryLabel,
   initialItems,
   initialFieldDefs,
   geocodeTripSlug,
-}: FutureInterestPageProps) {
+}: PlacesPageProps) {
   const homeActions = useHomeActions();
   const [items, setItems] = useState(initialItems);
   const [fieldDefs, setFieldDefs] = useState(initialFieldDefs);
@@ -68,13 +67,13 @@ export default function FutureInterestPage({
     const setActions = homeActions?.setCategoryActions;
     if (!setActions) return;
     setActions(
-      <FutureInterestAddDialog
+      <PlacesAddDialog
         categorySlug={categorySlug}
         fieldDefs={fieldDefs}
         onFieldDefsChanged={handleFieldDefsChanged}
         onAdded={(item) => {
           if (item.category_slug === categorySlug) {
-            setItems((prev) => [{ ...item, kind: "manual" as const }, ...prev]);
+            setItems((prev) => [item, ...prev]);
           }
           setMessage("Added.");
         }}
@@ -93,13 +92,11 @@ export default function FutureInterestPage({
 
   const visible = useMemo(() => {
     return items.filter((item) => {
-      if (item.visited) return false;
       if (countryFilter !== "all" && (item.country || "") !== countryFilter) return false;
       return true;
     });
   }, [items, countryFilter]);
 
-  // EntryCard anchors are #listing-<id> — match so map pins jump correctly.
   const pins: OverviewPin[] = useMemo(
     () =>
       visible.map((item) => ({
@@ -111,20 +108,13 @@ export default function FutureInterestPage({
     [visible]
   );
 
-  function handleUpdated(item: FutureInterestViewItem) {
-    if (item.visited) {
-      setItems((prev) => prev.filter((i) => i.id !== item.id));
-      return;
-    }
+  function handleUpdated(item: PlaceItem) {
     setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
   }
 
   async function removeItem(id: string) {
-    const existing = items.find((i) => i.id === id);
-    if (existing?.kind === "manual") {
-      const res = await fetch(`/api/future-interests/${id}`, { method: "DELETE" });
-      if (!res.ok) return;
-    }
+    const res = await fetch(`/api/places/${id}`, { method: "DELETE" });
+    if (!res.ok) return;
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
@@ -157,14 +147,12 @@ export default function FutureInterestPage({
       )}
 
       {visible.length === 0 ? (
-        <p className={styles["empty"]}>
-          Nothing here yet — unvisited Options from your trips show up automatically, or use + Add in the nav.
-        </p>
+        <p className={styles["empty"]}>Nothing here yet — use + Add in the nav for spots you already know.</p>
       ) : (
         <ul className={classNames(styles["list"], gridClass)}>
           {visible.map((item) => (
-            <li key={`${item.kind}-${item.id}`}>
-              <FutureInterestCard
+            <li key={item.id}>
+              <PlaceCard
                 item={item}
                 categorySlug={categorySlug}
                 initialFieldDefs={fieldDefs}

@@ -8,6 +8,24 @@ import {
 import type { SiteCategorySlug } from "@/lib/siteCategories";
 import type { FieldDef, FieldType } from "@/lib/types";
 
+async function sectionIdsForCategory(categorySlug: SiteCategorySlug): Promise<string[]> {
+  const supabase = supabaseServiceRole();
+  const { data: navGroups, error: ngError } = await supabase
+    .from("nav_groups")
+    .select("id")
+    .eq("slug", categorySlug);
+  if (ngError) throw new Error(ngError.message);
+  const navIds = (navGroups || []).map((g) => g.id);
+  if (navIds.length === 0) return [];
+  const { data: sections, error: secError } = await supabase
+    .from("sections")
+    .select("id")
+    .in("nav_group_id", navIds)
+    .eq("enabled", true);
+  if (secError) throw new Error(secError.message);
+  return (sections || []).map((s) => s.id);
+}
+
 function asFieldDef(f: TemplateFieldDef, sectionId = ""): FieldDef {
   return {
     id: f.key,
@@ -40,7 +58,7 @@ function baseDefsForCategory(slug: SiteCategorySlug): TemplateFieldDef[] {
   return [];
 }
 
-/** Promote boolean keys that only live on Future Interest item.data
+/** Promote boolean keys that only live on Future Interests item.data
  * (created before AddFieldSelect synced to templates) onto the shared
  * category schema so trip cards pick them up too. */
 export async function syncFutureInterestTypesToCategory(categorySlug: SiteCategorySlug): Promise<void> {
@@ -74,7 +92,7 @@ export async function syncFutureInterestTypesToCategory(categorySlug: SiteCatego
 }
 
 /** Union of field_defs used on any trip section in this site category —
- * so Future Interest shows the same type checkboxes as trip cards. */
+ * so Future Interests shows the same type checkboxes as trip cards. */
 export async function getFieldDefsForSiteCategory(categorySlug: SiteCategorySlug): Promise<FieldDef[]> {
   const supabase = supabaseServiceRole();
   const byKey = new Map<string, FieldDef>();
@@ -205,4 +223,68 @@ export async function addFieldToSiteCategory(input: SiteCategoryFieldInput): Pro
     show_on_overview: input.showOnOverview === true,
     required: input.required === true,
   };
+}
+
+export interface SiteCategoryFieldRow {
+  key: string;
+  label: string;
+  fieldType: FieldType;
+  showOnOverview?: boolean;
+  required?: boolean;
+  options?: { choices?: string[]; aliases?: string[] } | null;
+}
+
+/** Replace the shared type/fields schema for a site category: upsert
+ * each row onto templates + every enabled section, drop keys that left
+ * the editor. Used by Categories / Future Interests / Places Manage. */
+export async function syncFieldsForSiteCategory(
+  categorySlug: SiteCategorySlug,
+  fields: SiteCategoryFieldRow[]
+): Promise<FieldDef[]> {
+  const supabase = supabaseServiceRole();
+  const nextKeys = new Set(fields.map((f) => f.key.trim()).filter(Boolean));
+  const previous = await getFieldDefsForSiteCategory(categorySlug);
+  const previousKeys = previous.map((f) => f.key);
+  const sectionIds = await sectionIdsForCategory(categorySlug);
+
+  for (const field of fields) {
+    const key = field.key.trim();
+    const label = field.label.trim();
+    if (!key || !label) continue;
+    await addFieldToSiteCategory({
+      categorySlug,
+      key,
+      label,
+      fieldType: field.fieldType,
+      showOnOverview: field.showOnOverview === true,
+      required: field.required === true,
+      options: field.options || null,
+    });
+
+    // Update label/type/options on existing defs (addField skips when present).
+    if (sectionIds.length > 0) {
+      await supabase
+        .from("field_defs")
+        .update({
+          label,
+          field_type: field.fieldType,
+          show_on_overview: field.showOnOverview === true,
+          required: field.required === true,
+          options: field.options || null,
+        })
+        .in("section_id", sectionIds)
+        .eq("key", key);
+    }
+  }
+
+  for (const key of previousKeys) {
+    if (nextKeys.has(key)) continue;
+    // Keep built-in type/closed fields — they're always part of the
+    // category schema even when no trip section has them yet.
+    if (baseDefsForCategory(categorySlug).some((f) => f.key === key)) continue;
+    if (sectionIds.length === 0) continue;
+    await supabase.from("field_defs").delete().in("section_id", sectionIds).eq("key", key);
+  }
+
+  return getFieldDefsForSiteCategory(categorySlug);
 }

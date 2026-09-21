@@ -1,0 +1,110 @@
+.root {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: 2rem 1rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-zinc-900);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--text-xs);
+  color: var(--color-zinc-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.select {
+  font-size: var(--text-sm);
+  font-family: inherit;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--color-zinc-300);
+  border-radius: var(--radius);
+  background-color: var(--color-white);
+  color: var(--color-zinc-800);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-sm);
+  color: var(--color-zinc-700);
+  padding-bottom: 0.35rem;
+}
+
+.message {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-zinc-600);
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-zinc-500);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Stays — 2-up like trip section grid-2. */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+@media (min-width: 640px) {
+  .grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Food & Drink / Activities / … — 3-up like trip section grid-3. */
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+@media (min-width: 640px) {
+  .grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

@@ -3,11 +3,12 @@ import { getAdminUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabaseServer";
 import HomeShell from "@/components/HomeShell";
 import { HomeActionsProvider } from "@/components/HomeShell/HomeActions";
+import { getPlacesSurfaceSettings } from "@/lib/siteSurfaceSettings";
 
 export const dynamic = "force-dynamic";
 
-// Shared header + Trips | Categories | Future Interest stack for the
-// home surface only — trip pages keep TripNavHeader instead.
+// Shared header + Trips | Categories | Future Interests | Places stack
+// for the home surface only — trip pages keep TripNavHeader instead.
 export default async function HomeLayout({ children }: { children: ReactNode }) {
   const admin = await getAdminUser();
   const isAdmin = !!admin;
@@ -17,9 +18,22 @@ export default async function HomeLayout({ children }: { children: ReactNode }) 
   } = await supabase.auth.getUser();
   const isSignedIn = !!user;
 
+  let placesEnabledCategories: Awaited<ReturnType<typeof getPlacesSurfaceSettings>>["enabledCategories"] | undefined;
+  if (isAdmin) {
+    try {
+      placesEnabledCategories = (await getPlacesSurfaceSettings()).enabledCategories;
+    } catch {
+      placesEnabledCategories = undefined;
+    }
+  }
+
   return (
     <HomeActionsProvider>
-      <HomeShell isAdmin={isAdmin} isSignedIn={isSignedIn}>
+      <HomeShell
+        isAdmin={isAdmin}
+        isSignedIn={isSignedIn}
+        placesEnabledCategories={placesEnabledCategories}
+      >
         {children}
       </HomeShell>
     </HomeActionsProvider>

@@ -1,4 +1,4 @@
-// Fixed category tabs for site-level Categories + Future Interest
+// Fixed category tabs for site-level Categories + Future Interests
 // browse — match the nav_groups.slug values used on trips (built-in
 // stays/food-drink/activities plus the usual custom distilleries/
 // wineries groups).

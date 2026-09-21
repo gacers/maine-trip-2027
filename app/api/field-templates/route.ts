@@ -23,7 +23,7 @@ export async function GET() {
 }
 
 // Create/upsert a shared field template and add it to every section in
-// a site category — used by Future Interest's same AddFieldSelect so a
+// a site category — used by Future Interests's same AddFieldSelect so a
 // type created there shows up on trip cards too.
 export async function POST(request: NextRequest) {
   const { error: authError } = await requireSiteEditorAccess();

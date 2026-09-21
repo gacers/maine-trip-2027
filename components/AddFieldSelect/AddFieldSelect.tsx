@@ -22,7 +22,7 @@ export interface AddFieldSelectProps {
   /** Trip section mode — posts to /api/trips/.../add-field and refreshes. */
   tripSlug?: string;
   sectionId?: string;
-  /** Site-category mode (Future Interest) — posts to /api/field-templates
+  /** Site-category mode (Future Interests) — posts to /api/field-templates
    * so the field lands on every trip section in that category too. */
   categorySlug?: string;
   existingKeys: string[];
@@ -41,7 +41,7 @@ function slugifyKey(label: string): string {
 }
 
 // "+ Add existing field..." / "+ Create new field..." — same control on
-// trip EntryCards and Future Interest. Trip mode writes one section's
+// trip EntryCards and Future Interests. Trip mode writes one section's
 // field_defs; category mode writes the shared template + every section
 // in that site category so types stay in sync.
 export default function AddFieldSelect({

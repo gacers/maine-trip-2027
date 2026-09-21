@@ -150,7 +150,7 @@ async function pruneCatalogCopies(categorySlug: SiteCategorySlug): Promise<void>
 }
 
 /**
- * Future Interest list: every unvisited Options-tier catalog place
+ * Future Interests list: every unvisited Options-tier catalog place
  * (live reference) plus manually added FI-only rows. Visited Options
  * drop out automatically; marking visited on a row removes it.
  */

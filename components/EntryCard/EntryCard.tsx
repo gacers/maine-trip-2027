@@ -109,7 +109,7 @@ export interface EntryCardProps {
    * & Drink/Activities entries never pass this at all. */
   primaryDateRange?: DateRange | null;
   backupDateRange?: DateRange | null;
-  /** Future Interest — enable AddFieldSelect without a trip section. */
+  /** Future Interests — enable AddFieldSelect without a trip section. */
   categorySlug?: string;
   onFieldAdded?: (field: {
     key: string;

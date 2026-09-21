@@ -1,2 +1,2 @@
 export { default } from "./SiteStackNav";
-export type { SiteStackNavProps } from "./SiteStackNav";
+export type { SiteStackNavProps, SiteCategoryBasePath } from "./SiteStackNav";

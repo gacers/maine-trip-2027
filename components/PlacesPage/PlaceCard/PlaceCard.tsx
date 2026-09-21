@@ -2,39 +2,26 @@
 
 import { useEffect, useState } from "react";
 import EntryCard from "@/components/EntryCard";
-import type { FutureInterestViewItem } from "@/lib/futureInterest";
+import type { PlaceItem } from "@/lib/places";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
 import type { ClientEntry, FieldDef, FieldType } from "@/lib/types";
 
-export interface FutureInterestCardProps {
-  item: FutureInterestViewItem;
+export interface PlaceCardProps {
+  item: PlaceItem;
   categorySlug: SiteCategorySlug;
-  /** Field defs shared with trip sections in this category. */
   initialFieldDefs: FieldDef[];
-  /** Any accessible trip slug — EntryCard reverse-geocode lookups. */
   geocodeTripSlug?: string;
-  onUpdated: (item: FutureInterestViewItem) => void;
+  onUpdated: (item: PlaceItem) => void;
   onRemove: (id: string) => void;
 }
 
 const NOTES_KEY = "__notes";
 const CONCERNS_KEY = "__concerns";
 
-/** Map a Future Interests row onto ClientEntry so EntryCard can render it. */
-export function futureInterestToClientEntry(item: FutureInterestViewItem): ClientEntry {
+export function placeToClientEntry(item: PlaceItem): ClientEntry {
   const raw = { ...(item.data || {}) };
-  let notes: string | null =
-    item.kind === "catalog"
-      ? item.entryNotes ?? null
-      : typeof raw[NOTES_KEY] === "string"
-        ? (raw[NOTES_KEY] as string)
-        : null;
-  let concerns: string | null =
-    item.kind === "catalog"
-      ? item.entryConcerns ?? null
-      : typeof raw[CONCERNS_KEY] === "string"
-        ? (raw[CONCERNS_KEY] as string)
-        : null;
+  const notes = typeof raw[NOTES_KEY] === "string" ? (raw[NOTES_KEY] as string) : null;
+  const concerns = typeof raw[CONCERNS_KEY] === "string" ? (raw[CONCERNS_KEY] as string) : null;
   delete raw[NOTES_KEY];
   delete raw[CONCERNS_KEY];
 
@@ -94,22 +81,17 @@ function mergeItemDataKeys(defs: FieldDef[], data: Record<string, unknown>): Fie
   return [...defs, ...extras];
 }
 
-function catalogApiBase(item: FutureInterestViewItem): string | null {
-  if (item.kind !== "catalog" || !item.tripSlug || !item.navGroupSlug || !item.sectionSlug) return null;
-  return `/api/trips/${item.tripSlug}/sections/${item.navGroupSlug}/${item.sectionSlug}/entries`;
-}
-
-// Same EntryCard as trip Food & Drink — Options appear by live reference;
-// marking visited removes the card (and marks the trip Options entry).
-export default function FutureInterestCard({
+// Places are already-known spots — always visited, no Options badge /
+// catalog merge. Same EntryCard chrome as Future Interests.
+export default function PlaceCard({
   item,
   categorySlug,
   initialFieldDefs,
   geocodeTripSlug,
   onUpdated,
   onRemove,
-}: FutureInterestCardProps) {
-  const entry = futureInterestToClientEntry(item);
+}: PlaceCardProps) {
+  const entry = placeToClientEntry(item);
   const [fieldDefs, setFieldDefs] = useState(() => mergeItemDataKeys(initialFieldDefs, item.data || {}));
   const isStays = categorySlug === "stays";
 
@@ -146,101 +128,8 @@ export default function FutureInterestCard({
     });
   }
 
-  async function handleCatalogPatch(id: string, patch: Record<string, unknown>) {
-    const base = catalogApiBase(item);
-    if (!base) return;
-
-    // Visited → leave Future Interests (Options entry stays, now visited).
-    if (patch.visited === true) {
-      const res = await fetch(`${base}/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visited: true }),
-      });
-      if (!res.ok) return;
-      onRemove(id);
-      return;
-    }
-
-    // Archive from FI card = same as visited for Options references.
+  async function handlePatch(id: string, patch: Record<string, unknown>) {
     if (patch.status === "archived") {
-      const res = await fetch(`${base}/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visited: true }),
-      });
-      if (!res.ok) return;
-      onRemove(id);
-      return;
-    }
-
-    const body: Record<string, unknown> = { ...patch };
-    const res = await fetch(`${base}/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const resData = await res.json();
-    if (!res.ok) return;
-    const updated = resData.entry as ClientEntry;
-    onUpdated({
-      ...item,
-      title: updated.title,
-      url: updated.url,
-      poster_image: updated.posterImage,
-      description: updated.description,
-      lat: updated.lat,
-      lng: updated.lng,
-      country: updated.country,
-      data: (() => {
-        const data: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(updated)) {
-          if (
-            [
-              "id",
-              "sectionId",
-              "tripId",
-              "rank",
-              "status",
-              "archiveReason",
-              "notes",
-              "concerns",
-              "title",
-              "url",
-              "posterImage",
-              "description",
-              "lat",
-              "lng",
-              "country",
-              "extraMarkers",
-              "groupLabel",
-              "createdAt",
-              "updatedAt",
-              "visited",
-              "visitedDate",
-              "importSourceEntryId",
-              "averageScore",
-              "ratingCount",
-              "myScore",
-            ].includes(key)
-          ) {
-            continue;
-          }
-          data[key] = value;
-        }
-        return data;
-      })(),
-      entryNotes: updated.notes,
-      entryConcerns: updated.concerns,
-      visited: !!updated.visited,
-      updated_at: updated.updatedAt,
-    });
-    if (updated.visited) onRemove(id);
-  }
-
-  async function handleManualPatch(id: string, patch: Record<string, unknown>) {
-    // Visited → remove from Future Interests entirely.
-    if (patch.visited === true || patch.status === "archived") {
       onRemove(id);
       return;
     }
@@ -254,6 +143,7 @@ export default function FutureInterestCard({
     if ("description" in patch) body.description = patch.description ?? null;
     if ("lat" in patch) body.lat = patch.lat === "" || patch.lat == null ? null : Number(patch.lat);
     if ("lng" in patch) body.lng = patch.lng === "" || patch.lng == null ? null : Number(patch.lng);
+    if ("visited" in patch) body.visited = !!patch.visited;
 
     if ("data" in patch && patch.data && typeof patch.data === "object") {
       for (const key of Object.keys(nextData)) {
@@ -289,39 +179,25 @@ export default function FutureInterestCard({
 
     if (Object.keys(body).length === 0) return;
 
-    const res = await fetch(`/api/future-interests/${id}`, {
+    const res = await fetch(`/api/places/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     const resData = await res.json();
     if (!res.ok) return;
-    onUpdated({ ...resData.item, kind: "manual" as const });
-  }
-
-  async function handlePatch(id: string, patch: Record<string, unknown>) {
-    if (item.kind === "catalog") await handleCatalogPatch(id, patch);
-    else await handleManualPatch(id, patch);
-  }
-
-  async function handleDelete(id: string) {
-    if (item.kind === "catalog") {
-      // Same as visited — leave Future Interests without deleting the Options entry.
-      await handleCatalogPatch(id, { visited: true });
-      return;
-    }
-    onRemove(id);
+    onUpdated(resData.item as PlaceItem);
   }
 
   return (
     <EntryCard
       entry={entry}
       fieldDefs={fieldDefs}
-      tripSlug={item.kind === "catalog" ? item.tripSlug || geocodeTripSlug : geocodeTripSlug}
+      tripSlug={geocodeTripSlug}
       categorySlug={categorySlug}
       onFieldAdded={handleFieldAdded}
       onPatch={handlePatch}
-      onDelete={handleDelete}
+      onDelete={onRemove}
       canManage
       canContribute
       showRatings={false}
