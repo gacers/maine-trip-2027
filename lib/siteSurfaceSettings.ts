@@ -1,26 +1,14 @@
 import { supabaseServiceRole } from "@/lib/supabaseServer";
 import { SITE_CATEGORIES, siteCategoryLabel } from "@/lib/siteCategories";
+import {
+  SURFACE_DEFAULT_CATEGORIES,
+  type CategorySurface,
+  type SurfaceCategory,
+  type SurfaceCategorySettings,
+} from "@/lib/siteSurfaceShared";
 
-/** Surfaces that support trip-style category add / enable / remove. */
-export type CategorySurface = "places" | "future-interests";
-
-/** One category “section” on Places or Future Interests — like a trip section row. */
-export interface SurfaceCategory {
-  slug: string;
-  label: string;
-  enabled: boolean;
-}
-
-export interface SurfaceCategorySettings {
-  categories: SurfaceCategory[];
-}
-
-/** Built-in defaults — same three starters trip Manage offers. */
-export const SURFACE_DEFAULT_CATEGORIES: Omit<SurfaceCategory, "enabled">[] = [
-  { slug: "stays", label: "Stays" },
-  { slug: "food-drink", label: "Food & Drink" },
-  { slug: "activities", label: "Activities" },
-];
+export type { CategorySurface, SurfaceCategory, SurfaceCategorySettings };
+export { SURFACE_DEFAULT_CATEGORIES };
 
 const DEFAULT_SETTINGS: SurfaceCategorySettings = {
   categories: SURFACE_DEFAULT_CATEGORIES.map((c) => ({ ...c, enabled: true })),
@@ -50,7 +38,6 @@ function parseSettings(raw: unknown): SurfaceCategorySettings {
 
   if (Array.isArray(obj.categories)) {
     const categories = obj.categories.map(normalizeCategory).filter((c): c is SurfaceCategory => !!c);
-    // Deduplicate by slug (first wins).
     const seen = new Set<string>();
     const unique = categories.filter((c) => {
       if (seen.has(c.slug)) return false;
@@ -60,7 +47,6 @@ function parseSettings(raw: unknown): SurfaceCategorySettings {
     return { categories: unique };
   }
 
-  // Legacy shape: enabledCategories: string[] (all treated as enabled).
   if (Array.isArray(obj.enabledCategories)) {
     const categories: SurfaceCategory[] = [];
     const seen = new Set<string>();

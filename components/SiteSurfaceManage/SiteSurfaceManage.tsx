@@ -13,7 +13,7 @@ import { SITE_CATEGORIES, type SiteCategorySlug } from "@/lib/siteCategories";
 import {
   SURFACE_DEFAULT_CATEGORIES,
   type SurfaceCategory,
-} from "@/lib/siteSurfaceSettings";
+} from "@/lib/siteSurfaceShared";
 import type { FieldDef } from "@/lib/types";
 import styles from "./SiteSurfaceManage.module.css";
 
