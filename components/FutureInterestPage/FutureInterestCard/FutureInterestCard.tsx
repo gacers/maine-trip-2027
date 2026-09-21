@@ -1,12 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import EntryMedia from "@/components/EntryMedia";
-import EntryBadgesRow from "@/components/EntryCard/EntryBadgesRow";
-import EntryDescription from "@/components/EntryCard/EntryDescription";
-import Button from "@/components/Button";
-import { assignBadgeVariants } from "@/components/Badge";
-import { toBullets } from "@/lib/fieldTypes/textarea";
+import EntryCard from "@/components/EntryCard";
 import {
   ACTIVITIES_TYPE_FIELD_DEFS,
   FOOD_DRINK_TYPE_FIELD_DEFS,
@@ -14,36 +8,33 @@ import {
 } from "@/lib/sectionTemplates";
 import type { FutureInterestItem } from "@/lib/futureInterest";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
-import type { FieldDef } from "@/lib/types";
-import FutureInterestEditForm, { type FutureInterestDraft } from "./FutureInterestEditForm";
-import styles from "./FutureInterestCard.module.css";
+import type { ClientEntry, FieldDef } from "@/lib/types";
 
 export interface FutureInterestCardProps {
   item: FutureInterestItem;
   categorySlug: SiteCategorySlug;
+  /** Any accessible trip slug — EntryCard reverse-geocode / map town
+   * lookups go through that trip's geocode route (admin session). */
+  geocodeTripSlug?: string;
   onUpdated: (item: FutureInterestItem) => void;
-  onMarkVisited: (id: string) => void;
   onRemove: (id: string) => void;
 }
 
-function typeDefsForCategory(slug: SiteCategorySlug): TemplateFieldDef[] {
-  if (slug === "food-drink") return FOOD_DRINK_TYPE_FIELD_DEFS;
-  if (slug === "activities") return ACTIVITIES_TYPE_FIELD_DEFS;
-  return [];
-}
+const NOTES_KEY = "__notes";
+const CONCERNS_KEY = "__concerns";
 
-function asFieldDef(f: { key: string; label: string; field_type?: string; show_on_overview?: boolean; options?: unknown }): FieldDef {
+function asFieldDef(f: TemplateFieldDef): FieldDef {
   return {
     id: f.key,
     section_id: "",
     key: f.key,
     label: f.label,
-    field_type: (f.field_type as FieldDef["field_type"]) || "boolean",
+    field_type: f.field_type,
     storage: "jsonb",
     core_column: null,
-    options: (f.options as FieldDef["options"]) || null,
+    options: f.options || null,
     sort_order: 0,
-    show_on_overview: f.show_on_overview ?? true,
+    show_on_overview: f.show_on_overview,
     required: false,
   };
 }
@@ -55,204 +46,162 @@ function humanizeKey(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Template types plus any custom boolean keys already on this item. */
-function resolveTypeFieldDefs(slug: SiteCategorySlug, data: Record<string, unknown> | null | undefined): FieldDef[] {
-  const base = typeDefsForCategory(slug).map(asFieldDef);
-  if (slug !== "food-drink" && slug !== "activities") return base;
-  const known = new Set(base.map((f) => f.key));
-  const extras: FieldDef[] = [];
-  for (const [key, value] of Object.entries(data || {})) {
+function fieldDefsForCategory(slug: SiteCategorySlug, data: Record<string, unknown>): FieldDef[] {
+  const base =
+    slug === "food-drink"
+      ? FOOD_DRINK_TYPE_FIELD_DEFS
+      : slug === "activities"
+        ? ACTIVITIES_TYPE_FIELD_DEFS
+        : [];
+  const defs = base.map(asFieldDef);
+  const known = new Set(defs.map((f) => f.key));
+  for (const [key, value] of Object.entries(data)) {
+    if (key === NOTES_KEY || key === CONCERNS_KEY) continue;
     if (known.has(key)) continue;
     if (value !== true && value !== "true" && value !== false && value !== "false") continue;
-    extras.push(asFieldDef({ key, label: humanizeKey(key) }));
+    defs.push(
+      asFieldDef({
+        key,
+        label: humanizeKey(key),
+        field_type: "boolean",
+        show_on_overview: true,
+      })
+    );
   }
-  return [...base, ...extras];
+  return defs;
 }
 
-function draftFromItem(item: FutureInterestItem, typeFieldDefs: FieldDef[]): FutureInterestDraft {
-  const data: Record<string, string | boolean> = {};
-  for (const f of typeFieldDefs) {
-    data[f.key] = item.data?.[f.key] === true || item.data?.[f.key] === "true";
-  }
+/** Map a Future Interest row onto ClientEntry so EntryCard can render it. */
+export function futureInterestToClientEntry(item: FutureInterestItem): ClientEntry {
+  const raw = { ...(item.data || {}) };
+  const notes = typeof raw[NOTES_KEY] === "string" ? (raw[NOTES_KEY] as string) : null;
+  const concerns = typeof raw[CONCERNS_KEY] === "string" ? (raw[CONCERNS_KEY] as string) : null;
+  delete raw[NOTES_KEY];
+  delete raw[CONCERNS_KEY];
+
   return {
-    title: item.title || "",
-    url: item.url || "",
-    posterImage: item.poster_image || "",
-    description: item.description || "",
-    lat: item.lat ?? "",
-    lng: item.lng ?? "",
-    data,
-  };
+    id: item.id,
+    sectionId: "",
+    tripId: "",
+    rank: 0,
+    status: "active",
+    title: item.title,
+    url: item.url,
+    posterImage: item.poster_image,
+    description: item.description,
+    lat: item.lat,
+    lng: item.lng,
+    country: item.country,
+    notes,
+    concerns,
+    archiveReason: "",
+    groupLabel: "",
+    extraMarkers: [],
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+    visited: item.visited,
+    visitedDate: null,
+    importSourceEntryId: null,
+    ...raw,
+  } as ClientEntry;
 }
 
+function bulletsJoin(existing: string | null | undefined, append: string): string {
+  const cur = (existing || "").trim();
+  return cur ? `${cur}\n${append}` : append;
+}
+
+// Same EntryCard as trip Food & Drink / Stays — patches go to the FI API.
 export default function FutureInterestCard({
   item,
   categorySlug,
+  geocodeTripSlug,
   onUpdated,
-  onMarkVisited,
   onRemove,
 }: FutureInterestCardProps) {
+  const entry = futureInterestToClientEntry(item);
+  const fieldDefs = fieldDefsForCategory(categorySlug, item.data || {});
   const isStays = categorySlug === "stays";
-  const showTypes = categorySlug === "food-drink" || categorySlug === "activities";
-  const displayTypeDefs = resolveTypeFieldDefs(categorySlug, item.data);
-  const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState<FutureInterestDraft | null>(null);
-  const [editTypeDefs, setEditTypeDefs] = useState<FieldDef[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
-  const activeBooleanFields = displayTypeDefs.filter(
-    (f) => item.data?.[f.key] === true || item.data?.[f.key] === "true"
-  );
-  const badgeVariants = assignBadgeVariants(displayTypeDefs.map((f) => f.key));
+  async function handlePatch(id: string, patch: Record<string, unknown>) {
+    const body: Record<string, unknown> = {};
+    const nextData: Record<string, unknown> = { ...(item.data || {}) };
 
-  const mediaEntry = {
-    posterImage: item.poster_image,
-    title: item.title,
-    averageScore: null as number | null,
-    ratingCount: 0,
-  };
+    if ("title" in patch) body.title = patch.title ?? null;
+    if ("url" in patch) body.url = patch.url ?? null;
+    if ("posterImage" in patch) body.posterImage = patch.posterImage ?? null;
+    if ("description" in patch) body.description = patch.description ?? null;
+    if ("lat" in patch) body.lat = patch.lat === "" || patch.lat == null ? null : Number(patch.lat);
+    if ("lng" in patch) body.lng = patch.lng === "" || patch.lng == null ? null : Number(patch.lng);
+    if ("visited" in patch) body.visited = !!patch.visited;
 
-  const descriptionBullets = toBullets(item.description);
-  const hasCoords = item.lat != null && item.lng != null;
-  const mapsUrl = hasCoords
-    ? `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`
-    : undefined;
-  const titleHref = item.url || mapsUrl || undefined;
+    if ("data" in patch && patch.data && typeof patch.data === "object") {
+      // Replace type tags from the edit form; keep notes/concerns keys.
+      for (const key of Object.keys(nextData)) {
+        if (key === NOTES_KEY || key === CONCERNS_KEY) continue;
+        delete nextData[key];
+      }
+      Object.assign(nextData, patch.data as Record<string, unknown>);
+      body.data = nextData;
+    }
 
-  function startEdit() {
-    const defs = resolveTypeFieldDefs(categorySlug, item.data);
-    setEditTypeDefs(defs);
-    setDraft(draftFromItem(item, defs));
-    setErrorMsg("");
-    setIsEditing(true);
-  }
+    if ("notes" in patch) {
+      nextData[NOTES_KEY] = patch.notes || "";
+      body.data = nextData;
+    }
+    if (typeof patch.appendNote === "string" && patch.appendNote.trim()) {
+      nextData[NOTES_KEY] = bulletsJoin(
+        typeof nextData[NOTES_KEY] === "string" ? (nextData[NOTES_KEY] as string) : entry.notes,
+        patch.appendNote.trim()
+      );
+      body.data = nextData;
+    }
+    if ("concerns" in patch) {
+      nextData[CONCERNS_KEY] = patch.concerns || "";
+      body.data = nextData;
+    }
+    if (typeof patch.appendConcern === "string" && patch.appendConcern.trim()) {
+      nextData[CONCERNS_KEY] = bulletsJoin(
+        typeof nextData[CONCERNS_KEY] === "string" ? (nextData[CONCERNS_KEY] as string) : entry.concerns,
+        patch.appendConcern.trim()
+      );
+      body.data = nextData;
+    }
 
-  function cancelEdit() {
-    setIsEditing(false);
-    setDraft(null);
-    setEditTypeDefs([]);
-    setErrorMsg("");
-  }
-
-  async function saveEdit() {
-    if (!draft) return;
-    if (!draft.title.trim()) {
-      setErrorMsg("Title is required.");
+    // Archive on FI = remove (no archived state on wishlist items).
+    if (patch.status === "archived") {
+      onRemove(id);
       return;
     }
-    if (categorySlug === "food-drink") {
-      const picked = Object.values(draft.data).some((v) => v === true);
-      if (!picked) {
-        setErrorMsg("Pick at least one type (Restaurant, Bar, …).");
-        return;
-      }
-    }
-    setSaving(true);
-    setErrorMsg("");
-    const data: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(draft.data)) {
-      if (value === true) data[key] = true;
-    }
-    try {
-      const res = await fetch(`/api/future-interest/${item.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: draft.title.trim() || null,
-          url: draft.url.trim() || null,
-          posterImage: draft.posterImage.trim() || null,
-          description: draft.description.trim() || null,
-          lat: draft.lat === "" ? null : Number(draft.lat),
-          lng: draft.lng === "" ? null : Number(draft.lng),
-          data,
-        }),
-      });
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error || "Save failed");
-      onUpdated(resData.item);
-      setIsEditing(false);
-      setDraft(null);
-      setEditTypeDefs([]);
-    } catch (err) {
-      setErrorMsg((err as Error).message);
-    } finally {
-      setSaving(false);
-    }
+
+    if (Object.keys(body).length === 0) return;
+
+    const res = await fetch(`/api/future-interest/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const resData = await res.json();
+    if (!res.ok) return;
+    onUpdated(resData.item);
   }
 
   return (
-    <article id={`fi-${item.id}`} className={styles["root"]}>
-      {!isEditing && <EntryMedia entry={mediaEntry} compact={!isStays} medium={isStays} />}
-      <div className={styles["sections"]}>
-        {isEditing && draft ? (
-          <div className={styles["section"]}>
-            {errorMsg ? <p className={styles["error"]}>{errorMsg}</p> : null}
-            <FutureInterestEditForm
-              draft={draft}
-              onChange={setDraft}
-              typeFieldDefs={editTypeDefs}
-              onTypeFieldsChange={setEditTypeDefs}
-              showTypes={showTypes}
-            />
-            <div className={styles["actions"]}>
-              <Button variant="primary" size="sm" onClick={saveEdit} disabled={saving}>
-                {saving ? "Saving…" : "Save"}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={saving}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className={styles["section"]}>
-              {activeBooleanFields.length > 0 && (
-                <EntryBadgesRow activeBooleanFields={activeBooleanFields} badgeVariants={badgeVariants} />
-              )}
-              <div className={styles["title-block"]}>
-                {titleHref ? (
-                  <a href={titleHref} target="_blank" rel="noopener noreferrer" className={styles["title-link"]}>
-                    {item.title || "Untitled"}
-                  </a>
-                ) : (
-                  <span className={styles["title-link"]}>{item.title || "Untitled"}</span>
-                )}
-                {item.country ? (
-                  mapsUrl ? (
-                    <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={styles["meta-link"]}>
-                      {item.country}
-                    </a>
-                  ) : (
-                    <span className={styles["meta-link"]}>{item.country}</span>
-                  )
-                ) : mapsUrl ? (
-                  <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={styles["meta-link"]}>
-                    View on map
-                  </a>
-                ) : null}
-                {item.visited ? <span className={styles["visited"]}>Visited</span> : null}
-              </div>
-              {descriptionBullets.length > 0 && <EntryDescription bullets={descriptionBullets} />}
-            </div>
-            <div className={styles["section"]}>
-              <div className={styles["actions"]}>
-                <Button variant="ghost" size="sm" onClick={startEdit}>
-                  Edit details
-                </Button>
-                {!item.visited && (
-                  <Button variant="secondary" size="sm" onClick={() => onMarkVisited(item.id)}>
-                    Mark visited
-                  </Button>
-                )}
-                <Button variant="danger" size="sm" onClick={() => onRemove(item.id)}>
-                  Remove
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </article>
+    <EntryCard
+      entry={entry}
+      fieldDefs={fieldDefs}
+      tripSlug={geocodeTripSlug}
+      onPatch={handlePatch}
+      onDelete={onRemove}
+      canManage
+      canContribute
+      showRatings={false}
+      showMap
+      comparisonMode={false}
+      compact={!isStays}
+      mediumMedia={isStays}
+      supportsPairing={false}
+      showVisitedControl
+    />
   );
 }

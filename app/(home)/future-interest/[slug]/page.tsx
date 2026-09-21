@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { canAccessSiteCatalog } from "@/lib/auth";
 import { listFutureInterest } from "@/lib/futureInterest";
+import { getAllTrips } from "@/lib/sections";
 import { isSiteCategorySlug, siteCategoryLabel } from "@/lib/siteCategories";
 import FutureInterestPage from "@/components/FutureInterestPage";
 
@@ -21,6 +22,13 @@ export default async function FutureInterestSlugPage({ params }: { params: Promi
     );
   }
 
-  const items = await listFutureInterest(slug, { includeVisited: true });
-  return <FutureInterestPage categorySlug={slug} categoryLabel={siteCategoryLabel(slug)} initialItems={items} />;
+  const [items, trips] = await Promise.all([listFutureInterest(slug, { includeVisited: true }), getAllTrips()]);
+  return (
+    <FutureInterestPage
+      categorySlug={slug}
+      categoryLabel={siteCategoryLabel(slug)}
+      initialItems={items}
+      geocodeTripSlug={trips[0]?.slug}
+    />
+  );
 }

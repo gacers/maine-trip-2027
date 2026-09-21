@@ -16,9 +16,16 @@ export interface FutureInterestPageProps {
   categorySlug: SiteCategorySlug;
   categoryLabel: string;
   initialItems: FutureInterestItem[];
+  /** Trip slug for EntryCard geocode lookups (admin session). */
+  geocodeTripSlug?: string;
 }
 
-export default function FutureInterestPage({ categorySlug, categoryLabel, initialItems }: FutureInterestPageProps) {
+export default function FutureInterestPage({
+  categorySlug,
+  categoryLabel,
+  initialItems,
+  geocodeTripSlug,
+}: FutureInterestPageProps) {
   const homeActions = useHomeActions();
   const [items, setItems] = useState(initialItems);
   const [countryFilter, setCountryFilter] = useState("all");
@@ -63,10 +70,11 @@ export default function FutureInterestPage({ categorySlug, categoryLabel, initia
     });
   }, [items, countryFilter, showVisited]);
 
+  // EntryCard anchors are #listing-<id> — match so map pins jump correctly.
   const pins: OverviewPin[] = useMemo(
     () =>
       visible.map((item) => ({
-        anchor: `fi-${item.id}`,
+        anchor: `listing-${item.id}`,
         label: item.title,
         lat: item.lat,
         lng: item.lng,
@@ -94,16 +102,6 @@ export default function FutureInterestPage({ categorySlug, categoryLabel, initia
     } finally {
       setImporting(false);
     }
-  }
-
-  async function markVisited(id: string) {
-    const res = await fetch(`/api/future-interest/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ visited: true }),
-    });
-    if (!res.ok) return;
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, visited: true } : i)));
   }
 
   function handleUpdated(item: FutureInterestItem) {
@@ -162,8 +160,8 @@ export default function FutureInterestPage({ categorySlug, categoryLabel, initia
               <FutureInterestCard
                 item={item}
                 categorySlug={categorySlug}
+                geocodeTripSlug={geocodeTripSlug}
                 onUpdated={handleUpdated}
-                onMarkVisited={markVisited}
                 onRemove={removeItem}
               />
             </li>
