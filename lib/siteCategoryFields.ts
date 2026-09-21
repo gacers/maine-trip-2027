@@ -62,7 +62,9 @@ function baseDefsForCategory(slug: string): TemplateFieldDef[] {
   return [];
 }
 
-/** Insert any missing built-in Closed/Moved fields onto one section. */
+/** Insert any missing built-in Closed/Moved fields onto one section,
+ * and keep them pinned at the front (Closed → Moved → New address →
+ * types) so they don't bury under later type tags. */
 export async function ensureBaseFieldDefsOnSection(
   sectionId: string,
   categorySlug: string
@@ -70,12 +72,15 @@ export async function ensureBaseFieldDefsOnSection(
   const base = baseDefsForCategory(categorySlug);
   if (base.length === 0) return;
   const supabase = supabaseServiceRole();
-  const { data: existing } = await supabase.from("field_defs").select("key").eq("section_id", sectionId);
+  const { data: existing } = await supabase
+    .from("field_defs")
+    .select("id, key, sort_order")
+    .eq("section_id", sectionId);
   const have = new Set((existing || []).map((r) => r.key));
-  let sortOrder = (existing || []).length;
+
   for (const f of base) {
     if (have.has(f.key)) continue;
-    await supabase.from("field_defs").insert({
+    const { error } = await supabase.from("field_defs").insert({
       section_id: sectionId,
       key: f.key,
       label: f.label,
@@ -84,9 +89,39 @@ export async function ensureBaseFieldDefsOnSection(
       show_on_overview: f.show_on_overview,
       required: false,
       options: f.options || null,
-      sort_order: sortOrder++,
+      // Temporary high sort — normalized below with the rest of base.
+      sort_order: 1000 + have.size,
     });
+    if (error) throw new Error(error.message);
     have.add(f.key);
+  }
+
+  const { data: allDefs } = await supabase
+    .from("field_defs")
+    .select("id, key, sort_order")
+    .eq("section_id", sectionId)
+    .order("sort_order", { ascending: true });
+  if (!allDefs?.length) return;
+
+  const baseKeys = base.map((f) => f.key);
+  const baseKeySet = new Set(baseKeys);
+  const extras = allDefs.filter((r) => !baseKeySet.has(r.key));
+  const byKey = new Map(allDefs.map((r) => [r.key, r]));
+
+  let sortOrder = 0;
+  for (const key of baseKeys) {
+    const row = byKey.get(key);
+    if (!row) continue;
+    if (row.sort_order !== sortOrder) {
+      await supabase.from("field_defs").update({ sort_order: sortOrder }).eq("id", row.id);
+    }
+    sortOrder++;
+  }
+  for (const row of extras) {
+    if (row.sort_order !== sortOrder) {
+      await supabase.from("field_defs").update({ sort_order: sortOrder }).eq("id", row.id);
+    }
+    sortOrder++;
   }
 }
 
