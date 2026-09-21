@@ -7,7 +7,7 @@ import PlacesAddDialog from "@/components/PlacesAddDialog";
 import type { AddedFieldPayload } from "@/components/AddFieldSelect";
 import PlaceCard from "./PlaceCard";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
-import type { PlaceItem } from "@/lib/places";
+import type { PlaceItem } from "@/lib/placesShared";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
 import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./PlacesPage.module.css";

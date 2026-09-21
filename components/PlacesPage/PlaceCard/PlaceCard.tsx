@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import EntryCard from "@/components/EntryCard";
-import { placeToClientEntry, type PlaceItem } from "@/lib/places";
+import { placeToClientEntry, type PlaceItem } from "@/lib/placesShared";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
 import type { FieldDef, FieldType } from "@/lib/types";
 

@@ -3,7 +3,8 @@ import { getAdminUser } from "@/lib/auth";
 import { getEditorTripIds } from "@/lib/tripEditors";
 import { getAllTrips } from "@/lib/sections";
 import { toClientEntry } from "@/lib/entries";
-import { listPlaces, placeToClientEntry, type PlaceItem } from "@/lib/places";
+import { listPlaces } from "@/lib/places";
+import { placeToClientEntry, type PlaceItem } from "@/lib/placesShared";
 import type { ClientEntry, EntryRow } from "@/lib/types";
 
 export type SectionTier = "options" | "previously-visited" | "other";

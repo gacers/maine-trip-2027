@@ -17,7 +17,7 @@ import {
 } from "@/lib/googleUrlHelpers";
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
-import type { PlaceItem } from "@/lib/places";
+import type { PlaceItem } from "@/lib/placesShared";
 import type { FieldDef, PlaceResult } from "@/lib/types";
 import dialogStyles from "@/components/AddEntryDialog/AddEntryDialog.module.css";
 import formStyles from "@/components/AddEntryForm/AddEntryForm.module.css";
