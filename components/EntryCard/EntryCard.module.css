@@ -195,13 +195,6 @@
   }
 }
 
-.moved-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-}
-
 .moved-address {
   margin: 0;
   font-size: var(--text-sm);

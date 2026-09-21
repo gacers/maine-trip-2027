@@ -469,15 +469,8 @@ export default function EntryCard({
                   {addressLabel || "View on map"}
                 </a>
               )}
-              {isMoved && (movedAddress || oldMapsUrl) ? (
-                <div className={styles["moved-meta"]}>
-                  {movedAddress ? <p className={styles["moved-address"]}>{movedAddress}</p> : null}
-                  {oldMapsUrl ? (
-                    <a href={oldMapsUrl} target="_blank" rel="noopener noreferrer" className={styles["address-link"]}>
-                      Old Location Map
-                    </a>
-                  ) : null}
-                </div>
+              {isMoved && movedAddress ? (
+                <p className={styles["moved-address"]}>{movedAddress}</p>
               ) : null}
               {backupDateRange && <AvailabilityLinks url={entry.url} backup={backupDateRange} />}
             </div>
@@ -571,6 +564,15 @@ export default function EntryCard({
             {!isEditing && showMap && hasHouse && (
               <LocationSection entry={entry} comparisonMode={comparisonMode} listingMapData={listingMapData} />
             )}
+
+            {!isEditing && isMoved && oldMapsUrl ? (
+              <div className={styles["section"]}>
+                <h3 className={styles["section-heading"]}>Old address</h3>
+                <a href={oldMapsUrl} target="_blank" rel="noopener noreferrer" className={styles["address-link"]}>
+                  View on map
+                </a>
+              </div>
+            ) : null}
 
             {isEditing && draft && (
               <div className={styles["section"]}>
