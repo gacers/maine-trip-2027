@@ -8,13 +8,15 @@ export interface SectionOptionsFieldsProps {
   onHasMapChange: (v: boolean) => void;
   supportsRatings: boolean;
   onSupportsRatingsChange: (v: boolean) => void;
+  supportsConcerns: boolean;
+  onSupportsConcernsChange: (v: boolean) => void;
   cardLayout: Section["card_layout"];
   onCardLayoutChange: (v: Section["card_layout"]) => void;
 }
 
-// Pairing/map/ratings/card-layout — every behavioral toggle a section
-// has. Grid items (not its own wrapper), since these sit alongside the
-// parent's own Label/slug/etc. fields in the same grid.
+// Pairing/map/ratings/concerns/card-layout — every behavioral toggle a
+// section has. Grid items (not its own wrapper), since these sit
+// alongside the parent's own Label/slug/etc. fields in the same grid.
 export default function SectionOptionsFields({
   supportsPairing,
   onSupportsPairingChange,
@@ -22,6 +24,8 @@ export default function SectionOptionsFields({
   onHasMapChange,
   supportsRatings,
   onSupportsRatingsChange,
+  supportsConcerns,
+  onSupportsConcernsChange,
   cardLayout,
   onCardLayoutChange,
 }: SectionOptionsFieldsProps) {
@@ -48,6 +52,15 @@ export default function SectionOptionsFields({
           className={styles["checkbox"]}
         />
         Show 5-star ratings — each visitor&apos;s score, plus the average.
+      </label>
+      <label className={styles["checkbox-field"]}>
+        <input
+          type="checkbox"
+          checked={supportsConcerns}
+          onChange={(e) => onSupportsConcernsChange(e.target.checked)}
+          className={styles["checkbox"]}
+        />
+        Show Concerns on cards — useful for Stay Options; optional elsewhere.
       </label>
       <label className={styles["field"]}>
         Card layout

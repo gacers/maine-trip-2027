@@ -44,6 +44,8 @@ export interface CoreFieldsGridProps {
   /** Future Interests — same AddFieldSelect, writes site-category fields. */
   categorySlug?: string;
   onFieldAdded?: (field: AddedFieldPayload) => void;
+  /** Hide Concerns unless this section/category opts in. */
+  showConcerns?: boolean;
 }
 
 // Title/photo/description/section-specific fields/coordinates/notes/
@@ -68,6 +70,7 @@ export default function CoreFieldsGrid({
   sectionId,
   categorySlug,
   onFieldAdded,
+  showConcerns = false,
 }: CoreFieldsGridProps) {
   const canAddField = !disabled && !!(onFieldAdded || (tripSlug && sectionId));
   return (
@@ -189,15 +192,17 @@ export default function CoreFieldsGrid({
           className={styles["input"]}
         />
       </label>
-      <label className={styles["wide-field"]}>
-        Concerns (optional)
-        <textarea
-          value={fields.concerns}
-          onChange={(e) => onFieldsChange({ ...fields, concerns: e.target.value })}
-          rows={2}
-          className={styles["input"]}
-        />
-      </label>
+      {showConcerns ? (
+        <label className={styles["wide-field"]}>
+          Concerns (optional)
+          <textarea
+            value={fields.concerns}
+            onChange={(e) => onFieldsChange({ ...fields, concerns: e.target.value })}
+            rows={2}
+            className={styles["input"]}
+          />
+        </label>
+      ) : null}
     </>
   );
 }

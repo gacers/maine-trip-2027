@@ -28,6 +28,7 @@ export interface PlacesAddDialogProps {
   fieldDefs: FieldDef[];
   onAdded: (item: PlaceItem) => void;
   onFieldDefsChanged?: (field: AddedFieldPayload) => void;
+  showConcerns?: boolean;
 }
 
 const CORE_INITIAL: CoreFields = {
@@ -75,6 +76,7 @@ export default function PlacesAddDialog({
   fieldDefs: initialFieldDefs,
   onAdded,
   onFieldDefsChanged,
+  showConcerns = false,
 }: PlacesAddDialogProps) {
   const categoryLabel = siteCategoryLabel(categorySlug);
   const showTypes = true; // Closed/Moved (+ any type tags) on every category
@@ -324,6 +326,7 @@ export default function PlacesAddDialog({
                   }
                   categorySlug={showTypes ? categorySlug : undefined}
                   onFieldAdded={showTypes ? handleFieldAdded : undefined}
+                  showConcerns={showConcerns}
                 />
               </div>
 

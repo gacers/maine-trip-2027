@@ -40,6 +40,7 @@ export interface PairedEntryGroupProps {
   canManage: boolean;
   canContribute: boolean;
   showRatings: boolean;
+  showConcerns: boolean;
   comparisonMode: boolean;
   isCompactMedia: boolean;
   isLargeMedia: boolean;
@@ -78,6 +79,7 @@ export default function PairedEntryGroup({
   canManage,
   canContribute,
   showRatings,
+  showConcerns,
   comparisonMode,
   isCompactMedia,
   isLargeMedia,
@@ -218,6 +220,7 @@ export default function PairedEntryGroup({
               bare
               hideMedia
               showRatings={showRatings}
+              showConcerns={showConcerns}
               showRatingControl={false}
               showMap={false}
               compact={isCompactMedia}

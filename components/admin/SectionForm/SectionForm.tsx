@@ -56,6 +56,7 @@ export default function SectionForm({ trip, navGroups, section, importSources = 
   const [supportsPairing, setSupportsPairing] = useState(section?.supports_pairing ?? false);
   const [hasMap, setHasMap] = useState(section?.has_map ?? true);
   const [supportsRatings, setSupportsRatings] = useState(section?.supports_ratings ?? false);
+  const [supportsConcerns, setSupportsConcerns] = useState(section?.supports_concerns ?? false);
   const [cardLayout, setCardLayout] = useState<Section["card_layout"]>(section?.card_layout ?? "list");
   // Blank by default when creating (not section?.nav_group_id ||
   // navGroups[0]?.id — that silently defaulted to whichever group
@@ -102,6 +103,7 @@ export default function SectionForm({ trip, navGroups, section, importSources = 
       supportsPairing,
       hasMap,
       supportsRatings,
+      supportsConcerns,
       cardLayout,
       // Omitted entirely (not just left unchanged) when locked — the
       // route rejects a fieldDefs key outright on an imported section
@@ -150,10 +152,11 @@ export default function SectionForm({ trip, navGroups, section, importSources = 
           addPlaceholder: `Paste a link for a ${label.toLowerCase()} you've already been to...`,
           emptyMessage: `No previous ${label.toLowerCase()} yet — paste a link above.`,
           // A "previous"/already-decided list never needs pairing, a map,
-          // or ratings, regardless of what the primary section is set to.
+          // ratings, or concerns, regardless of what the primary section is set to.
           supportsPairing: false,
           hasMap: false,
           supportsRatings: false,
+          supportsConcerns: false,
           cardLayout,
           navGroupId: data.section.nav_group_id,
           fieldDefs: fields.map(rowToFieldDef),
@@ -274,6 +277,8 @@ export default function SectionForm({ trip, navGroups, section, importSources = 
           onHasMapChange={setHasMap}
           supportsRatings={supportsRatings}
           onSupportsRatingsChange={setSupportsRatings}
+          supportsConcerns={supportsConcerns}
+          onSupportsConcernsChange={setSupportsConcerns}
           cardLayout={cardLayout}
           onCardLayoutChange={setCardLayout}
         />

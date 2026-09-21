@@ -3,8 +3,11 @@ import { requireSiteEditorAccess } from "@/lib/auth";
 import {
   addSurfaceCategory,
   getSurfaceCategorySettings,
+  isSurfaceCardLayout,
   removeSurfaceCategory,
+  setSurfaceCategoryCardLayout,
   setSurfaceCategoryEnabled,
+  setSurfaceCategorySupportsConcerns,
   type CategorySurface,
 } from "@/lib/siteSurfaceSettings";
 
@@ -12,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 function parseSurface(value: string | null): CategorySurface | null {
-  if (value === "places" || value === "future-interests") return value;
+  if (value === "places" || value === "future-interests" || value === "categories") return value;
   return null;
 }
 
@@ -22,7 +25,10 @@ export async function GET(request: NextRequest) {
 
   const surface = parseSurface(request.nextUrl.searchParams.get("surface"));
   if (!surface) {
-    return NextResponse.json({ error: "surface=places|future-interests required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "surface=places|future-interests|categories required" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -46,7 +52,10 @@ export async function PUT(request: NextRequest) {
 
   const surface = parseSurface(typeof body.surface === "string" ? body.surface : null);
   if (!surface) {
-    return NextResponse.json({ error: "surface=places|future-interests required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "surface=places|future-interests|categories required" },
+      { status: 400 }
+    );
   }
 
   const action = typeof body.action === "string" ? body.action : "";
@@ -64,25 +73,52 @@ export async function PUT(request: NextRequest) {
       const settings = await setSurfaceCategoryEnabled(surface, slug, body.enabled === true);
       return NextResponse.json({ settings });
     }
+    if (action === "setCardLayout") {
+      if (!slug) return NextResponse.json({ error: "slug is required" }, { status: 400 });
+      if (!isSurfaceCardLayout(body.cardLayout)) {
+        return NextResponse.json({ error: "cardLayout=list|grid-2|grid-3 required" }, { status: 400 });
+      }
+      const settings = await setSurfaceCategoryCardLayout(surface, slug, body.cardLayout);
+      return NextResponse.json({ settings });
+    }
+    if (action === "setSupportsConcerns") {
+      if (!slug) return NextResponse.json({ error: "slug is required" }, { status: 400 });
+      const settings = await setSurfaceCategorySupportsConcerns(
+        surface,
+        slug,
+        body.supportsConcerns === true
+      );
+      return NextResponse.json({ settings });
+    }
     if (action === "remove") {
       if (!slug) return NextResponse.json({ error: "slug is required" }, { status: 400 });
       const settings = await removeSurfaceCategory(surface, slug);
       return NextResponse.json({ settings });
     }
 
-    // Legacy: replace enabledCategories list (migrate callers).
     if (Array.isArray(body.enabledCategories)) {
-      const { setSurfaceCategorySettings } = await import("@/lib/siteSurfaceSettings");
+      const { setSurfaceCategorySettings, defaultCardLayout, defaultSupportsConcerns } = await import(
+        "@/lib/siteSurfaceSettings"
+      );
       const labels = body.enabledCategories as string[];
       const settings = await setSurfaceCategorySettings(surface, {
         categories: labels
           .filter((s) => typeof s === "string")
-          .map((s) => ({ slug: s, label: s, enabled: true })),
+          .map((s) => ({
+            slug: s,
+            label: s,
+            enabled: true,
+            cardLayout: defaultCardLayout(s),
+            supportsConcerns: defaultSupportsConcerns(s),
+          })),
       });
       return NextResponse.json({ settings });
     }
 
-    return NextResponse.json({ error: "action=add|setEnabled|remove required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "action=add|setEnabled|setCardLayout|setSupportsConcerns|remove required" },
+      { status: 400 }
+    );
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

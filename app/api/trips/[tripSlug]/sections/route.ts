@@ -67,6 +67,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     supportsPairing,
     hasMap,
     supportsRatings,
+    supportsConcerns,
     cardLayout,
     navGroupId,
     newNavGroupLabel,
@@ -141,6 +142,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         supports_pairing: !!supportsPairing,
         has_map: !!hasMap,
         supports_ratings: !!supportsRatings,
+        supports_concerns: !!supportsConcerns,
         card_layout: cardLayout || "list",
         sort_order: typeof sortOrder === "number" ? sortOrder : 999,
       })
@@ -191,6 +193,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         supportsPairing: section.supports_pairing,
         hasMap: section.has_map,
         supportsRatings: section.supports_ratings,
+        supportsConcerns: section.supports_concerns,
         cardLayout: section.card_layout,
         fieldDefs: (fieldDefs || []).map((f: Record<string, unknown>) => ({
           key: f.key,

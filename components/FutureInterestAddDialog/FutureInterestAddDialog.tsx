@@ -30,6 +30,7 @@ export interface FutureInterestAddDialogProps {
   onAdded: (item: FutureInterestItem) => void;
   /** Parent refreshes shared fieldDefs after a type is created here. */
   onFieldDefsChanged?: (field: AddedFieldPayload) => void;
+  showConcerns?: boolean;
 }
 
 const CORE_INITIAL: CoreFields = {
@@ -81,6 +82,7 @@ export default function FutureInterestAddDialog({
   fieldDefs: initialFieldDefs,
   onAdded,
   onFieldDefsChanged,
+  showConcerns = false,
 }: FutureInterestAddDialogProps) {
   const categoryLabel = siteCategoryLabel(categorySlug);
   const showTypes = true; // Closed/Moved (+ any type tags) on every category
@@ -330,6 +332,7 @@ export default function FutureInterestAddDialog({
                   }
                   categorySlug={showTypes ? categorySlug : undefined}
                   onFieldAdded={showTypes ? handleFieldAdded : undefined}
+                  showConcerns={showConcerns}
                 />
               </div>
 

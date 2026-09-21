@@ -9,6 +9,8 @@ import PlaceCard from "./PlaceCard";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
 import type { PlaceItem } from "@/lib/placesShared";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
+import type { SurfaceCardLayout } from "@/lib/siteSurfaceShared";
+import { defaultCardLayout, defaultSupportsConcerns } from "@/lib/siteSurfaceShared";
 import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./PlacesPage.module.css";
 
@@ -18,6 +20,8 @@ export interface PlacesPageProps {
   initialItems: PlaceItem[];
   initialFieldDefs: FieldDef[];
   geocodeTripSlug?: string;
+  cardLayout?: SurfaceCardLayout;
+  showConcerns?: boolean;
 }
 
 export default function PlacesPage({
@@ -26,6 +30,8 @@ export default function PlacesPage({
   initialItems,
   initialFieldDefs,
   geocodeTripSlug,
+  cardLayout = defaultCardLayout(categorySlug),
+  showConcerns = defaultSupportsConcerns(categorySlug),
 }: PlacesPageProps) {
   const homeActions = useHomeActions();
   const [items, setItems] = useState(initialItems);
@@ -70,6 +76,7 @@ export default function PlacesPage({
         categorySlug={categorySlug}
         fieldDefs={fieldDefs}
         onFieldDefsChanged={handleFieldDefsChanged}
+        showConcerns={showConcerns}
         onAdded={(item) => {
           if (item.category_slug === categorySlug) {
             setItems((prev) => [item, ...prev]);
@@ -77,7 +84,7 @@ export default function PlacesPage({
         }}
       />
     );
-  }, [homeActions?.setCategoryActions, categorySlug, fieldDefs]);
+  }, [homeActions?.setCategoryActions, categorySlug, fieldDefs, showConcerns]);
 
   // Clear the nav slot only when leaving this page — not when fieldDefs
   // updates mid-add (that remount closed the dialog after "+ Add field").
@@ -123,7 +130,12 @@ export default function PlacesPage({
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
-  const gridClass = categorySlug === "stays" ? styles["grid-2"] : styles["grid-3"];
+  const layoutClass =
+    cardLayout === "grid-3"
+      ? styles["grid-3"]
+      : cardLayout === "grid-2"
+        ? styles["grid-2"]
+        : styles["list-layout"];
 
   return (
     <main className={styles["root"]}>
@@ -153,7 +165,7 @@ export default function PlacesPage({
       {visible.length === 0 ? (
         <p className={styles["empty"]}>Nothing here yet — use + Add in the nav for spots you already know.</p>
       ) : (
-        <ul className={classNames(styles["list"], gridClass)}>
+        <ul className={classNames(styles["list"], layoutClass)}>
           {visible.map((item) => (
             <li key={item.id}>
               <PlaceCard
@@ -161,6 +173,8 @@ export default function PlacesPage({
                 categorySlug={categorySlug}
                 initialFieldDefs={fieldDefs}
                 geocodeTripSlug={geocodeTripSlug}
+                cardLayout={cardLayout}
+                showConcerns={showConcerns}
                 onUpdated={handleUpdated}
                 onRemove={removeItem}
               />

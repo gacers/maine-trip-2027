@@ -9,6 +9,8 @@ import FutureInterestCard from "./FutureInterestCard";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
 import type { FutureInterestViewItem } from "@/lib/futureInterest";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
+import type { SurfaceCardLayout } from "@/lib/siteSurfaceShared";
+import { defaultCardLayout, defaultSupportsConcerns } from "@/lib/siteSurfaceShared";
 import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./FutureInterestPage.module.css";
 
@@ -19,6 +21,8 @@ export interface FutureInterestPageProps {
   initialFieldDefs: FieldDef[];
   /** Trip slug for EntryCard geocode lookups (admin session). */
   geocodeTripSlug?: string;
+  cardLayout?: SurfaceCardLayout;
+  showConcerns?: boolean;
 }
 
 export default function FutureInterestPage({
@@ -27,6 +31,8 @@ export default function FutureInterestPage({
   initialItems,
   initialFieldDefs,
   geocodeTripSlug,
+  cardLayout = defaultCardLayout(categorySlug),
+  showConcerns = defaultSupportsConcerns(categorySlug),
 }: FutureInterestPageProps) {
   const homeActions = useHomeActions();
   const [items, setItems] = useState(initialItems);
@@ -71,6 +77,7 @@ export default function FutureInterestPage({
         categorySlug={categorySlug}
         fieldDefs={fieldDefs}
         onFieldDefsChanged={handleFieldDefsChanged}
+        showConcerns={showConcerns}
         onAdded={(item) => {
           if (item.category_slug === categorySlug) {
             setItems((prev) => [{ ...item, kind: "manual" as const }, ...prev]);
@@ -78,7 +85,7 @@ export default function FutureInterestPage({
         }}
       />
     );
-  }, [homeActions?.setCategoryActions, categorySlug, fieldDefs]);
+  }, [homeActions?.setCategoryActions, categorySlug, fieldDefs, showConcerns]);
 
   // Clear the nav slot only when leaving this page — not when fieldDefs
   // updates mid-add (that remount closed the dialog after "+ Add field").
@@ -133,7 +140,12 @@ export default function FutureInterestPage({
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
-  const gridClass = categorySlug === "stays" ? styles["grid-2"] : styles["grid-3"];
+  const layoutClass =
+    cardLayout === "grid-3"
+      ? styles["grid-3"]
+      : cardLayout === "grid-2"
+        ? styles["grid-2"]
+        : styles["list-layout"];
 
   return (
     <main className={styles["root"]}>
@@ -165,7 +177,7 @@ export default function FutureInterestPage({
           Nothing here yet — unvisited Options from your trips show up automatically, or use + Add in the nav.
         </p>
       ) : (
-        <ul className={classNames(styles["list"], gridClass)}>
+        <ul className={classNames(styles["list"], layoutClass)}>
           {visible.map((item) => (
             <li key={`${item.kind}-${item.id}`}>
               <FutureInterestCard
@@ -173,6 +185,8 @@ export default function FutureInterestPage({
                 categorySlug={categorySlug}
                 initialFieldDefs={fieldDefs}
                 geocodeTripSlug={geocodeTripSlug}
+                cardLayout={cardLayout}
+                showConcerns={showConcerns}
                 onUpdated={handleUpdated}
                 onRemove={removeItem}
               />

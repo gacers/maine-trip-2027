@@ -11,7 +11,11 @@ import FieldDefsEditor, {
 } from "@/components/admin/SectionForm/FieldDefsEditor";
 import { SITE_CATEGORIES } from "@/lib/siteCategories";
 import {
+  CARD_LAYOUT_LABELS,
   SURFACE_DEFAULT_CATEGORIES,
+  defaultCardLayout,
+  defaultSupportsConcerns,
+  type SurfaceCardLayout,
   type SurfaceCategory,
 } from "@/lib/siteSurfaceShared";
 import type { FieldDef } from "@/lib/types";
@@ -53,7 +57,14 @@ export default function SiteSurfaceManage({
     }
     return init;
   });
-  const [categories, setCategories] = useState<SurfaceCategory[]>(initialCategories ?? []);
+  const [categories, setCategories] = useState<SurfaceCategory[]>(() =>
+    (initialCategories ?? []).map((c) => ({
+      ...c,
+      cardLayout: c.cardLayout || defaultCardLayout(c.slug),
+      supportsConcerns:
+        typeof c.supportsConcerns === "boolean" ? c.supportsConcerns : defaultSupportsConcerns(c.slug),
+    }))
+  );
   const [customTemplates, setCustomTemplates] = useState<CustomTemplateOption[]>([]);
   const [busySlug, setBusySlug] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -127,6 +138,74 @@ export default function SiteSurfaceManage({
     } finally {
       setBusySlug(null);
     }
+  }
+
+  async function setCardLayout(slug: string, cardLayout: SurfaceCardLayout) {
+    setBusySlug(slug);
+    setError("");
+    // Optimistic — layout is a quick toggle, no need to wait on the list flash.
+    setCategories((prev) => prev.map((c) => (c.slug === slug ? { ...c, cardLayout } : c)));
+    try {
+      await apiAction({ action: "setCardLayout", slug, cardLayout });
+    } catch (err) {
+      setError((err as Error).message);
+      router.refresh();
+    } finally {
+      setBusySlug(null);
+    }
+  }
+
+  async function setSupportsConcerns(slug: string, supportsConcerns: boolean) {
+    setBusySlug(slug);
+    setError("");
+    setCategories((prev) => prev.map((c) => (c.slug === slug ? { ...c, supportsConcerns } : c)));
+    try {
+      await apiAction({ action: "setSupportsConcerns", slug, supportsConcerns });
+    } catch (err) {
+      setError((err as Error).message);
+      router.refresh();
+    } finally {
+      setBusySlug(null);
+    }
+  }
+
+  function cardLayoutSelect(c: SurfaceCategory) {
+    return (
+      <label className={styles["layout-label"]}>
+        Cards
+        <select
+          value={c.cardLayout || defaultCardLayout(c.slug)}
+          disabled={busySlug === c.slug}
+          onChange={(e) => setCardLayout(c.slug, e.target.value as SurfaceCardLayout)}
+          className={styles["layout-select"]}
+        >
+          {(Object.keys(CARD_LAYOUT_LABELS) as SurfaceCardLayout[]).map((layout) => (
+            <option key={layout} value={layout}>
+              {CARD_LAYOUT_LABELS[layout]}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+
+  function concernsToggle(c: SurfaceCategory) {
+    return (
+      <label className={styles["enabled-checkbox-label"]}>
+        <input
+          type="checkbox"
+          checked={
+            typeof c.supportsConcerns === "boolean"
+              ? c.supportsConcerns
+              : defaultSupportsConcerns(c.slug)
+          }
+          disabled={busySlug === c.slug}
+          onChange={(e) => setSupportsConcerns(c.slug, e.target.checked)}
+          className={styles["enabled-checkbox"]}
+        />
+        Concerns
+      </label>
+    );
   }
 
   async function removeCategory(cat: SurfaceCategory) {
@@ -274,6 +353,8 @@ export default function SiteSurfaceManage({
                       {!c.enabled ? <span className={styles["section-meta"]}>· disabled</span> : null}
                     </div>
                     <div className={styles["section-actions"]}>
+                      {cardLayoutSelect(c)}
+                      {concernsToggle(c)}
                       <label className={styles["enabled-checkbox-label"]}>
                         <input
                           type="checkbox"
@@ -322,6 +403,29 @@ export default function SiteSurfaceManage({
             )}
           </section>
         </>
+      ) : null}
+
+      {surface === "categories" ? (
+        <section className={styles["section"]}>
+          <h2 className={styles["section-title"]}>Card layout</h2>
+          <p className={styles["hint"]}>
+            Same options as trip sections — change how each Categories browse page lays out cards.
+          </p>
+          {categories.length === 0 ? (
+            <p className={styles["hint"]}>No categories loaded.</p>
+          ) : (
+            <ul className={styles["section-list"]}>
+              {categories.map((c) => (
+                <li key={c.slug} className={styles["section-card"]}>
+                  <div className={styles["section-label-row"]}>
+                    <span className={styles["section-label"]}>{c.label}</span>
+                  </div>
+                  <div className={styles["section-actions"]}>{cardLayoutSelect(c)}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       ) : null}
 
       <section className={styles["section"]} id="type-fields">

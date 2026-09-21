@@ -63,6 +63,9 @@ export interface EntryCardProps {
   canContribute?: boolean;
   bare?: boolean;
   showRatings?: boolean;
+  /** Show the Concerns section (and add UI). Existing concerns still
+   * render when this is off so old data isn't hidden. */
+  showConcerns?: boolean;
   showMap?: boolean;
   comparisonMode?: boolean;
   compact?: boolean;
@@ -149,6 +152,7 @@ export default function EntryCard({
   canContribute = true,
   bare = false,
   showRatings = false,
+  showConcerns = false,
   showMap = true,
   comparisonMode = true,
   compact = false,
@@ -710,14 +714,17 @@ export default function EntryCard({
             )}
 
             {/* The whole section gets the amber tint now, not just a box
-                wrapped around the list inside a plain section. */}
-            {(hasConcerns || canContribute) && (
+                wrapped around the list inside a plain section. Stay
+                Options turn this on via supports_concerns; elsewhere
+                it can be enabled in Manage. Existing bullets still
+                show when the flag is off. */}
+            {(hasConcerns || (showConcerns && canContribute)) && (
               <div className={styles["concerns-section"]}>
                 <h3 className={styles["concerns-heading"]}>Concerns</h3>
                 <EditableNoteList
                   items={toBullets(entry.concerns)}
-                  onAdd={canContribute ? addConcern : null}
-                  onRemove={canContribute ? removeConcernAt : null}
+                  onAdd={showConcerns && canContribute ? addConcern : null}
+                  onRemove={showConcerns && canContribute ? removeConcernAt : null}
                   addLabel="Add concern"
                   placeholder="Anything that gives you pause..."
                 />

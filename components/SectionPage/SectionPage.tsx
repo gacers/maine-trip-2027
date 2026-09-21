@@ -94,6 +94,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
   // Two-score star ratings (My Score / Average Score) — same opt-in
   // pattern, only meaningful for a still-deciding list.
   const showRatings = !!section.supports_ratings;
+  const showConcerns = !!section.supports_concerns;
   // How this section's entries lay out — one full-width card per row,
   // a "small card" two-up, or the tighter "compact card" three-across
   // — a plain per-section choice (see Section Designer), unrelated to
@@ -359,6 +360,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
           canManage={canManage}
           canContribute={canContribute}
           showRatings={showRatings}
+          showConcerns={showConcerns}
           comparisonMode={comparisonMode}
           isCompactMedia={isCompactMedia}
           isLargeMedia={isLargeMedia}
@@ -397,6 +399,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
         canManage={canManage}
         canContribute={canContribute}
         showRatings={showRatings}
+        showConcerns={showConcerns}
         comparisonMode={comparisonMode}
         compact={isCompactMedia}
         largeMedia={isLargeMedia}

@@ -3,6 +3,11 @@ import { canAccessSiteCatalog } from "@/lib/auth";
 import { getCatalogForCategory } from "@/lib/catalog";
 import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
 import { isSiteCategorySlug, siteCategoryLabel } from "@/lib/siteCategories";
+import {
+  cardLayoutForCategory,
+  getSurfaceCategorySettings,
+  isCategoryEnabled,
+} from "@/lib/siteSurfaceSettings";
 import CatalogPage from "@/components/CatalogPage";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +27,12 @@ export default async function CategorySlugPage({ params }: { params: Promise<{ s
     );
   }
 
+  const settings = await getSurfaceCategorySettings("categories");
+  if (!isCategoryEnabled(settings, slug)) notFound();
+
+  const label =
+    settings.categories.find((c) => c.slug === slug)?.label || siteCategoryLabel(slug);
+
   const [items, fieldDefs] = await Promise.all([
     getCatalogForCategory(slug),
     getFieldDefsForSiteCategory(slug),
@@ -29,9 +40,10 @@ export default async function CategorySlugPage({ params }: { params: Promise<{ s
   return (
     <CatalogPage
       categorySlug={slug}
-      categoryLabel={siteCategoryLabel(slug)}
+      categoryLabel={label}
       initialItems={items}
       fieldDefs={fieldDefs}
+      cardLayout={cardLayoutForCategory(settings, slug)}
     />
   );
 }

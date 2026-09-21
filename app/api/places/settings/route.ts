@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSiteEditorAccess } from "@/lib/auth";
-import { getSurfaceCategorySettings, setSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
+import { getSurfaceCategorySettings, setSurfaceCategorySettings, defaultCardLayout, defaultSupportsConcerns } from "@/lib/siteSurfaceSettings";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -35,7 +35,13 @@ export async function PUT(request: NextRequest) {
 
   try {
     const settings = await setSurfaceCategorySettings("places", {
-      categories: enabledCategories.map((slug) => ({ slug, label: slug, enabled: true })),
+      categories: enabledCategories.map((slug) => ({
+        slug,
+        label: slug,
+        enabled: true,
+        cardLayout: defaultCardLayout(slug),
+        supportsConcerns: defaultSupportsConcerns(slug),
+      })),
     });
     return NextResponse.json({ settings });
   } catch (err) {

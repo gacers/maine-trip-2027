@@ -17,6 +17,7 @@ export interface CustomTemplateSection {
   supportsPairing: boolean;
   hasMap: boolean;
   supportsRatings: boolean;
+  supportsConcerns: boolean;
   cardLayout: "list" | "grid-2" | "grid-3";
   fieldDefs: TemplateFieldDef[];
 }

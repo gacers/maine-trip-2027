@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import EntryCard from "@/components/EntryCard";
 import type { FutureInterestViewItem } from "@/lib/futureInterest";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
+import type { SurfaceCardLayout } from "@/lib/siteSurfaceShared";
+import { defaultCardLayout, defaultSupportsConcerns } from "@/lib/siteSurfaceShared";
 import type { ClientEntry, FieldDef, FieldType } from "@/lib/types";
 
 export interface FutureInterestCardProps {
@@ -13,6 +15,8 @@ export interface FutureInterestCardProps {
   initialFieldDefs: FieldDef[];
   /** Any accessible trip slug — EntryCard reverse-geocode lookups. */
   geocodeTripSlug?: string;
+  cardLayout?: SurfaceCardLayout;
+  showConcerns?: boolean;
   onUpdated: (item: FutureInterestViewItem) => void;
   onRemove: (id: string) => void;
 }
@@ -106,12 +110,15 @@ export default function FutureInterestCard({
   categorySlug,
   initialFieldDefs,
   geocodeTripSlug,
+  cardLayout = defaultCardLayout(categorySlug),
+  showConcerns = defaultSupportsConcerns(categorySlug),
   onUpdated,
   onRemove,
 }: FutureInterestCardProps) {
   const entry = futureInterestToClientEntry(item);
   const [fieldDefs, setFieldDefs] = useState(() => mergeItemDataKeys(initialFieldDefs, item.data || {}));
-  const isStays = categorySlug === "stays";
+  const compact = cardLayout === "grid-3";
+  const mediumMedia = cardLayout === "grid-2";
 
   useEffect(() => {
     setFieldDefs(mergeItemDataKeys(initialFieldDefs, item.data || {}));
@@ -325,10 +332,11 @@ export default function FutureInterestCard({
       canManage
       canContribute
       showRatings={false}
+      showConcerns={showConcerns}
       showMap
       comparisonMode={false}
-      compact={!isStays}
-      mediumMedia={isStays}
+      compact={compact}
+      mediumMedia={mediumMedia}
       supportsPairing={false}
       showVisitedControl
     />

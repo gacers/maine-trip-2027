@@ -200,7 +200,8 @@ export default function FieldDefsEditor({ fields, onChange, disabled = false, bu
       </div>
       {fields.length === 0 && (
         <p className={styles["no-fields-hint"]}>
-          No custom fields yet — title/url/photo/description/notes/concerns are always tracked.
+          No custom fields yet — title/url/photo/description/notes are always tracked.
+          Concerns are optional per section (on by default for Stay Options).
         </p>
       )}
       {bulkRemoveMessage && <p className={styles["bulk-remove-message"]}>{bulkRemoveMessage}</p>}

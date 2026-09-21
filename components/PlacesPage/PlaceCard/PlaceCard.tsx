@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import EntryCard from "@/components/EntryCard";
 import { placeToClientEntry, type PlaceItem } from "@/lib/placesShared";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
+import type { SurfaceCardLayout } from "@/lib/siteSurfaceShared";
+import { defaultCardLayout, defaultSupportsConcerns } from "@/lib/siteSurfaceShared";
 import type { FieldDef, FieldType } from "@/lib/types";
 
 export interface PlaceCardProps {
@@ -11,6 +13,8 @@ export interface PlaceCardProps {
   categorySlug: SiteCategorySlug;
   initialFieldDefs: FieldDef[];
   geocodeTripSlug?: string;
+  cardLayout?: SurfaceCardLayout;
+  showConcerns?: boolean;
   onUpdated: (item: PlaceItem) => void;
   onRemove: (id: string) => void;
 }
@@ -54,12 +58,15 @@ export default function PlaceCard({
   categorySlug,
   initialFieldDefs,
   geocodeTripSlug,
+  cardLayout = defaultCardLayout(categorySlug),
+  showConcerns = defaultSupportsConcerns(categorySlug),
   onUpdated,
   onRemove,
 }: PlaceCardProps) {
   const entry = placeToClientEntry(item);
   const [fieldDefs, setFieldDefs] = useState(() => mergeItemDataKeys(initialFieldDefs, item.data || {}));
-  const isStays = categorySlug === "stays";
+  const compact = cardLayout === "grid-3";
+  const mediumMedia = cardLayout === "grid-2";
 
   useEffect(() => {
     setFieldDefs(mergeItemDataKeys(initialFieldDefs, item.data || {}));
@@ -167,10 +174,11 @@ export default function PlaceCard({
       canManage
       canContribute
       showRatings={false}
+      showConcerns={showConcerns}
       showMap
       comparisonMode={false}
-      compact={!isStays}
-      mediumMedia={isStays}
+      compact={compact}
+      mediumMedia={mediumMedia}
       supportsPairing={false}
       showVisitedControl
     />

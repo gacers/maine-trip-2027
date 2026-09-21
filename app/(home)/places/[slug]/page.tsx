@@ -4,7 +4,7 @@ import { listPlaces } from "@/lib/places";
 import { getAllTrips } from "@/lib/sections";
 import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
 import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
-import { getSurfaceCategorySettings, isCategoryEnabled } from "@/lib/siteSurfaceSettings";
+import { getSurfaceCategorySettings, isCategoryEnabled, cardLayoutForCategory, supportsConcernsForCategory } from "@/lib/siteSurfaceSettings";
 import PlacesPage from "@/components/PlacesPage";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +42,8 @@ export default async function PlacesSlugPage({ params }: { params: Promise<{ slu
       initialItems={items}
       initialFieldDefs={fieldDefs}
       geocodeTripSlug={trips[0]?.slug}
+      cardLayout={cardLayoutForCategory(settings, slug)}
+      showConcerns={supportsConcernsForCategory(settings, slug)}
     />
   );
 }

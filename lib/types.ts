@@ -40,6 +40,8 @@ export interface Section {
   supports_pairing: boolean;
   has_map: boolean;
   supports_ratings: boolean;
+  /** Opt-in Concerns list on cards — on by default for Stay Options. */
+  supports_concerns: boolean;
   /** @deprecated superseded by card_layout (migration 0017) — left in
    * place on the row/type but no longer read anywhere in the app. */
   compact_cards: boolean;

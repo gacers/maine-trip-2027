@@ -603,8 +603,8 @@ export default function AddEntryForm({
           {reusedFrom && (
             <p className={styles["reused-notice"]}>
               Linked to the same place already documented in &quot;{reusedFrom.sectionLabel}&quot; in{" "}
-              {reusedFrom.tripName} — shared details stay in sync automatically; notes/concerns below are yours to
-              add.
+              {reusedFrom.tripName} — shared details stay in sync automatically; notes
+              {section.supports_concerns ? "/concerns" : ""} below are yours to add.
             </p>
           )}
           {cookieWarning && <p className={styles["cookie-warning"]}>{cookieWarning}</p>}
@@ -632,6 +632,7 @@ export default function AddEntryForm({
               disabled={!!reusedEntryId}
               tripSlug={canManage ? trip.slug : undefined}
               sectionId={section.id}
+              showConcerns={!!section.supports_concerns}
             />
             <PairFieldsBox
               supportsPairing={!!section.supports_pairing}

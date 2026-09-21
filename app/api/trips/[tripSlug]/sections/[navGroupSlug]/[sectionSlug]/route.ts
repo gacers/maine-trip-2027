@@ -73,6 +73,7 @@ export async function PATCH(
     supportsPairing,
     hasMap,
     supportsRatings,
+    supportsConcerns,
     cardLayout,
     navGroupId,
     // Moves this section into a brand-new nav group instead of an
@@ -113,6 +114,7 @@ export async function PATCH(
   if (supportsPairing !== undefined) patch.supports_pairing = !!supportsPairing;
   if (hasMap !== undefined) patch.has_map = !!hasMap;
   if (supportsRatings !== undefined) patch.supports_ratings = !!supportsRatings;
+  if (supportsConcerns !== undefined) patch.supports_concerns = !!supportsConcerns;
   if (cardLayout !== undefined) patch.card_layout = cardLayout;
   if (navGroupId !== undefined) patch.nav_group_id = navGroupId;
   if (enabled !== undefined) patch.enabled = !!enabled;
@@ -158,6 +160,7 @@ export async function PATCH(
         supportsPairing: (patch.supports_pairing as boolean | undefined) ?? section.supports_pairing,
         hasMap: (patch.has_map as boolean | undefined) ?? section.has_map,
         supportsRatings: (patch.supports_ratings as boolean | undefined) ?? section.supports_ratings,
+        supportsConcerns: (patch.supports_concerns as boolean | undefined) ?? section.supports_concerns,
         cardLayout: (patch.card_layout as Section["card_layout"] | undefined) ?? section.card_layout,
         fieldDefs: (fieldDefs || section.field_defs || []).map((f: Record<string, unknown>) => ({
           key: f.key as string,
@@ -242,6 +245,7 @@ export async function PATCH(
       supportsPairing !== undefined ||
       hasMap !== undefined ||
       supportsRatings !== undefined ||
+      supportsConcerns !== undefined ||
       cardLayout !== undefined;
     if (templateRelevantChange && !(newNavGroupLabel && newNavGroupLabel.trim())) {
       const { data: group } = await supabase!.from("nav_groups").select("label").eq("id", updated.nav_group_id).maybeSingle();
@@ -255,6 +259,7 @@ export async function PATCH(
           supportsPairing: updated.supports_pairing,
           hasMap: updated.has_map,
           supportsRatings: updated.supports_ratings,
+          supportsConcerns: updated.supports_concerns,
           cardLayout: updated.card_layout,
           fieldDefs: (updated.field_defs || []).map((f: Record<string, unknown>) => ({
             key: f.key as string,

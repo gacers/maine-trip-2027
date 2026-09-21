@@ -148,7 +148,7 @@ export default function PairFieldsBox({
             )}
           </div>
           <p className={styles["edit-hint"]}>
-            Notes, concerns, and description can be added to this one afterward via its own &quot;Edit details.&quot;
+            Notes and description can be added to this one afterward via its own &quot;Edit details.&quot;
           </p>
         </div>
       )}

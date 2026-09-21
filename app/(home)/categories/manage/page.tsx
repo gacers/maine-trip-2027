@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { canAccessSiteCatalog } from "@/lib/auth";
 import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
 import { SITE_CATEGORIES } from "@/lib/siteCategories";
+import { getSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
 import SiteSurfaceManage from "@/components/SiteSurfaceManage";
 import type { FieldDef } from "@/lib/types";
 
@@ -11,12 +12,15 @@ export default async function CategoriesManagePage() {
   const canAccess = await canAccessSiteCatalog();
   if (!canAccess) redirect("/");
 
+  const [settings, ...fieldResults] = await Promise.all([
+    getSurfaceCategorySettings("categories"),
+    ...SITE_CATEGORIES.map((c) => getFieldDefsForSiteCategory(c.slug)),
+  ]);
+
   const initialFieldsByCategory: Record<string, FieldDef[]> = {};
-  await Promise.all(
-    SITE_CATEGORIES.map(async (c) => {
-      initialFieldsByCategory[c.slug] = await getFieldDefsForSiteCategory(c.slug);
-    })
-  );
+  SITE_CATEGORIES.forEach((c, i) => {
+    initialFieldsByCategory[c.slug] = fieldResults[i];
+  });
 
   return (
     <SiteSurfaceManage
@@ -24,6 +28,7 @@ export default async function CategoriesManagePage() {
       title="Manage Categories"
       backHref="/categories/stays"
       initialFieldsByCategory={initialFieldsByCategory}
+      initialCategories={settings.categories}
     />
   );
 }

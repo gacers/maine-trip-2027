@@ -13,6 +13,8 @@ import {
   orderBooleanBadgeFields,
   statusBadgeVariant,
 } from "@/lib/statusFields";
+import type { SurfaceCardLayout } from "@/lib/siteSurfaceShared";
+import { defaultCardLayout } from "@/lib/siteSurfaceShared";
 import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./CatalogPage.module.css";
 
@@ -22,6 +24,7 @@ export interface CatalogPageProps {
   initialItems: CatalogItem[];
   /** Boolean type labels (Restaurant, Bar, …) for badge pills. */
   fieldDefs?: FieldDef[];
+  cardLayout?: SurfaceCardLayout;
 }
 
 type TierFilter = "all" | SectionTier;
@@ -78,7 +81,13 @@ function catalogTypeBadges(
 // Cross-trip browse for one category (Stays, Food & Drink, …) — map of
 // visible pins, country + Options/Previously-Visited filters, cards for
 // original entries only (synced copies listed as trips on the card).
-export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [] }: CatalogPageProps) {
+export default function CatalogPage({
+  categorySlug,
+  categoryLabel,
+  initialItems,
+  fieldDefs = [],
+  cardLayout = defaultCardLayout(categorySlug),
+}: CatalogPageProps) {
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
 
@@ -116,6 +125,25 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
       })),
     [visible]
   );
+
+  const layoutClass =
+    cardLayout === "grid-3"
+      ? styles["grid-3"]
+      : cardLayout === "grid-2"
+        ? styles["grid-2"]
+        : styles["list-layout"];
+  const thumbClass =
+    cardLayout === "grid-3"
+      ? styles["thumb-compact"]
+      : cardLayout === "grid-2"
+        ? styles["thumb-medium"]
+        : styles["thumb-large"];
+  const thumbSizes =
+    cardLayout === "grid-3"
+      ? "(max-width: 40rem) 100vw, (max-width: 64rem) 50vw, 33vw"
+      : cardLayout === "grid-2"
+        ? "(max-width: 40rem) 100vw, 50vw"
+        : "(max-width: 40rem) 100vw, 72rem";
 
   return (
     <main className={styles["root"]}>
@@ -157,23 +185,23 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
       {visible.length === 0 ? (
         <p className={styles["empty"]}>No places match these filters.</p>
       ) : (
-        <ul className={styles["list"]}>
+        <ul className={`${styles["list"]} ${layoutClass}`}>
           {visible.map((item) => {
             const status = catalogStatusBadge(item);
             const types = catalogTypeBadges(item, fieldDefs, badgeVariants);
             return (
             <FramedCard as="li" key={item.entry.id} id={`catalog-${item.entry.id}`} className={styles["card"]}>
               {item.entry.posterImage ? (
-                <div className={styles["thumb"]}>
+                <div className={`${styles["thumb"]} ${thumbClass}`}>
                   <Image
                     src={item.entry.posterImage}
                     alt=""
                     fill
-                    sizes="(max-width: 40rem) 100vw, 50vw"
+                    sizes={thumbSizes}
                   />
                 </div>
               ) : (
-                <div className={styles["thumb-empty"]} />
+                <div className={`${styles["thumb-empty"]} ${thumbClass}`} />
               )}
               <div className={styles["card-body"]}>
                 <div className={styles["card-heading"]}>
