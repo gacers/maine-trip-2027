@@ -46,16 +46,73 @@ function baseDefsForCategory(slug: string): TemplateFieldDef[] {
   if (slug === "food-drink") {
     return [
       { key: "closed", label: "Closed", field_type: "boolean", show_on_overview: true },
+      { key: "moved", label: "Moved", field_type: "boolean", show_on_overview: true },
+      { key: "moved_address", label: "New address", field_type: "text", show_on_overview: true },
       ...FOOD_DRINK_TYPE_FIELD_DEFS,
     ];
   }
   if (slug === "activities") {
     return [
       { key: "closed", label: "Closed", field_type: "boolean", show_on_overview: true },
+      { key: "moved", label: "Moved", field_type: "boolean", show_on_overview: true },
+      { key: "moved_address", label: "New address", field_type: "text", show_on_overview: true },
       ...ACTIVITIES_TYPE_FIELD_DEFS,
     ];
   }
   return [];
+}
+
+/** Insert any missing built-in Closed/Moved fields onto one section. */
+export async function ensureBaseFieldDefsOnSection(
+  sectionId: string,
+  categorySlug: string
+): Promise<void> {
+  const base = baseDefsForCategory(categorySlug);
+  if (base.length === 0) return;
+  const supabase = supabaseServiceRole();
+  const { data: existing } = await supabase.from("field_defs").select("key").eq("section_id", sectionId);
+  const have = new Set((existing || []).map((r) => r.key));
+  let sortOrder = (existing || []).length;
+  for (const f of base) {
+    if (have.has(f.key)) continue;
+    await supabase.from("field_defs").insert({
+      section_id: sectionId,
+      key: f.key,
+      label: f.label,
+      field_type: f.field_type,
+      storage: "jsonb",
+      show_on_overview: f.show_on_overview,
+      required: false,
+      options: f.options || null,
+      sort_order: sortOrder++,
+    });
+    have.add(f.key);
+  }
+}
+
+/** Prefer base status/type order, then any extra section keys. */
+export function mergeBaseFieldDefs(categorySlug: string, fieldDefs: FieldDef[]): FieldDef[] {
+  const base = baseDefsForCategory(categorySlug);
+  if (base.length === 0) return fieldDefs;
+  const byKey = new Map(fieldDefs.map((f) => [f.key, f]));
+  for (const f of base) {
+    if (!byKey.has(f.key)) byKey.set(f.key, asFieldDef(f));
+  }
+  const ordered: FieldDef[] = [];
+  const seen = new Set<string>();
+  for (const f of base) {
+    const row = byKey.get(f.key);
+    if (row) {
+      ordered.push(row);
+      seen.add(f.key);
+    }
+  }
+  for (const f of fieldDefs) {
+    if (seen.has(f.key)) continue;
+    ordered.push(f);
+    seen.add(f.key);
+  }
+  return ordered;
 }
 
 /** Promote boolean keys that only live on Future Interests item.data
@@ -96,8 +153,9 @@ export async function syncFutureInterestTypesToCategory(categorySlug: string): P
 export async function getFieldDefsForSiteCategory(categorySlug: string): Promise<FieldDef[]> {
   const supabase = supabaseServiceRole();
   const byKey = new Map<string, FieldDef>();
+  const base = baseDefsForCategory(categorySlug);
 
-  for (const f of baseDefsForCategory(categorySlug)) {
+  for (const f of base) {
     byKey.set(f.key, asFieldDef(f));
   }
 
@@ -118,6 +176,14 @@ export async function getFieldDefsForSiteCategory(categorySlug: string): Promise
   const sectionIds = (sections || []).map((s) => s.id);
   if (sectionIds.length === 0) return [...byKey.values()];
 
+  // Ensure Closed / Moved / New address exist on every live section so
+  // trip cards pick them up without a manual Manage save.
+  if (base.length > 0) {
+    for (const sectionId of sectionIds) {
+      await ensureBaseFieldDefsOnSection(sectionId, categorySlug);
+    }
+  }
+
   const { data: defs, error: defError } = await supabase
     .from("field_defs")
     .select("*")
@@ -129,7 +195,21 @@ export async function getFieldDefsForSiteCategory(categorySlug: string): Promise
     if (!byKey.has(row.key)) byKey.set(row.key, { ...row, section_id: "", id: row.key });
   }
 
-  return [...byKey.values()];
+  // Prefer base order for status/type keys, then any extra section keys.
+  const ordered: FieldDef[] = [];
+  const seen = new Set<string>();
+  for (const f of base) {
+    const row = byKey.get(f.key);
+    if (row) {
+      ordered.push(row);
+      seen.add(f.key);
+    }
+  }
+  for (const [key, row] of byKey) {
+    if (seen.has(key)) continue;
+    ordered.push(row);
+  }
+  return ordered;
 }
 
 export interface SiteCategoryFieldInput {
@@ -279,7 +359,7 @@ export async function syncFieldsForSiteCategory(
 
   for (const key of previousKeys) {
     if (nextKeys.has(key)) continue;
-    // Keep built-in type/closed fields — they're always part of the
+    // Keep built-in type/closed/moved fields — they're always part of the
     // category schema even when no trip section has them yet.
     if (baseDefsForCategory(categorySlug).some((f) => f.key === key)) continue;
     if (sectionIds.length === 0) continue;

@@ -18,6 +18,7 @@ import {
 import { searchPlacesByText } from "@/lib/googlePlaces";
 import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
 import type { FutureInterestItem } from "@/lib/futureInterest";
+import { withMovedFromStash } from "@/lib/statusFields";
 import type { FieldDef, PlaceResult } from "@/lib/types";
 import dialogStyles from "@/components/AddEntryDialog/AddEntryDialog.module.css";
 import formStyles from "@/components/AddEntryForm/AddEntryForm.module.css";
@@ -237,10 +238,13 @@ export default function FutureInterestAddDialog({
     }
     setPhase("saving");
     setErrorMsg("");
-    const data: Record<string, unknown> = {};
+    let data: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(typeData)) {
-      if (value === true) data[key] = true;
+      if (value === true || value === false) data[key] = value;
+      else if (typeof value === "string" && value.trim()) data[key] = value.trim();
+      else if (typeof value === "number" && !Number.isNaN(value)) data[key] = value;
     }
+    data = withMovedFromStash(data, fields.lat, fields.lng);
     try {
       const res = await fetch("/api/future-interests", {
         method: "POST",

@@ -258,6 +258,11 @@ export interface EntryRow {
    * either way. Null for a source itself, or a plain, never-imported
    * entry. */
   import_source_entry_id: string | null;
+  /** True when this entry was moved in from a Future Interests manual
+   * row — trip delete restores it to FI unless visited. */
+  promoted_from_future_interest?: boolean;
+  /** Prior future_interest_items.id (audit only; that row is deleted on promote). */
+  future_interest_origin_id?: string | null;
   created_at: string;
   updated_at: string;
 }

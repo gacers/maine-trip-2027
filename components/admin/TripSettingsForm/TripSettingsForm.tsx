@@ -145,7 +145,7 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
         />
       </label>
       <label className={styles["field"]}>
-        Country / region (for Categories &amp; Future Interests filters)
+        Location / region (for Categories &amp; Future Interests filters)
         <input
           value={country}
           onChange={(e) => setCountry(e.target.value)}

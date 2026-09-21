@@ -173,6 +173,9 @@ export async function listFutureInterestView(categorySlug: string): Promise<Futu
   ]);
 
   const catalogItems = catalog
+    // Only trip Options sync into FI — Places/FI-origin cards are already
+    // (or would be) the manual FI list itself.
+    .filter((c) => c.origin === "trip")
     .filter((c) => c.tiers.includes("options") && !c.entry.visited)
     .map((c) => catalogToViewItem(c, categorySlug));
 

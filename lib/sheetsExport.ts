@@ -385,15 +385,14 @@ function statusLabelFor(item: ClientEntry, tripCompleted: boolean): string {
   return "Active";
 }
 
-// "Closed" is the one true boolean type worth leading with — everything
-// else in the list is descriptive (Restaurant, Bar, ...), but Closed is
-// a status you want to see before scanning the rest, regardless of
-// where its field_def happens to sort among the others.
+// Closed, then Moved, then descriptive type tags (Restaurant, Bar, ...) —
+// status tags lead regardless of field_def sort order.
 function typeCellFor(item: ClientEntry, typeFields: FieldDef[]): string {
   const active = typeFields.filter((f) => item[f.key]);
   const closed = active.filter((f) => f.key === "closed");
-  const rest = active.filter((f) => f.key !== "closed");
-  return [...closed, ...rest].map((f) => f.label).join(", ");
+  const moved = active.filter((f) => f.key === "moved");
+  const rest = active.filter((f) => f.key !== "closed" && f.key !== "moved");
+  return [...closed, ...moved, ...rest].map((f) => f.label).join(", ");
 }
 
 function buildRow(

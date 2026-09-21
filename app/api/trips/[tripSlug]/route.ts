@@ -3,6 +3,7 @@ import { getTripBySlug, getAllSectionsForTrip } from "@/lib/sections";
 import { requireWriteAccess, getAdminUser } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
 import { exportSection } from "@/lib/sheetsExport";
+import { restoreFutureInterestsFromTrip } from "@/lib/futureInterestPromote";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +95,18 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
   const admin = await getAdminUser();
   if (!admin) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+
+  // Unvisited FI-originated entries go back to Future Interests before
+  // the trip (and its entries) cascade-delete.
+  try {
+    await restoreFutureInterestsFromTrip(trip.id);
+  } catch (err) {
+    console.error("Future Interests restore failed:", err);
+    return NextResponse.json(
+      { error: `Couldn't restore Future Interests before delete: ${(err as Error).message}` },
+      { status: 500 }
+    );
+  }
 
   const { error } = await supabaseServiceRole().from("trips").delete().eq("id", trip.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

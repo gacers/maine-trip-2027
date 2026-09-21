@@ -63,3 +63,11 @@
   color: var(--color-white);
   font-weight: var(--font-weight-semibold);
 }
+
+/* Relocated — status like Closed, but not a "gone" signal. Solid slate
+   so it stays out of the decorative type rotation. */
+.moved {
+  background: var(--color-zinc-700);
+  color: var(--color-white);
+  font-weight: var(--font-weight-semibold);
+}

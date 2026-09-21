@@ -27,8 +27,10 @@ export interface CatalogItem {
   tiers: SectionTier[];
   /** Every trip this place appears in (original + synced copies). */
   trips: CatalogTripRef[];
-  /** Href into the original's trip section, or Places for manual rows. */
+  /** Href into the original's trip section, Places, or Future Interests. */
   href: string;
+  /** Where this catalog card came from (drives Open link + FI Options merge). */
+  origin: "trip" | "places" | "future-interests";
 }
 
 function tierForSectionSlug(slug: string): SectionTier {
@@ -64,7 +66,50 @@ function placeToCatalogItem(place: PlaceItem, categorySlug: string): CatalogItem
     tiers: place.visited ? ["previously-visited"] : ["other"],
     trips: [],
     href: `/places/${categorySlug}#listing-${place.id}`,
+    origin: "places",
   };
+}
+
+/** Same column shape as place_items — reuse placeToClientEntry. */
+interface FutureInterestRow {
+  id: string;
+  category_slug: string;
+  title: string | null;
+  url: string | null;
+  poster_image: string | null;
+  description: string | null;
+  lat: number | null;
+  lng: number | null;
+  data: Record<string, unknown>;
+  country: string | null;
+  source_entry_id: string | null;
+  visited: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+function futureInterestToCatalogItem(row: FutureInterestRow, categorySlug: string): CatalogItem {
+  const entry = placeToClientEntry(row);
+  return {
+    entry,
+    country: row.country,
+    // Wishlist → Option; checked-off FI → Visited.
+    tiers: row.visited ? ["previously-visited"] : ["options"],
+    trips: [],
+    href: `/future-interests/${categorySlug}#listing-${row.id}`,
+    origin: "future-interests",
+  };
+}
+
+async function listFutureInterestRows(categorySlug: string): Promise<FutureInterestRow[]> {
+  const supabase = supabaseServiceRole();
+  const { data, error } = await supabase
+    .from("future_interest_items")
+    .select("*")
+    .eq("category_slug", categorySlug)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []) as FutureInterestRow[];
 }
 
 async function getTripCatalogItems(categorySlug: string): Promise<CatalogItem[]> {
@@ -197,6 +242,7 @@ async function getTripCatalogItems(categorySlug: string): Promise<CatalogItem[]>
       tiers: [...tierSet],
       trips,
       href,
+      origin: "trip",
     });
   }
 
@@ -204,26 +250,34 @@ async function getTripCatalogItems(categorySlug: string): Promise<CatalogItem[]>
 }
 
 // Trip entries in this category (across accessible trips) plus manual
-// Places rows — Places fill in known spots that aren't on any trip yet.
-// Synced entry copies collapse to the original; Places that already
-// match a trip entry (same source_entry_id or URL) are skipped.
+// Places and Future Interests rows — fills in spots that aren't on any
+// trip yet. Synced entry copies collapse to the original; Places / FI
+// that already match a trip entry (same source_entry_id or URL) are skipped.
 export async function getCatalogForCategory(categorySlug: string): Promise<CatalogItem[]> {
-  const [tripItems, places] = await Promise.all([
+  const [tripItems, places, futureInterest] = await Promise.all([
     getTripCatalogItems(categorySlug),
     listPlaces(categorySlug),
+    listFutureInterestRows(categorySlug),
   ]);
 
   const items = [...tripItems];
   const seenIds = new Set(items.map((i) => i.entry.id));
   const seenUrls = new Set(items.map((i) => i.entry.url).filter((u): u is string => !!u));
 
+  function absorb(extra: CatalogItem, sourceEntryId: string | null, url: string | null, id: string) {
+    if (sourceEntryId && seenIds.has(sourceEntryId)) return;
+    if (url && seenUrls.has(url)) return;
+    if (seenIds.has(id)) return;
+    items.push(extra);
+    seenIds.add(id);
+    if (url) seenUrls.add(url);
+  }
+
   for (const place of places) {
-    if (place.source_entry_id && seenIds.has(place.source_entry_id)) continue;
-    if (place.url && seenUrls.has(place.url)) continue;
-    if (seenIds.has(place.id)) continue;
-    items.push(placeToCatalogItem(place, categorySlug));
-    seenIds.add(place.id);
-    if (place.url) seenUrls.add(place.url);
+    absorb(placeToCatalogItem(place, categorySlug), place.source_entry_id, place.url, place.id);
+  }
+  for (const row of futureInterest) {
+    absorb(futureInterestToCatalogItem(row, categorySlug), row.source_entry_id, row.url, row.id);
   }
 
   items.sort((a, b) => (a.entry.title || "").localeCompare(b.entry.title || ""));

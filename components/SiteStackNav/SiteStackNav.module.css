@@ -66,22 +66,6 @@
   margin-left: auto;
 }
 
-.manage-link {
+.manage-button {
   margin-left: auto;
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-zinc-700);
-  text-decoration: none;
-  padding: 0.35rem 0.65rem;
-  border: 1px solid var(--color-zinc-300);
-  border-radius: var(--radius);
-  background: var(--color-white);
-}
-.manage-link:hover {
-  background: var(--color-zinc-50);
-  color: var(--color-zinc-900);
-}
-
-.mobile-actions .manage-link {
-  margin-left: 0;
 }

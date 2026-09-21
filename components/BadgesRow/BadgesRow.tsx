@@ -1,4 +1,5 @@
 import Badge, { assignBadgeVariants, type BadgeVariant, type BadgeProps } from "./Badge";
+import { statusBadgeVariant } from "@/lib/statusFields";
 import type { ReactNode } from "react";
 import styles from "./BadgesRow.module.css";
 
@@ -18,7 +19,7 @@ type BadgesRowComponent = ((props: BadgesRowProps) => ReactNode) & {
 };
 
 // Shared eyebrow pills — same Badge look as Food & Drink EntryCards
-// (Closed, Restaurant, …). Parent builds the list; use BadgesRow.Badge
+// (Closed, Moved, Restaurant, …). Parent builds the list; use BadgesRow.Badge
 // (or the Badge export) for a single pill outside the row.
 const BadgesRow: BadgesRowComponent = Object.assign(
   function BadgesRow({ items }: BadgesRowProps) {
@@ -27,7 +28,10 @@ const BadgesRow: BadgesRowComponent = Object.assign(
       <div className={styles["root"]}>
         <div className={styles["eyebrows"]}>
           {items.map((item) => (
-            <Badge key={item.key} variant={item.variant ?? (item.key === "closed" ? "closed" : "neutral")}>
+            <Badge
+              key={item.key}
+              variant={item.variant ?? statusBadgeVariant(item.key) ?? "neutral"}
+            >
               {item.label}
             </Badge>
           ))}

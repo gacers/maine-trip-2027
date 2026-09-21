@@ -110,9 +110,23 @@ const CLOSED_FIELD_DEF: TemplateFieldDef = {
   field_type: "boolean",
   show_on_overview: true,
 };
+// Same surfaces as Closed — business relocated; card map shows the new
+// pin, with an Old Location Map link back to the previous coords.
+const MOVED_FIELD_DEF: TemplateFieldDef = {
+  key: "moved",
+  label: "Moved",
+  field_type: "boolean",
+  show_on_overview: true,
+};
+const MOVED_ADDRESS_FIELD_DEF: TemplateFieldDef = {
+  key: "moved_address",
+  label: "New address",
+  field_type: "text",
+  show_on_overview: true,
+};
 for (const template of SECTION_TEMPLATES) {
   if (template.key === "foodDrink" || template.key === "activities") {
-    template.fieldDefs = [...template.fieldDefs, CLOSED_FIELD_DEF];
+    template.fieldDefs = [...template.fieldDefs, CLOSED_FIELD_DEF, MOVED_FIELD_DEF, MOVED_ADDRESS_FIELD_DEF];
   }
 }
 

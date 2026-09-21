@@ -5,6 +5,7 @@ import classNames from "classnames";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import ArchiveDialog from "@/components/ArchiveDialog";
 import Button from "@/components/Button";
+import FramedCard from "@/components/FramedCard";
 import StarRating from "@/components/StarRating";
 import styles from "./ListingSection.module.css";
 
@@ -120,7 +121,7 @@ export default function ListingSection({
   }
 
   return (
-    <section id={id} className={classNames(styles["root"], className)}>
+    <FramedCard as="section" id={id} className={classNames(styles["root"], className)}>
       {/* Always rendered, not gated on isCollapsed — the caller-built
           `media` (PairedEntryGroup) owns its own shrink/fade transition
           keyed off the same collapsed value, rather than this just
@@ -218,6 +219,6 @@ export default function ListingSection({
         </div>
       </div>
       {!isCollapsed && <div className={styles["body"]}>{children}</div>}
-    </section>
+    </FramedCard>
   );
 }

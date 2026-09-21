@@ -5,8 +5,14 @@ import Link from "next/link";
 import OverviewMap from "@/components/OverviewMap";
 import Button from "@/components/Button";
 import BadgesRow, { Badge, assignBadgeVariants, type BadgeItem, type BadgeVariant } from "@/components/BadgesRow";
+import FramedCard from "@/components/FramedCard";
 import Image from "@/components/Image";
 import type { CatalogItem, SectionTier } from "@/lib/catalog";
+import {
+  isStatusBooleanKey,
+  orderBooleanBadgeFields,
+  statusBadgeVariant,
+} from "@/lib/statusFields";
 import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./CatalogPage.module.css";
 
@@ -32,7 +38,7 @@ function catalogTypeBadges(
   fieldDefs: FieldDef[],
   badgeVariants: Record<string, BadgeVariant>
 ): BadgeItem[] {
-  const booleanDefs = fieldDefs.filter((f) => f.field_type === "boolean");
+  const booleanDefs = orderBooleanBadgeFields(fieldDefs.filter((f) => f.field_type === "boolean"));
   const items: BadgeItem[] = [];
   const known = new Set<string>();
   for (const f of booleanDefs) {
@@ -42,11 +48,11 @@ function catalogTypeBadges(
     items.push({
       key: f.key,
       label: f.label,
-      variant: f.key === "closed" ? "closed" : badgeVariants[f.key],
+      variant: statusBadgeVariant(f.key) ?? badgeVariants[f.key],
     });
   }
   for (const [key, value] of Object.entries(item.entry)) {
-    if (known.has(key) || key === "visited") continue;
+    if (known.has(key) || key === "visited" || isStatusBooleanKey(key)) continue;
     if (value !== true && value !== "true") continue;
     if (typeof value !== "boolean" && value !== "true") continue;
     items.push({
@@ -68,7 +74,7 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
   const badgeVariants = useMemo(
     () =>
       assignBadgeVariants(
-        fieldDefs.filter((f) => f.field_type === "boolean" && f.key !== "closed").map((f) => f.key)
+        fieldDefs.filter((f) => f.field_type === "boolean" && !isStatusBooleanKey(f.key)).map((f) => f.key)
       ),
     [fieldDefs]
   );
@@ -106,7 +112,7 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
         <h1 className={styles["heading"]}>{categoryLabel}</h1>
         <div className={styles["filters"]}>
           <label className={styles["filter"]}>
-            Country
+            Location
             <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className={styles["select"]}>
               <option value="all">All</option>
               {countries.map((c) => (
@@ -145,7 +151,7 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
             const status = catalogStatusBadge(item);
             const types = catalogTypeBadges(item, fieldDefs, badgeVariants);
             return (
-            <li key={item.entry.id} id={`catalog-${item.entry.id}`} className={styles["card"]}>
+            <FramedCard as="li" key={item.entry.id} id={`catalog-${item.entry.id}`} className={styles["card"]}>
               {item.entry.posterImage ? (
                 <div className={styles["thumb"]}>
                   <Image
@@ -193,12 +199,16 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
                 <div className={styles["card-actions"]}>
                   <Button variant="secondary" size="sm" asChild>
                     <Link href={item.href}>
-                      {item.trips.length > 0 ? "Open original" : "Open in Places"}
+                      {item.origin === "future-interests"
+                        ? "Open in Future Interests"
+                        : item.origin === "places"
+                          ? "Open in Places"
+                          : "Open original"}
                     </Link>
                   </Button>
                 </div>
               </div>
-            </li>
+            </FramedCard>
             );
           })}
         </ul>

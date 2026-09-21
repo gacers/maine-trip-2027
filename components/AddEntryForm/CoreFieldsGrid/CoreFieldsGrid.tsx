@@ -1,5 +1,6 @@
 import FieldInput from "@/components/FieldInput";
 import AddFieldSelect, { type AddedFieldPayload } from "@/components/AddFieldSelect";
+import { visibleFieldDefsForEdit, withMovedFromStash } from "@/lib/statusFields";
 import type { FieldDef } from "@/lib/types";
 import styles from "./CoreFieldsGrid.module.css";
 
@@ -103,12 +104,18 @@ export default function CoreFieldsGrid({
 
       {(fieldDefs.length > 0 || canAddField) && (
         <div className={styles["field-defs-grid"]}>
-          {fieldDefs.map((f) => (
+          {visibleFieldDefsForEdit(fieldDefs, data).map((f) => (
             <FieldInput
               key={f.key}
               fieldDef={f}
               value={data[f.key]}
-              onChange={(v) => onDataChange({ ...data, [f.key]: v })}
+              onChange={(v) => {
+                let next = { ...data, [f.key]: v };
+                if (f.key === "moved") {
+                  next = withMovedFromStash(next, fields.lat, fields.lng);
+                }
+                onDataChange(next);
+              }}
               tripNights={tripNights}
               disabled={disabled}
             />
@@ -158,7 +165,7 @@ export default function CoreFieldsGrid({
       </label>
       {!disabled && (
         <div className={styles["wide-field"]}>
-          <label>Or find lat/lng from an address</label>
+          <label>Or find lat/lng from an address (new location when Moved)</label>
           <div className={styles["geocode-row"]}>
             <input
               value={address}

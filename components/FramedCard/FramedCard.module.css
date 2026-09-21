@@ -1,0 +1,9 @@
+/* Shared listing card frame — keep in sync with EntryCard / Catalog /
+   ListingSection consumers; don't re-declare these tokens elsewhere. */
+.root {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-zinc-300);
+  box-shadow: var(--shadow-sm);
+  background: var(--color-white);
+  overflow: hidden;
+}

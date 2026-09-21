@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Button from "@/components/Button";
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/NavigationMenu";
 import { SITE_CATEGORIES } from "@/lib/siteCategories";
 import SiteStackMobileDrawer from "./SiteStackMobileDrawer";
@@ -80,9 +81,9 @@ export default function SiteStackNav({
         />
         <div className={styles["mobile-actions"]}>
           {manageHref ? (
-            <Link href={manageHref} className={styles["manage-link"]}>
-              Manage
-            </Link>
+            <Button variant="secondary" size="sm" asChild>
+              <Link href={manageHref}>Manage</Link>
+            </Button>
           ) : null}
           {categoryActions}
         </div>
@@ -102,9 +103,9 @@ export default function SiteStackNav({
             </NavigationMenuList>
           </NavigationMenu>
           {manageHref ? (
-            <Link href={manageHref} className={styles["manage-link"]}>
-              Manage
-            </Link>
+            <Button variant="secondary" size="sm" asChild className={styles["manage-button"]}>
+              <Link href={manageHref}>Manage</Link>
+            </Button>
           ) : null}
         </div>
 

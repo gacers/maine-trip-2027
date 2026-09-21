@@ -111,7 +111,7 @@ export default function HomeShell({
                 <Button variant="secondary" size="sm" asChild>
                   <Link href="/trips/new">+ New trip</Link>
                 </Button>
-                <Button variant="link" size="sm" asChild>
+                <Button variant="secondary" size="sm" asChild>
                   <Link href="/settings">Settings</Link>
                 </Button>
                 {authActions}

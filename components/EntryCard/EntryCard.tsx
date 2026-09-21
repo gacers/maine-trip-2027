@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import StarRating from "@/components/StarRating";
 import Button from "@/components/Button";
 import BadgesRow, { assignBadgeVariants } from "@/components/BadgesRow";
+import FramedCard from "@/components/FramedCard";
 import EntryMedia from "@/components/EntryMedia";
 import { useListingMap } from "@/components/ListingMap";
 import { fetchForwardGeocode, fetchReverseAddress } from "@/lib/geocodeClient";
@@ -23,6 +24,17 @@ import EditableNoteList from "./EditableNoteList";
 import EntryFooter from "./EntryFooter";
 import AvailabilityLinks, { type DateRange } from "./AvailabilityLinks";
 import { withAvailabilityDates } from "@/lib/listingAvailability";
+import {
+  isStatusBooleanKey,
+  isTruthyFlag,
+  MOVED_ADDRESS_KEY,
+  MOVED_FROM_LAT_KEY,
+  MOVED_FROM_LNG_KEY,
+  oldLocationMapsUrl,
+  orderBooleanBadgeFields,
+  statusBadgeVariant,
+  withMovedFromStash,
+} from "@/lib/statusFields";
 import type { ImportSourceEntryInfo } from "@/lib/entrySync";
 import type { ClientEntry, FieldDef, MapConfig, MapReferencePoint } from "@/lib/types";
 import styles from "./EntryCard.module.css";
@@ -221,29 +233,40 @@ export default function EntryCard({
   // handled by one of the dedicated displays above — see
   // OverviewFieldsRow, which previously had nowhere to render at all.
   const overviewRows: OverviewFieldRow[] = fieldDefs
-    .filter((f) => f.show_on_overview && !["price", "count", "boolean"].includes(f.field_type))
+    .filter(
+      (f) =>
+        f.show_on_overview &&
+        f.key !== MOVED_ADDRESS_KEY &&
+        !["price", "count", "boolean"].includes(f.field_type)
+    )
     .map((f) => ({ fieldDef: f, value: entry[f.key] }))
     .filter(({ value }) => value !== "" && value !== null && value !== undefined);
   const descriptionBullets = toBullets(entry.description).filter((line) => !isAddressLike(line));
   const hasNotes = toBullets(entry.notes).length > 0;
   const hasConcerns = toBullets(entry.concerns).length > 0;
   // Any boolean field flips on an eyebrow tag when true (e.g. "Closed",
-  // "Bar", "Restaurant") — generic by field *type*, not by name, so any
+  // "Moved", "Bar") — generic by field *type*, not by name, so any
   // boolean field an admin adds to any section gets this for free.
   // Coerce string "true"/"false" too — EntryEditForm used to String()
   // checkbox values, so older saves may still be strings; !!"false" is
   // truthy and would leave the badge stuck on.
-  const activeBooleanFields = fieldDefs.filter(
-    (f) => f.field_type === "boolean" && (entry[f.key] === true || entry[f.key] === "true")
+  const activeBooleanFields = orderBooleanBadgeFields(
+    fieldDefs.filter(
+      (f) => f.field_type === "boolean" && (entry[f.key] === true || entry[f.key] === "true")
+    )
   );
   // Colors are assigned from the section's full boolean field list (not
   // just this entry's active ones), in that list's own defined order —
   // so a given type always lands on the same color everywhere it shows
-  // up. "closed" is excluded since it always gets its own dedicated
-  // variant, never one of the arbitrary rotation colors.
+  // up. Status keys (closed/moved) get dedicated variants, never
+  // decorative rotation colors.
   const badgeVariants = assignBadgeVariants(
-    fieldDefs.filter((f) => f.field_type === "boolean" && f.key !== "closed").map((f) => f.key)
+    fieldDefs.filter((f) => f.field_type === "boolean" && !isStatusBooleanKey(f.key)).map((f) => f.key)
   );
+  const isMoved = isTruthyFlag(entry.moved);
+  const movedAddress =
+    typeof entry[MOVED_ADDRESS_KEY] === "string" ? (entry[MOVED_ADDRESS_KEY] as string).trim() : "";
+  const oldMapsUrl = oldLocationMapsUrl(entry[MOVED_FROM_LAT_KEY], entry[MOVED_FROM_LNG_KEY]);
 
   function addNote(text: string) {
     onPatch(entry.id, { appendNote: text });
@@ -272,6 +295,13 @@ export default function EntryCard({
         dataDraft[f.key] = (raw as string) ?? "";
       }
     });
+    // Prior pin for Moved — not a field_def, just jsonb stash.
+    if (entry[MOVED_FROM_LAT_KEY] != null && entry[MOVED_FROM_LAT_KEY] !== "") {
+      dataDraft[MOVED_FROM_LAT_KEY] = String(entry[MOVED_FROM_LAT_KEY]);
+    }
+    if (entry[MOVED_FROM_LNG_KEY] != null && entry[MOVED_FROM_LNG_KEY] !== "") {
+      dataDraft[MOVED_FROM_LNG_KEY] = String(entry[MOVED_FROM_LNG_KEY]);
+    }
     setDraft({
       title: entry.title || "",
       url: entry.url || "",
@@ -283,7 +313,7 @@ export default function EntryCard({
       extraMarkers: extraMarkers.length ? (extraMarkers as unknown as EntryDraft["extraMarkers"]) : [],
       data: dataDraft,
     });
-    setAddress("");
+    setAddress(typeof entry[MOVED_ADDRESS_KEY] === "string" ? (entry[MOVED_ADDRESS_KEY] as string) : "");
     setGeocodeMsg("");
     setIsEditing(true);
     setImportSource(null);
@@ -304,7 +334,19 @@ export default function EntryCard({
     setGeocodeMsg("");
     try {
       const { lat, lng, formattedAddress } = await fetchForwardGeocode(tripSlug, address, authToken);
-      setDraft((d) => (d ? { ...d, lat: lat.toFixed(6), lng: lng.toFixed(6) } : d));
+      setDraft((d) => {
+        if (!d) return d;
+        const data = withMovedFromStash({ ...d.data }, d.lat, d.lng) as EntryDraft["data"];
+        if (isTruthyFlag(data.moved)) {
+          data[MOVED_ADDRESS_KEY] = formattedAddress;
+        }
+        return {
+          ...d,
+          lat: lat.toFixed(6),
+          lng: lng.toFixed(6),
+          data,
+        };
+      });
       setGeocodeMsg(`Found: ${formattedAddress}`);
     } catch (err) {
       setGeocodeMsg((err as Error).message);
@@ -319,9 +361,10 @@ export default function EntryCard({
       .filter((m) => m.label && m.lat !== "" && m.lng !== "")
       .map((m) => ({ label: m.label, color: m.color, lat: Number(m.lat), lng: Number(m.lng) }));
 
+    const stashed = withMovedFromStash({ ...draft.data }, draft.lat, draft.lng);
     const dataPatch: Record<string, unknown> = {};
     for (const f of fieldDefs) {
-      const v = draft.data[f.key];
+      const v = stashed[f.key];
       if (f.field_type === "boolean") {
         dataPatch[f.key] = v === true || v === "true";
       } else if (f.field_type === "number" || f.field_type === "count") {
@@ -329,6 +372,12 @@ export default function EntryCard({
       } else {
         dataPatch[f.key] = v;
       }
+    }
+    if (stashed[MOVED_FROM_LAT_KEY] != null && stashed[MOVED_FROM_LAT_KEY] !== "") {
+      dataPatch[MOVED_FROM_LAT_KEY] = Number(stashed[MOVED_FROM_LAT_KEY]);
+    }
+    if (stashed[MOVED_FROM_LNG_KEY] != null && stashed[MOVED_FROM_LNG_KEY] !== "") {
+      dataPatch[MOVED_FROM_LNG_KEY] = Number(stashed[MOVED_FROM_LNG_KEY]);
     }
 
     // A locked entry's own shared fields (see lib/entrySync.ts) are
@@ -365,15 +414,15 @@ export default function EntryCard({
     onPatch(entry.id, { archiveReason: "", status: "active" });
   }
 
-  const rootClassName = classNames(styles["root"], !bare && styles["framed"], isArchived && styles["archived"]);
+  const rootClassName = classNames(styles["root"], isArchived && styles["archived"]);
   // On a split/paired card (bare + hideMedia, inside GroupMap's own
   // ListingSection), this top border would just double up whatever
   // divider that wrapping context already draws above it.
   const sectionsClassName = classNames(styles["sections"], bare && styles["sections-bare"]);
   const mapsSearchUrl = hasHouse ? `https://www.google.com/maps/search/?api=1&query=${entry.lat},${entry.lng}` : undefined;
 
-  return (
-    <article id={`listing-${entry.id}`} className={rootClassName}>
+  const body = (
+    <>
       {/* Previously just a small italic line down in the footer next to
           Restore/Delete — confirmed live as easy to miss entirely,
           especially on a tall card. A full-width banner right at the
@@ -401,7 +450,7 @@ export default function EntryCard({
               items={activeBooleanFields.map((f) => ({
                 key: f.key,
                 label: f.label,
-                variant: f.key === "closed" ? "closed" : badgeVariants[f.key],
+                variant: statusBadgeVariant(f.key) ?? badgeVariants[f.key],
               }))}
             />
           )}
@@ -420,6 +469,16 @@ export default function EntryCard({
                   {addressLabel || "View on map"}
                 </a>
               )}
+              {isMoved && (movedAddress || oldMapsUrl) ? (
+                <div className={styles["moved-meta"]}>
+                  {movedAddress ? <p className={styles["moved-address"]}>{movedAddress}</p> : null}
+                  {oldMapsUrl ? (
+                    <a href={oldMapsUrl} target="_blank" rel="noopener noreferrer" className={styles["address-link"]}>
+                      Old Location Map
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
               {backupDateRange && <AvailabilityLinks url={entry.url} backup={backupDateRange} />}
             </div>
             <div className={styles["header-actions"]}>
@@ -596,6 +655,20 @@ export default function EntryCard({
           </>
         )}
       </div>
-    </article>
+    </>
+  );
+
+  if (bare) {
+    return (
+      <article id={`listing-${entry.id}`} className={rootClassName}>
+        {body}
+      </article>
+    );
+  }
+
+  return (
+    <FramedCard as="article" id={`listing-${entry.id}`} className={rootClassName}>
+      {body}
+    </FramedCard>
   );
 }

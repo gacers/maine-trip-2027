@@ -202,6 +202,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }).catch((err) => console.error("Template capture failed:", err));
     }
 
+    // Pull matching Future Interests manuals into this Options/primary
+    // section as original entries (and drop the FI rows). Best-effort.
+    if (resolvedNavGroupId) {
+      const { tryPromoteFutureInterestsForNewSection } = await import("@/lib/futureInterestPromote");
+      await tryPromoteFutureInterestsForNewSection(supabase!, {
+        sectionId: section.id,
+        sectionSlug: section.slug,
+        tripId: trip.id,
+        tripCompleted: !!trip.completed,
+        navGroupId: resolvedNavGroupId,
+      });
+    }
+
     return NextResponse.json({ section }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

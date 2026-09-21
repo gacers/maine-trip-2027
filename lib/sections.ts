@@ -3,7 +3,8 @@
 // Every trip's structure now lives in the database instead of code, so
 // adding a trip or a section never requires a deploy.
 import { cache } from "react";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { supabaseServer, supabaseServiceRole } from "@/lib/supabaseServer";
+import { mergeBaseFieldDefs, ensureBaseFieldDefsOnSection } from "@/lib/siteCategoryFields";
 import type { Trip, PublicTrip, NavGroup, Section } from "@/lib/types";
 
 // A trip row carries secrets/gated fields that must never reach a
@@ -111,6 +112,13 @@ export async function getSectionBySlug(tripId: string, navGroupSlug: string, sec
   if (error) throw new Error(error.message);
   if (!data) return null;
   const { nav_groups, ...section } = data;
-  section.field_defs = (section.field_defs || []).sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order);
-  return section;
+  const navSlug = (nav_groups as { slug: string } | null)?.slug || navGroupSlug;
+  await ensureBaseFieldDefsOnSection(section.id, navSlug);
+  const { data: defs } = await supabaseServiceRole()
+    .from("field_defs")
+    .select("*")
+    .eq("section_id", section.id)
+    .order("sort_order", { ascending: true });
+  section.field_defs = mergeBaseFieldDefs(navSlug, (defs || []) as import("@/lib/types").FieldDef[]);
+  return section as Section;
 }

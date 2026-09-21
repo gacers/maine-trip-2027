@@ -2,6 +2,7 @@ import Button from "@/components/Button";
 import FieldInput from "@/components/FieldInput";
 import AddFieldSelect from "@/components/AddFieldSelect";
 import { MARKER_COLORS } from "../helpers";
+import { visibleFieldDefsForEdit, withMovedFromStash } from "@/lib/statusFields";
 import type { ImportSourceEntryInfo } from "@/lib/entrySync";
 import type { FieldDef } from "@/lib/types";
 import styles from "./EntryEditForm.module.css";
@@ -164,12 +165,18 @@ export default function EntryEditForm({
 
         {(fieldDefs.length > 0 || canAddField) && (
           <div className={styles["field-defs-grid"]}>
-            {fieldDefs.map((f) => (
+            {visibleFieldDefsForEdit(fieldDefs, draft.data).map((f) => (
               <FieldInput
                 key={f.key}
                 fieldDef={f}
                 value={draft.data[f.key]}
-                onChange={(v) => onChange({ ...draft, data: { ...draft.data, [f.key]: v } })}
+                onChange={(v) => {
+                  let data: Record<string, string | boolean> = { ...draft.data, [f.key]: v as string | boolean };
+                  if (f.key === "moved") {
+                    data = withMovedFromStash(data, draft.lat, draft.lng) as Record<string, string | boolean>;
+                  }
+                  onChange({ ...draft, data });
+                }}
                 tripNights={nightsEstimate}
                 disabled={locked}
               />
@@ -209,7 +216,7 @@ export default function EntryEditForm({
           <input value={draft.lng} onChange={(e) => onChange({ ...draft, lng: e.target.value })} className={styles["input"]} />
         </label>
         <div className={styles["wide-field"]}>
-          <label>Or find lat/lng from an address</label>
+          <label>Or find lat/lng from an address (new location when Moved)</label>
           <div className={styles["geocode-row"]}>
             <input
               value={address}
