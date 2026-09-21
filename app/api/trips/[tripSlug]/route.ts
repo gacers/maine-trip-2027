@@ -35,6 +35,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if ("nightsEstimate" in body) patch.nights_estimate = body.nightsEstimate || null;
   if ("mapConfig" in body) patch.map_config = body.mapConfig;
   if ("coverImage" in body) patch.cover_image = body.coverImage || null;
+  if ("country" in body) patch.country = typeof body.country === "string" && body.country.trim() ? body.country.trim() : null;
   if ("completed" in body) patch.completed = !!body.completed;
   // Hides the trip from the public trips index (getAllTrips filters on
   // this) without touching any of its data — reversible, unlike

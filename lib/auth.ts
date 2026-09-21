@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { supabaseServer, supabaseServiceRole } from "@/lib/supabaseServer";
 import { isDevBypassEnabled, DEV_ADMIN_COOKIE, DEV_SUPER_ADMIN_COOKIE, DEV_ADMIN_USER_ID, DEV_CONTRIBUTOR_TOKEN } from "@/lib/devAuth";
-import { checkEditorForTrip } from "@/lib/tripEditors";
+import { checkEditorForTrip, getEditorTripIds } from "@/lib/tripEditors";
 
 export function hashApiKey(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -310,4 +310,23 @@ export async function requireAdmin(): Promise<
   const admin = await getAdminUser();
   if (!admin) return { error: { status: 401, message: "Sign in required" } };
   return { supabase: supabaseServiceRole() };
+}
+
+// Site-wide catalog / Future Interest — admin OR any trip editor.
+// Invite-link bearers are deliberately excluded (cross-trip aggregates
+// must not leak trips an invite token doesn't cover).
+export async function requireSiteEditorAccess(): Promise<
+  { supabase: SupabaseClient; error?: undefined } | { error: WriteAccessError; supabase?: undefined }
+> {
+  const admin = await getAdminUser();
+  if (admin) return { supabase: supabaseServiceRole() };
+  const editorIds = await getEditorTripIds();
+  if (editorIds.length > 0) return { supabase: supabaseServiceRole() };
+  return { error: { status: 401, message: "Sign in required" } };
+}
+
+/** True when the current session may open Categories / Future Interest. */
+export async function canAccessSiteCatalog(): Promise<boolean> {
+  if (await getAdminUser()) return true;
+  return (await getEditorTripIds()).length > 0;
 }

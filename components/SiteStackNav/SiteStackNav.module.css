@@ -1,0 +1,36 @@
+.sticky-nav {
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-zinc-200);
+}
+
+.nav-row {
+  width: 100%;
+  padding: 0.625rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.sub-nav-row {
+  width: 100%;
+  padding: 0.5rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  background: var(--color-zinc-50);
+  border-top: 1px solid var(--color-zinc-200);
+}
+
+.menu {
+  display: flex;
+}
+
+.sub-nav-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}

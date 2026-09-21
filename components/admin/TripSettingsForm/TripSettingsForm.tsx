@@ -40,6 +40,7 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
   const [altEndDate, setAltEndDate] = useState(trip.alt_end_date || "");
   const [nightsEstimate, setNightsEstimate] = useState(trip.nights_estimate ? String(trip.nights_estimate) : "");
   const [coverImage, setCoverImage] = useState(trip.cover_image || "");
+  const [country, setCountry] = useState(trip.country || "");
   const [completed, setCompleted] = useState(trip.completed);
   const [archived, setArchived] = useState(trip.archived);
   const [pois, setPois] = useState<DraftPoi[]>(toDraftPois(trip.map_config?.alwaysShown));
@@ -108,6 +109,7 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
           altEndDate: altEndDate || null,
           nightsEstimate: nightsEstimate ? Number(nightsEstimate) : null,
           coverImage: coverImage || null,
+          country: country || null,
           completed,
           archived,
           mapConfig: { ...trip.map_config, alwaysShown },
@@ -139,6 +141,15 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
           value={coverImage}
           onChange={(e) => setCoverImage(e.target.value)}
           placeholder="https://..."
+          className={styles["input"]}
+        />
+      </label>
+      <label className={styles["field"]}>
+        Country / region (for Categories &amp; Future Interest filters)
+        <input
+          value={country}
+          onChange={(e) => setCountry(e.target.value)}
+          placeholder="e.g. United States, Scotland"
           className={styles["input"]}
         />
       </label>

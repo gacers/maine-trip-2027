@@ -1,14 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import TripCard from "@/components/TripCard";
-import LoginPrompt from "@/components/LoginPrompt";
-import LogoutButton from "@/components/LogoutButton";
-import CreateLoginPrompt from "@/components/CreateLoginPrompt";
-import Button from "@/components/Button";
-import SiteHeader, { siteHeaderStyles } from "@/components/SiteHeader";
-import { listInviteTripSlugs, readInviteToken } from "@/lib/inviteClient";
+import { listInviteTripSlugs } from "@/lib/inviteClient";
 import type { PublicTrip } from "@/lib/types";
 import styles from "./AccessibleTripsIndex.module.css";
 
@@ -27,118 +21,69 @@ export interface AccessibleTripsIndexProps {
   filterByInviteTokens: boolean;
   isAdmin: boolean;
   /** Any signed-in session (admin or permanent-login editor) — drives
-   * Logout vs Login in the site header. */
+   * Logout vs Login in the site header (now owned by HomeShell). */
   isSignedIn: boolean;
 }
 
-// Client half of the All Trips page — anonymous contributors only see
+// Client half of the All Trips tab — anonymous contributors only see
 // trips whose invite token is already stored in this browser; admins
 // and signed-in editors get a server-filtered list and skip that step.
-export default function AccessibleTripsIndex({
-  items,
-  filterByInviteTokens,
-  isAdmin,
-  isSignedIn,
-}: AccessibleTripsIndexProps) {
+// Header + stack nav live in HomeShell / (home) layout.
+export default function AccessibleTripsIndex({ items, filterByInviteTokens }: AccessibleTripsIndexProps) {
   const [visible, setVisible] = useState<TripListItem[]>(() => (filterByInviteTokens ? [] : items));
   const [ready, setReady] = useState(!filterByInviteTokens);
-  const [inviteSlug, setInviteSlug] = useState<string | null>(null);
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const slugs = listInviteTripSlugs();
-    const first = slugs[0] || null;
-    setInviteSlug(first);
-    setInviteToken(first ? readInviteToken(first) : null);
-
     if (!filterByInviteTokens) {
       setVisible(items);
       setReady(true);
       return;
     }
-    const slugSet = new Set(slugs);
+    const slugSet = new Set(listInviteTripSlugs());
     setVisible(items.filter((item) => slugSet.has(item.trip.slug)));
     setReady(true);
   }, [items, filterByInviteTokens]);
 
-  const showInviteAuth = !isSignedIn && !!inviteToken && !!inviteSlug;
-
-  const authActions = isSignedIn ? (
-    <LogoutButton />
-  ) : showInviteAuth ? (
-    <div className={siteHeaderStyles["invite-access"]}>
-      <div className={siteHeaderStyles["invite-access-links"]}>
-        <LoginPrompt hasInviteAccess contributorToken={inviteToken} tripSlug={inviteSlug!} />
-        <CreateLoginPrompt trip={{ slug: inviteSlug! }} contributorToken={inviteToken!} />
-      </div>
-      <p className={siteHeaderStyles["invite-access-hint"]}>(current access via browser cookie)</p>
-    </div>
-  ) : (
-    <LoginPrompt />
-  );
-
   return (
-    <>
-      <SiteHeader
-        sticky
-        brand={<p className={siteHeaderStyles["brand-title"]}>Country Goth Travel</p>}
-        actions={
-          isAdmin ? (
-            <>
-              <Button variant="secondary" size="sm" asChild>
-                <Link href="/trips/new">+ New trip</Link>
-              </Button>
-              <Button variant="link" size="sm" asChild>
-                <Link href="/settings">Settings</Link>
-              </Button>
-              {authActions}
-            </>
-          ) : (
-            authActions
-          )
-        }
-      />
+    <main className={styles["root"]}>
+      {!ready ? (
+        <p className={styles["empty-hint"]}>Loading…</p>
+      ) : visible.length === 0 ? (
+        <div className={styles["empty-block"]}>
+          <p className={styles["empty-hint"]}>No trips you have access to.</p>
+          <p className={styles["empty-hint"]}>
+            Open an invite link or sign in with a permanent login to see your trips here.
+          </p>
+        </div>
+      ) : (
+        <>
+          {visible.filter((i) => !i.past).length > 0 && (
+            <section className={styles["trip-section"]}>
+              <h2 className={styles["section-heading"]}>Pending Trips</h2>
+              <div className={styles["trip-grid"]}>
+                {visible
+                  .filter((i) => !i.past)
+                  .map(({ trip, dateLabel }) => (
+                    <TripCard key={trip.id} trip={trip} dateLabel={dateLabel} />
+                  ))}
+              </div>
+            </section>
+          )}
 
-      <main className={styles["root"]}>
-        {!ready ? (
-          <p className={styles["empty-hint"]}>Loading…</p>
-        ) : visible.length === 0 ? (
-          <div className={styles["empty-block"]}>
-            <p className={styles["empty-hint"]}>No trips you have access to.</p>
-            <p className={styles["empty-hint"]}>
-              Open an invite link or sign in with a permanent login to see your trips here.
-            </p>
-          </div>
-        ) : (
-          <>
-            {visible.filter((i) => !i.past).length > 0 && (
-              <section className={styles["trip-section"]}>
-                <h2 className={styles["section-heading"]}>Pending Trips</h2>
-                <div className={styles["trip-grid"]}>
-                  {visible
-                    .filter((i) => !i.past)
-                    .map(({ trip, dateLabel }) => (
-                      <TripCard key={trip.id} trip={trip} dateLabel={dateLabel} />
-                    ))}
-                </div>
-              </section>
-            )}
-
-            {visible.filter((i) => i.past).length > 0 && (
-              <section className={styles["trip-section"]}>
-                <h2 className={styles["section-heading"]}>Past Trips</h2>
-                <div className={styles["trip-grid"]}>
-                  {visible
-                    .filter((i) => i.past)
-                    .map(({ trip, dateLabel }) => (
-                      <TripCard key={trip.id} trip={trip} dateLabel={dateLabel} />
-                    ))}
-                </div>
-              </section>
-            )}
-          </>
-        )}
-      </main>
-    </>
+          {visible.filter((i) => i.past).length > 0 && (
+            <section className={styles["trip-section"]}>
+              <h2 className={styles["section-heading"]}>Past Trips</h2>
+              <div className={styles["trip-grid"]}>
+                {visible
+                  .filter((i) => i.past)
+                  .map(({ trip, dateLabel }) => (
+                    <TripCard key={trip.id} trip={trip} dateLabel={dateLabel} />
+                  ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+    </main>
   );
 }

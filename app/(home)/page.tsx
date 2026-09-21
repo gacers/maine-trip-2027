@@ -63,8 +63,6 @@ function toListItems(trips: Trip[], todayIso: string): TripListItem[] {
       };
     })
     .sort((a, b) => {
-      // Pending first (already split in the client), but keep a stable
-      // overall order within each bucket matching the old page.
       if (a.past !== b.past) return a.past ? 1 : -1;
       if (!a.past) {
         return (a.trip.start_date || "9999").localeCompare(b.trip.start_date || "9999");
@@ -73,10 +71,9 @@ function toListItems(trips: Trip[], todayIso: string): TripListItem[] {
     });
 }
 
-// The site's home: trips the current viewer can actually open, split
-// into Pending / Past. Admins see every non-archived trip; signed-in
-// editors see only trips they're linked to; anonymous visitors are
-// filtered client-side to trips whose invite token is in localStorage.
+// The site's home Trips tab — trips the current viewer can actually
+// open, split into Pending / Past. Chrome (header + stack nav) lives
+// in the (home) layout.
 export default async function TripsIndexPage() {
   const allTrips = await getAllTrips();
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -99,7 +96,6 @@ export default async function TripsIndexPage() {
       const idSet = new Set(editorIds);
       trips = allTrips.filter((t) => idSet.has(t.id));
     } else {
-      // Not signed in as editor — client intersects with invite tokens.
       filterByInviteTokens = true;
       trips = allTrips;
     }

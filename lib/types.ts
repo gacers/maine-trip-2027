@@ -131,6 +131,9 @@ export interface Trip {
    * TripSettingsForm) — a plain pasted URL, not derived from any
    * entry's own photo. */
   cover_image?: string | null;
+  /** Country / region label for cross-trip catalog filters (e.g.
+   * "United States", "Scotland") — set in Trip Settings. */
+  country?: string | null;
   /** Set once the trip has actually happened and been reviewed — drives
    * the trips index's Pending/Past split (past = completed OR its own
    * dates have already passed, see app/page.tsx) and gates the
