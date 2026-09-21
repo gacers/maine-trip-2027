@@ -136,7 +136,7 @@ export default function FutureInterestPage({
         <h1 className={styles["heading"]}>{categoryLabel}</h1>
         <div className={styles["filters"]}>
           <label className={styles["filter"]}>
-            Country
+            Location
             <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className={styles["select"]}>
               <option value="all">All</option>
               {countries.map((c) => (
