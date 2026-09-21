@@ -4,7 +4,7 @@ import { listPlaces } from "@/lib/places";
 import { getAllTrips } from "@/lib/sections";
 import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
 import { isSiteCategorySlug, siteCategoryLabel } from "@/lib/siteCategories";
-import { getPlacesSurfaceSettings } from "@/lib/siteSurfaceSettings";
+import { getSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
 import PlacesPage from "@/components/PlacesPage";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export default async function PlacesSlugPage({ params }: { params: Promise<{ slu
     );
   }
 
-  const settings = await getPlacesSurfaceSettings();
+  const settings = await getSurfaceCategorySettings("places");
   if (!settings.enabledCategories.includes(slug)) notFound();
 
   const [items, trips, fieldDefs] = await Promise.all([

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
 import FieldDefsEditor, {
   fieldDefToRow,
@@ -18,7 +19,11 @@ export interface SiteSurfaceManageProps {
   backHref: string;
   /** Initial field defs keyed by category slug. */
   initialFieldsByCategory: Record<string, FieldDef[]>;
-  /** Places only — which category tabs are enabled. */
+  /**
+   * Places / Future Interests — trip-style Enabled toggles for category
+   * tabs. Disabled tabs stay listed here so they can be turned back on;
+   * FI also skips Options catalog merge while disabled.
+   */
   initialEnabledCategories?: SiteCategorySlug[];
 }
 
@@ -31,6 +36,8 @@ export default function SiteSurfaceManage({
   initialFieldsByCategory,
   initialEnabledCategories,
 }: SiteSurfaceManageProps) {
+  const router = useRouter();
+  const showCategoryEnable = surface === "places" || surface === "future-interests";
   const [activeCategory, setActiveCategory] = useState<SiteCategorySlug>("food-drink");
   const [rowsByCategory, setRowsByCategory] = useState<Record<string, FieldRow[]>>(() => {
     const init: Record<string, FieldRow[]> = {};
@@ -40,20 +47,36 @@ export default function SiteSurfaceManage({
     return init;
   });
   const [enabledCategories, setEnabledCategories] = useState<SiteCategorySlug[]>(
-    initialEnabledCategories || SITE_CATEGORIES.map((c) => c.slug)
+    initialEnabledCategories ?? SITE_CATEGORIES.map((c) => c.slug)
   );
+  const [toggling, setToggling] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  function toggleCategory(slug: SiteCategorySlug) {
-    setEnabledCategories((prev) => {
-      if (prev.includes(slug)) {
-        if (prev.length <= 1) return prev;
-        return prev.filter((s) => s !== slug);
-      }
-      return [...prev, slug];
-    });
+  async function toggleEnabled(slug: SiteCategorySlug, enabled: boolean) {
+    setToggling(slug);
+    setMessage("");
+    setError("");
+    const next = enabled
+      ? [...new Set([...enabledCategories, slug])]
+      : enabledCategories.filter((s) => s !== slug);
+    try {
+      const res = await fetch("/api/site-surface-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ surface, enabledCategories: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Update failed");
+      setEnabledCategories(data.settings.enabledCategories);
+      setMessage(enabled ? `Enabled ${slug}.` : `Disabled ${slug} — re-enable anytime.`);
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setToggling(null);
+    }
   }
 
   async function saveFields() {
@@ -93,26 +116,10 @@ export default function SiteSurfaceManage({
     }
   }
 
-  async function savePlacesTabs() {
-    setSaving(true);
-    setMessage("");
-    setError("");
-    try {
-      const res = await fetch("/api/places/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabledCategories }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Save failed");
-      setEnabledCategories(data.settings.enabledCategories);
-      setMessage("Saved Places category tabs.");
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  }
+  const categoryHint =
+    surface === "future-interests"
+      ? "Disabled categories hide from the nav and pause Options auto-sync. Manual items stay; turn Enabled back on anytime."
+      : "Disabled categories hide from the nav. Existing places stay; turn Enabled back on anytime.";
 
   return (
     <main className={styles["root"]}>
@@ -123,8 +130,9 @@ export default function SiteSurfaceManage({
           </p>
           <h1 className={styles["heading"]}>{title}</h1>
           <p className={styles["lede"]}>
-            Edit shared type fields used on catalog badges and trip sections
-            {surface === "places" ? ", and which category tabs Places shows" : ""}.
+            {showCategoryEnable
+              ? "Enable or disable category sections (same idea as trip Manage), and edit shared type fields."
+              : "Edit shared type fields used on catalog badges and trip sections."}
           </p>
         </div>
       </div>
@@ -132,27 +140,43 @@ export default function SiteSurfaceManage({
       {message ? <p className={styles["message"]}>{message}</p> : null}
       {error ? <p className={styles["error"]}>{error}</p> : null}
 
-      {surface === "places" ? (
+      {showCategoryEnable ? (
         <section className={styles["section"]}>
-          <h2 className={styles["section-title"]}>Category tabs</h2>
-          <p className={styles["hint"]}>Choose which tabs appear on Places. At least one must stay on.</p>
-          <ul className={styles["check-list"]}>
-            {SITE_CATEGORIES.map((c) => (
-              <li key={c.slug}>
-                <label className={styles["check"]}>
-                  <input
-                    type="checkbox"
-                    checked={enabledCategories.includes(c.slug)}
-                    onChange={() => toggleCategory(c.slug)}
-                  />
-                  {c.label}
-                </label>
-              </li>
-            ))}
+          <h2 className={styles["section-title"]}>Categories</h2>
+          <p className={styles["hint"]}>{categoryHint}</p>
+          <ul className={styles["section-list"]}>
+            {SITE_CATEGORIES.map((c) => {
+              const enabled = enabledCategories.includes(c.slug);
+              return (
+                <li
+                  key={c.slug}
+                  className={enabled ? styles["section-card"] : styles["section-card-disabled"]}
+                >
+                  <div className={styles["section-label-row"]}>
+                    <span className={styles["section-label"]}>{c.label}</span>
+                    {!enabled ? <span className={styles["section-meta"]}>· disabled</span> : null}
+                  </div>
+                  <div className={styles["section-actions"]}>
+                    <label className={styles["enabled-checkbox-label"]}>
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        disabled={toggling === c.slug}
+                        onChange={(e) => toggleEnabled(c.slug, e.target.checked)}
+                        className={styles["enabled-checkbox"]}
+                      />
+                      Enabled
+                    </label>
+                    {enabled ? (
+                      <Link href={`/${surface}/${c.slug}`} className={styles["edit-link"]}>
+                        Open
+                      </Link>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
-          <Button variant="primary" size="sm" onClick={savePlacesTabs} disabled={saving}>
-            {saving ? "Saving…" : "Save tabs"}
-          </Button>
         </section>
       ) : null}
 

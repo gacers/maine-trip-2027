@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
 import { getCatalogForCategory, type CatalogItem } from "@/lib/catalog";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
+import { getSurfaceCategorySettings, isCategoryEnabled } from "@/lib/siteSurfaceSettings";
 import type { ClientEntry } from "@/lib/types";
 
 export interface FutureInterestItem {
@@ -151,10 +152,19 @@ async function pruneCatalogCopies(categorySlug: SiteCategorySlug): Promise<void>
 
 /**
  * Future Interests list: every unvisited Options-tier catalog place
- * (live reference) plus manually added FI-only rows. Visited Options
- * drop out automatically; marking visited on a row removes it.
+ * (live reference) plus manually added FI-only rows — only while this
+ * category is Enabled in FI Manage. Disabled categories skip catalog
+ * merge entirely (manual rows remain in the DB for when you re-enable).
+ * Visited Options drop out automatically; marking visited removes a row.
  */
 export async function listFutureInterestView(categorySlug: SiteCategorySlug): Promise<FutureInterestViewItem[]> {
+  const settings = await getSurfaceCategorySettings("future-interests");
+  if (!isCategoryEnabled(settings, categorySlug)) {
+    // Category paused — no Options sync; keep manual rows out of the
+    // browse view too (nav already hides the tab).
+    return [];
+  }
+
   await pruneCatalogCopies(categorySlug);
 
   const [catalog, manualRows] = await Promise.all([

@@ -81,6 +81,80 @@
   color: var(--color-zinc-800);
 }
 
+.section-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.section-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-zinc-200);
+  border-radius: var(--radius);
+  background: var(--color-white);
+}
+
+.section-card-disabled {
+  composes: section-card;
+  background: var(--color-zinc-50);
+  opacity: 0.65;
+}
+
+.section-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.section-label {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-zinc-900);
+  font-size: var(--text-sm);
+}
+
+.section-meta {
+  font-size: var(--text-xs);
+  color: var(--color-zinc-500);
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.enabled-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: var(--text-xs);
+  color: var(--color-zinc-600);
+}
+
+.enabled-checkbox {
+  height: 0.875rem;
+  width: 0.875rem;
+}
+
+.edit-link {
+  font-size: var(--text-sm);
+  color: var(--color-blue-600);
+  text-decoration: none;
+}
+
+.edit-link:hover {
+  text-decoration: underline;
+}
+
 .category-tabs {
   display: flex;
   flex-wrap: wrap;

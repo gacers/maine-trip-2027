@@ -19,6 +19,8 @@ export interface HomeShellProps {
   isSignedIn: boolean;
   /** Places Manage can hide some category tabs. */
   placesEnabledCategories?: SiteCategorySlug[];
+  /** Future Interests Manage can hide some category tabs. */
+  futureInterestsEnabledCategories?: SiteCategorySlug[];
   children: ReactNode;
 }
 
@@ -29,6 +31,14 @@ function manageHrefFor(path: string): string | undefined {
   return undefined;
 }
 
+function tabsFor(enabled: SiteCategorySlug[] | undefined) {
+  if (enabled && enabled.length > 0) {
+    return SITE_CATEGORIES.filter((c) => enabled.includes(c.slug));
+  }
+  if (enabled && enabled.length === 0) return [];
+  return SITE_CATEGORIES;
+}
+
 // Shared chrome for `/`, `/categories/*`, `/future-interests/*`,
 // `/places/*` — header always; stack nav for admins only. Category
 // sub-tabs appear automatically from the path. FI / Places +Add
@@ -37,6 +47,7 @@ export default function HomeShell({
   isAdmin,
   isSignedIn,
   placesEnabledCategories,
+  futureInterestsEnabledCategories,
   children,
 }: HomeShellProps) {
   const pathname = usePathname();
@@ -89,10 +100,14 @@ export default function HomeShell({
     categoryBasePath = undefined;
   }
 
-  const placesTabs =
-    placesEnabledCategories && placesEnabledCategories.length > 0
-      ? SITE_CATEGORIES.filter((c) => placesEnabledCategories.includes(c.slug))
-      : SITE_CATEGORIES;
+  const placesTabs = tabsFor(placesEnabledCategories);
+  const fiTabs = tabsFor(futureInterestsEnabledCategories);
+  const categoryTabs =
+    categoryBasePath === "/places"
+      ? placesTabs
+      : categoryBasePath === "/future-interests"
+        ? fiTabs
+        : undefined;
 
   const showAdd =
     categoryBasePath === "/future-interests" || categoryBasePath === "/places";
@@ -124,7 +139,9 @@ export default function HomeShell({
             categorySlug={categorySlug}
             categoryActions={showAdd ? homeActions?.categoryActions : undefined}
             manageHref={manageHrefFor(pathname)}
-            categoryTabs={categoryBasePath === "/places" ? placesTabs : undefined}
+            categoryTabs={categoryTabs}
+            placesCategoryTabs={placesTabs}
+            futureInterestsCategoryTabs={fiTabs}
           />
         ) : null}
       </div>

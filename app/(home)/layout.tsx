@@ -3,11 +3,12 @@ import { getAdminUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabaseServer";
 import HomeShell from "@/components/HomeShell";
 import { HomeActionsProvider } from "@/components/HomeShell/HomeActions";
-import { getPlacesSurfaceSettings } from "@/lib/siteSurfaceSettings";
+import { getSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
+import type { SiteCategorySlug } from "@/lib/siteCategories";
 
 export const dynamic = "force-dynamic";
 
-// Shared header + Trips | Categories | Future Interests | Places stack
+// Shared header + Trips | Categories | Places | Future Interests stack
 // for the home surface only — trip pages keep TripNavHeader instead.
 export default async function HomeLayout({ children }: { children: ReactNode }) {
   const admin = await getAdminUser();
@@ -18,12 +19,19 @@ export default async function HomeLayout({ children }: { children: ReactNode }) 
   } = await supabase.auth.getUser();
   const isSignedIn = !!user;
 
-  let placesEnabledCategories: Awaited<ReturnType<typeof getPlacesSurfaceSettings>>["enabledCategories"] | undefined;
+  let placesEnabledCategories: SiteCategorySlug[] | undefined;
+  let futureInterestsEnabledCategories: SiteCategorySlug[] | undefined;
   if (isAdmin) {
     try {
-      placesEnabledCategories = (await getPlacesSurfaceSettings()).enabledCategories;
+      const [places, fi] = await Promise.all([
+        getSurfaceCategorySettings("places"),
+        getSurfaceCategorySettings("future-interests"),
+      ]);
+      placesEnabledCategories = places.enabledCategories;
+      futureInterestsEnabledCategories = fi.enabledCategories;
     } catch {
       placesEnabledCategories = undefined;
+      futureInterestsEnabledCategories = undefined;
     }
   }
 
@@ -33,6 +41,7 @@ export default async function HomeLayout({ children }: { children: ReactNode }) 
         isAdmin={isAdmin}
         isSignedIn={isSignedIn}
         placesEnabledCategories={placesEnabledCategories}
+        futureInterestsEnabledCategories={futureInterestsEnabledCategories}
       >
         {children}
       </HomeShell>

@@ -27,8 +27,8 @@ export interface SiteStackMobileDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   manageHref?: string;
-  /** When on Places, only these category tabs (Manage can hide some). */
   placesCategoryTabs?: readonly { slug: SiteCategorySlug; label: string }[];
+  futureInterestsCategoryTabs?: readonly { slug: SiteCategorySlug; label: string }[];
 }
 
 // Same Dialog drawer as trip MobileNavDrawer — Trips / Categories /
@@ -39,12 +39,14 @@ export default function SiteStackMobileDrawer({
   onOpenChange,
   manageHref,
   placesCategoryTabs,
+  futureInterestsCategoryTabs,
 }: SiteStackMobileDrawerProps) {
   const onTrips = pathname === "/";
   const onCategories = pathname.startsWith("/categories");
   const onFutureInterest = pathname.startsWith("/future-interests");
   const onPlaces = pathname.startsWith("/places");
   const placesTabs = placesCategoryTabs ?? SITE_CATEGORIES;
+  const fiTabs = futureInterestsCategoryTabs ?? SITE_CATEGORIES;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -82,10 +84,7 @@ export default function SiteStackMobileDrawer({
               </Link>
             </DialogClose>
             <DialogClose asChild>
-              <Link
-                href="/future-interests/stays"
-                className={onFutureInterest ? styles["nav-link-active"] : styles["nav-link"]}
-              >
+              <Link href="/future-interests" className={onFutureInterest ? styles["nav-link-active"] : styles["nav-link"]}>
                 Future Interests
               </Link>
             </DialogClose>
@@ -113,35 +112,39 @@ export default function SiteStackMobileDrawer({
             })}
           </div>
 
-          <div className={styles["nav-group"]}>
-            <div className={styles["nav-group-label"]}>Places</div>
-            {placesTabs.map((c) => {
-              const href = `/places/${c.slug}`;
-              const active = pathname === href;
-              return (
-                <DialogClose asChild key={`pl-${c.slug}`}>
-                  <Link href={href} className={active ? styles["nav-link-active"] : styles["nav-link"]}>
-                    {c.label}
-                  </Link>
-                </DialogClose>
-              );
-            })}
-          </div>
+          {placesTabs.length > 0 ? (
+            <div className={styles["nav-group"]}>
+              <div className={styles["nav-group-label"]}>Places</div>
+              {placesTabs.map((c) => {
+                const href = `/places/${c.slug}`;
+                const active = pathname === href;
+                return (
+                  <DialogClose asChild key={`pl-${c.slug}`}>
+                    <Link href={href} className={active ? styles["nav-link-active"] : styles["nav-link"]}>
+                      {c.label}
+                    </Link>
+                  </DialogClose>
+                );
+              })}
+            </div>
+          ) : null}
 
-          <div className={styles["nav-group"]}>
-            <div className={styles["nav-group-label"]}>Future Interests</div>
-            {SITE_CATEGORIES.map((c) => {
-              const href = `/future-interests/${c.slug}`;
-              const active = pathname === href;
-              return (
-                <DialogClose asChild key={`fi-${c.slug}`}>
-                  <Link href={href} className={active ? styles["nav-link-active"] : styles["nav-link"]}>
-                    {c.label}
-                  </Link>
-                </DialogClose>
-              );
-            })}
-          </div>
+          {fiTabs.length > 0 ? (
+            <div className={styles["nav-group"]}>
+              <div className={styles["nav-group-label"]}>Future Interests</div>
+              {fiTabs.map((c) => {
+                const href = `/future-interests/${c.slug}`;
+                const active = pathname === href;
+                return (
+                  <DialogClose asChild key={`fi-${c.slug}`}>
+                    <Link href={href} className={active ? styles["nav-link-active"] : styles["nav-link"]}>
+                      {c.label}
+                    </Link>
+                  </DialogClose>
+                );
+              })}
+            </div>
+          ) : null}
         </nav>
       </DialogContent>
     </Dialog>

@@ -18,8 +18,12 @@ export interface SiteStackNavProps {
   categoryActions?: ReactNode;
   /** Manage link when on Categories / Future Interests / Places. */
   manageHref?: string;
-  /** Override which category tabs appear (Places can hide some). */
+  /** Override which category tabs appear for the active surface. */
   categoryTabs?: readonly { slug: SiteCategorySlug; label: string }[];
+  /** Places enabled tabs (mobile drawer Places group). */
+  placesCategoryTabs?: readonly { slug: SiteCategorySlug; label: string }[];
+  /** Future Interests enabled tabs (mobile drawer FI group). */
+  futureInterestsCategoryTabs?: readonly { slug: SiteCategorySlug; label: string }[];
 }
 
 const STACK = [
@@ -31,7 +35,7 @@ const STACK = [
     match: (path: string) => path.startsWith("/places"),
   },
   {
-    href: "/future-interests/stays",
+    href: "/future-interests",
     label: "Future Interests",
     match: (path: string) => path.startsWith("/future-interests"),
   },
@@ -47,6 +51,8 @@ export default function SiteStackNav({
   categoryActions,
   manageHref,
   categoryTabs,
+  placesCategoryTabs,
+  futureInterestsCategoryTabs,
 }: SiteStackNavProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -69,7 +75,8 @@ export default function SiteStackNav({
           open={drawerOpen}
           onOpenChange={setDrawerOpen}
           manageHref={manageHref}
-          placesCategoryTabs={categoryBasePath === "/places" ? tabs : undefined}
+          placesCategoryTabs={placesCategoryTabs}
+          futureInterestsCategoryTabs={futureInterestsCategoryTabs}
         />
         <div className={styles["mobile-actions"]}>
           {manageHref ? (

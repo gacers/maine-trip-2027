@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { canAccessSiteCatalog } from "@/lib/auth";
 import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
 import { SITE_CATEGORIES } from "@/lib/siteCategories";
-import { getPlacesSurfaceSettings } from "@/lib/siteSurfaceSettings";
+import { getSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
 import SiteSurfaceManage from "@/components/SiteSurfaceManage";
 import type { FieldDef } from "@/lib/types";
 
@@ -13,7 +13,7 @@ export default async function PlacesManagePage() {
   if (!canAccess) redirect("/");
 
   const [settings, ...fieldResults] = await Promise.all([
-    getPlacesSurfaceSettings(),
+    getSurfaceCategorySettings("places"),
     ...SITE_CATEGORIES.map((c) => getFieldDefsForSiteCategory(c.slug)),
   ]);
 

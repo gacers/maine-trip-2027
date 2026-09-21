@@ -7,6 +7,7 @@ import {
   syncFutureInterestTypesToCategory,
 } from "@/lib/siteCategoryFields";
 import { isSiteCategorySlug, siteCategoryLabel } from "@/lib/siteCategories";
+import { getSurfaceCategorySettings, isCategoryEnabled } from "@/lib/siteSurfaceSettings";
 import FutureInterestPage from "@/components/FutureInterestPage";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,9 @@ export default async function FutureInterestSlugPage({ params }: { params: Promi
       </main>
     );
   }
+
+  const settings = await getSurfaceCategorySettings("future-interests");
+  if (!isCategoryEnabled(settings, slug)) notFound();
 
   // Promote any FI-only type tags (e.g. Whisky Bar created before the
   // shared AddFieldSelect path) onto trip section field_defs.
