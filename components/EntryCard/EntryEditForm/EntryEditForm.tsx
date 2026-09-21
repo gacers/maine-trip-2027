@@ -51,6 +51,16 @@ export interface EntryEditFormProps {
    * the control entirely rather than rendering it disabled. */
   tripSlug?: string;
   sectionId?: string;
+  /** Future Interest — same AddFieldSelect, writes site-category fields. */
+  categorySlug?: string;
+  onFieldAdded?: (field: {
+    key: string;
+    label: string;
+    fieldType: import("@/lib/types").FieldType;
+    showOnOverview: boolean;
+    required: boolean;
+    options?: { choices?: string[]; aliases?: string[] } | null;
+  }) => void;
 }
 
 // The full manual-edit form (every field EntryCard's own "Edit
@@ -72,8 +82,11 @@ export default function EntryEditForm({
   importSource,
   tripSlug,
   sectionId,
+  categorySlug,
+  onFieldAdded,
 }: EntryEditFormProps) {
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
+  const canAddField = !locked && !!(onFieldAdded || (tripSlug && sectionId));
 
   function updateMarker(i: number, field: keyof DraftMarker, value: string) {
     onChange({ ...draft, extraMarkers: draft.extraMarkers.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)) });
@@ -149,7 +162,7 @@ export default function EntryEditForm({
           />
         </label>
 
-        {(fieldDefs.length > 0 || (!locked && tripSlug && sectionId)) && (
+        {(fieldDefs.length > 0 || canAddField) && (
           <div className={styles["field-defs-grid"]}>
             {fieldDefs.map((f) => (
               <FieldInput
@@ -162,8 +175,27 @@ export default function EntryEditForm({
               />
             ))}
             {countFields.length > 0 && <p className={styles["count-hint"]}>Count fields auto-fill from the description when left blank.</p>}
-            {!locked && tripSlug && sectionId && (
-              <AddFieldSelect tripSlug={tripSlug} sectionId={sectionId} existingKeys={fieldDefs.map((f) => f.key)} />
+            {canAddField && (
+              <AddFieldSelect
+                tripSlug={tripSlug}
+                sectionId={sectionId}
+                categorySlug={categorySlug}
+                existingKeys={fieldDefs.map((f) => f.key)}
+                onFieldAdded={
+                  onFieldAdded
+                    ? (field) => {
+                        onFieldAdded(field);
+                        onChange({
+                          ...draft,
+                          data: {
+                            ...draft.data,
+                            [field.key]: field.fieldType === "boolean" ? true : "",
+                          },
+                        });
+                      }
+                    : undefined
+                }
+              />
             )}
           </div>
         )}

@@ -3,19 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
 import OverviewMap from "@/components/OverviewMap";
-import Button from "@/components/Button";
 import FutureInterestAddDialog from "@/components/FutureInterestAddDialog";
+import type { AddedFieldPayload } from "@/components/AddFieldSelect";
 import FutureInterestCard from "./FutureInterestCard";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
-import type { FutureInterestItem } from "@/lib/futureInterest";
+import type { FutureInterestViewItem } from "@/lib/futureInterest";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
-import type { OverviewPin } from "@/lib/types";
+import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./FutureInterestPage.module.css";
 
 export interface FutureInterestPageProps {
   categorySlug: SiteCategorySlug;
   categoryLabel: string;
-  initialItems: FutureInterestItem[];
+  initialItems: FutureInterestViewItem[];
+  initialFieldDefs: FieldDef[];
   /** Trip slug for EntryCard geocode lookups (admin session). */
   geocodeTripSlug?: string;
 }
@@ -24,13 +25,13 @@ export default function FutureInterestPage({
   categorySlug,
   categoryLabel,
   initialItems,
+  initialFieldDefs,
   geocodeTripSlug,
 }: FutureInterestPageProps) {
   const homeActions = useHomeActions();
   const [items, setItems] = useState(initialItems);
+  const [fieldDefs, setFieldDefs] = useState(initialFieldDefs);
   const [countryFilter, setCountryFilter] = useState("all");
-  const [showVisited, setShowVisited] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -38,21 +39,49 @@ export default function FutureInterestPage({
   }, [initialItems]);
 
   useEffect(() => {
+    setFieldDefs(initialFieldDefs);
+  }, [initialFieldDefs]);
+
+  function handleFieldDefsChanged(field: AddedFieldPayload) {
+    setFieldDefs((prev) => {
+      if (prev.some((f) => f.key === field.key)) return prev;
+      return [
+        ...prev,
+        {
+          id: field.key,
+          section_id: "",
+          key: field.key,
+          label: field.label,
+          field_type: field.fieldType,
+          storage: "jsonb",
+          core_column: null,
+          options: field.options || null,
+          sort_order: prev.length,
+          show_on_overview: field.showOnOverview,
+          required: field.required,
+        },
+      ];
+    });
+  }
+
+  useEffect(() => {
     const setActions = homeActions?.setCategoryActions;
     if (!setActions) return;
     setActions(
       <FutureInterestAddDialog
         categorySlug={categorySlug}
+        fieldDefs={fieldDefs}
+        onFieldDefsChanged={handleFieldDefsChanged}
         onAdded={(item) => {
           if (item.category_slug === categorySlug) {
-            setItems((prev) => [item, ...prev]);
+            setItems((prev) => [{ ...item, kind: "manual" as const }, ...prev]);
           }
           setMessage("Added.");
         }}
       />
     );
     return () => setActions(null);
-  }, [homeActions?.setCategoryActions, categorySlug]);
+  }, [homeActions?.setCategoryActions, categorySlug, fieldDefs]);
 
   const countries = useMemo(() => {
     const set = new Set<string>();
@@ -64,11 +93,11 @@ export default function FutureInterestPage({
 
   const visible = useMemo(() => {
     return items.filter((item) => {
-      if (!showVisited && item.visited) return false;
+      if (item.visited) return false;
       if (countryFilter !== "all" && (item.country || "") !== countryFilter) return false;
       return true;
     });
-  }, [items, countryFilter, showVisited]);
+  }, [items, countryFilter]);
 
   // EntryCard anchors are #listing-<id> — match so map pins jump correctly.
   const pins: OverviewPin[] = useMemo(
@@ -82,35 +111,20 @@ export default function FutureInterestPage({
     [visible]
   );
 
-  async function importFromOptions() {
-    setImporting(true);
-    setMessage("");
-    try {
-      const res = await fetch("/api/future-interest/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ categorySlug }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Import failed");
-      const listRes = await fetch(`/api/future-interest?category=${categorySlug}&includeVisited=1`);
-      const listData = await listRes.json();
-      if (listRes.ok) setItems(listData.items || []);
-      setMessage(data.imported === 0 ? "Nothing new to import." : `Imported ${data.imported}.`);
-    } catch (err) {
-      setMessage((err as Error).message);
-    } finally {
-      setImporting(false);
+  function handleUpdated(item: FutureInterestViewItem) {
+    if (item.visited) {
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      return;
     }
-  }
-
-  function handleUpdated(item: FutureInterestItem) {
     setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
   }
 
   async function removeItem(id: string) {
-    const res = await fetch(`/api/future-interest/${id}`, { method: "DELETE" });
-    if (!res.ok) return;
+    const existing = items.find((i) => i.id === id);
+    if (existing?.kind === "manual") {
+      const res = await fetch(`/api/future-interest/${id}`, { method: "DELETE" });
+      if (!res.ok) return;
+    }
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
@@ -132,13 +146,6 @@ export default function FutureInterestPage({
               ))}
             </select>
           </label>
-          <label className={styles["check"]}>
-            <input type="checkbox" checked={showVisited} onChange={(e) => setShowVisited(e.target.checked)} />
-            Show visited
-          </label>
-          <Button variant="secondary" size="sm" onClick={importFromOptions} disabled={importing}>
-            {importing ? "Importing…" : "Bring in from Options"}
-          </Button>
         </div>
       </div>
       {message ? <p className={styles["message"]}>{message}</p> : null}
@@ -151,15 +158,16 @@ export default function FutureInterestPage({
 
       {visible.length === 0 ? (
         <p className={styles["empty"]}>
-          Nothing here yet — use + Add in the nav, or bring in unvisited Options from your trips.
+          Nothing here yet — unvisited Options from your trips show up automatically, or use + Add in the nav.
         </p>
       ) : (
         <ul className={classNames(styles["list"], gridClass)}>
           {visible.map((item) => (
-            <li key={item.id}>
+            <li key={`${item.kind}-${item.id}`}>
               <FutureInterestCard
                 item={item}
                 categorySlug={categorySlug}
+                initialFieldDefs={fieldDefs}
                 geocodeTripSlug={geocodeTripSlug}
                 onUpdated={handleUpdated}
                 onRemove={removeItem}

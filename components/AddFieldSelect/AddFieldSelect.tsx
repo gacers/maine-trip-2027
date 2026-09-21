@@ -9,19 +9,28 @@ import styles from "./AddFieldSelect.module.css";
 const FIELD_TYPES: FieldType[] = ["text", "textarea", "url", "image_url", "number", "count", "price", "select", "boolean", "date"];
 const CREATE_NEW_VALUE = "__create_new__";
 
-export interface AddFieldSelectProps {
-  tripSlug: string;
-  sectionId: string;
-  /** This section's own current field keys — an already-added one
-   * isn't offered again, same as FieldDefsEditor's own
-   * availableTemplates filter. */
-  existingKeys: string[];
+export interface AddedFieldPayload {
+  key: string;
+  label: string;
+  fieldType: FieldType;
+  showOnOverview: boolean;
+  required: boolean;
+  options?: { choices?: string[]; aliases?: string[] } | null;
 }
 
-// Same key transform FieldDefsEditor's own Key input uses, applied
-// here to a label instead of typed directly — a field created from
-// this compact picker skips a separate Key input, so the key is
-// derived once at creation time instead.
+export interface AddFieldSelectProps {
+  /** Trip section mode — posts to /api/trips/.../add-field and refreshes. */
+  tripSlug?: string;
+  sectionId?: string;
+  /** Site-category mode (Future Interest) — posts to /api/field-templates
+   * so the field lands on every trip section in that category too. */
+  categorySlug?: string;
+  existingKeys: string[];
+  /** Called after a successful add in category mode (parent updates its
+   * fieldDefs list). Ignored in trip/section mode (router.refresh). */
+  onFieldAdded?: (field: AddedFieldPayload) => void;
+}
+
 function slugifyKey(label: string): string {
   return label
     .toLowerCase()
@@ -31,31 +40,26 @@ function slugifyKey(label: string): string {
     .replace(/-/g, "_");
 }
 
-// "+ Add existing field..." / "+ Create new field..." for a section
-// that's missing one while actually editing (or adding) an entry that
-// could use it right now (confirmed live as a real need: checking a
-// Food & Drink type-tag box that hasn't been added to THIS section
-// yet used to mean leaving the entry, opening Edit Section, adding it
-// there via FieldDefsEditor's own picker, then coming back). The
-// "existing" list is the same one (/api/field-templates), same
-// "{label} (field_type)" format; "Create new" opens the same
-// label/type/choices shape FieldDefsEditor's own blank-field row
-// offers, just without a separate Key input (derived from the label
-// instead) or a Required checkbox (FieldDefsEditor doesn't actually
-// expose one either). Either path persists straight to the section's
-// own field_defs immediately — there's no separate section-level Save
-// step to defer to from inside an entry's own form — and refreshes
-// the page so the new field's own input appears right here.
-export default function AddFieldSelect({ tripSlug, sectionId, existingKeys }: AddFieldSelectProps) {
+// "+ Add existing field..." / "+ Create new field..." — same control on
+// trip EntryCards and Future Interest. Trip mode writes one section's
+// field_defs; category mode writes the shared template + every section
+// in that site category so types stay in sync.
+export default function AddFieldSelect({
+  tripSlug,
+  sectionId,
+  categorySlug,
+  existingKeys,
+  onFieldAdded,
+}: AddFieldSelectProps) {
   const router = useRouter();
   const [templates, setTemplates] = useState<CustomFieldTemplate[]>([]);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [newLabel, setNewLabel] = useState("");
-  const [newType, setNewType] = useState<FieldType>("text");
+  const [newType, setNewType] = useState<FieldType>(categorySlug ? "boolean" : "text");
   const [newOptionsText, setNewOptionsText] = useState("");
-  const [newOverview, setNewOverview] = useState(false);
+  const [newOverview, setNewOverview] = useState(!!categorySlug);
 
   useEffect(() => {
     fetch("/api/field-templates", { cache: "no-store" })
@@ -66,17 +70,22 @@ export default function AddFieldSelect({ tripSlug, sectionId, existingKeys }: Ad
 
   const availableTemplates = templates.filter((t) => !existingKeys.includes(t.field_key));
 
-  async function postField(field: {
-    key: string;
-    label: string;
-    fieldType: FieldType;
-    showOnOverview: boolean;
-    required: boolean;
-    options?: { choices?: string[]; aliases?: string[] } | null;
-  }) {
+  async function postField(field: AddedFieldPayload) {
     setAdding(true);
     setError("");
     try {
+      if (categorySlug) {
+        const res = await fetch("/api/field-templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ categorySlug, ...field }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Add failed");
+        onFieldAdded?.(field);
+        return true;
+      }
+      if (!tripSlug || !sectionId) throw new Error("Missing trip/section");
       const res = await fetch(`/api/trips/${tripSlug}/sections/add-field`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,13 +128,20 @@ export default function AddFieldSelect({ tripSlug, sectionId, existingKeys }: Ad
         : newType === "count" && newOptionsText.trim()
           ? { aliases: newOptionsText.split(",").map((s) => s.trim()).filter(Boolean) }
           : undefined;
-    const ok = await postField({ key, label, fieldType: newType, showOnOverview: newOverview, required: false, options });
+    const ok = await postField({
+      key,
+      label,
+      fieldType: newType,
+      showOnOverview: newOverview,
+      required: false,
+      options,
+    });
     if (ok) {
       setCreating(false);
       setNewLabel("");
-      setNewType("text");
+      setNewType(categorySlug ? "boolean" : "text");
       setNewOptionsText("");
-      setNewOverview(false);
+      setNewOverview(!!categorySlug);
     }
   }
 

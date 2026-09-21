@@ -1,12 +1,8 @@
 import { nanoid } from "nanoid";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
-import { getCatalogForCategory } from "@/lib/catalog";
+import { getCatalogForCategory, type CatalogItem } from "@/lib/catalog";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
-import {
-  ACTIVITIES_TYPE_FIELD_DEFS,
-  FOOD_DRINK_TYPE_FIELD_DEFS,
-  type TemplateFieldDef,
-} from "@/lib/sectionTemplates";
+import type { ClientEntry } from "@/lib/types";
 
 export interface FutureInterestItem {
   id: string;
@@ -25,6 +21,18 @@ export interface FutureInterestItem {
   updated_at: string;
 }
 
+/** Unified FI list row — live Options references + manually added rows. */
+export interface FutureInterestViewItem extends FutureInterestItem {
+  kind: "catalog" | "manual";
+  /** Catalog-backed: PATCH path into the source trip Options entry. */
+  tripSlug?: string | null;
+  navGroupSlug?: string | null;
+  sectionSlug?: string | null;
+  /** Catalog-backed: notes/concerns live on the trip entry. */
+  entryNotes?: string | null;
+  entryConcerns?: string | null;
+}
+
 export interface FutureInterestInput {
   categorySlug: SiteCategorySlug;
   title?: string | null;
@@ -38,6 +46,83 @@ export interface FutureInterestInput {
   sourceEntryId?: string | null;
 }
 
+const CLIENT_ENTRY_CORE = new Set([
+  "id",
+  "sectionId",
+  "tripId",
+  "rank",
+  "status",
+  "archiveReason",
+  "notes",
+  "concerns",
+  "title",
+  "url",
+  "posterImage",
+  "description",
+  "lat",
+  "lng",
+  "country",
+  "extraMarkers",
+  "groupLabel",
+  "createdAt",
+  "updatedAt",
+  "visited",
+  "visitedDate",
+  "importSourceEntryId",
+  "averageScore",
+  "ratingCount",
+  "myScore",
+]);
+
+function entryFieldData(entry: ClientEntry): Record<string, unknown> {
+  const data: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(entry)) {
+    if (CLIENT_ENTRY_CORE.has(key)) continue;
+    if (value === undefined) continue;
+    data[key] = value;
+  }
+  return data;
+}
+
+function parseHref(href: string): { tripSlug: string; navGroupSlug: string; sectionSlug: string } | null {
+  const path = href.replace(/^\//, "").split("#")[0];
+  const [tripSlug, navGroupSlug, sectionSlug] = path.split("/");
+  if (!tripSlug || !navGroupSlug || !sectionSlug) return null;
+  return { tripSlug, navGroupSlug, sectionSlug };
+}
+
+function catalogToViewItem(c: CatalogItem, categorySlug: SiteCategorySlug): FutureInterestViewItem {
+  const e = c.entry;
+  const route = parseHref(c.href);
+  return {
+    id: e.id,
+    kind: "catalog",
+    category_slug: categorySlug,
+    title: e.title,
+    url: e.url,
+    poster_image: e.posterImage,
+    description: e.description,
+    lat: e.lat,
+    lng: e.lng,
+    data: entryFieldData(e),
+    country: e.country || c.country,
+    source_entry_id: e.id,
+    visited: false,
+    created_at: e.createdAt,
+    updated_at: e.updatedAt,
+    tripSlug: route?.tripSlug ?? null,
+    navGroupSlug: route?.navGroupSlug ?? null,
+    sectionSlug: route?.sectionSlug ?? null,
+    entryNotes: e.notes,
+    entryConcerns: e.concerns,
+  };
+}
+
+function manualToViewItem(row: FutureInterestItem): FutureInterestViewItem {
+  return { ...row, kind: "manual" };
+}
+
+/** DB-only rows (manual adds). Prefer listFutureInterestView for the page. */
 export async function listFutureInterest(
   categorySlug: SiteCategorySlug,
   { includeVisited = false }: { includeVisited?: boolean } = {}
@@ -50,6 +135,52 @@ export async function listFutureInterest(
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data || []) as FutureInterestItem[];
+}
+
+/** Drop leftover copies from the old "Bring in from Options" import —
+ * Options now appear live by reference. */
+async function pruneCatalogCopies(categorySlug: SiteCategorySlug): Promise<void> {
+  const supabase = supabaseServiceRole();
+  const { error } = await supabase
+    .from("future_interest_items")
+    .delete()
+    .eq("category_slug", categorySlug)
+    .not("source_entry_id", "is", null);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Future Interest list: every unvisited Options-tier catalog place
+ * (live reference) plus manually added FI-only rows. Visited Options
+ * drop out automatically; marking visited on a row removes it.
+ */
+export async function listFutureInterestView(categorySlug: SiteCategorySlug): Promise<FutureInterestViewItem[]> {
+  await pruneCatalogCopies(categorySlug);
+
+  const [catalog, manualRows] = await Promise.all([
+    getCatalogForCategory(categorySlug),
+    listFutureInterest(categorySlug, { includeVisited: false }),
+  ]);
+
+  const catalogItems = catalog
+    .filter((c) => c.tiers.includes("options") && !c.entry.visited)
+    .map((c) => catalogToViewItem(c, categorySlug));
+
+  const catalogUrls = new Set(catalogItems.map((c) => c.url).filter(Boolean));
+  const catalogIds = new Set(catalogItems.map((c) => c.source_entry_id).filter(Boolean));
+
+  // Manual rows only — skip any that duplicate a live Options card.
+  const manualItems = manualRows
+    .filter((row) => {
+      if (row.source_entry_id && catalogIds.has(row.source_entry_id)) return false;
+      if (row.url && catalogUrls.has(row.url)) return false;
+      return true;
+    })
+    .map(manualToViewItem);
+
+  const items = [...catalogItems, ...manualItems];
+  items.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+  return items;
 }
 
 export async function createFutureInterestItem(input: FutureInterestInput): Promise<FutureInterestItem> {
@@ -103,60 +234,4 @@ export async function deleteFutureInterestItem(id: string): Promise<void> {
   const supabase = supabaseServiceRole();
   const { error } = await supabase.from("future_interest_items").delete().eq("id", id);
   if (error) throw new Error(error.message);
-}
-
-function typeDataFromEntry(
-  categorySlug: SiteCategorySlug,
-  entry: Record<string, unknown>
-): Record<string, unknown> {
-  const defs: TemplateFieldDef[] =
-    categorySlug === "food-drink"
-      ? FOOD_DRINK_TYPE_FIELD_DEFS
-      : categorySlug === "activities"
-        ? ACTIVITIES_TYPE_FIELD_DEFS
-        : [];
-  const data: Record<string, unknown> = {};
-  for (const f of defs) {
-    if (entry[f.key] === true || entry[f.key] === "true") data[f.key] = true;
-  }
-  return data;
-}
-
-// Import unvisited Options-tier catalog entries for this category that
-// aren't already linked via source_entry_id (or matching URL).
-export async function importUnvisitedOptions(categorySlug: SiteCategorySlug): Promise<{ imported: number }> {
-  const catalog = await getCatalogForCategory(categorySlug);
-  const candidates = catalog.filter((c) => c.tiers.includes("options") && !c.entry.visited);
-
-  const supabase = supabaseServiceRole();
-  const { data: existing, error } = await supabase
-    .from("future_interest_items")
-    .select("source_entry_id, url")
-    .eq("category_slug", categorySlug);
-  if (error) throw new Error(error.message);
-
-  const existingSourceIds = new Set((existing || []).map((r) => r.source_entry_id).filter(Boolean));
-  const existingUrls = new Set((existing || []).map((r) => r.url).filter(Boolean));
-
-  let imported = 0;
-  for (const c of candidates) {
-    if (existingSourceIds.has(c.entry.id)) continue;
-    if (c.entry.url && existingUrls.has(c.entry.url)) continue;
-    await createFutureInterestItem({
-      categorySlug,
-      title: c.entry.title,
-      url: c.entry.url,
-      posterImage: c.entry.posterImage,
-      description: c.entry.description,
-      lat: c.entry.lat,
-      lng: c.entry.lng,
-      country: c.entry.country || c.country,
-      data: typeDataFromEntry(categorySlug, c.entry as unknown as Record<string, unknown>),
-      sourceEntryId: c.entry.id,
-    });
-    imported += 1;
-    if (c.entry.url) existingUrls.add(c.entry.url);
-    existingSourceIds.add(c.entry.id);
-  }
-  return { imported };
 }

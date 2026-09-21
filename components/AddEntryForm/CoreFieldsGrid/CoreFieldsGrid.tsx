@@ -1,5 +1,5 @@
 import FieldInput from "@/components/FieldInput";
-import AddFieldSelect from "@/components/AddFieldSelect";
+import AddFieldSelect, { type AddedFieldPayload } from "@/components/AddFieldSelect";
 import type { FieldDef } from "@/lib/types";
 import styles from "./CoreFieldsGrid.module.css";
 
@@ -40,6 +40,9 @@ export interface CoreFieldsGridProps {
    * control entirely rather than rendering it disabled. */
   tripSlug?: string;
   sectionId?: string;
+  /** Future Interest — same AddFieldSelect, writes site-category fields. */
+  categorySlug?: string;
+  onFieldAdded?: (field: AddedFieldPayload) => void;
 }
 
 // Title/photo/description/section-specific fields/coordinates/notes/
@@ -62,7 +65,10 @@ export default function CoreFieldsGrid({
   disabled = false,
   tripSlug,
   sectionId,
+  categorySlug,
+  onFieldAdded,
 }: CoreFieldsGridProps) {
+  const canAddField = !disabled && !!(onFieldAdded || (tripSlug && sectionId));
   return (
     <>
       <label className={styles["field"]}>
@@ -95,7 +101,7 @@ export default function CoreFieldsGrid({
         />
       </label>
 
-      {(fieldDefs.length > 0 || (!disabled && tripSlug && sectionId)) && (
+      {(fieldDefs.length > 0 || canAddField) && (
         <div className={styles["field-defs-grid"]}>
           {fieldDefs.map((f) => (
             <FieldInput
@@ -110,8 +116,24 @@ export default function CoreFieldsGrid({
           {fieldDefs.some((f) => f.field_type === "count") && !disabled && (
             <p className={styles["count-hint"]}>Leave count fields blank to auto-fill from the description.</p>
           )}
-          {!disabled && tripSlug && sectionId && (
-            <AddFieldSelect tripSlug={tripSlug} sectionId={sectionId} existingKeys={fieldDefs.map((f) => f.key)} />
+          {canAddField && (
+            <AddFieldSelect
+              tripSlug={tripSlug}
+              sectionId={sectionId}
+              categorySlug={categorySlug}
+              existingKeys={fieldDefs.map((f) => f.key)}
+              onFieldAdded={
+                onFieldAdded
+                  ? (field) => {
+                      onFieldAdded(field);
+                      onDataChange({
+                        ...data,
+                        [field.key]: field.fieldType === "boolean" ? true : "",
+                      });
+                    }
+                  : undefined
+              }
+            />
           )}
         </div>
       )}

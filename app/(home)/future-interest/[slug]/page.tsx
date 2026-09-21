@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 import { canAccessSiteCatalog } from "@/lib/auth";
-import { listFutureInterest } from "@/lib/futureInterest";
+import { listFutureInterestView } from "@/lib/futureInterest";
 import { getAllTrips } from "@/lib/sections";
+import {
+  getFieldDefsForSiteCategory,
+  syncFutureInterestTypesToCategory,
+} from "@/lib/siteCategoryFields";
 import { isSiteCategorySlug, siteCategoryLabel } from "@/lib/siteCategories";
 import FutureInterestPage from "@/components/FutureInterestPage";
 
@@ -22,12 +26,23 @@ export default async function FutureInterestSlugPage({ params }: { params: Promi
     );
   }
 
-  const [items, trips] = await Promise.all([listFutureInterest(slug, { includeVisited: true }), getAllTrips()]);
+  // Promote any FI-only type tags (e.g. Whisky Bar created before the
+  // shared AddFieldSelect path) onto trip section field_defs.
+  if (slug === "food-drink" || slug === "activities") {
+    await syncFutureInterestTypesToCategory(slug);
+  }
+
+  const [items, trips, fieldDefs] = await Promise.all([
+    listFutureInterestView(slug),
+    getAllTrips(),
+    getFieldDefsForSiteCategory(slug),
+  ]);
   return (
     <FutureInterestPage
       categorySlug={slug}
       categoryLabel={siteCategoryLabel(slug)}
       initialItems={items}
+      initialFieldDefs={fieldDefs}
       geocodeTripSlug={trips[0]?.slug}
     />
   );

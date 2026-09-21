@@ -110,6 +110,16 @@ export interface EntryCardProps {
    * & Drink/Activities entries never pass this at all. */
   primaryDateRange?: DateRange | null;
   backupDateRange?: DateRange | null;
+  /** Future Interest — enable AddFieldSelect without a trip section. */
+  categorySlug?: string;
+  onFieldAdded?: (field: {
+    key: string;
+    label: string;
+    fieldType: import("@/lib/types").FieldType;
+    showOnOverview: boolean;
+    required: boolean;
+    options?: { choices?: string[]; aliases?: string[] } | null;
+  }) => void;
 }
 
 export default function EntryCard({
@@ -140,6 +150,8 @@ export default function EntryCard({
   nightsEstimate = null,
   showVisitedControl = false,
   collapsible = false,
+  categorySlug,
+  onFieldAdded,
 }: EntryCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<EntryDraft | null>(null);
@@ -512,7 +524,9 @@ export default function EntryCard({
                   locked={!!entry.importSourceEntryId}
                   importSource={importSource}
                   tripSlug={canManage ? tripSlug : undefined}
-                  sectionId={entry.sectionId}
+                  sectionId={entry.sectionId || undefined}
+                  categorySlug={categorySlug}
+                  onFieldAdded={onFieldAdded}
                 />
               </div>
             )}

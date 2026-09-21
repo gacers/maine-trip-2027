@@ -1,0 +1,208 @@
+import { supabaseServiceRole } from "@/lib/supabaseServer";
+import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
+import {
+  ACTIVITIES_TYPE_FIELD_DEFS,
+  FOOD_DRINK_TYPE_FIELD_DEFS,
+  type TemplateFieldDef,
+} from "@/lib/sectionTemplates";
+import type { SiteCategorySlug } from "@/lib/siteCategories";
+import type { FieldDef, FieldType } from "@/lib/types";
+
+function asFieldDef(f: TemplateFieldDef, sectionId = ""): FieldDef {
+  return {
+    id: f.key,
+    section_id: sectionId,
+    key: f.key,
+    label: f.label,
+    field_type: f.field_type,
+    storage: "jsonb",
+    core_column: null,
+    options: f.options || null,
+    sort_order: 0,
+    show_on_overview: f.show_on_overview,
+    required: false,
+  };
+}
+
+function baseDefsForCategory(slug: SiteCategorySlug): TemplateFieldDef[] {
+  if (slug === "food-drink") {
+    return [
+      { key: "closed", label: "Closed", field_type: "boolean", show_on_overview: true },
+      ...FOOD_DRINK_TYPE_FIELD_DEFS,
+    ];
+  }
+  if (slug === "activities") {
+    return [
+      { key: "closed", label: "Closed", field_type: "boolean", show_on_overview: true },
+      ...ACTIVITIES_TYPE_FIELD_DEFS,
+    ];
+  }
+  return [];
+}
+
+/** Promote boolean keys that only live on Future Interest item.data
+ * (created before AddFieldSelect synced to templates) onto the shared
+ * category schema so trip cards pick them up too. */
+export async function syncFutureInterestTypesToCategory(categorySlug: SiteCategorySlug): Promise<void> {
+  const supabase = supabaseServiceRole();
+  const { data: items, error } = await supabase
+    .from("future_interest_items")
+    .select("data")
+    .eq("category_slug", categorySlug);
+  if (error) throw new Error(error.message);
+
+  const known = new Set((await getFieldDefsForSiteCategory(categorySlug)).map((f) => f.key));
+  const reserved = new Set(["__notes", "__concerns"]);
+
+  for (const item of items || []) {
+    const data = (item.data || {}) as Record<string, unknown>;
+    for (const [key, value] of Object.entries(data)) {
+      if (reserved.has(key) || known.has(key)) continue;
+      if (value !== true && value !== "true") continue;
+      const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      await addFieldToSiteCategory({
+        categorySlug,
+        key,
+        label,
+        fieldType: "boolean",
+        showOnOverview: true,
+        required: false,
+      });
+      known.add(key);
+    }
+  }
+}
+
+/** Union of field_defs used on any trip section in this site category —
+ * so Future Interest shows the same type checkboxes as trip cards. */
+export async function getFieldDefsForSiteCategory(categorySlug: SiteCategorySlug): Promise<FieldDef[]> {
+  const supabase = supabaseServiceRole();
+  const byKey = new Map<string, FieldDef>();
+
+  for (const f of baseDefsForCategory(categorySlug)) {
+    byKey.set(f.key, asFieldDef(f));
+  }
+
+  const { data: navGroups, error: ngError } = await supabase
+    .from("nav_groups")
+    .select("id")
+    .eq("slug", categorySlug);
+  if (ngError) throw new Error(ngError.message);
+  const navIds = (navGroups || []).map((g) => g.id);
+  if (navIds.length === 0) return [...byKey.values()];
+
+  const { data: sections, error: secError } = await supabase
+    .from("sections")
+    .select("id")
+    .in("nav_group_id", navIds)
+    .eq("enabled", true);
+  if (secError) throw new Error(secError.message);
+  const sectionIds = (sections || []).map((s) => s.id);
+  if (sectionIds.length === 0) return [...byKey.values()];
+
+  const { data: defs, error: defError } = await supabase
+    .from("field_defs")
+    .select("*")
+    .in("section_id", sectionIds)
+    .order("sort_order", { ascending: true });
+  if (defError) throw new Error(defError.message);
+
+  for (const row of (defs || []) as FieldDef[]) {
+    if (!byKey.has(row.key)) byKey.set(row.key, { ...row, section_id: "", id: row.key });
+  }
+
+  return [...byKey.values()];
+}
+
+export interface SiteCategoryFieldInput {
+  categorySlug: SiteCategorySlug;
+  key: string;
+  label: string;
+  fieldType: FieldType;
+  showOnOverview?: boolean;
+  required?: boolean;
+  options?: { choices?: string[]; aliases?: string[] } | null;
+}
+
+/** Upsert the shared field template and add the field_def to every
+ * enabled section in this site category — same outcome as using
+ * "+ Add existing/Create new field" on a trip card, visible everywhere. */
+export async function addFieldToSiteCategory(input: SiteCategoryFieldInput): Promise<FieldDef> {
+  const supabase = supabaseServiceRole();
+  const key = input.key.trim();
+  const label = input.label.trim();
+  if (!key || !label) throw new Error("key and label are required");
+
+  // Template capture — no specific trip; use empty trip id only for the
+  // created_from column when inserting (nullable on update path).
+  const { data: anyTrip } = await supabase.from("trips").select("id").limit(1).maybeSingle();
+  await upsertCustomFieldTemplate(supabase, anyTrip?.id || "", {
+    key,
+    label,
+    field_type: input.fieldType,
+    show_on_overview: input.showOnOverview === true,
+    required: input.required === true,
+    options: input.options || undefined,
+  });
+
+  const { data: navGroups, error: ngError } = await supabase
+    .from("nav_groups")
+    .select("id")
+    .eq("slug", input.categorySlug);
+  if (ngError) throw new Error(ngError.message);
+  const navIds = (navGroups || []).map((g) => g.id);
+
+  if (navIds.length > 0) {
+    const { data: sections, error: secError } = await supabase
+      .from("sections")
+      .select("id")
+      .in("nav_group_id", navIds)
+      .eq("enabled", true);
+    if (secError) throw new Error(secError.message);
+
+    for (const section of sections || []) {
+      const { data: existing } = await supabase
+        .from("field_defs")
+        .select("id")
+        .eq("section_id", section.id)
+        .eq("key", key)
+        .maybeSingle();
+      if (existing) continue;
+
+      const { data: maxRow } = await supabase
+        .from("field_defs")
+        .select("sort_order")
+        .eq("section_id", section.id)
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const nextSort = (maxRow?.sort_order ?? -1) + 1;
+
+      await supabase.from("field_defs").insert({
+        section_id: section.id,
+        key,
+        label,
+        field_type: input.fieldType,
+        storage: "jsonb",
+        show_on_overview: input.showOnOverview === true,
+        required: input.required === true,
+        options: input.options || null,
+        sort_order: nextSort,
+      });
+    }
+  }
+
+  return {
+    id: key,
+    section_id: "",
+    key,
+    label,
+    field_type: input.fieldType,
+    storage: "jsonb",
+    core_column: null,
+    options: input.options || null,
+    sort_order: 0,
+    show_on_overview: input.showOnOverview === true,
+    required: input.required === true,
+  };
+}

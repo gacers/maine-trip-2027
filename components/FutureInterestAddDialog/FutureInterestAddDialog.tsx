@@ -6,6 +6,7 @@ import Button from "@/components/Button";
 import PlacePicker from "@/components/PlacePicker";
 import UrlEntryForm from "@/components/AddEntryForm/UrlEntryForm";
 import CoreFieldsGrid, { type CoreFields } from "@/components/AddEntryForm/CoreFieldsGrid";
+import type { AddedFieldPayload } from "@/components/AddFieldSelect";
 import {
   isPlainUrl,
   isGoogleMapsShareUrl,
@@ -15,21 +16,19 @@ import {
   parseGoogleMapsUrl,
 } from "@/lib/googleUrlHelpers";
 import { searchPlacesByText } from "@/lib/googlePlaces";
-import {
-  ACTIVITIES_TYPE_FIELD_DEFS,
-  FOOD_DRINK_TYPE_FIELD_DEFS,
-  type TemplateFieldDef,
-} from "@/lib/sectionTemplates";
 import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
 import type { FutureInterestItem } from "@/lib/futureInterest";
 import type { FieldDef, PlaceResult } from "@/lib/types";
-import AddTypeField from "@/components/FutureInterestPage/AddTypeField";
 import dialogStyles from "@/components/AddEntryDialog/AddEntryDialog.module.css";
 import formStyles from "@/components/AddEntryForm/AddEntryForm.module.css";
 
 export interface FutureInterestAddDialogProps {
   categorySlug: SiteCategorySlug;
+  /** Same field defs trip cards use for this category (types + extras). */
+  fieldDefs: FieldDef[];
   onAdded: (item: FutureInterestItem) => void;
+  /** Parent refreshes shared fieldDefs after a type is created here. */
+  onFieldDefsChanged?: (field: AddedFieldPayload) => void;
 }
 
 const CORE_INITIAL: CoreFields = {
@@ -51,42 +50,42 @@ const PLACEHOLDERS: Record<SiteCategorySlug, string> = {
   wineries: "Paste a link for a winery...",
 };
 
-function asFieldDef(f: TemplateFieldDef): FieldDef {
+type Phase = "idle" | "loading" | "editing" | "picking" | "saving";
+
+function asLocalFieldDef(field: AddedFieldPayload): FieldDef {
   return {
-    id: f.key,
+    id: field.key,
     section_id: "",
-    key: f.key,
-    label: f.label,
-    field_type: f.field_type,
+    key: field.key,
+    label: field.label,
+    field_type: field.fieldType,
     storage: "jsonb",
     core_column: null,
-    options: f.options || null,
+    options: field.options || null,
     sort_order: 0,
-    show_on_overview: f.show_on_overview,
-    required: false,
+    show_on_overview: field.showOnOverview,
+    required: field.required,
   };
 }
 
-type Phase = "idle" | "loading" | "editing" | "picking" | "saving";
-
 // Same Add dialog chrome + UrlEntryForm / Places / core fields as trip
 // section Add — saves to Future Interest for the current category tab
-// instead of a trip section. Food & Drink also picks type tags here.
-export default function FutureInterestAddDialog({ categorySlug, onAdded }: FutureInterestAddDialogProps) {
+// instead of a trip section. Type pickers use the shared AddFieldSelect
+// so new types land on trip cards too.
+export default function FutureInterestAddDialog({
+  categorySlug,
+  fieldDefs: initialFieldDefs,
+  onAdded,
+  onFieldDefsChanged,
+}: FutureInterestAddDialogProps) {
   const categoryLabel = siteCategoryLabel(categorySlug);
   const showTypes = categorySlug === "food-drink" || categorySlug === "activities";
-  const baseTypeDefs =
-    categorySlug === "food-drink"
-      ? FOOD_DRINK_TYPE_FIELD_DEFS.map(asFieldDef)
-      : categorySlug === "activities"
-        ? ACTIVITIES_TYPE_FIELD_DEFS.map(asFieldDef)
-        : [];
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [fields, setFields] = useState<CoreFields>(CORE_INITIAL);
   const [typeData, setTypeData] = useState<Record<string, unknown>>({});
-  const [extraTypeDefs, setExtraTypeDefs] = useState<FieldDef[]>([]);
+  const [fieldDefs, setFieldDefs] = useState(initialFieldDefs);
   const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -94,7 +93,9 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
   const [address, setAddress] = useState("");
   const [geocodeMsg, setGeocodeMsg] = useState("");
 
-  const typeFieldDefs = [...baseTypeDefs, ...extraTypeDefs];
+  useEffect(() => {
+    setFieldDefs(initialFieldDefs);
+  }, [initialFieldDefs]);
 
   useEffect(() => {
     if (!open) reset();
@@ -106,7 +107,7 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
     setPhase("idle");
     setFields(CORE_INITIAL);
     setTypeData({});
-    setExtraTypeDefs([]);
+    setFieldDefs(initialFieldDefs);
     setPlaceResults([]);
     setErrorMsg("");
     setWarnings([]);
@@ -122,6 +123,11 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
     setCookieWarning(null);
     setErrorMsg("");
     setPhase("editing");
+  }
+
+  function handleFieldAdded(field: AddedFieldPayload) {
+    setFieldDefs((prev) => (prev.some((f) => f.key === field.key) ? prev : [...prev, asLocalFieldDef(field)]));
+    onFieldDefsChanged?.(field);
   }
 
   async function handlePreview(e: FormEvent) {
@@ -258,6 +264,8 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
     }
   }
 
+  const typeFieldDefs = showTypes ? fieldDefs : [];
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -313,16 +321,9 @@ export default function FutureInterestAddDialog({ categorySlug, onAdded }: Futur
                   onFindCoords={() =>
                     setGeocodeMsg("Enter lat/lng above, or go back and search by place name.")
                   }
+                  categorySlug={showTypes ? categorySlug : undefined}
+                  onFieldAdded={showTypes ? handleFieldAdded : undefined}
                 />
-                {showTypes && (
-                  <AddTypeField
-                    existingKeys={typeFieldDefs.map((f) => f.key)}
-                    onAdd={(field) => {
-                      setExtraTypeDefs((prev) => [...prev, field]);
-                      setTypeData((d) => ({ ...d, [field.key]: true }));
-                    }}
-                  />
-                )}
               </div>
 
               <div className={formStyles["actions"]}>

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSiteEditorAccess } from "@/lib/auth";
-import { createFutureInterestItem, listFutureInterest } from "@/lib/futureInterest";
+import { createFutureInterestItem, listFutureInterestView } from "@/lib/futureInterest";
 import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
 import { isSiteCategorySlug } from "@/lib/siteCategories";
 
@@ -15,10 +15,9 @@ export async function GET(request: NextRequest) {
   if (!isSiteCategorySlug(category)) {
     return NextResponse.json({ error: "category query param required" }, { status: 400 });
   }
-  const includeVisited = request.nextUrl.searchParams.get("includeVisited") === "1";
 
   try {
-    const items = await listFutureInterest(category, { includeVisited });
+    const items = await listFutureInterestView(category);
     return NextResponse.json({ items });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
@@ -58,7 +57,7 @@ export async function POST(request: NextRequest) {
       data: body.data && typeof body.data === "object" ? (body.data as Record<string, unknown>) : {},
       sourceEntryId: typeof body.sourceEntryId === "string" ? body.sourceEntryId : null,
     });
-    return NextResponse.json({ item });
+    return NextResponse.json({ item: { ...item, kind: "manual" as const } });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
