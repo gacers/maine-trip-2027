@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import OverviewMap from "@/components/OverviewMap";
 import Button from "@/components/Button";
+import { assignBadgeVariants, type BadgeVariant } from "@/components/Badge";
+import BadgesRow, { type BadgeItem } from "@/components/BadgesRow";
 import type { CatalogItem, SectionTier } from "@/lib/catalog";
 import type { FieldDef, OverviewPin } from "@/lib/types";
 import styles from "./CatalogPage.module.css";
@@ -12,40 +14,56 @@ export interface CatalogPageProps {
   categorySlug: string;
   categoryLabel: string;
   initialItems: CatalogItem[];
-  /** Boolean type labels (Restaurant, Bar, …) for the card tag line. */
+  /** Boolean type labels (Restaurant, Bar, …) for badge pills. */
   fieldDefs?: FieldDef[];
 }
 
 type TierFilter = "all" | SectionTier;
 
-function catalogStatusLabel(item: CatalogItem): "Visited" | "Option" {
-  if (item.tiers.includes("previously-visited") || item.entry.visited) return "Visited";
-  return "Option";
+function catalogStatusBadge(item: CatalogItem): BadgeItem {
+  if (item.tiers.includes("previously-visited") || item.entry.visited) {
+    return { key: "status-visited", label: "Visited", variant: "neutral" };
+  }
+  return { key: "status-option", label: "Option", variant: "teal" };
 }
 
-function catalogTypeLabels(item: CatalogItem, fieldDefs: FieldDef[]): string[] {
+function catalogTypeBadges(
+  item: CatalogItem,
+  fieldDefs: FieldDef[],
+  badgeVariants: Record<string, BadgeVariant>
+): BadgeItem[] {
   const booleanDefs = fieldDefs.filter((f) => f.field_type === "boolean");
-  const labels: string[] = [];
+  const items: BadgeItem[] = [];
   const known = new Set<string>();
   for (const f of booleanDefs) {
     known.add(f.key);
     const value = item.entry[f.key];
-    if (value === true || value === "true") labels.push(f.label);
+    if (value !== true && value !== "true") continue;
+    items.push({
+      key: f.key,
+      label: f.label,
+      variant: f.key === "closed" ? "closed" : badgeVariants[f.key],
+    });
   }
-  // True booleans on the entry that aren't in shared defs yet.
   for (const [key, value] of Object.entries(item.entry)) {
     if (known.has(key) || key === "visited") continue;
     if (value !== true && value !== "true") continue;
     if (typeof value !== "boolean" && value !== "true") continue;
-    labels.push(key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
+    items.push({
+      key,
+      label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      variant: badgeVariants[key] ?? "neutral",
+    });
   }
-  return labels;
+  return items;
 }
 
-function catalogTagLine(item: CatalogItem, fieldDefs: FieldDef[]): string {
-  const status = catalogStatusLabel(item);
-  const types = catalogTypeLabels(item, fieldDefs);
-  return types.length > 0 ? `${status} - ${types.join(" ")}` : status;
+function catalogBadges(
+  item: CatalogItem,
+  fieldDefs: FieldDef[],
+  badgeVariants: Record<string, BadgeVariant>
+): BadgeItem[] {
+  return [catalogStatusBadge(item), ...catalogTypeBadges(item, fieldDefs, badgeVariants)];
 }
 
 // Cross-trip browse for one category (Stays, Food & Drink, …) — map of
@@ -54,6 +72,14 @@ function catalogTagLine(item: CatalogItem, fieldDefs: FieldDef[]): string {
 export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [] }: CatalogPageProps) {
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
+
+  const badgeVariants = useMemo(
+    () =>
+      assignBadgeVariants(
+        fieldDefs.filter((f) => f.field_type === "boolean" && f.key !== "closed").map((f) => f.key)
+      ),
+    [fieldDefs]
+  );
 
   const countries = useMemo(() => {
     const set = new Set<string>();
@@ -132,7 +158,7 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
                 <div className={styles["thumb-empty"]} />
               )}
               <div className={styles["card-body"]}>
-                <p className={styles["card-tags"]}>{catalogTagLine(item, fieldDefs)}</p>
+                <BadgesRow items={catalogBadges(item, fieldDefs, badgeVariants)} />
                 <div className={styles["card-meta"]}>
                   {item.country ? <span>{item.country}</span> : null}
                   {item.trips.length > 0 ? (

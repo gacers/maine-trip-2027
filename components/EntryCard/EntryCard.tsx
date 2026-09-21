@@ -6,13 +6,13 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import StarRating from "@/components/StarRating";
 import Button from "@/components/Button";
 import { assignBadgeVariants } from "@/components/Badge";
+import BadgesRow from "@/components/BadgesRow";
 import EntryMedia from "@/components/EntryMedia";
 import { useListingMap } from "@/components/ListingMap";
 import { fetchForwardGeocode, fetchReverseAddress } from "@/lib/geocodeClient";
 import { parseExtraMarkers, hasCoords } from "@/lib/listingUtils";
 import { toBullets } from "@/lib/fieldTypes/textarea";
 import { isAddressLike } from "./helpers";
-import EntryBadgesRow from "./EntryBadgesRow";
 import PriceDisplay from "./PriceDisplay";
 import CountsRow, { type CountRow } from "./CountsRow";
 import OverviewFieldsRow, { type OverviewFieldRow } from "./OverviewFieldsRow";
@@ -398,7 +398,13 @@ export default function EntryCard({
       <div className={sectionsClassName}>
         <div className={styles["section"]}>
           {!isCollapsed && activeBooleanFields.length > 0 && (
-            <EntryBadgesRow activeBooleanFields={activeBooleanFields} badgeVariants={badgeVariants} />
+            <BadgesRow
+              items={activeBooleanFields.map((f) => ({
+                key: f.key,
+                label: f.label,
+                variant: f.key === "closed" ? "closed" : badgeVariants[f.key],
+              }))}
+            />
           )}
 
           <div className={styles["header-grid"]}>
