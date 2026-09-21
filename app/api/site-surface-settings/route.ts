@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSiteEditorAccess } from "@/lib/auth";
-import { isSiteCategorySlug, type SiteCategorySlug } from "@/lib/siteCategories";
 import {
+  addSurfaceCategory,
   getSurfaceCategorySettings,
-  setSurfaceCategorySettings,
+  removeSurfaceCategory,
+  setSurfaceCategoryEnabled,
   type CategorySurface,
 } from "@/lib/siteSurfaceSettings";
 
@@ -48,14 +49,40 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "surface=places|future-interests required" }, { status: 400 });
   }
 
-  const raw = Array.isArray(body.enabledCategories) ? body.enabledCategories : [];
-  const enabledCategories = raw.filter(
-    (s): s is SiteCategorySlug => typeof s === "string" && isSiteCategorySlug(s)
-  );
+  const action = typeof body.action === "string" ? body.action : "";
+  const slug = typeof body.slug === "string" ? body.slug.trim() : "";
 
   try {
-    const settings = await setSurfaceCategorySettings(surface, { enabledCategories });
-    return NextResponse.json({ settings });
+    if (action === "add") {
+      const label = typeof body.label === "string" ? body.label.trim() : slug;
+      if (!slug) return NextResponse.json({ error: "slug is required" }, { status: 400 });
+      const settings = await addSurfaceCategory(surface, { slug, label });
+      return NextResponse.json({ settings });
+    }
+    if (action === "setEnabled") {
+      if (!slug) return NextResponse.json({ error: "slug is required" }, { status: 400 });
+      const settings = await setSurfaceCategoryEnabled(surface, slug, body.enabled === true);
+      return NextResponse.json({ settings });
+    }
+    if (action === "remove") {
+      if (!slug) return NextResponse.json({ error: "slug is required" }, { status: 400 });
+      const settings = await removeSurfaceCategory(surface, slug);
+      return NextResponse.json({ settings });
+    }
+
+    // Legacy: replace enabledCategories list (migrate callers).
+    if (Array.isArray(body.enabledCategories)) {
+      const { setSurfaceCategorySettings } = await import("@/lib/siteSurfaceSettings");
+      const labels = body.enabledCategories as string[];
+      const settings = await setSurfaceCategorySettings(surface, {
+        categories: labels
+          .filter((s) => typeof s === "string")
+          .map((s) => ({ slug: s, label: s, enabled: true })),
+      });
+      return NextResponse.json({ settings });
+    }
+
+    return NextResponse.json({ error: "action=add|setEnabled|remove required" }, { status: 400 });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

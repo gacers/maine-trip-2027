@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSiteEditorAccess } from "@/lib/auth";
-import { isSiteCategorySlug, type SiteCategorySlug } from "@/lib/siteCategories";
 import { getSurfaceCategorySettings, setSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
 
 export const dynamic = "force-dynamic";
@@ -32,12 +31,12 @@ export async function PUT(request: NextRequest) {
   }
 
   const raw = Array.isArray(body.enabledCategories) ? body.enabledCategories : [];
-  const enabledCategories = raw.filter(
-    (s): s is SiteCategorySlug => typeof s === "string" && isSiteCategorySlug(s)
-  );
+  const enabledCategories = raw.filter((s): s is string => typeof s === "string");
 
   try {
-    const settings = await setSurfaceCategorySettings("places", { enabledCategories });
+    const settings = await setSurfaceCategorySettings("places", {
+      categories: enabledCategories.map((slug) => ({ slug, label: slug, enabled: true })),
+    });
     return NextResponse.json({ settings });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

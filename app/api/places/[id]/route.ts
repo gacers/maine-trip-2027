@@ -28,7 +28,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if ("lng" in body) patch.lng = body.lng === "" || body.lng == null ? null : Number(body.lng);
   if ("visited" in body) patch.visited = !!body.visited;
   if ("data" in body && body.data && typeof body.data === "object") patch.data = body.data;
-  if (typeof body.categorySlug === "string" && isSiteCategorySlug(body.categorySlug)) {
+  if (typeof body.categorySlug === "string" && typeof body.categorySlug === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(body.categorySlug)) {
     patch.category_slug = body.categorySlug;
   }
 

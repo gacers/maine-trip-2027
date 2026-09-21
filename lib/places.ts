@@ -1,6 +1,5 @@
 import { nanoid } from "nanoid";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
-import type { SiteCategorySlug } from "@/lib/siteCategories";
 
 export interface PlaceItem {
   id: string;
@@ -20,7 +19,7 @@ export interface PlaceItem {
 }
 
 export interface PlaceInput {
-  categorySlug: SiteCategorySlug;
+  categorySlug: string;
   title?: string | null;
   url?: string | null;
   posterImage?: string | null;
@@ -34,7 +33,7 @@ export interface PlaceInput {
 }
 
 /** Manual place rows only — no catalog Options merge. */
-export async function listPlaces(categorySlug: SiteCategorySlug): Promise<PlaceItem[]> {
+export async function listPlaces(categorySlug: string): Promise<PlaceItem[]> {
   const supabase = supabaseServiceRole();
   const { data, error } = await supabase
     .from("place_items")

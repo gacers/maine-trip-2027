@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogClose } from "@/components/Dialog";
 import Button from "@/components/Button";
-import { SITE_CATEGORIES, type SiteCategorySlug } from "@/lib/siteCategories";
+import { SITE_CATEGORIES } from "@/lib/siteCategories";
 import styles from "./SiteStackMobileDrawer.module.css";
 
 function MenuIcon() {
@@ -27,8 +27,8 @@ export interface SiteStackMobileDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   manageHref?: string;
-  placesCategoryTabs?: readonly { slug: SiteCategorySlug; label: string }[];
-  futureInterestsCategoryTabs?: readonly { slug: SiteCategorySlug; label: string }[];
+  placesCategoryTabs?: readonly { slug: string; label: string }[];
+  futureInterestsCategoryTabs?: readonly { slug: string; label: string }[];
 }
 
 // Same Dialog drawer as trip MobileNavDrawer — Trips / Categories /

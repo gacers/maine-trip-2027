@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
@@ -10,6 +10,10 @@ import FieldDefsEditor, {
   type FieldRow,
 } from "@/components/admin/SectionForm/FieldDefsEditor";
 import { SITE_CATEGORIES, type SiteCategorySlug } from "@/lib/siteCategories";
+import {
+  SURFACE_DEFAULT_CATEGORIES,
+  type SurfaceCategory,
+} from "@/lib/siteSurfaceSettings";
 import type { FieldDef } from "@/lib/types";
 import styles from "./SiteSurfaceManage.module.css";
 
@@ -17,27 +21,27 @@ export interface SiteSurfaceManageProps {
   surface: "categories" | "future-interests" | "places";
   title: string;
   backHref: string;
-  /** Initial field defs keyed by category slug. */
   initialFieldsByCategory: Record<string, FieldDef[]>;
-  /**
-   * Places / Future Interests — trip-style Enabled toggles for category
-   * tabs. Disabled tabs stay listed here so they can be turned back on;
-   * FI also skips Options catalog merge while disabled.
-   */
-  initialEnabledCategories?: SiteCategorySlug[];
+  /** Places / Future Interests — configured categories (like trip sections). */
+  initialCategories?: SurfaceCategory[];
 }
 
 const EDITABLE_CATEGORIES: SiteCategorySlug[] = ["food-drink", "activities"];
+
+interface CustomTemplateOption {
+  slug: string;
+  label: string;
+}
 
 export default function SiteSurfaceManage({
   surface,
   title,
   backHref,
   initialFieldsByCategory,
-  initialEnabledCategories,
+  initialCategories,
 }: SiteSurfaceManageProps) {
   const router = useRouter();
-  const showCategoryEnable = surface === "places" || surface === "future-interests";
+  const showCategoryManage = surface === "places" || surface === "future-interests";
   const [activeCategory, setActiveCategory] = useState<SiteCategorySlug>("food-drink");
   const [rowsByCategory, setRowsByCategory] = useState<Record<string, FieldRow[]>>(() => {
     const init: Record<string, FieldRow[]> = {};
@@ -46,36 +50,91 @@ export default function SiteSurfaceManage({
     }
     return init;
   });
-  const [enabledCategories, setEnabledCategories] = useState<SiteCategorySlug[]>(
-    initialEnabledCategories ?? SITE_CATEGORIES.map((c) => c.slug)
-  );
-  const [toggling, setToggling] = useState<string | null>(null);
+  const [categories, setCategories] = useState<SurfaceCategory[]>(initialCategories ?? []);
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplateOption[]>([]);
+  const [busySlug, setBusySlug] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  async function toggleEnabled(slug: SiteCategorySlug, enabled: boolean) {
-    setToggling(slug);
+  useEffect(() => {
+    if (!showCategoryManage) return;
+    fetch("/api/section-templates", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        const templates = (data.templates || []) as { template_key: string; nav_group_label: string }[];
+        setCustomTemplates(
+          templates.map((t) => ({
+            slug: t.template_key,
+            label: t.nav_group_label,
+          }))
+        );
+      })
+      .catch(() => {});
+  }, [showCategoryManage]);
+
+  const existingSlugs = new Set(categories.map((c) => c.slug));
+
+  async function apiAction(body: Record<string, unknown>) {
+    const res = await fetch("/api/site-surface-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ surface, ...body }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Update failed");
+    setCategories(data.settings.categories);
+    router.refresh();
+    return data.settings;
+  }
+
+  async function addCategory(slug: string, label: string) {
+    setBusySlug(slug);
     setMessage("");
     setError("");
-    const next = enabled
-      ? [...new Set([...enabledCategories, slug])]
-      : enabledCategories.filter((s) => s !== slug);
     try {
-      const res = await fetch("/api/site-surface-settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ surface, enabledCategories: next }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Update failed");
-      setEnabledCategories(data.settings.enabledCategories);
-      setMessage(enabled ? `Enabled ${slug}.` : `Disabled ${slug} — re-enable anytime.`);
-      router.refresh();
+      await apiAction({ action: "add", slug, label });
+      setMessage(`Added ${label}.`);
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setToggling(null);
+      setBusySlug(null);
+    }
+  }
+
+  async function toggleEnabled(slug: string, enabled: boolean) {
+    setBusySlug(slug);
+    setMessage("");
+    setError("");
+    try {
+      await apiAction({ action: "setEnabled", slug, enabled });
+      setMessage(enabled ? `Enabled ${slug}.` : `Disabled ${slug} — data kept; re-enable anytime.`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusySlug(null);
+    }
+  }
+
+  async function removeCategory(cat: SurfaceCategory) {
+    const noun = surface === "places" ? "places" : "future interest items";
+    if (
+      !window.confirm(
+        `Permanently remove "${cat.label}" from this surface and delete every ${noun} in it? This can't be undone.`
+      )
+    ) {
+      return;
+    }
+    setBusySlug(cat.slug);
+    setMessage("");
+    setError("");
+    try {
+      await apiAction({ action: "remove", slug: cat.slug });
+      setMessage(`Removed ${cat.label}.`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusySlug(null);
     }
   }
 
@@ -118,8 +177,8 @@ export default function SiteSurfaceManage({
 
   const categoryHint =
     surface === "future-interests"
-      ? "Disabled categories hide from the nav and pause Options auto-sync. Manual items stay; turn Enabled back on anytime."
-      : "Disabled categories hide from the nav. Existing places stay; turn Enabled back on anytime.";
+      ? "Enabled = show in nav and sync Options. Disabled = hide + pause sync (data kept). Remove = delete this category's items."
+      : "Enabled = show in nav. Disabled = hide (data kept). Remove = delete this category's places.";
 
   return (
     <main className={styles["root"]}>
@@ -130,8 +189,8 @@ export default function SiteSurfaceManage({
           </p>
           <h1 className={styles["heading"]}>{title}</h1>
           <p className={styles["lede"]}>
-            {showCategoryEnable
-              ? "Enable or disable category sections (same idea as trip Manage), and edit shared type fields."
+            {showCategoryManage
+              ? "Same idea as trip Manage: add categories from defaults or other trips, enable/disable, or remove."
               : "Edit shared type fields used on catalog badges and trip sections."}
           </p>
         </div>
@@ -140,44 +199,103 @@ export default function SiteSurfaceManage({
       {message ? <p className={styles["message"]}>{message}</p> : null}
       {error ? <p className={styles["error"]}>{error}</p> : null}
 
-      {showCategoryEnable ? (
-        <section className={styles["section"]}>
-          <h2 className={styles["section-title"]}>Categories</h2>
-          <p className={styles["hint"]}>{categoryHint}</p>
-          <ul className={styles["section-list"]}>
-            {SITE_CATEGORIES.map((c) => {
-              const enabled = enabledCategories.includes(c.slug);
-              return (
-                <li
-                  key={c.slug}
-                  className={enabled ? styles["section-card"] : styles["section-card-disabled"]}
-                >
-                  <div className={styles["section-label-row"]}>
-                    <span className={styles["section-label"]}>{c.label}</span>
-                    {!enabled ? <span className={styles["section-meta"]}>· disabled</span> : null}
-                  </div>
-                  <div className={styles["section-actions"]}>
-                    <label className={styles["enabled-checkbox-label"]}>
-                      <input
-                        type="checkbox"
-                        checked={enabled}
-                        disabled={toggling === c.slug}
-                        onChange={(e) => toggleEnabled(c.slug, e.target.checked)}
-                        className={styles["enabled-checkbox"]}
-                      />
-                      Enabled
-                    </label>
-                    {enabled ? (
-                      <Link href={`/${surface}/${c.slug}`} className={styles["edit-link"]}>
-                        Open
-                      </Link>
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+      {showCategoryManage ? (
+        <>
+          <section className={styles["section"]}>
+            <h2 className={styles["section-title"]}>Add from a template</h2>
+            <p className={styles["hint"]}>
+              Defaults match trip starters. Customs are nav groups built on other trips.
+            </p>
+            <div className={styles["template-subheading"]}>Defaults</div>
+            <div className={styles["template-list"]}>
+              {SURFACE_DEFAULT_CATEGORIES.map((t) => {
+                const exists = existingSlugs.has(t.slug);
+                return (
+                  <button
+                    key={t.slug}
+                    type="button"
+                    disabled={exists || busySlug === t.slug}
+                    className={styles["template-button"]}
+                    onClick={() => addCategory(t.slug, t.label)}
+                  >
+                    {exists ? `${t.label} ✓` : busySlug === t.slug ? "Adding…" : `+ ${t.label}`}
+                  </button>
+                );
+              })}
+            </div>
+            {customTemplates.length > 0 ? (
+              <>
+                <div className={styles["template-subheading"]}>
+                  Custom{" "}
+                  <span className={styles["template-subheading-hint"]}>— built on another trip, reusable here</span>
+                </div>
+                <div className={styles["template-list"]}>
+                  {customTemplates.map((t) => {
+                    const exists = existingSlugs.has(t.slug);
+                    return (
+                      <button
+                        key={t.slug}
+                        type="button"
+                        disabled={exists || busySlug === t.slug}
+                        className={styles["template-button"]}
+                        onClick={() => addCategory(t.slug, t.label)}
+                      >
+                        {exists ? `${t.label} ✓` : busySlug === t.slug ? "Adding…" : `+ ${t.label}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
+          </section>
+
+          <section className={styles["section"]}>
+            <h2 className={styles["section-title"]}>Categories</h2>
+            <p className={styles["hint"]}>{categoryHint}</p>
+            {categories.length === 0 ? (
+              <p className={styles["hint"]}>Nothing added yet — pick a template above.</p>
+            ) : (
+              <ul className={styles["section-list"]}>
+                {categories.map((c) => (
+                  <li
+                    key={c.slug}
+                    className={c.enabled ? styles["section-card"] : styles["section-card-disabled"]}
+                  >
+                    <div className={styles["section-label-row"]}>
+                      <span className={styles["section-label"]}>{c.label}</span>
+                      {!c.enabled ? <span className={styles["section-meta"]}>· disabled</span> : null}
+                    </div>
+                    <div className={styles["section-actions"]}>
+                      <label className={styles["enabled-checkbox-label"]}>
+                        <input
+                          type="checkbox"
+                          checked={c.enabled}
+                          disabled={busySlug === c.slug}
+                          onChange={(e) => toggleEnabled(c.slug, e.target.checked)}
+                          className={styles["enabled-checkbox"]}
+                        />
+                        Enabled
+                      </label>
+                      {c.enabled ? (
+                        <Link href={`/${surface}/${c.slug}`} className={styles["edit-link"]}>
+                          Open
+                        </Link>
+                      ) : null}
+                      <button
+                        type="button"
+                        className={styles["remove-link"]}
+                        disabled={busySlug === c.slug}
+                        onClick={() => removeCategory(c)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
       ) : null}
 
       <section className={styles["section"]}>

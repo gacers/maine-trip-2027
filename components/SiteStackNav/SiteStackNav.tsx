@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/NavigationMenu";
-import { SITE_CATEGORIES, type SiteCategorySlug } from "@/lib/siteCategories";
+import { SITE_CATEGORIES } from "@/lib/siteCategories";
 import SiteStackMobileDrawer from "./SiteStackMobileDrawer";
 import styles from "./SiteStackNav.module.css";
 
@@ -19,11 +19,11 @@ export interface SiteStackNavProps {
   /** Manage link when on Categories / Future Interests / Places. */
   manageHref?: string;
   /** Override which category tabs appear for the active surface. */
-  categoryTabs?: readonly { slug: SiteCategorySlug; label: string }[];
+  categoryTabs?: readonly { slug: string; label: string }[];
   /** Places enabled tabs (mobile drawer Places group). */
-  placesCategoryTabs?: readonly { slug: SiteCategorySlug; label: string }[];
+  placesCategoryTabs?: readonly { slug: string; label: string }[];
   /** Future Interests enabled tabs (mobile drawer FI group). */
-  futureInterestsCategoryTabs?: readonly { slug: SiteCategorySlug; label: string }[];
+  futureInterestsCategoryTabs?: readonly { slug: string; label: string }[];
 }
 
 const STACK = [

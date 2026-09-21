@@ -6,7 +6,7 @@ import {
   getFieldDefsForSiteCategory,
   syncFutureInterestTypesToCategory,
 } from "@/lib/siteCategoryFields";
-import { isSiteCategorySlug, siteCategoryLabel } from "@/lib/siteCategories";
+import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
 import { getSurfaceCategorySettings, isCategoryEnabled } from "@/lib/siteSurfaceSettings";
 import FutureInterestPage from "@/components/FutureInterestPage";
 
@@ -14,7 +14,6 @@ export const dynamic = "force-dynamic";
 
 export default async function FutureInterestSlugPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  if (!isSiteCategorySlug(slug)) notFound();
 
   const canAccess = await canAccessSiteCatalog();
   if (!canAccess) {
@@ -30,21 +29,23 @@ export default async function FutureInterestSlugPage({ params }: { params: Promi
   const settings = await getSurfaceCategorySettings("future-interests");
   if (!isCategoryEnabled(settings, slug)) notFound();
 
-  // Promote any FI-only type tags (e.g. Whisky Bar created before the
-  // shared AddFieldSelect path) onto trip section field_defs.
+  const categorySlug = slug as SiteCategorySlug;
   if (slug === "food-drink" || slug === "activities") {
-    await syncFutureInterestTypesToCategory(slug);
+    await syncFutureInterestTypesToCategory(categorySlug);
   }
 
+  const label =
+    settings.categories.find((c) => c.slug === slug)?.label || siteCategoryLabel(slug);
+
   const [items, trips, fieldDefs] = await Promise.all([
-    listFutureInterestView(slug),
+    listFutureInterestView(categorySlug),
     getAllTrips(),
     getFieldDefsForSiteCategory(slug),
   ]);
   return (
     <FutureInterestPage
-      categorySlug={slug}
-      categoryLabel={siteCategoryLabel(slug)}
+      categorySlug={categorySlug}
+      categoryLabel={label}
       initialItems={items}
       initialFieldDefs={fieldDefs}
       geocodeTripSlug={trips[0]?.slug}

@@ -28,7 +28,7 @@ export default async function PlacesManagePage() {
       title="Manage Places"
       backHref="/places"
       initialFieldsByCategory={initialFieldsByCategory}
-      initialEnabledCategories={settings.enabledCategories}
+      initialCategories={settings.categories}
     />
   );
 }

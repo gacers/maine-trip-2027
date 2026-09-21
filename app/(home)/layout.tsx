@@ -3,8 +3,7 @@ import { getAdminUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabaseServer";
 import HomeShell from "@/components/HomeShell";
 import { HomeActionsProvider } from "@/components/HomeShell/HomeActions";
-import { getSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
-import type { SiteCategorySlug } from "@/lib/siteCategories";
+import { enabledCategoryTabs, getSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -19,19 +18,19 @@ export default async function HomeLayout({ children }: { children: ReactNode }) 
   } = await supabase.auth.getUser();
   const isSignedIn = !!user;
 
-  let placesEnabledCategories: SiteCategorySlug[] | undefined;
-  let futureInterestsEnabledCategories: SiteCategorySlug[] | undefined;
+  let placesCategoryTabs: { slug: string; label: string }[] | undefined;
+  let futureInterestsCategoryTabs: { slug: string; label: string }[] | undefined;
   if (isAdmin) {
     try {
       const [places, fi] = await Promise.all([
         getSurfaceCategorySettings("places"),
         getSurfaceCategorySettings("future-interests"),
       ]);
-      placesEnabledCategories = places.enabledCategories;
-      futureInterestsEnabledCategories = fi.enabledCategories;
+      placesCategoryTabs = enabledCategoryTabs(places);
+      futureInterestsCategoryTabs = enabledCategoryTabs(fi);
     } catch {
-      placesEnabledCategories = undefined;
-      futureInterestsEnabledCategories = undefined;
+      placesCategoryTabs = undefined;
+      futureInterestsCategoryTabs = undefined;
     }
   }
 
@@ -40,8 +39,8 @@ export default async function HomeLayout({ children }: { children: ReactNode }) 
       <HomeShell
         isAdmin={isAdmin}
         isSignedIn={isSignedIn}
-        placesEnabledCategories={placesEnabledCategories}
-        futureInterestsEnabledCategories={futureInterestsEnabledCategories}
+        placesCategoryTabs={placesCategoryTabs}
+        futureInterestsCategoryTabs={futureInterestsCategoryTabs}
       >
         {children}
       </HomeShell>

@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireSiteEditorAccess } from "@/lib/auth";
 import { createPlaceItem, listPlaces } from "@/lib/places";
 import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
-import { isSiteCategorySlug } from "@/lib/siteCategories";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,7 +11,7 @@ export async function GET(request: NextRequest) {
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   const category = request.nextUrl.searchParams.get("category") || "";
-  if (!isSiteCategorySlug(category)) {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(category)) {
     return NextResponse.json({ error: "category query param required" }, { status: 400 });
   }
 
@@ -36,7 +35,7 @@ export async function POST(request: NextRequest) {
   }
 
   const categorySlug = typeof body.categorySlug === "string" ? body.categorySlug : "";
-  if (!isSiteCategorySlug(categorySlug)) {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(categorySlug)) {
     return NextResponse.json({ error: "categorySlug is required" }, { status: 400 });
   }
 

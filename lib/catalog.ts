@@ -58,7 +58,7 @@ function resolveRootId(row: EntryRow, byId: Map<string, EntryRow>): string {
 // Every active entry in enabled sections whose nav group slug matches
 // `categorySlug`, across trips the current session can access — collapsed
 // to original entries only (synced copies become trip appearances).
-export async function getCatalogForCategory(categorySlug: SiteCategorySlug): Promise<CatalogItem[]> {
+export async function getCatalogForCategory(categorySlug: string): Promise<CatalogItem[]> {
   const access = await accessibleTripIds();
   if (access !== "all" && access.length === 0) return [];
 

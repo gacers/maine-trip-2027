@@ -35,7 +35,7 @@ export interface FutureInterestViewItem extends FutureInterestItem {
 }
 
 export interface FutureInterestInput {
-  categorySlug: SiteCategorySlug;
+  categorySlug: string;
   title?: string | null;
   url?: string | null;
   posterImage?: string | null;
@@ -92,7 +92,7 @@ function parseHref(href: string): { tripSlug: string; navGroupSlug: string; sect
   return { tripSlug, navGroupSlug, sectionSlug };
 }
 
-function catalogToViewItem(c: CatalogItem, categorySlug: SiteCategorySlug): FutureInterestViewItem {
+function catalogToViewItem(c: CatalogItem, categorySlug: string): FutureInterestViewItem {
   const e = c.entry;
   const route = parseHref(c.href);
   return {
@@ -125,7 +125,7 @@ function manualToViewItem(row: FutureInterestItem): FutureInterestViewItem {
 
 /** DB-only rows (manual adds). Prefer listFutureInterestView for the page. */
 export async function listFutureInterest(
-  categorySlug: SiteCategorySlug,
+  categorySlug: string,
   { includeVisited = false }: { includeVisited?: boolean } = {}
 ): Promise<FutureInterestItem[]> {
   const supabase = supabaseServiceRole();
@@ -140,7 +140,7 @@ export async function listFutureInterest(
 
 /** Drop leftover copies from the old "Bring in from Options" import —
  * Options now appear live by reference. */
-async function pruneCatalogCopies(categorySlug: SiteCategorySlug): Promise<void> {
+async function pruneCatalogCopies(categorySlug: string): Promise<void> {
   const supabase = supabaseServiceRole();
   const { error } = await supabase
     .from("future_interest_items")
@@ -157,7 +157,7 @@ async function pruneCatalogCopies(categorySlug: SiteCategorySlug): Promise<void>
  * merge entirely (manual rows remain in the DB for when you re-enable).
  * Visited Options drop out automatically; marking visited removes a row.
  */
-export async function listFutureInterestView(categorySlug: SiteCategorySlug): Promise<FutureInterestViewItem[]> {
+export async function listFutureInterestView(categorySlug: string): Promise<FutureInterestViewItem[]> {
   const settings = await getSurfaceCategorySettings("future-interests");
   if (!isCategoryEnabled(settings, categorySlug)) {
     // Category paused — no Options sync; keep manual rows out of the

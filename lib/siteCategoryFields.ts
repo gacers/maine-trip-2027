@@ -8,7 +8,7 @@ import {
 import type { SiteCategorySlug } from "@/lib/siteCategories";
 import type { FieldDef, FieldType } from "@/lib/types";
 
-async function sectionIdsForCategory(categorySlug: SiteCategorySlug): Promise<string[]> {
+async function sectionIdsForCategory(categorySlug: string): Promise<string[]> {
   const supabase = supabaseServiceRole();
   const { data: navGroups, error: ngError } = await supabase
     .from("nav_groups")
@@ -42,7 +42,7 @@ function asFieldDef(f: TemplateFieldDef, sectionId = ""): FieldDef {
   };
 }
 
-function baseDefsForCategory(slug: SiteCategorySlug): TemplateFieldDef[] {
+function baseDefsForCategory(slug: string): TemplateFieldDef[] {
   if (slug === "food-drink") {
     return [
       { key: "closed", label: "Closed", field_type: "boolean", show_on_overview: true },
@@ -61,7 +61,7 @@ function baseDefsForCategory(slug: SiteCategorySlug): TemplateFieldDef[] {
 /** Promote boolean keys that only live on Future Interests item.data
  * (created before AddFieldSelect synced to templates) onto the shared
  * category schema so trip cards pick them up too. */
-export async function syncFutureInterestTypesToCategory(categorySlug: SiteCategorySlug): Promise<void> {
+export async function syncFutureInterestTypesToCategory(categorySlug: string): Promise<void> {
   const supabase = supabaseServiceRole();
   const { data: items, error } = await supabase
     .from("future_interest_items")
@@ -93,7 +93,7 @@ export async function syncFutureInterestTypesToCategory(categorySlug: SiteCatego
 
 /** Union of field_defs used on any trip section in this site category —
  * so Future Interests shows the same type checkboxes as trip cards. */
-export async function getFieldDefsForSiteCategory(categorySlug: SiteCategorySlug): Promise<FieldDef[]> {
+export async function getFieldDefsForSiteCategory(categorySlug: string): Promise<FieldDef[]> {
   const supabase = supabaseServiceRole();
   const byKey = new Map<string, FieldDef>();
 
@@ -133,7 +133,7 @@ export async function getFieldDefsForSiteCategory(categorySlug: SiteCategorySlug
 }
 
 export interface SiteCategoryFieldInput {
-  categorySlug: SiteCategorySlug;
+  categorySlug: string;
   key: string;
   label: string;
   fieldType: FieldType;
@@ -238,7 +238,7 @@ export interface SiteCategoryFieldRow {
  * each row onto templates + every enabled section, drop keys that left
  * the editor. Used by Categories / Future Interests / Places Manage. */
 export async function syncFieldsForSiteCategory(
-  categorySlug: SiteCategorySlug,
+  categorySlug: string,
   fields: SiteCategoryFieldRow[]
 ): Promise<FieldDef[]> {
   const supabase = supabaseServiceRole();

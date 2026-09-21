@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   const category = request.nextUrl.searchParams.get("category") || "";
-  if (!isSiteCategorySlug(category)) {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(category)) {
     return NextResponse.json({ error: "category query param required" }, { status: 400 });
   }
 
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   }
 
   const categorySlug = typeof body.categorySlug === "string" ? body.categorySlug : "";
-  if (!isSiteCategorySlug(categorySlug)) {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(categorySlug)) {
     return NextResponse.json({ error: "categorySlug is required" }, { status: 400 });
   }
 

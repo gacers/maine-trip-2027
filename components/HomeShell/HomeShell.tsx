@@ -10,17 +10,15 @@ import LogoutButton from "@/components/LogoutButton";
 import CreateLoginPrompt from "@/components/CreateLoginPrompt";
 import Button from "@/components/Button";
 import { listInviteTripSlugs, readInviteToken } from "@/lib/inviteClient";
-import { SITE_CATEGORIES, isSiteCategorySlug, type SiteCategorySlug } from "@/lib/siteCategories";
+import { SITE_CATEGORIES, isSiteCategorySlug } from "@/lib/siteCategories";
 import { useHomeActions } from "./HomeActions";
 import styles from "./HomeShell.module.css";
 
 export interface HomeShellProps {
   isAdmin: boolean;
   isSignedIn: boolean;
-  /** Places Manage can hide some category tabs. */
-  placesEnabledCategories?: SiteCategorySlug[];
-  /** Future Interests Manage can hide some category tabs. */
-  futureInterestsEnabledCategories?: SiteCategorySlug[];
+  placesCategoryTabs?: readonly { slug: string; label: string }[];
+  futureInterestsCategoryTabs?: readonly { slug: string; label: string }[];
   children: ReactNode;
 }
 
@@ -31,23 +29,13 @@ function manageHrefFor(path: string): string | undefined {
   return undefined;
 }
 
-function tabsFor(enabled: SiteCategorySlug[] | undefined) {
-  if (enabled && enabled.length > 0) {
-    return SITE_CATEGORIES.filter((c) => enabled.includes(c.slug));
-  }
-  if (enabled && enabled.length === 0) return [];
-  return SITE_CATEGORIES;
-}
-
 // Shared chrome for `/`, `/categories/*`, `/future-interests/*`,
-// `/places/*` — header always; stack nav for admins only. Category
-// sub-tabs appear automatically from the path. FI / Places +Add
-// portals in via useHomeActions().
+// `/places/*` — header always; stack nav for admins only.
 export default function HomeShell({
   isAdmin,
   isSignedIn,
-  placesEnabledCategories,
-  futureInterestsEnabledCategories,
+  placesCategoryTabs,
+  futureInterestsCategoryTabs,
   children,
 }: HomeShellProps) {
   const pathname = usePathname();
@@ -90,18 +78,18 @@ export default function HomeShell({
     categoryBasePath = "/places";
     categorySlug = pathname.split("/")[2];
   }
-  // manage pages have no category slug tab row
   if (categorySlug === "manage") {
     categorySlug = undefined;
     categoryBasePath = undefined;
   }
-  if (categorySlug && !isSiteCategorySlug(categorySlug)) {
+  // Categories browse still uses the fixed SITE_CATEGORIES list.
+  if (categoryBasePath === "/categories" && categorySlug && !isSiteCategorySlug(categorySlug)) {
     categorySlug = undefined;
     categoryBasePath = undefined;
   }
 
-  const placesTabs = tabsFor(placesEnabledCategories);
-  const fiTabs = tabsFor(futureInterestsEnabledCategories);
+  const placesTabs = placesCategoryTabs ?? SITE_CATEGORIES;
+  const fiTabs = futureInterestsCategoryTabs ?? SITE_CATEGORIES;
   const categoryTabs =
     categoryBasePath === "/places"
       ? placesTabs

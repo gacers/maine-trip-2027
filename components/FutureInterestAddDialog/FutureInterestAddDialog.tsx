@@ -42,13 +42,16 @@ const CORE_INITIAL: CoreFields = {
   groupLabel: "",
 };
 
-const PLACEHOLDERS: Record<SiteCategorySlug, string> = {
-  stays: "Paste a link for a place to stay...",
-  "food-drink": "Paste a link for a bar or restaurant we like...",
-  activities: "Paste a link for a hike, tour, or activity...",
-  distilleries: "Paste a link for a distillery...",
-  wineries: "Paste a link for a winery...",
-};
+function placeholderFor(categorySlug: string): string {
+  const map: Record<string, string> = {
+    stays: "Paste a link for a place to stay...",
+    "food-drink": "Paste a link for a bar or restaurant we like...",
+    activities: "Paste a link for a hike, tour, or activity...",
+    distilleries: "Paste a link for a distillery...",
+    wineries: "Paste a link for a winery...",
+  };
+  return map[categorySlug] || "Paste a link for this place...";
+}
 
 type Phase = "idle" | "loading" | "editing" | "picking" | "saving";
 
@@ -281,7 +284,7 @@ export default function FutureInterestAddDialog({
               url={url}
               onUrlChange={setUrl}
               loading={phase === "loading"}
-              placeholder={PLACEHOLDERS[categorySlug]}
+              placeholder={placeholderFor(categorySlug)}
               onSubmit={handlePreview}
               onStartBlank={startBlank}
               titleMatches={[]}

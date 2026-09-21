@@ -28,7 +28,7 @@ export default async function FutureInterestsManagePage() {
       title="Manage Future Interests"
       backHref="/future-interests"
       initialFieldsByCategory={initialFieldsByCategory}
-      initialEnabledCategories={settings.enabledCategories}
+      initialCategories={settings.categories}
     />
   );
 }

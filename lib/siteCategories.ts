@@ -10,9 +10,9 @@ export const SITE_CATEGORIES = [
   { slug: "wineries", label: "Wineries" },
 ] as const;
 
-export type SiteCategorySlug = (typeof SITE_CATEGORIES)[number]["slug"];
+export type SiteCategorySlug = (typeof SITE_CATEGORIES)[number]["slug"] | (string & {});
 
-export function isSiteCategorySlug(slug: string): slug is SiteCategorySlug {
+export function isSiteCategorySlug(slug: string): slug is (typeof SITE_CATEGORIES)[number]["slug"] {
   return SITE_CATEGORIES.some((c) => c.slug === slug);
 }
 

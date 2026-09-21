@@ -21,7 +21,7 @@ export async function PUT(request: NextRequest) {
   }
 
   const categorySlug = typeof body.categorySlug === "string" ? body.categorySlug : "";
-  if (!isSiteCategorySlug(categorySlug)) {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(categorySlug)) {
     return NextResponse.json({ error: "categorySlug is required" }, { status: 400 });
   }
 

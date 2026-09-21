@@ -3,15 +3,14 @@ import { canAccessSiteCatalog } from "@/lib/auth";
 import { listPlaces } from "@/lib/places";
 import { getAllTrips } from "@/lib/sections";
 import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
-import { isSiteCategorySlug, siteCategoryLabel } from "@/lib/siteCategories";
-import { getSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
+import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
+import { getSurfaceCategorySettings, isCategoryEnabled } from "@/lib/siteSurfaceSettings";
 import PlacesPage from "@/components/PlacesPage";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlacesSlugPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  if (!isSiteCategorySlug(slug)) notFound();
 
   const canAccess = await canAccessSiteCatalog();
   if (!canAccess) {
@@ -25,17 +24,21 @@ export default async function PlacesSlugPage({ params }: { params: Promise<{ slu
   }
 
   const settings = await getSurfaceCategorySettings("places");
-  if (!settings.enabledCategories.includes(slug)) notFound();
+  if (!isCategoryEnabled(settings, slug)) notFound();
+
+  const categorySlug = slug as SiteCategorySlug;
+  const label =
+    settings.categories.find((c) => c.slug === slug)?.label || siteCategoryLabel(slug);
 
   const [items, trips, fieldDefs] = await Promise.all([
-    listPlaces(slug),
+    listPlaces(categorySlug),
     getAllTrips(),
-    getFieldDefsForSiteCategory(slug),
+    getFieldDefsForSiteCategory(categorySlug),
   ]);
   return (
     <PlacesPage
-      categorySlug={slug}
-      categoryLabel={siteCategoryLabel(slug)}
+      categorySlug={categorySlug}
+      categoryLabel={label}
       initialItems={items}
       initialFieldDefs={fieldDefs}
       geocodeTripSlug={trips[0]?.slug}
