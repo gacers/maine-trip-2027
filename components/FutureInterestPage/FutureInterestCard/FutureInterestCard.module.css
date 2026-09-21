@@ -71,3 +71,9 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-red-600);
+}

@@ -106,6 +106,10 @@ export default function FutureInterestPage({ categorySlug, categoryLabel, initia
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, visited: true } : i)));
   }
 
+  function handleUpdated(item: FutureInterestItem) {
+    setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+  }
+
   async function removeItem(id: string) {
     const res = await fetch(`/api/future-interest/${id}`, { method: "DELETE" });
     if (!res.ok) return;
@@ -160,6 +164,7 @@ export default function FutureInterestPage({ categorySlug, categoryLabel, initia
               <FutureInterestCard
                 item={item}
                 categorySlug={categorySlug}
+                onUpdated={handleUpdated}
                 onMarkVisited={markVisited}
                 onRemove={removeItem}
               />
