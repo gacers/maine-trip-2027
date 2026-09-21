@@ -182,7 +182,8 @@ export default function EntryEditForm({
                     data = stashMovedFrom(
                       data,
                       priorLat ?? draft.lat,
-                      priorLng ?? draft.lng
+                      priorLng ?? draft.lng,
+                      null
                     ) as Record<string, string | boolean>;
                   }
                   onChange({ ...draft, data });

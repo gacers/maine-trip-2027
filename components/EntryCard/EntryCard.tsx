@@ -29,6 +29,7 @@ import {
   isStatusBooleanKey,
   isTruthyFlag,
   MOVED_ADDRESS_KEY,
+  MOVED_FROM_ADDRESS_KEY,
   MOVED_FROM_LAT_KEY,
   MOVED_FROM_LNG_KEY,
   oldLocationMapsUrl,
@@ -170,6 +171,7 @@ export default function EntryCard({
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
   const [addressLabel, setAddressLabel] = useState<string | null>(null);
+  const [oldAddressLabel, setOldAddressLabel] = useState<string | null>(null);
   const [importSource, setImportSource] = useState<ImportSourceEntryInfo | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   /** Pin when Edit opened — Find/save must stash this, not the already-updated draft coords. */
@@ -225,6 +227,33 @@ export default function EntryCard({
     };
   }, [hasHouse, entry.lat, entry.lng, tripSlug, authToken]);
 
+  // Old Address text: prefer the stashed label; otherwise reverse the prior pin.
+  const storedOldAddress =
+    typeof entry[MOVED_FROM_ADDRESS_KEY] === "string" ? (entry[MOVED_FROM_ADDRESS_KEY] as string).trim() : "";
+  const oldFromLat = entry[MOVED_FROM_LAT_KEY];
+  const oldFromLng = entry[MOVED_FROM_LNG_KEY];
+  useEffect(() => {
+    if (storedOldAddress || !tripSlug) {
+      setOldAddressLabel(storedOldAddress || null);
+      return;
+    }
+    const lat = typeof oldFromLat === "number" ? oldFromLat : oldFromLat != null && oldFromLat !== "" ? Number(oldFromLat) : null;
+    const lng = typeof oldFromLng === "number" ? oldFromLng : oldFromLng != null && oldFromLng !== "" ? Number(oldFromLng) : null;
+    if (lat == null || lng == null || Number.isNaN(lat) || Number.isNaN(lng)) {
+      setOldAddressLabel(null);
+      return;
+    }
+    let cancelled = false;
+    fetchReverseAddress(tripSlug, lat, lng, authToken)
+      .then((result) => {
+        if (!cancelled) setOldAddressLabel(result?.formattedAddress ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [storedOldAddress, oldFromLat, oldFromLng, tripSlug, authToken]);
+
   const priceFields = fieldDefs.filter((f) => f.field_type === "price");
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
   const countRows: CountRow[] = countFields
@@ -239,6 +268,7 @@ export default function EntryCard({
       (f) =>
         f.show_on_overview &&
         f.key !== MOVED_ADDRESS_KEY &&
+        f.key !== MOVED_FROM_ADDRESS_KEY &&
         !["price", "count", "boolean"].includes(f.field_type)
     )
     .map((f) => ({ fieldDef: f, value: entry[f.key] }))
@@ -290,6 +320,9 @@ export default function EntryCard({
   const movedAddress =
     typeof entry[MOVED_ADDRESS_KEY] === "string" ? (entry[MOVED_ADDRESS_KEY] as string).trim() : "";
   const oldMapsUrl = oldLocationMapsUrl(entry[MOVED_FROM_LAT_KEY], entry[MOVED_FROM_LNG_KEY]);
+  /** Single new-location line under the title (never also print moved_address separately). */
+  const currentAddressText = (isMoved && movedAddress) || addressLabel || null;
+  const oldAddressText = storedOldAddress || oldAddressLabel || null;
 
   function addNote(text: string) {
     onPatch(entry.id, { appendNote: text });
@@ -324,6 +357,9 @@ export default function EntryCard({
     }
     if (entry[MOVED_FROM_LNG_KEY] != null && entry[MOVED_FROM_LNG_KEY] !== "") {
       dataDraft[MOVED_FROM_LNG_KEY] = String(entry[MOVED_FROM_LNG_KEY]);
+    }
+    if (typeof entry[MOVED_FROM_ADDRESS_KEY] === "string" && entry[MOVED_FROM_ADDRESS_KEY]) {
+      dataDraft[MOVED_FROM_ADDRESS_KEY] = entry[MOVED_FROM_ADDRESS_KEY] as string;
     }
     const priorLat = entry.lat == null ? null : Number(entry.lat);
     const priorLng = entry.lng == null ? null : Number(entry.lng);
@@ -364,6 +400,17 @@ export default function EntryCard({
     setGeocodeMsg("");
     try {
       const { lat, lng, formattedAddress } = await fetchForwardGeocode(tripSlug, address, authToken);
+      // Label under the title is still the *current* pin until we save —
+      // that's the old address when Find relocates the spot.
+      let priorAddress = addressLabel;
+      if (!priorAddress && priorCoords) {
+        try {
+          const prior = await fetchReverseAddress(tripSlug, priorCoords.lat, priorCoords.lng, authToken);
+          priorAddress = prior?.formattedAddress ?? null;
+        } catch {
+          /* non-fatal — coords alone still power the Old Address map link */
+        }
+      }
       setDraft((d) => {
         if (!d) return d;
         const data = applyMovedLocationChange({
@@ -372,6 +419,7 @@ export default function EntryCard({
           priorLng: priorCoords?.lng,
           nextLat: lat,
           nextLng: lng,
+          priorAddress,
           fromAddressFind: true,
         }) as EntryDraft["data"];
         if (isTruthyFlag(data.moved)) {
@@ -404,6 +452,7 @@ export default function EntryCard({
       priorLng: priorCoords?.lng,
       nextLat: draft.lat,
       nextLng: draft.lng,
+      priorAddress: addressLabel,
     });
     const dataPatch: Record<string, unknown> = {};
     for (const f of fieldDefs) {
@@ -425,7 +474,9 @@ export default function EntryCard({
     if (typeof stashed[MOVED_ADDRESS_KEY] === "string" && stashed[MOVED_ADDRESS_KEY]) {
       dataPatch[MOVED_ADDRESS_KEY] = stashed[MOVED_ADDRESS_KEY];
     }
-
+    if (typeof stashed[MOVED_FROM_ADDRESS_KEY] === "string" && stashed[MOVED_FROM_ADDRESS_KEY]) {
+      dataPatch[MOVED_FROM_ADDRESS_KEY] = stashed[MOVED_FROM_ADDRESS_KEY];
+    }
     // A locked entry's own shared fields (see lib/entrySync.ts) are
     // read-only in the form above and the route itself rejects them
     // outright — left out of this patch entirely rather than sent
@@ -513,12 +564,9 @@ export default function EntryCard({
                   expanding first. */}
               {hasHouse && (
                 <a href={mapsSearchUrl} target="_blank" rel="noopener noreferrer" className={styles["address-link"]}>
-                  {addressLabel || "View on map"}
+                  {currentAddressText || "View on map"}
                 </a>
               )}
-              {isMoved && movedAddress ? (
-                <p className={styles["moved-address"]}>{movedAddress}</p>
-              ) : null}
               {backupDateRange && <AvailabilityLinks url={entry.url} backup={backupDateRange} />}
             </div>
             <div className={styles["header-actions"]}>
@@ -616,7 +664,7 @@ export default function EntryCard({
               <div className={styles["section"]}>
                 <h3 className={styles["section-heading"]}>Old Address</h3>
                 <a href={oldMapsUrl} target="_blank" rel="noopener noreferrer" className={styles["address-link"]}>
-                  Open in Google Maps
+                  {oldAddressText || "Open in Google Maps"}
                 </a>
               </div>
             ) : null}

@@ -8,6 +8,8 @@ export const MOVED_ADDRESS_KEY = "moved_address";
 /** Prior pin, kept when Moved is checked so the card map can show the new spot. */
 export const MOVED_FROM_LAT_KEY = "moved_from_lat";
 export const MOVED_FROM_LNG_KEY = "moved_from_lng";
+/** Formatted prior address for the Old Address section (optional stash). */
+export const MOVED_FROM_ADDRESS_KEY = "moved_from_address";
 
 export function isStatusBooleanKey(key: string): key is StatusBooleanKey {
   return (STATUS_BOOLEAN_KEYS as readonly string[]).includes(key);
@@ -50,31 +52,39 @@ export function oldLocationMapsUrl(fromLat: unknown, fromLng: unknown): string |
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }
 
-/** Stash prior coords once — never overwrite an existing old pin. */
+/** Stash prior coords (and optional address text) once — never overwrite. */
 export function stashMovedFrom(
   data: Record<string, unknown>,
   fromLat: unknown,
-  fromLng: unknown
+  fromLng: unknown,
+  fromAddress?: string | null
 ): Record<string, unknown> {
-  if (hasMovedFrom(data)) return data;
-  const nextLat = parseCoord(fromLat);
-  const nextLng = parseCoord(fromLng);
-  if (nextLat == null || nextLng == null) return data;
-  return {
-    ...data,
-    [MOVED_FROM_LAT_KEY]: nextLat,
-    [MOVED_FROM_LNG_KEY]: nextLng,
-  };
+  let next = { ...data };
+  if (!hasMovedFrom(next)) {
+    const nextLat = parseCoord(fromLat);
+    const nextLng = parseCoord(fromLng);
+    if (nextLat != null && nextLng != null) {
+      next[MOVED_FROM_LAT_KEY] = nextLat;
+      next[MOVED_FROM_LNG_KEY] = nextLng;
+    }
+  }
+  const existingAddr =
+    typeof next[MOVED_FROM_ADDRESS_KEY] === "string" ? (next[MOVED_FROM_ADDRESS_KEY] as string).trim() : "";
+  if (!existingAddr && fromAddress?.trim()) {
+    next[MOVED_FROM_ADDRESS_KEY] = fromAddress.trim();
+  }
+  return next;
 }
 
 /** When Moved is on, stash current coords as the old pin the first time. */
 export function withMovedFromStash(
   data: Record<string, unknown>,
   lat: unknown,
-  lng: unknown
+  lng: unknown,
+  fromAddress?: string | null
 ): Record<string, unknown> {
   if (!isTruthyFlag(data.moved)) return data;
-  return stashMovedFrom(data, lat, lng);
+  return stashMovedFrom(data, lat, lng, fromAddress);
 }
 
 /**
@@ -90,10 +100,12 @@ export function applyMovedLocationChange(args: {
   /** Coords after Find / manual edit. */
   nextLat: unknown;
   nextLng: unknown;
+  /** Reverse-geocoded / known label for the prior pin. */
+  priorAddress?: string | null;
   /** True when the user used the "new location when Moved" Find field. */
   fromAddressFind?: boolean;
 }): Record<string, unknown> {
-  const { data, priorLat, priorLng, nextLat, nextLng, fromAddressFind } = args;
+  const { data, priorLat, priorLng, nextLat, nextLng, priorAddress, fromAddressFind } = args;
   const prior = { lat: parseCoord(priorLat), lng: parseCoord(priorLng) };
   const next = { lat: parseCoord(nextLat), lng: parseCoord(nextLng) };
   const hadPrior = prior.lat != null && prior.lng != null;
@@ -110,7 +122,7 @@ export function applyMovedLocationChange(args: {
   // Only stash when the pin actually moves (or Find ran), so checking
   // Moved alone doesn't invent an "Old Address" that matches the current map.
   if (isTruthyFlag(out.moved) && hadPrior && (changed || !!fromAddressFind || hasMovedFrom(out))) {
-    out = stashMovedFrom(out, prior.lat, prior.lng);
+    out = stashMovedFrom(out, prior.lat, prior.lng, priorAddress);
   }
   return out;
 }
