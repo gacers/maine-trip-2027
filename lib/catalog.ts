@@ -8,16 +8,25 @@ import type { SiteCategorySlug } from "@/lib/siteCategories";
 
 export type SectionTier = "options" | "previously-visited" | "other";
 
-export interface CatalogItem {
-  entry: ClientEntry;
+/** One trip/section appearance of a catalog place. */
+export interface CatalogTripRef {
   tripId: string;
   tripSlug: string;
   tripName: string;
-  country: string | null;
-  navGroupSlug: string;
-  sectionSlug: string;
   sectionLabel: string;
   sectionTier: SectionTier;
+  href: string;
+}
+
+export interface CatalogItem {
+  /** The original entry (never a live-synced copy). */
+  entry: ClientEntry;
+  country: string | null;
+  /** Every section tier this place appears in (for filters). */
+  tiers: SectionTier[];
+  /** Every trip this place appears in (original + synced copies). */
+  trips: CatalogTripRef[];
+  /** Href into the original's trip section. */
   href: string;
 }
 
@@ -33,8 +42,22 @@ async function accessibleTripIds(): Promise<string[] | "all"> {
   return editorIds;
 }
 
+function resolveRootId(row: EntryRow, byId: Map<string, EntryRow>): string {
+  let current = row;
+  const seen = new Set<string>([current.id]);
+  while (current.import_source_entry_id) {
+    const parent = byId.get(current.import_source_entry_id);
+    if (!parent) return current.import_source_entry_id;
+    if (seen.has(parent.id)) break;
+    seen.add(parent.id);
+    current = parent;
+  }
+  return current.id;
+}
+
 // Every active entry in enabled sections whose nav group slug matches
-// `categorySlug`, across trips the current session can access.
+// `categorySlug`, across trips the current session can access — collapsed
+// to original entries only (synced copies become trip appearances).
 export async function getCatalogForCategory(categorySlug: SiteCategorySlug): Promise<CatalogItem[]> {
   const access = await accessibleTripIds();
   if (access !== "all" && access.length === 0) return [];
@@ -76,8 +99,31 @@ export async function getCatalogForCategory(categorySlug: SiteCategorySlug): Pro
     .order("rank", { ascending: true, nullsFirst: false });
   if (entError) throw new Error(entError.message);
 
-  const items: CatalogItem[] = [];
-  for (const row of (entries || []) as EntryRow[]) {
+  const rows = (entries || []) as EntryRow[];
+  const byId = new Map(rows.map((r) => [r.id, r]));
+
+  // Pull any roots that live outside this category fetch (e.g. archived
+  // source section) so we can still show the original card once.
+  const missingRootIds = new Set<string>();
+  for (const row of rows) {
+    const rootId = resolveRootId(row, byId);
+    if (!byId.has(rootId)) missingRootIds.add(rootId);
+  }
+  if (missingRootIds.size > 0) {
+    const { data: roots, error: rootError } = await supabase
+      .from("entries")
+      .select("*")
+      .in("id", [...missingRootIds]);
+    if (rootError) throw new Error(rootError.message);
+    for (const root of (roots || []) as EntryRow[]) {
+      byId.set(root.id, root);
+    }
+  }
+
+  type Appearance = { row: EntryRow; ref: CatalogTripRef };
+  const groups = new Map<string, Appearance[]>();
+
+  for (const row of rows) {
     const section = sectionById.get(row.section_id);
     if (!section) continue;
     const nav = navById.get(section.nav_group_id);
@@ -85,18 +131,67 @@ export async function getCatalogForCategory(categorySlug: SiteCategorySlug): Pro
     const trip = tripById.get(section.trip_id);
     if (!trip) continue;
     const tier = tierForSectionSlug(section.slug);
-    items.push({
-      entry: toClientEntry(row),
+    const ref: CatalogTripRef = {
       tripId: trip.id,
       tripSlug: trip.slug,
       tripName: trip.name,
-      country: (row.country as string | null) || trip.country || null,
-      navGroupSlug: nav.slug,
-      sectionSlug: section.slug,
       sectionLabel: section.label,
       sectionTier: tier,
       href: `/${trip.slug}/${nav.slug}/${section.slug}#listing-${row.id}`,
+    };
+    const rootId = resolveRootId(row, byId);
+    const list = groups.get(rootId) || [];
+    list.push({ row, ref });
+    groups.set(rootId, list);
+  }
+
+  const items: CatalogItem[] = [];
+  for (const [rootId, appearances] of groups) {
+    const root = byId.get(rootId);
+    if (!root) continue;
+    // Skip if this root is itself a synced copy of something we couldn't
+    // resolve — only surface true originals.
+    if (root.import_source_entry_id) continue;
+
+    const rootSection = sectionById.get(root.section_id);
+    const rootNav = rootSection ? navById.get(rootSection.nav_group_id) : undefined;
+    const rootTrip = rootSection ? tripById.get(rootSection.trip_id) : undefined;
+
+    // Deduplicate by trip (one link per trip; prefer the original's section).
+    const trips: CatalogTripRef[] = [];
+    const seenTripIds = new Set<string>();
+    const tierSet = new Set<SectionTier>();
+    const ordered = [...appearances].sort((a, b) => {
+      if (a.row.id === rootId) return -1;
+      if (b.row.id === rootId) return 1;
+      return 0;
+    });
+    for (const { ref } of ordered) {
+      tierSet.add(ref.sectionTier);
+      if (seenTripIds.has(ref.tripId)) continue;
+      seenTripIds.add(ref.tripId);
+      trips.push(ref);
+    }
+
+    const href =
+      rootTrip && rootNav && rootSection
+        ? `/${rootTrip.slug}/${rootNav.slug}/${rootSection.slug}#listing-${root.id}`
+        : trips[0]?.href || "#";
+
+    items.push({
+      entry: toClientEntry(root),
+      country:
+        (root.country as string | null) ||
+        (rootTrip?.country ?? null) ||
+        (ordered.find((a) => a.row.country)?.row.country as string | null) ||
+        null,
+      tiers: [...tierSet],
+      trips,
+      href,
     });
   }
+
+  // Stable title order for the grid.
+  items.sort((a, b) => (a.entry.title || "").localeCompare(b.entry.title || ""));
   return items;
 }

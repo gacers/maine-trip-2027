@@ -32,6 +32,19 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Native <select> carets sit flush on the border; draw our own with
+   inset so every dropdown has breathing room on the right. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 0.75rem;
+  /* Beat component padding shorthand so the caret isn't clipped. */
+  padding-right: 1.75rem !important;
+}
+
 /* Houses pages only — toggled via plain DOM classList from SectionPage
    (same cross-component-styling mechanism as .pin-jump-highlight
    below), since the root layout that actually renders <body> has no

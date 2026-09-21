@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 // One-off: reverse-geocode every entry / future_interest_item with lat/lng
-// and stamp country as US state (administrative_area_level_1) or country.
-// Uses geocode_cache (place-region:…) so re-runs are cheap.
+// and stamp country as a finer region when available (US state, UK
+// constituent country) or country name otherwise. Uses geocode_cache
+// (place-region:…) so re-runs are cheap.
 //
 // Usage: node --env-file=.env.local scripts/backfill-entry-regions.mjs
+// Optional: FORCE_REGIONS="United Kingdom,United States" to ignore cache
+// and re-resolve rows whose current country is in that list.
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -41,19 +44,34 @@ function regionFromResults(results) {
     const comps = r.address_components || [];
     const countryComp = comps.find((c) => c.types.includes("country"));
     if (!countryComp) continue;
-    if (countryComp.short_name === "US" || countryComp.long_name === "United States") {
-      const stateComp = comps.find((c) => c.types.includes("administrative_area_level_1"));
-      if (stateComp?.long_name) return stateComp.long_name;
+    const isUs = countryComp.short_name === "US" || countryComp.long_name === "United States";
+    const isUk =
+      countryComp.short_name === "GB" ||
+      countryComp.long_name === "United Kingdom" ||
+      countryComp.long_name === "United Kingdom of Great Britain and Northern Ireland";
+    if (isUs || isUk) {
+      const regionComp = comps.find((c) => c.types.includes("administrative_area_level_1"));
+      if (regionComp?.long_name) return regionComp.long_name;
     }
     return countryComp.long_name;
   }
   return null;
 }
 
-async function resolveRegion(lat, lng) {
+const FORCE_REGIONS = new Set(
+  (process.env.FORCE_REGIONS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+);
+
+async function resolveRegion(lat, lng, { bypassCache = false } = {}) {
   const key = `place-region:${round(lat)},${round(lng)}`;
-  const cached = await sb(`geocode_cache?cache_key=eq.${encodeURIComponent(key)}&select=result`);
-  if (cached?.[0]?.result?.country) return cached[0].result.country;
+  if (!bypassCache) {
+    const cached = await sb(`geocode_cache?cache_key=eq.${encodeURIComponent(key)}&select=result`);
+    const cachedCountry = cached?.[0]?.result?.country;
+    if (cachedCountry && !FORCE_REGIONS.has(cachedCountry)) return cachedCountry;
+  }
 
   const qs = new URLSearchParams({ latlng: `${lat},${lng}`, key: API_KEY });
   const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${qs}`);
@@ -95,8 +113,13 @@ async function fetchAll(table, select) {
 }
 
 async function backfill(table) {
-  const rows = await fetchAll(table, "id,lat,lng,country");
-  console.log(`${table}: ${rows.length} rows with coords`);
+  let rows = await fetchAll(table, "id,lat,lng,country");
+  if (FORCE_REGIONS.size > 0) {
+    rows = rows.filter((r) => FORCE_REGIONS.has(r.country));
+    console.log(`${table}: ${rows.length} rows matching FORCE_REGIONS`);
+  } else {
+    console.log(`${table}: ${rows.length} rows with coords`);
+  }
   let updated = 0;
   let skipped = 0;
   let failed = 0;
@@ -106,7 +129,9 @@ async function backfill(table) {
     const k = `${round(row.lat)},${round(row.lng)}`;
     let region = memo.get(k);
     if (region === undefined) {
-      region = await resolveRegion(row.lat, row.lng);
+      region = await resolveRegion(row.lat, row.lng, {
+        bypassCache: FORCE_REGIONS.has(row.country),
+      });
       memo.set(k, region);
       // Gentle pacing for Google when cache misses stack up.
       await new Promise((r) => setTimeout(r, 40));
@@ -131,6 +156,7 @@ async function backfill(table) {
   console.log(`${table}: updated=${updated} already-ok=${skipped} failed=${failed}`);
 }
 
+if (FORCE_REGIONS.size > 0) console.log("FORCE_REGIONS:", [...FORCE_REGIONS].join(", "));
 await backfill("entries");
 await backfill("future_interest_items");
 console.log("done");

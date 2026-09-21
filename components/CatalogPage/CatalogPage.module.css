@@ -45,7 +45,7 @@
   padding: 0.375rem 0.5rem;
   border: 1px solid var(--color-zinc-300);
   border-radius: var(--radius);
-  background: var(--color-white);
+  background-color: var(--color-white);
   color: var(--color-zinc-800);
   text-transform: none;
   letter-spacing: normal;
@@ -69,9 +69,15 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+}
+
+@media (max-width: 40rem) {
+  .list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .card {
@@ -81,12 +87,13 @@
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--color-white);
+  min-width: 0;
 }
 
 .thumb,
 .thumb-empty {
-  width: 7.5rem;
-  min-height: 7.5rem;
+  width: 6rem;
+  min-height: 6rem;
   flex-shrink: 0;
   object-fit: cover;
   background: var(--color-zinc-100);
@@ -104,9 +111,23 @@
 .card-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  align-items: baseline;
   font-size: var(--text-xs);
   color: var(--color-zinc-500);
+}
+
+.trips {
+  min-width: 0;
+}
+
+.trip-link {
+  color: var(--color-zinc-600);
+  text-decoration: none;
+}
+
+.trip-link:hover {
+  color: var(--color-blue-600);
+  text-decoration: underline;
 }
 
 .card-title {

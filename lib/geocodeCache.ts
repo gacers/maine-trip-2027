@@ -54,21 +54,26 @@ export interface ReverseAddressResult {
 }
 
 export interface CountryResult {
-  /** Country name, or US state when the place is in the United States. */
+  /** Region label: US state, UK constituent country, or country name. */
   country: string;
 }
 
-// Prefer US state (administrative_area_level_1) over "United States" so
-// Categories filters can tell Maine apart from New York / Connecticut.
-// Everywhere else uses the country long_name.
+// Prefer a finer region when Google only gives a federal/umbrella country:
+// US → state (Maine, New York, …); UK → England / Scotland / Wales /
+// Northern Ireland. Everywhere else uses the country long_name.
 function regionFromGeocodeResults(results: GoogleGeocodeResponse["results"]): string | null {
   for (const r of results) {
     const comps = r.address_components || [];
     const countryComp = comps.find((c) => c.types.includes("country"));
     if (!countryComp) continue;
-    if (countryComp.short_name === "US" || countryComp.long_name === "United States") {
-      const stateComp = comps.find((c) => c.types.includes("administrative_area_level_1"));
-      if (stateComp?.long_name) return stateComp.long_name;
+    const isUs = countryComp.short_name === "US" || countryComp.long_name === "United States";
+    const isUk =
+      countryComp.short_name === "GB" ||
+      countryComp.long_name === "United Kingdom" ||
+      countryComp.long_name === "United Kingdom of Great Britain and Northern Ireland";
+    if (isUs || isUk) {
+      const regionComp = comps.find((c) => c.types.includes("administrative_area_level_1"));
+      if (regionComp?.long_name) return regionComp.long_name;
     }
     return countryComp.long_name;
   }
@@ -102,8 +107,8 @@ export async function getOrComputeReverseAddress(
   return result;
 }
 
-// Region of a lat/lng for entry.country — US state when in the United
-// States, otherwise country name. Same Google call as reverse-address
+// Region of a lat/lng for entry.country — US state / UK nation when
+// applicable, otherwise country name. Same Google call as reverse-address
 // when that path runs first; own cache key otherwise.
 export async function getOrComputeCountry(
   supabase: SupabaseClient,

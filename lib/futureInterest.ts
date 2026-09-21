@@ -104,7 +104,7 @@ export async function deleteFutureInterestItem(id: string): Promise<void> {
 // aren't already linked via source_entry_id (or matching URL).
 export async function importUnvisitedOptions(categorySlug: SiteCategorySlug): Promise<{ imported: number }> {
   const catalog = await getCatalogForCategory(categorySlug);
-  const candidates = catalog.filter((c) => c.sectionTier === "options" && !c.entry.visited);
+  const candidates = catalog.filter((c) => c.tiers.includes("options") && !c.entry.visited);
 
   const supabase = supabaseServiceRole();
   const { data: existing, error } = await supabase

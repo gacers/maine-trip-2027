@@ -17,8 +17,8 @@ export interface CatalogPageProps {
 type TierFilter = "all" | SectionTier;
 
 // Cross-trip browse for one category (Stays, Food & Drink, …) — map of
-// visible pins, country + Options/Previously-Visited filters, cards
-// linking into the source trip section.
+// visible pins, country + Options/Previously-Visited filters, cards for
+// original entries only (synced copies listed as trips on the card).
 export default function CatalogPage({ categoryLabel, initialItems }: CatalogPageProps) {
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
@@ -34,7 +34,7 @@ export default function CatalogPage({ categoryLabel, initialItems }: CatalogPage
   const visible = useMemo(() => {
     return initialItems.filter((item) => {
       if (countryFilter !== "all" && (item.country || "") !== countryFilter) return false;
-      if (tierFilter !== "all" && item.sectionTier !== tierFilter) return false;
+      if (tierFilter !== "all" && !item.tiers.includes(tierFilter)) return false;
       return true;
     });
   }, [initialItems, countryFilter, tierFilter]);
@@ -94,7 +94,7 @@ export default function CatalogPage({ categoryLabel, initialItems }: CatalogPage
       ) : (
         <ul className={styles["list"]}>
           {visible.map((item) => (
-            <li key={`${item.tripId}-${item.entry.id}`} id={`catalog-${item.entry.id}`} className={styles["card"]}>
+            <li key={item.entry.id} id={`catalog-${item.entry.id}`} className={styles["card"]}>
               {item.entry.posterImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.entry.posterImage} alt="" className={styles["thumb"]} />
@@ -103,15 +103,26 @@ export default function CatalogPage({ categoryLabel, initialItems }: CatalogPage
               )}
               <div className={styles["card-body"]}>
                 <div className={styles["card-meta"]}>
-                  <span>{item.tripName}</span>
-                  {item.country ? <span>· {item.country}</span> : null}
-                  <span>· {item.sectionLabel}</span>
+                  {item.country ? <span>{item.country}</span> : null}
+                  {item.trips.length > 0 ? (
+                    <span className={styles["trips"]}>
+                      {item.country ? " · " : null}
+                      {item.trips.map((t, i) => (
+                        <span key={`${t.tripId}-${t.sectionLabel}`}>
+                          {i > 0 ? ", " : null}
+                          <Link href={t.href} className={styles["trip-link"]}>
+                            {t.tripName}
+                          </Link>
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
                 </div>
                 <h2 className={styles["card-title"]}>{item.entry.title || "Untitled"}</h2>
                 {item.entry.description ? <p className={styles["card-desc"]}>{item.entry.description}</p> : null}
                 <div className={styles["card-actions"]}>
                   <Button variant="secondary" size="sm" asChild>
-                    <Link href={item.href}>Open in trip</Link>
+                    <Link href={item.href}>Open original</Link>
                   </Button>
                 </div>
               </div>
