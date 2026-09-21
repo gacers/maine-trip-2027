@@ -20,11 +20,9 @@ export interface CatalogPageProps {
 
 type TierFilter = "all" | SectionTier;
 
-function catalogStatusBadge(item: CatalogItem): BadgeItem {
-  if (item.tiers.includes("previously-visited") || item.entry.visited) {
-    return { key: "status-visited", label: "Visited", variant: "neutral" };
-  }
-  return { key: "status-option", label: "Option", variant: "teal" };
+function catalogStatusLabel(item: CatalogItem): "Visited" | "Option" {
+  if (item.tiers.includes("previously-visited") || item.entry.visited) return "Visited";
+  return "Option";
 }
 
 function catalogTypeBadges(
@@ -56,14 +54,6 @@ function catalogTypeBadges(
     });
   }
   return items;
-}
-
-function catalogBadges(
-  item: CatalogItem,
-  fieldDefs: FieldDef[],
-  badgeVariants: Record<string, BadgeVariant>
-): BadgeItem[] {
-  return [catalogStatusBadge(item), ...catalogTypeBadges(item, fieldDefs, badgeVariants)];
 }
 
 // Cross-trip browse for one category (Stays, Food & Drink, …) — map of
@@ -159,7 +149,10 @@ export default function CatalogPage({ categoryLabel, initialItems, fieldDefs = [
               )}
               <div className={styles["card-body"]}>
                 <div className={styles["card-heading"]}>
-                  <BadgesRow items={catalogBadges(item, fieldDefs, badgeVariants)} />
+                  <div className={styles["card-tags"]}>
+                    <span className={styles["card-status"]}>{catalogStatusLabel(item)} -</span>
+                    <BadgesRow items={catalogTypeBadges(item, fieldDefs, badgeVariants)} />
+                  </div>
                   <div className={styles["card-meta"]}>
                     {item.country ? <span>{item.country}</span> : null}
                     {item.trips.length > 0 ? (
