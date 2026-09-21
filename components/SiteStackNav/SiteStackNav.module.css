@@ -34,3 +34,34 @@
   gap: 0.5rem;
   margin-left: auto;
 }
+
+/* Match TripNavHeader — flat pills on desktop, burger on mobile. */
+.menu-desktop {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .menu-desktop {
+    display: block;
+  }
+}
+
+.menu-mobile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+}
+@media (min-width: 1024px) {
+  .menu-mobile {
+    display: none;
+  }
+}
+
+.mobile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
