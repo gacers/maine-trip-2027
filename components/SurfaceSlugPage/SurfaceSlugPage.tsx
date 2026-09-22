@@ -1,10 +1,12 @@
 "use client";
 
 import { useParams, notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import CatalogPage from "@/components/CatalogPage";
 import PlacesPage from "@/components/PlacesPage";
 import FutureInterestPage from "@/components/FutureInterestPage";
 import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
+import EmptyState from "@/components/EmptyState";
 import { isSiteCategorySlug, type SiteCategorySlug } from "@/lib/siteCategories";
 import {
   useCatalogList,
@@ -32,6 +34,18 @@ function AccessDenied() {
   );
 }
 
+function PageChrome({ label, children }: { label?: string; children: ReactNode }) {
+  return (
+    <main className={styles["root"]}>
+      <div className={styles["toolbar"]}>
+        {label ? <h1 className={styles["heading"]}>{label}</h1> : <div className={styles["heading-skel"]} />}
+        <div className={styles["filter-skel"]} />
+      </div>
+      {children}
+    </main>
+  );
+}
+
 function PageSkeleton({
   label,
   cardLayout,
@@ -44,7 +58,6 @@ function PageSkeleton({
   slug: string;
 }) {
   const { data: shell } = useHomeShell();
-  // Places / FI use EntryCard media; Categories use Catalog thumbs.
   const tone = surface === "categories" ? "surface" : "section";
   const shellTabs =
     surface === "places"
@@ -56,13 +69,9 @@ function PageSkeleton({
   const layout = cardLayout ?? layoutFromShell ?? defaultCardLayout(slug);
 
   return (
-    <main className={styles["root"]}>
-      <div className={styles["toolbar"]}>
-        {label ? <h1 className={styles["heading"]}>{label}</h1> : <div className={styles["heading-skel"]} />}
-        <div className={styles["filter-skel"]} />
-      </div>
+    <PageChrome label={label}>
       <SurfacePageSkeleton cardLayout={layout} tone={tone} />
-    </main>
+    </PageChrome>
   );
 }
 
@@ -116,7 +125,8 @@ function renderSurface(
   );
 }
 
-/** Client-owned surface tab — one skeleton until config + list are both ready. */
+/** Don't paint card skeletons until we know the list has items — empty
+ * pages go chrome → empty, not fake cards → empty. */
 export default function SurfaceSlugPage({ surface }: SurfaceSlugPageProps) {
   const params = useParams();
   const slug = typeof params.slug === "string" ? params.slug : "";
@@ -124,19 +134,16 @@ export default function SurfaceSlugPage({ surface }: SurfaceSlugPageProps) {
 
   const { config, loading: configLoading, error } = useSurfacePageConfig(surface, slug);
   const list = useSurfaceList(surface, slug);
+  const label = config?.categoryLabel;
 
   if (error === "Sign in required") return <AccessDenied />;
   if (error.includes("not enabled") || error.includes("Unknown")) notFound();
 
-  const waiting = configLoading || !config || list.loading;
-  if (waiting) {
+  if (list.loading) {
     return (
-      <PageSkeleton
-        label={config?.categoryLabel}
-        cardLayout={config?.cardLayout}
-        surface={surface}
-        slug={slug}
-      />
+      <PageChrome label={label}>
+        <EmptyState busy />
+      </PageChrome>
     );
   }
 
@@ -145,6 +152,20 @@ export default function SurfaceSlugPage({ surface }: SurfaceSlugPageProps) {
       <main className={styles["message"]}>
         <p>{list.error}</p>
       </main>
+    );
+  }
+
+  if (list.items.length === 0) {
+    return (
+      <PageChrome label={label}>
+        <EmptyState>Nothing here yet</EmptyState>
+      </PageChrome>
+    );
+  }
+
+  if (configLoading || !config) {
+    return (
+      <PageSkeleton label={label} cardLayout={config?.cardLayout} surface={surface} slug={slug} />
     );
   }
 

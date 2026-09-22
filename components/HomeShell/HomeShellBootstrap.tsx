@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import SiteHeader, { siteHeaderStyles } from "@/components/SiteHeader";
 import HomeShell from "@/components/HomeShell";
 import { useHomeShell } from "@/lib/homeQueries";
@@ -23,7 +24,13 @@ export default function HomeShellBootstrap({ children }: { children: ReactNode }
     return (
       <>
         <div className={styles["sticky-chrome"]}>
-          <SiteHeader brand={<p className={siteHeaderStyles["brand-title"]}>Country Goth Travel</p>} />
+          <SiteHeader
+            brand={
+              <Link href="/" className={siteHeaderStyles["brand-title"]}>
+                Country Goth Travel
+              </Link>
+            }
+          />
         </div>
         {children}
       </>

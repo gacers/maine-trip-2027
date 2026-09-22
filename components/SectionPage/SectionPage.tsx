@@ -7,7 +7,6 @@ import PairEntryDialog from "@/components/PairEntryDialog";
 import EntryCard from "@/components/EntryCard";
 import OverviewMap from "@/components/OverviewMap";
 import Button from "@/components/Button";
-import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import EmptyState, { shortEmptyMessage } from "@/components/EmptyState";
 import { useNavSlot } from "@/components/TripNavHeader/NavSlot";
 import { groupUnits } from "@/lib/groupUnits";
@@ -491,11 +490,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
       )}
 
       {loading ? (
-        <SurfacePageSkeleton
-          cardLayout={cardLayout}
-          tone="section"
-          largeMedia={isLargeMedia}
-        />
+        <EmptyState busy />
       ) : (
         <>
           {/* Independent of comparisonMode on purpose — OverviewMap is a

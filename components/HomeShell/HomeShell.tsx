@@ -113,7 +113,11 @@ export default function HomeShell({
     <>
       <div className={styles["sticky-chrome"]}>
         <SiteHeader
-          brand={<p className={siteHeaderStyles["brand-title"]}>Country Goth Travel</p>}
+          brand={
+            <Link href="/" className={siteHeaderStyles["brand-title"]}>
+              Country Goth Travel
+            </Link>
+          }
           actions={
             isAdmin ? (
               <>
