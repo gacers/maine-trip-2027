@@ -23,6 +23,11 @@
   color: var(--color-zinc-900);
 }
 
+.heading-count {
+  font-weight: var(--font-weight-normal);
+  color: var(--color-zinc-500);
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;

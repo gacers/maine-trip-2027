@@ -88,7 +88,7 @@ export default function CatalogPage({
   fieldDefs = [],
   cardLayout = defaultCardLayout(categorySlug),
 }: CatalogPageProps) {
-  const { items, error } = useCatalogList(categorySlug);
+  const { items, error, loading } = useCatalogList(categorySlug);
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
 
@@ -115,6 +115,15 @@ export default function CatalogPage({
       return true;
     });
   }, [items, countryFilter, tierFilter]);
+
+  const filtersActive = countryFilter !== "all" || tierFilter !== "all";
+  // Distilleries (12) when unfiltered; Distilleries (4 / 12) once a
+  // Location/Section filter narrows the list.
+  const headingCount = loading
+    ? null
+    : filtersActive
+      ? `(${visible.length} / ${items.length})`
+      : `(${items.length})`;
 
   const pins: OverviewPin[] = useMemo(
     () =>
@@ -160,7 +169,15 @@ export default function CatalogPage({
   return (
     <main className={styles["root"]}>
       <div className={styles["toolbar"]}>
-        <h1 className={styles["heading"]}>{categoryLabel}</h1>
+        <h1 className={styles["heading"]}>
+          {categoryLabel}
+          {headingCount ? (
+            <>
+              {" "}
+              <span className={styles["heading-count"]}>{headingCount}</span>
+            </>
+          ) : null}
+        </h1>
         <div className={styles["filters"]}>
           <label className={styles["filter"]}>
             Location
