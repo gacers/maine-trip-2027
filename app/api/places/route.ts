@@ -3,6 +3,7 @@ import { requireSiteEditorAccess } from "@/lib/auth";
 import { createPlaceItem, listPlaces } from "@/lib/places";
 import { revalidateCatalog } from "@/lib/revalidateCatalog";
 import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
+import { ensureOwnedPosterImage } from "@/lib/mediaStore";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -44,12 +45,15 @@ export async function POST(request: NextRequest) {
     const lat = typeof body.lat === "number" ? body.lat : body.lat === null ? null : undefined;
     const lng = typeof body.lng === "number" ? body.lng : body.lng === null ? null : undefined;
     const country = await resolveEntryCountry(supabase!, lat, lng, null);
+    const ownedPoster = await ensureOwnedPosterImage(
+      typeof body.posterImage === "string" ? body.posterImage : null
+    );
 
     const item = await createPlaceItem({
       categorySlug,
       title: typeof body.title === "string" ? body.title : null,
       url: typeof body.url === "string" ? body.url : null,
-      posterImage: typeof body.posterImage === "string" ? body.posterImage : null,
+      posterImage: ownedPoster,
       description: typeof body.description === "string" ? body.description : null,
       lat,
       lng,

@@ -1,6 +1,7 @@
 import Button from "@/components/Button";
 import FieldInput from "@/components/FieldInput";
 import AddFieldSelect from "@/components/AddFieldSelect";
+import PhotoUrlField from "@/components/PhotoUrlField";
 import { MARKER_COLORS } from "../helpers";
 import { visibleFieldDefsForEdit, stashMovedFrom, isTruthyFlag } from "@/lib/statusFields";
 import type { ImportSourceEntryInfo } from "@/lib/entrySync";
@@ -66,6 +67,10 @@ export interface EntryEditFormProps {
     required: boolean;
     options?: { choices?: string[]; aliases?: string[] } | null;
   }) => void;
+  /** Always the trip slug for poster upload (even when tripSlug is
+   * undefined for non-admins gating AddFieldSelect). */
+  uploadTripSlug?: string;
+  authToken?: string | null;
 }
 
 // The full manual-edit form (every field EntryCard's own "Edit
@@ -91,6 +96,8 @@ export default function EntryEditForm({
   sectionId,
   categorySlug,
   onFieldAdded,
+  uploadTripSlug,
+  authToken = null,
 }: EntryEditFormProps) {
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
   const canAddField = !locked && !!(onFieldAdded || (tripSlug && sectionId));
@@ -149,15 +156,15 @@ export default function EntryEditForm({
             disabled={locked}
           />
         </label>
-        <label className={styles["field"]}>
-          Photo URL
-          <input
-            value={draft.posterImage}
-            onChange={(e) => onChange({ ...draft, posterImage: e.target.value })}
-            className={styles["input"]}
-            disabled={locked}
-          />
-        </label>
+        <PhotoUrlField
+          className={styles["field"]}
+          inputClassName={styles["input"]}
+          value={draft.posterImage}
+          onChange={(posterImage) => onChange({ ...draft, posterImage })}
+          disabled={locked}
+          tripSlug={uploadTripSlug || tripSlug}
+          authToken={authToken}
+        />
         <label className={styles["wide-field"]}>
           Description (one bullet per line)
           <textarea

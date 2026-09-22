@@ -1,5 +1,6 @@
 import FieldInput from "@/components/FieldInput";
 import AddFieldSelect, { type AddedFieldPayload } from "@/components/AddFieldSelect";
+import PhotoUrlField from "@/components/PhotoUrlField";
 import { visibleFieldDefsForEdit, withMovedFromStash } from "@/lib/statusFields";
 import type { FieldDef } from "@/lib/types";
 import styles from "./CoreFieldsGrid.module.css";
@@ -46,6 +47,14 @@ export interface CoreFieldsGridProps {
   onFieldAdded?: (field: AddedFieldPayload) => void;
   /** Hide Concerns unless this section/category opts in. */
   showConcerns?: boolean;
+  /** Invite / editor bearer for /api/media/upload (trip adds). */
+  authToken?: string | null;
+  /**
+   * Trip slug for poster upload auth — separate from `tripSlug` above,
+   * which also gates AddFieldSelect (admin-only). Contributors still
+   * need a tripSlug on the upload form even when they can't add fields.
+   */
+  uploadTripSlug?: string;
 }
 
 // Title/photo/description/section-specific fields/coordinates/notes/
@@ -71,6 +80,8 @@ export default function CoreFieldsGrid({
   categorySlug,
   onFieldAdded,
   showConcerns = false,
+  authToken = null,
+  uploadTripSlug,
 }: CoreFieldsGridProps) {
   const canAddField = !disabled && !!(onFieldAdded || (tripSlug && sectionId));
   return (
@@ -85,15 +96,15 @@ export default function CoreFieldsGrid({
           className={styles["input"]}
         />
       </label>
-      <label className={styles["wide-field"]}>
-        Photo URL
-        <input
-          disabled={disabled}
-          value={fields.posterImage}
-          onChange={(e) => onFieldsChange({ ...fields, posterImage: e.target.value })}
-          className={styles["input"]}
-        />
-      </label>
+      <PhotoUrlField
+        className={styles["wide-field"]}
+        inputClassName={styles["input"]}
+        value={fields.posterImage}
+        onChange={(posterImage) => onFieldsChange({ ...fields, posterImage })}
+        disabled={disabled}
+        tripSlug={uploadTripSlug || tripSlug}
+        authToken={authToken}
+      />
       <label className={styles["wide-field"]}>
         Description (one bullet per line, optional)
         <textarea

@@ -3,6 +3,7 @@ import { requireSiteEditorAccess } from "@/lib/auth";
 import { deletePlaceItem, updatePlaceItem } from "@/lib/places";
 import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
 import { isSiteCategorySlug } from "@/lib/siteCategories";
+import { ensureOwnedPosterImage } from "@/lib/mediaStore";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -22,7 +23,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const patch: Record<string, unknown> = {};
   if ("title" in body) patch.title = body.title ?? null;
   if ("url" in body) patch.url = body.url ?? null;
-  if ("posterImage" in body) patch.poster_image = body.posterImage ?? null;
+  if ("posterImage" in body) {
+    patch.poster_image = await ensureOwnedPosterImage(
+      typeof body.posterImage === "string" ? body.posterImage : null
+    );
+  }
   if ("description" in body) patch.description = body.description ?? null;
   if ("lat" in body) patch.lat = body.lat === "" || body.lat == null ? null : Number(body.lat);
   if ("lng" in body) patch.lng = body.lng === "" || body.lng == null ? null : Number(body.lng);

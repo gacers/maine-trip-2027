@@ -50,10 +50,10 @@ export default function EntryMedia({
   collapsed = false,
   onToggleCollapse,
 }: EntryMediaProps) {
-  // A pasted URL (there's no real upload — see TripSettingsForm) can go
-  // stale after the fact (a listing taken down, a hosting site
-  // rotating its CDN links) — treated the same as never having had a
-  // photo at all, rather than showing a broken-image icon.
+  // A pasted URL or upload (archived to R2 when S3_* is configured —
+  // see lib/mediaStore.ts) can still go stale if it was never mirrored
+  // — treated the same as never having had a photo at all, rather than
+  // showing a broken-image icon.
   const [failed, setFailed] = useState(false);
   if (!entry.posterImage || failed) return null;
   // Shrinks all the way to nothing (not just a shorter strip) — a

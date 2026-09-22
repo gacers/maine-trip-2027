@@ -7,6 +7,7 @@ import { exportSection } from "@/lib/sheetsExport";
 import { isSyncedEntryFieldPatch, propagateEntryUpdateFromSource } from "@/lib/entrySync";
 import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
 import { revalidateCatalog } from "@/lib/revalidateCatalog";
+import { ensureOwnedPosterImage } from "@/lib/mediaStore";
 import type { EntryRow, Trip, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -79,6 +80,13 @@ export async function PATCH(
   const loosePatch = patch as Record<string, unknown>;
   if (loosePatch.lat === "") patch.lat = null;
   if (loosePatch.lng === "") patch.lng = null;
+
+  if ("poster_image" in patch) {
+    const owned = await ensureOwnedPosterImage(
+      typeof patch.poster_image === "string" ? patch.poster_image : null
+    );
+    patch.poster_image = owned;
+  }
 
   const dataPatch = body.data && typeof body.data === "object" ? (body.data as Record<string, unknown>) : null;
   // appendNote/appendConcern add one more bullet to the existing list

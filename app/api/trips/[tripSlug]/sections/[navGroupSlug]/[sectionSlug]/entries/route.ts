@@ -11,6 +11,7 @@ import { sectionHasOptionsTraits } from "@/lib/tripCompletion";
 import { propagateNewEntryFromSource, seedMissingFieldDefsFromSource } from "@/lib/entrySync";
 import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
 import { revalidateCatalog } from "@/lib/revalidateCatalog";
+import { ensureOwnedPosterImage } from "@/lib/mediaStore";
 import type { Trip, Section, EntryRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -185,7 +186,7 @@ export async function POST(
         import_source_entry_id: matchedSource.id,
         title: matchedSource.title,
         url: matchedSource.url,
-        poster_image: matchedSource.poster_image,
+        poster_image: await ensureOwnedPosterImage(matchedSource.poster_image),
         description: matchedSource.description,
         lat: matchedSource.lat,
         lng: matchedSource.lng,
@@ -214,6 +215,7 @@ export async function POST(
       const entryLat = lat === "" || lat == null ? null : lat;
       const entryLng = lng === "" || lng == null ? null : lng;
       const country = await resolveEntryCountry(supabase!, entryLat, entryLng, trip.country);
+      const ownedPoster = await ensureOwnedPosterImage(typeof posterImage === "string" ? posterImage : null);
 
       entry = await createEntry(supabase!, {
         id: nanoid(8),
@@ -222,7 +224,7 @@ export async function POST(
         status: "active",
         title,
         url: normalizedUrl,
-        poster_image: posterImage || null,
+        poster_image: ownedPoster,
         description: description || null,
         // A "Start blank"/never-geocoded entry sends these as "" (the
         // client's own empty-input default), not undefined — `?? null`

@@ -694,6 +694,8 @@ export default function EntryCard({
                   sectionId={entry.sectionId || undefined}
                   categorySlug={categorySlug}
                   onFieldAdded={onFieldAdded}
+                  uploadTripSlug={tripSlug}
+                  authToken={authToken}
                 />
               </div>
             )}

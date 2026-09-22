@@ -1,4 +1,5 @@
 import FieldInput from "@/components/FieldInput";
+import PhotoUrlField from "@/components/PhotoUrlField";
 import type { FieldDef } from "@/lib/types";
 import type { CoreFields } from "../CoreFieldsGrid";
 import styles from "./PairFieldsBox.module.css";
@@ -25,6 +26,8 @@ export interface PairFieldsBoxProps {
   groupLabel: string;
   onGroupLabelChange: (v: string) => void;
   presetGroupLabel: string;
+  tripSlug?: string;
+  authToken?: string | null;
 }
 
 // "Pair with a second link" — the manual-input equivalent of the AI
@@ -55,6 +58,8 @@ export default function PairFieldsBox({
   groupLabel,
   onGroupLabelChange,
   presetGroupLabel,
+  tripSlug,
+  authToken = null,
 }: PairFieldsBoxProps) {
   if (!supportsPairing) return null;
 
@@ -109,14 +114,14 @@ export default function PairFieldsBox({
                 className={styles["input"]}
               />
             </label>
-            <label className={styles["field"]}>
-              Photo URL
-              <input
-                value={pairFields.posterImage}
-                onChange={(e) => onPairFieldsChange({ ...pairFields, posterImage: e.target.value })}
-                className={styles["input"]}
-              />
-            </label>
+            <PhotoUrlField
+              className={styles["field"]}
+              inputClassName={styles["input"]}
+              value={pairFields.posterImage}
+              onChange={(posterImage) => onPairFieldsChange({ ...pairFields, posterImage })}
+              tripSlug={tripSlug}
+              authToken={authToken}
+            />
             <label className={styles["field"]}>
               Latitude
               <input

@@ -633,6 +633,8 @@ export default function AddEntryForm({
               tripSlug={canManage ? trip.slug : undefined}
               sectionId={section.id}
               showConcerns={!!section.supports_concerns}
+              authToken={authToken}
+              uploadTripSlug={trip.slug}
             />
             <PairFieldsBox
               supportsPairing={!!section.supports_pairing}
@@ -643,6 +645,8 @@ export default function AddEntryForm({
               onPairUrlChange={setPairUrl}
               onFetch={handlePairPreview}
               pairError={pairError}
+              tripSlug={trip.slug}
+              authToken={authToken}
               pairCookieWarning={pairCookieWarning}
               pairWarnings={pairWarnings}
               pairFields={pairFields}

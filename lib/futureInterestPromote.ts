@@ -6,6 +6,7 @@ import {
   deleteFutureInterestItem,
   listFutureInterest,
 } from "@/lib/futureInterest";
+import { ensureOwnedPosterImage } from "@/lib/mediaStore";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
 
 const NOTES_KEY = "__notes";
@@ -69,7 +70,7 @@ export async function promoteManualFutureInterestsToSection(input: {
       status: "active",
       title: item.title,
       url: item.url,
-      poster_image: item.poster_image,
+      poster_image: await ensureOwnedPosterImage(item.poster_image),
       description: item.description,
       lat: item.lat,
       lng: item.lng,
