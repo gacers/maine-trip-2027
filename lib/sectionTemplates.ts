@@ -54,13 +54,13 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
       slug: "options",
       label: "Stay Options",
       addPlaceholder: "Paste an Airbnb, VRBO, or other listing URL...",
-      emptyMessage: "No listings yet — paste a URL above.",
+      emptyMessage: "No listings yet",
     },
     previous: {
       slug: "previously-visited",
       label: "Stayed Before",
       addPlaceholder: "Paste a link for a place you've stayed before...",
-      emptyMessage: "No past stays yet — paste a link above.",
+      emptyMessage: "No past stays yet",
     },
   },
   {
@@ -71,13 +71,13 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
       slug: "options",
       label: "Food & Drink Options",
       addPlaceholder: "Paste a link for a bar or restaurant you want to try...",
-      emptyMessage: "No spots yet — paste a link above.",
+      emptyMessage: "No spots yet",
     },
     previous: {
       slug: "previously-visited",
       label: "Past Food & Drink",
       addPlaceholder: "Paste a link for a bar or restaurant you've already been to...",
-      emptyMessage: "No visited spots yet — paste a link above.",
+      emptyMessage: "No visited spots yet",
     },
   },
   {
@@ -88,13 +88,13 @@ export const SECTION_TEMPLATES: SectionTemplate[] = [
       slug: "options",
       label: "Activity Options",
       addPlaceholder: "Paste a link for a hike, tour, or activity...",
-      emptyMessage: "No activities yet — paste a link above.",
+      emptyMessage: "No activities yet",
     },
     previous: {
       slug: "previously-visited",
       label: "Past Activities",
       addPlaceholder: "Paste a link for a hike, tour, or activity you've already done...",
-      emptyMessage: "No previous activities yet — paste a link above.",
+      emptyMessage: "No previous activities yet",
     },
   },
 ];

@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/NavigationMenu";
 import Button from "@/components/Button";
 import RequestAccess from "@/components/RequestAccess";
@@ -58,7 +59,8 @@ export default function TripNavHeader({
   isEditor = false,
   contactEmail = null,
 }: TripNavHeaderProps) {
-  const { path: pathname, go, prefetch } = useOptimisticPath();
+  const pathname = usePathname(); // real URL for sticky-nav height / admin checks
+  const { path, go, prefetch } = useOptimisticPath();
   const barRef = useRef<HTMLDivElement>(null);
   const navSlot = useNavSlot();
   const [contributorToken, setContributorToken] = useState<string | null>(null);
@@ -66,6 +68,8 @@ export default function TripNavHeader({
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Seeds CreateLoginPrompt's own defaultOpen — see the effect below.
   const [showCreateLoginNudge, setShowCreateLoginNudge] = useState(false);
+  /** Last section group with a sub-nav — kept while on Itinerary so the row doesn't collapse. */
+  const [rememberedGroupId, setRememberedGroupId] = useState<string | null>(null);
   // Nested under the nav group's own slug now — /{tripSlug}/{navGroupSlug}/
   // {sectionSlug} — since a section's slug is only unique within its own
   // group (see migration 0014), not trip-wide.
@@ -146,16 +150,26 @@ export default function TripNavHeader({
   const nav = allNav
     .map((g) => ({ ...g, sections: g.sections.filter((s) => s.enabled) }))
     .filter((g) => g.sections.length > 0);
-  // Itinerary is a peer tab, not under any nav group — don't fall back
-  // to nav[0] there or Stays (etc.) stays lit alongside Itinerary.
-  const isItineraryRoute = pathname === itineraryPath || pathname.startsWith(`${itineraryPath}/`);
+  // Optimistic `path` for active pills; real pathname for admin route checks.
+  const isItineraryRoute = path === itineraryPath || path.startsWith(`${itineraryPath}/`);
   const matchedGroup = nav.find((g) =>
-    g.sections.some((s) => sectionPath(g.slug, s.slug) === pathname),
+    g.sections.some((s) => sectionPath(g.slug, s.slug) === path),
   );
+  // Highlight only the group for the current section URL — never on Itinerary.
   const activeGroup = isItineraryRoute ? undefined : matchedGroup || nav[0];
+  // Sub-nav stays mounted on Itinerary using the last section group so the
+  // sticky bar doesn't collapse/expand (that flash felt like "no matches").
+  const subNavGroup =
+    matchedGroup ||
+    (rememberedGroupId ? nav.find((g) => g.id === rememberedGroupId) : undefined) ||
+    nav[0];
   const activeSection =
-    activeGroup?.sections.find((s) => sectionPath(activeGroup.slug, s.slug) === pathname) ||
-    activeGroup?.sections[0];
+    matchedGroup?.sections.find((s) => sectionPath(matchedGroup.slug, s.slug) === path) ||
+    matchedGroup?.sections[0];
+
+  useEffect(() => {
+    if (matchedGroup) setRememberedGroupId(matchedGroup.id);
+  }, [matchedGroup?.id]);
 
   const canContribute = isAdmin || isEditor || !!contributorToken;
   const showRequestAccess = accessChecked && !canContribute && activeSection;
@@ -302,7 +316,7 @@ export default function TripNavHeader({
             <div className={styles["menu-mobile"]}>
               <MobileNavDrawer
                 nav={nav}
-                pathname={pathname}
+                pathname={path}
                 sectionPath={sectionPath}
                 extraLink={isAdmin ? { href: itineraryPath, label: "Itinerary" } : undefined}
                 open={drawerOpen}
@@ -320,20 +334,21 @@ export default function TripNavHeader({
             <div ref={(el) => navSlot?.setSlot(el)} className={styles["nav-slot-target"]} />
           </div>
 
-          {/* The active group's own sections (e.g. Possible/Previous) —
-              appears once you're actually on one of them, defaulting to
-              the first (normally "Possible ..."), hidden below 1024px
-              since the mobile drawer already lists these nested under
-              their group. */}
-          {activeGroup && activeGroup.sections.length > 1 && (
-            <div className={styles["sub-nav-row"]}>
-              <NavigationMenu className={styles["sub-nav-menu"]} aria-label={`${activeGroup.label} sections`}>
+          {/* Keep this row mounted on Itinerary (last section group) so the
+              sticky bar height doesn't jump away and back. No section is
+              active while Itinerary is selected. */}
+          {subNavGroup && subNavGroup.sections.length > 1 && (
+            <div
+              className={styles["sub-nav-row"]}
+              data-itinerary={isItineraryRoute ? "" : undefined}
+            >
+              <NavigationMenu className={styles["sub-nav-menu"]} aria-label={`${subNavGroup.label} sections`}>
                 <NavigationMenuList>
-                  {activeGroup.sections.map((s) => {
-                    const href = sectionPath(activeGroup.slug, s.slug);
+                  {subNavGroup.sections.map((s) => {
+                    const href = sectionPath(subNavGroup.slug, s.slug);
                     return (
                       <NavigationMenuItem key={s.id}>
-                        <NavigationMenuLink asChild size="sm" active={pathname === href}>
+                        <NavigationMenuLink asChild size="sm" active={!isItineraryRoute && path === href}>
                           <Link
                             href={href}
                             onPointerEnter={() => prefetch(href)}

@@ -1,7 +1,6 @@
 import { supabaseServiceRole } from "@/lib/supabaseServer";
 import { getAdminUser } from "@/lib/auth";
 import { getEditorTripIds } from "@/lib/tripEditors";
-import { getAllTrips } from "@/lib/sections";
 import { toClientEntry } from "@/lib/entries";
 import { listPlaces } from "@/lib/places";
 import { placeToClientEntry, type PlaceItem } from "@/lib/placesShared";
@@ -112,17 +111,29 @@ async function listFutureInterestRows(categorySlug: string): Promise<FutureInter
   return (data || []) as FutureInterestRow[];
 }
 
-async function getTripCatalogItems(categorySlug: string): Promise<CatalogItem[]> {
-  const access = await accessibleTripIds();
+async function getTripCatalogItems(
+  categorySlug: string,
+  access: string[] | "all"
+): Promise<CatalogItem[]> {
   if (access !== "all" && access.length === 0) return [];
 
-  const trips = await getAllTrips();
-  const tripList = access === "all" ? trips : trips.filter((t) => access.includes(t.id));
+  // Service role only — safe to call from unstable_cache (no cookies()).
+  const supabase = supabaseServiceRole();
+  let tripsQuery = supabase
+    .from("trips")
+    .select("*")
+    .eq("archived", false)
+    .order("start_date", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
+  if (access !== "all") {
+    tripsQuery = tripsQuery.in("id", access);
+  }
+  const { data: trips, error: tripsError } = await tripsQuery;
+  if (tripsError) throw new Error(tripsError.message);
+  const tripList = trips || [];
   if (tripList.length === 0) return [];
   const tripById = new Map(tripList.map((t) => [t.id, t]));
   const tripIds = tripList.map((t) => t.id);
-
-  const supabase = supabaseServiceRole();
   const { data: navGroups, error: ngError } = await supabase
     .from("nav_groups")
     .select("id, slug, trip_id")
@@ -254,8 +265,24 @@ async function getTripCatalogItems(categorySlug: string): Promise<CatalogItem[]>
 // trip yet. Synced entry copies collapse to the original; Places / FI
 // that already match a trip entry (same source_entry_id or URL) are skipped.
 export async function getCatalogForCategory(categorySlug: string): Promise<CatalogItem[]> {
+  const access = await accessibleTripIds();
+  return buildCatalogForCategory(categorySlug, access);
+}
+
+/**
+ * Admin catalog — no cookies()/session. Safe inside unstable_cache.
+ * Call only after requireSiteEditorAccess (or equivalent).
+ */
+export async function getCatalogForCategoryAdmin(categorySlug: string): Promise<CatalogItem[]> {
+  return buildCatalogForCategory(categorySlug, "all");
+}
+
+async function buildCatalogForCategory(
+  categorySlug: string,
+  access: string[] | "all"
+): Promise<CatalogItem[]> {
   const [tripItems, places, futureInterest] = await Promise.all([
-    getTripCatalogItems(categorySlug),
+    getTripCatalogItems(categorySlug, access),
     listPlaces(categorySlug),
     listFutureInterestRows(categorySlug),
   ]);

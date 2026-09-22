@@ -150,7 +150,7 @@ export default function SectionForm({ trip, navGroups, section, importSources = 
           label: counterpartLabel || `${VISITED_PREFIX} ${label}`,
           subNavLabel: VISITED_PREFIX,
           addPlaceholder: `Paste a link for a ${label.toLowerCase()} you've already been to...`,
-          emptyMessage: `No previous ${label.toLowerCase()} yet — paste a link above.`,
+          emptyMessage: `No previous ${label.toLowerCase()} yet`,
           // A "previous"/already-decided list never needs pairing, a map,
           // ratings, or concerns, regardless of what the primary section is set to.
           supportsPairing: false,
@@ -265,7 +265,7 @@ export default function SectionForm({ trip, navGroups, section, importSources = 
           <input
             value={emptyMessage}
             onChange={(e) => setEmptyMessage(e.target.value)}
-            placeholder="Nothing here yet — paste a link above."
+            placeholder="Nothing here yet"
             className={styles["input"]}
           />
         </label>

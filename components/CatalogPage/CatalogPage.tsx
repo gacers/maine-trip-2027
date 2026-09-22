@@ -16,8 +16,8 @@ import {
 import type { SurfaceCardLayout } from "@/lib/siteSurfaceShared";
 import { defaultCardLayout } from "@/lib/siteSurfaceShared";
 import { useCatalogList } from "@/lib/surfaceListQueries";
+import EmptyState from "@/components/EmptyState";
 import type { FieldDef, OverviewPin } from "@/lib/types";
-import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import styles from "./CatalogPage.module.css";
 
 export interface CatalogPageProps {
@@ -88,7 +88,7 @@ export default function CatalogPage({
   fieldDefs = [],
   cardLayout = defaultCardLayout(categorySlug),
 }: CatalogPageProps) {
-  const { items, loading, error } = useCatalogList(categorySlug);
+  const { items, error } = useCatalogList(categorySlug);
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
 
@@ -146,13 +146,13 @@ export default function CatalogPage({
         ? "(max-width: 40rem) 100vw, 50vw"
         : "(max-width: 40rem) 100vw, 72rem";
 
-  if (loading) {
+  if (error) {
     return (
       <main className={styles["root"]}>
         <div className={styles["toolbar"]}>
           <h1 className={styles["heading"]}>{categoryLabel}</h1>
         </div>
-        <SurfacePageSkeleton />
+        <p className={styles["empty"]}>{error}</p>
       </main>
     );
   }
@@ -197,7 +197,7 @@ export default function CatalogPage({
       )}
 
       {visible.length === 0 ? (
-        <p className={styles["empty"]}>No places match these filters.</p>
+        <EmptyState>No places match these filters</EmptyState>
       ) : (
         <ul className={`${styles["list"]} ${layoutClass}`}>
           {visible.map((item) => {

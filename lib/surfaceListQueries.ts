@@ -19,10 +19,11 @@ export function usePlacesList(categorySlug: string) {
       if (!res.ok) throw new Error(data.error || "Failed to load places");
       return data.items as PlaceItem[];
     },
+    enabled: !!categorySlug,
   });
   return {
     items: query.data ?? [],
-    loading: query.isPending,
+    loading: !!categorySlug && query.isPending,
     error: query.isError ? (query.error as Error).message : "",
     queryKey: placesListKey(categorySlug),
   };
@@ -40,10 +41,11 @@ export function useFutureInterestList(categorySlug: string) {
       if (!res.ok) throw new Error(data.error || "Failed to load future interests");
       return data.items as FutureInterestViewItem[];
     },
+    enabled: !!categorySlug,
   });
   return {
     items: query.data ?? [],
-    loading: query.isPending,
+    loading: !!categorySlug && query.isPending,
     error: query.isError ? (query.error as Error).message : "",
     queryKey: futureInterestsListKey(categorySlug),
   };
@@ -60,10 +62,11 @@ export function useCatalogList(categorySlug: string) {
       if (!res.ok) throw new Error(data.error || "Failed to load catalog");
       return data.items as CatalogItem[];
     },
+    enabled: !!categorySlug,
   });
   return {
     items: query.data ?? [],
-    loading: query.isPending,
+    loading: !!categorySlug && query.isPending,
     error: query.isError ? (query.error as Error).message : "",
     queryKey: catalogListKey(categorySlug),
   };

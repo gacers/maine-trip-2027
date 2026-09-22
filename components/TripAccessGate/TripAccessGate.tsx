@@ -75,7 +75,7 @@ export default function TripAccessGate({ trip, isAdmin, isEditor, contactEmail, 
 
   if (isAdmin || isEditor) return <>{children}</>;
   // One client tick while localStorage is read — keep layout chrome, don't blank.
-  if (!inviteChecked) return <SurfacePageSkeleton cards={4} />;
+  if (!inviteChecked) return <SurfacePageSkeleton cardLayout="list" cards={3} />;
   if (hasInvite) return <>{children}</>;
 
   return (

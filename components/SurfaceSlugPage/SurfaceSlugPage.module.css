@@ -10,6 +10,14 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.heading-skel {
+  width: 10rem;
+  height: 1.75rem;
+  margin: 0 0 1rem;
+  border-radius: var(--radius);
+  background: var(--color-zinc-200);
+}
+
 .message {
   max-width: 72rem;
   margin: 0 auto;

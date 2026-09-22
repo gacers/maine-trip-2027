@@ -6,8 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import OverviewMap from "@/components/OverviewMap";
 import FutureInterestAddDialog from "@/components/FutureInterestAddDialog";
 import type { AddedFieldPayload } from "@/components/AddFieldSelect";
-import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import FutureInterestCard from "./FutureInterestCard";
+import EmptyState from "@/components/EmptyState";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
 import type { FutureInterestViewItem } from "@/lib/futureInterest";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
@@ -37,7 +37,7 @@ export default function FutureInterestPage({
 }: FutureInterestPageProps) {
   const homeActions = useHomeActions();
   const queryClient = useQueryClient();
-  const { items, loading, error } = useFutureInterestList(categorySlug);
+  const { items, error } = useFutureInterestList(categorySlug);
   const [fieldDefs, setFieldDefs] = useState(initialFieldDefs);
   const [countryFilter, setCountryFilter] = useState("all");
 
@@ -154,13 +154,13 @@ export default function FutureInterestPage({
         ? styles["grid-2"]
         : styles["list-layout"];
 
-  if (loading) {
+  if (error) {
     return (
       <main className={styles["root"]}>
         <div className={styles["toolbar"]}>
           <h1 className={styles["heading"]}>{categoryLabel}</h1>
         </div>
-        <SurfacePageSkeleton />
+        <p className={styles["empty"]}>{error}</p>
       </main>
     );
   }
@@ -193,9 +193,7 @@ export default function FutureInterestPage({
       )}
 
       {visible.length === 0 ? (
-        <p className={styles["empty"]}>
-          Nothing here yet — unvisited Options from your trips show up automatically, or use + Add in the nav.
-        </p>
+        <EmptyState>Nothing here yet</EmptyState>
       ) : (
         <ul className={classNames(styles["list"], layoutClass)}>
           {visible.map((item) => (

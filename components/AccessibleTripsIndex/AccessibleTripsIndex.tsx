@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import TripCard from "@/components/TripCard";
-import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
+import TripsIndexSkeleton from "@/components/TripsIndex/TripsIndexSkeleton";
 import { listInviteTripSlugs } from "@/lib/inviteClient";
 import type { PublicTrip } from "@/lib/types";
 import styles from "./AccessibleTripsIndex.module.css";
@@ -52,11 +52,7 @@ export default function AccessibleTripsIndex({ items, filterByInviteTokens }: Ac
   }, [items, filterByInviteTokens]);
 
   if (visible == null) {
-    return (
-      <main className={styles["root"]}>
-        <SurfacePageSkeleton cards={3} />
-      </main>
-    );
+    return <TripsIndexSkeleton />;
   }
 
   return (

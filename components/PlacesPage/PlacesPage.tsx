@@ -6,8 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import OverviewMap from "@/components/OverviewMap";
 import PlacesAddDialog from "@/components/PlacesAddDialog";
 import type { AddedFieldPayload } from "@/components/AddFieldSelect";
-import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import PlaceCard from "./PlaceCard";
+import EmptyState from "@/components/EmptyState";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
 import type { PlaceItem } from "@/lib/placesShared";
 import type { SiteCategorySlug } from "@/lib/siteCategories";
@@ -36,7 +36,7 @@ export default function PlacesPage({
 }: PlacesPageProps) {
   const homeActions = useHomeActions();
   const queryClient = useQueryClient();
-  const { items, loading, error } = usePlacesList(categorySlug);
+  const { items, error } = usePlacesList(categorySlug);
   const [fieldDefs, setFieldDefs] = useState(initialFieldDefs);
   const [countryFilter, setCountryFilter] = useState("all");
 
@@ -139,13 +139,13 @@ export default function PlacesPage({
         ? styles["grid-2"]
         : styles["list-layout"];
 
-  if (loading) {
+  if (error) {
     return (
       <main className={styles["root"]}>
         <div className={styles["toolbar"]}>
           <h1 className={styles["heading"]}>{categoryLabel}</h1>
         </div>
-        <SurfacePageSkeleton />
+        <p className={styles["empty"]}>{error}</p>
       </main>
     );
   }
@@ -178,7 +178,7 @@ export default function PlacesPage({
       )}
 
       {visible.length === 0 ? (
-        <p className={styles["empty"]}>Nothing here yet — use + Add in the nav for spots you already know.</p>
+        <EmptyState>Nothing here yet</EmptyState>
       ) : (
         <ul className={classNames(styles["list"], layoutClass)}>
           {visible.map((item) => (

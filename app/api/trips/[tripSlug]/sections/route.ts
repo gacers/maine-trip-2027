@@ -138,7 +138,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         label,
         sub_nav_label: subNavLabel || label,
         add_placeholder: addPlaceholder || "Paste a link...",
-        empty_message: emptyMessage || "Nothing here yet — paste a link above.",
+        empty_message: emptyMessage || "Nothing here yet",
         supports_pairing: !!supportsPairing,
         has_map: !!hasMap,
         supports_ratings: !!supportsRatings,

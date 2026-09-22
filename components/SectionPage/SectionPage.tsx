@@ -8,6 +8,7 @@ import EntryCard from "@/components/EntryCard";
 import OverviewMap from "@/components/OverviewMap";
 import Button from "@/components/Button";
 import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
+import EmptyState, { shortEmptyMessage } from "@/components/EmptyState";
 import { useNavSlot } from "@/components/TripNavHeader/NavSlot";
 import { groupUnits } from "@/lib/groupUnits";
 import { computeTripNights } from "@/lib/fieldTypes/price";
@@ -490,7 +491,11 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
       )}
 
       {loading ? (
-        <SurfacePageSkeleton />
+        <SurfacePageSkeleton
+          cardLayout={cardLayout}
+          tone="section"
+          largeMedia={isLargeMedia}
+        />
       ) : (
         <>
           {/* Independent of comparisonMode on purpose — OverviewMap is a
@@ -500,10 +505,12 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
               located entries gets one, "previous" included. */}
           {!loading && activeUnits.length > 0 && <OverviewMap pins={pins} />}
 
-          {activeUnits.length === 0 && (
-            <p className={styles["empty-text"]}>
-              {active.length === 0 ? section.empty_message : "Nothing matches the selected filters/search."}
-            </p>
+          {!loading && activeUnits.length === 0 && (
+            <EmptyState>
+              {active.length === 0
+                ? shortEmptyMessage(section.empty_message)
+                : "Nothing matches the selected filters/search."}
+            </EmptyState>
           )}
           {/* Split into Visited/Researched headings only when there's
               actually something on both sides to contrast — a

@@ -79,17 +79,6 @@
   color: var(--color-red-600);
 }
 
-.empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-zinc-500);
-  text-align: center;
-}
-
 .list {
   display: flex;
   flex-direction: column;

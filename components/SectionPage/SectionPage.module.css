@@ -58,10 +58,6 @@
   font-size: var(--text-sm);
 }
 
-.empty-text {
-  composes: loading-text;
-}
-
 .entry-list {
   display: flex;
   flex-direction: column;
