@@ -1,12 +1,22 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getTripBySlug, getTripNav } from "@/lib/sections";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
-// Bare trip URL (/{tripSlug}) — list enabled sections. Invite/email query
-// params are kept on each link so SectionPage can still capture them.
+function inviteQuery(invite?: string, email?: string) {
+  const paramsOut = new URLSearchParams();
+  if (invite) paramsOut.set("invite", invite);
+  if (email) paramsOut.set("email", email);
+  const qs = paramsOut.toString();
+  return qs ? `?${qs}` : "";
+}
+
+// Bare trip URL (/{tripSlug}) — jump straight into the first enabled
+// section. The old "Pick a section to open" list was a leftover from
+// before category tabs linked into sections themselves; keeping invite/
+// email on the redirect so SectionPage can still capture them.
 export default async function TripDefaultPage({
   params,
   searchParams,
@@ -20,45 +30,23 @@ export default async function TripDefaultPage({
   if (!trip) notFound();
 
   const nav = await getTripNav(trip.id);
-  const sections = nav.flatMap((g) =>
-    g.sections
-      .filter((s) => s.enabled)
-      .map((s) => ({ groupSlug: g.slug, groupLabel: g.label, section: s }))
-  );
+  const first = nav
+    .flatMap((g) => g.sections.filter((s) => s.enabled).map((s) => ({ groupSlug: g.slug, sectionSlug: s.slug })))
+    .at(0);
 
-  const paramsOut = new URLSearchParams();
-  if (invite) paramsOut.set("invite", invite);
-  if (email) paramsOut.set("email", email);
-  const qs = paramsOut.toString() ? `?${paramsOut.toString()}` : "";
+  const qs = inviteQuery(invite, email);
 
-  if (sections.length === 0) {
-    return (
-      <main className={styles["root"]}>
-        <h1 className={styles["trip-name"]}>{trip.name}</h1>
-        <p className={styles["empty-hint"]}>This trip doesn&apos;t have any sections yet.</p>
-        <Link href={`/${tripSlug}/admin/sections/new`} className={styles["add-section-button"]}>
-          + Add a section
-        </Link>
-      </main>
-    );
+  if (first) {
+    redirect(`/${tripSlug}/${first.groupSlug}/${first.sectionSlug}${qs}`);
   }
 
   return (
     <main className={styles["root"]}>
       <h1 className={styles["trip-name"]}>{trip.name}</h1>
-      <p className={styles["empty-hint"]}>Pick a section to open.</p>
-      <ul className={styles["section-list"]}>
-        {sections.map(({ groupSlug, groupLabel, section }) => (
-          <li key={`${groupSlug}-${section.slug}`}>
-            <Link
-              href={`/${tripSlug}/${groupSlug}/${section.slug}${qs}`}
-              className={styles["section-link"]}
-            >
-              {groupLabel} — {section.sub_nav_label || section.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <p className={styles["empty-hint"]}>This trip doesn&apos;t have any sections yet.</p>
+      <Link href={`/${tripSlug}/admin/sections/new`} className={styles["add-section-button"]}>
+        + Add a section
+      </Link>
     </main>
   );
 }

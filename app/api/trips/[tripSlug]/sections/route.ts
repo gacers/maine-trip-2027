@@ -112,13 +112,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .trim()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
-      const { data: group, error: groupError } = await supabase!
+      // Reuse an existing group for this trip+slug — a prior attempt
+      // that created the nav_group then failed on the section insert
+      // (e.g. schema cache lag) otherwise leaves an empty shell that
+      // blocks every retry with nav_groups_trip_id_slug_key.
+      const { data: existingGroup } = await supabase!
         .from("nav_groups")
-        .insert({ trip_id: trip.id, slug: groupSlug, label: newNavGroupLabel, sort_order: 999 })
-        .select()
-        .single();
-      if (groupError) throw new Error(groupError.message);
-      resolvedNavGroupId = group.id;
+        .select("id, label")
+        .eq("trip_id", trip.id)
+        .eq("slug", groupSlug)
+        .maybeSingle();
+      if (existingGroup) {
+        resolvedNavGroupId = existingGroup.id;
+        resolvedNavGroupLabel = existingGroup.label;
+      } else {
+        const { data: group, error: groupError } = await supabase!
+          .from("nav_groups")
+          .insert({ trip_id: trip.id, slug: groupSlug, label: newNavGroupLabel, sort_order: 999 })
+          .select()
+          .single();
+        if (groupError) throw new Error(groupError.message);
+        resolvedNavGroupId = group.id;
+      }
     } else if (resolvedNavGroupId && !resolvedNavGroupLabel) {
       // Only needed for template capture below (e.g. a counterpart
       // section landing in the nav group its primary just created) —

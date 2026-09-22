@@ -151,14 +151,19 @@ export default function TripNavHeader({
     .filter((g) => g.sections.length > 0);
   // Optimistic `path` for active pills; real pathname for admin route checks.
   const isItineraryRoute = path === itineraryPath || path.startsWith(`${itineraryPath}/`);
-  const matchedGroup = nav.find((g) =>
-    g.sections.some((s) => sectionPath(g.slug, s.slug) === path),
+  // Also treat /{trip}/{group} (short URL before it redirects into a
+  // section) as belonging to that group — otherwise the tab looks idle
+  // for a beat, and the old bare-trip fallback to nav[0] made Stays
+  // look selected on the leftover "Pick a section" page.
+  const matchedGroup = nav.find(
+    (g) => path === `/${trip.slug}/${g.slug}` || g.sections.some((s) => sectionPath(g.slug, s.slug) === path),
   );
-  // Highlight only the group for the current section URL — never on Itinerary.
-  const activeGroup = isItineraryRoute ? undefined : matchedGroup || nav[0];
+  // Highlight only the group for the current section/group URL — never
+  // on Itinerary, and never a fake "first tab" when nothing matches.
+  const activeGroup = isItineraryRoute ? undefined : matchedGroup;
   // Section sub-nav (Possible/Visited) only on section pages — Itinerary
   // is a peer tab with no nested sections, so no second row there.
-  const subNavGroup = isItineraryRoute ? undefined : matchedGroup || nav[0];
+  const subNavGroup = isItineraryRoute ? undefined : matchedGroup;
   const activeSection =
     matchedGroup?.sections.find((s) => sectionPath(matchedGroup.slug, s.slug) === path) ||
     matchedGroup?.sections[0];

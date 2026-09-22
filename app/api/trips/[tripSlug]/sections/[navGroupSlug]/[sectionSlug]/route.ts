@@ -135,13 +135,26 @@ export async function PATCH(
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
-      const { data: group, error: groupError } = await supabase!
+      // Same reuse-or-insert as the sections POST route — an empty
+      // leftover from a failed create would otherwise trip the unique
+      // (trip_id, slug) constraint here too.
+      const { data: existingGroup } = await supabase!
         .from("nav_groups")
-        .insert({ trip_id: trip.id, slug: groupSlug, label: newNavGroupLabel.trim(), sort_order: 999 })
-        .select()
-        .single();
-      if (groupError) throw new Error(groupError.message);
-      patch.nav_group_id = group.id;
+        .select("id")
+        .eq("trip_id", trip.id)
+        .eq("slug", groupSlug)
+        .maybeSingle();
+      if (existingGroup) {
+        patch.nav_group_id = existingGroup.id;
+      } else {
+        const { data: group, error: groupError } = await supabase!
+          .from("nav_groups")
+          .insert({ trip_id: trip.id, slug: groupSlug, label: newNavGroupLabel.trim(), sort_order: 999 })
+          .select()
+          .single();
+        if (groupError) throw new Error(groupError.message);
+        patch.nav_group_id = group.id;
+      }
 
       // Moving a section into a brand-new group is functionally the
       // same "this is a real custom category now" signal the sections
