@@ -27,7 +27,7 @@ blockquote {
 
 body {
   margin: 0;
-  background: var(--background);
+  background: var(--color-zinc-50);
   color: var(--foreground);
   font-family: var(--font-sans);
 }
@@ -43,17 +43,6 @@ select {
   background-size: 0.75rem;
   /* Beat component padding shorthand so the caret isn't clipped. */
   padding-right: 1.75rem !important;
-}
-
-/* Houses pages only — toggled via plain DOM classList from SectionPage
-   (same cross-component-styling mechanism as .pin-jump-highlight
-   below), since the root layout that actually renders <body> has no
-   way to know which nested route is active. Qualified as body.houses-
-   page (element + class) so it reliably beats app/layout.module.css's
-   own .body class (a single class alone) regardless of which
-   stylesheet happens to load first. */
-body.houses-page {
-  background: var(--color-zinc-200);
 }
 
 /* Applied for a few seconds (via plain DOM classList, not a CSS Module
@@ -96,6 +85,11 @@ body.houses-page {
 }
 
 .page-fade-in {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  min-width: 0;
   animation: page-fade-in 220ms ease-out;
 }
 

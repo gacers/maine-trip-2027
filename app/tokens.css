@@ -103,8 +103,8 @@
   --shadow-lg:
     0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 
-  /* Page background/foreground (pre-existing, kept as-is) */
-  --background: #fafaf9;
+  /* Page background/foreground — match body / layout zinc-50. */
+  --background: var(--color-zinc-50);
   --foreground: #171717;
 
   /* Shared content column — trip sections, home surfaces, itinerary, etc. */

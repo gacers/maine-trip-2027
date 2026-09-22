@@ -182,12 +182,11 @@ export default function TripNavHeader({
       <SiteHeader
         brand={
           <>
-            {/* "Home ›" for admins (site stack lives on /); "All Trips ›"
-                for editors and invite contributors who only see trips. */}
+            {/* Site brand › trip name — everyone lands back on / from here. */}
             {(isAdmin || isEditor || !!contributorToken) && (
               <>
                 <Link href="/" className={siteHeaderStyles["brand-crumb"]}>
-                  {isAdmin ? "Home" : "All Trips"}
+                  Country Goth Travel
                 </Link>
                 <span className={siteHeaderStyles["brand-separator"]} aria-hidden>
                   ›

@@ -150,17 +150,6 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     setContributorToken(captureInviteToken(trip.slug));
   }, [trip.slug]);
 
-  // Houses pages get a slightly darker page background behind the
-  // cards (see globals.css's body.houses-page) — toggled on <body>
-  // directly since the root layout that actually renders it has no way
-  // to know which nested route is active.
-  useEffect(() => {
-    document.body.classList.toggle("houses-page", isHouses);
-    return () => {
-      document.body.classList.remove("houses-page");
-    };
-  }, [isHouses]);
-
   const { sheetUrl, entries, loading, error, handlePatch, handleDelete, handleRate, handleAdded, clearAllRatings } = useSectionEntries({
     trip,
     section,
