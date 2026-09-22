@@ -108,5 +108,5 @@
   --foreground: #171717;
 
   /* Shared content column — trip sections, home surfaces, itinerary, etc. */
-  --content-max-width: 72rem;
+  --content-max-width: 80rem;
 }
