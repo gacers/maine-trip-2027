@@ -5,6 +5,7 @@ import { captureInviteToken } from "@/lib/inviteClient";
 import LoginPrompt from "@/components/LoginPrompt";
 import RequestAccess from "@/components/RequestAccess";
 import LogoutButton from "@/components/LogoutButton";
+import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import type { PublicTrip } from "@/lib/types";
 import styles from "./TripAccessGate.module.css";
@@ -73,7 +74,8 @@ export default function TripAccessGate({ trip, isAdmin, isEditor, contactEmail, 
   }, [isAdmin, isEditor, hasInvite]);
 
   if (isAdmin || isEditor) return <>{children}</>;
-  if (!inviteChecked) return null;
+  // One client tick while localStorage is read — keep layout chrome, don't blank.
+  if (!inviteChecked) return <SurfacePageSkeleton cards={4} />;
   if (hasInvite) return <>{children}</>;
 
   return (

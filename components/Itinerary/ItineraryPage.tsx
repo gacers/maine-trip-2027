@@ -9,7 +9,7 @@ import StopCard from "./StopCard";
 import RouteConnector from "./RouteConnector";
 import DocExportBox from "./DocExportBox";
 import WeekView from "./WeekView";
-import PageLoading from "@/components/PageLoading";
+import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import type { PublicTrip, ItineraryStop } from "@/lib/types";
 import styles from "./ItineraryPage.module.css";
 
@@ -239,7 +239,7 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
       {error && <p className={styles["error"]}>{error}</p>}
 
       {loading ? (
-        <PageLoading />
+        <SurfacePageSkeleton cards={4} />
       ) : stops.length === 0 ? (
         <p className={styles["empty"]}>Nothing on the itinerary yet — add a stop above.</p>
       ) : viewMode === "week" ? (

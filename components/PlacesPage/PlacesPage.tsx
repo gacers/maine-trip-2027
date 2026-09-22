@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import OverviewMap from "@/components/OverviewMap";
 import PlacesAddDialog from "@/components/PlacesAddDialog";
 import type { AddedFieldPayload } from "@/components/AddFieldSelect";
-import PageLoading from "@/components/PageLoading";
+import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import PlaceCard from "./PlaceCard";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
 import type { PlaceItem } from "@/lib/placesShared";
@@ -139,7 +139,16 @@ export default function PlacesPage({
         ? styles["grid-2"]
         : styles["list-layout"];
 
-  if (loading) return <PageLoading />;
+  if (loading) {
+    return (
+      <main className={styles["root"]}>
+        <div className={styles["toolbar"]}>
+          <h1 className={styles["heading"]}>{categoryLabel}</h1>
+        </div>
+        <SurfacePageSkeleton />
+      </main>
+    );
+  }
 
   return (
     <main className={styles["root"]}>

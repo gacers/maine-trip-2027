@@ -1,18 +1,35 @@
+import classNames from "classnames";
 import styles from "./SurfacePageSkeleton.module.css";
 
 export interface SurfacePageSkeletonProps {
   /** Approximate card count for the placeholder grid. */
   cards?: number;
+  /**
+   * `page` — full placeholder including fake toolbar (legacy / unused).
+   * `content` — map + cards only, under the real page chrome.
+   */
+  variant?: "page" | "content";
+  className?: string;
 }
 
-/** Route-level loading placeholder for Categories / Places / Future Interests. */
-export default function SurfacePageSkeleton({ cards = 6 }: SurfacePageSkeletonProps) {
+/** Loading placeholder for Categories / Places / Future Interests (and similar lists). */
+export default function SurfacePageSkeleton({
+  cards = 6,
+  variant = "content",
+  className,
+}: SurfacePageSkeletonProps) {
   return (
-    <div className={styles["root"]} aria-busy="true" aria-label="Loading">
-      <div className={styles["toolbar"]}>
-        <div className={styles["heading"]} />
-        <div className={styles["filter"]} />
-      </div>
+    <div
+      className={classNames(variant === "page" ? styles["root"] : styles["content"], className)}
+      aria-busy="true"
+      aria-label="Loading"
+    >
+      {variant === "page" ? (
+        <div className={styles["toolbar"]}>
+          <div className={styles["heading"]} />
+          <div className={styles["filter"]} />
+        </div>
+      ) : null}
       <div className={styles["map"]} />
       <ul className={styles["grid"]}>
         {Array.from({ length: cards }, (_, i) => (

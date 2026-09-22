@@ -17,7 +17,7 @@ import type { SurfaceCardLayout } from "@/lib/siteSurfaceShared";
 import { defaultCardLayout } from "@/lib/siteSurfaceShared";
 import { useCatalogList } from "@/lib/surfaceListQueries";
 import type { FieldDef, OverviewPin } from "@/lib/types";
-import PageLoading from "@/components/PageLoading";
+import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import styles from "./CatalogPage.module.css";
 
 export interface CatalogPageProps {
@@ -146,7 +146,16 @@ export default function CatalogPage({
         ? "(max-width: 40rem) 100vw, 50vw"
         : "(max-width: 40rem) 100vw, 72rem";
 
-  if (loading) return <PageLoading />;
+  if (loading) {
+    return (
+      <main className={styles["root"]}>
+        <div className={styles["toolbar"]}>
+          <h1 className={styles["heading"]}>{categoryLabel}</h1>
+        </div>
+        <SurfacePageSkeleton />
+      </main>
+    );
+  }
 
   return (
     <main className={styles["root"]}>

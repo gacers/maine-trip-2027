@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import TripCard from "@/components/TripCard";
+import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import { listInviteTripSlugs } from "@/lib/inviteClient";
 import type { PublicTrip } from "@/lib/types";
 import styles from "./AccessibleTripsIndex.module.css";
@@ -27,30 +28,40 @@ export interface AccessibleTripsIndexProps {
   isSignedIn: boolean;
 }
 
+function filterByInvite(items: TripListItem[]): TripListItem[] {
+  const slugSet = new Set(listInviteTripSlugs());
+  return items.filter((item) => slugSet.has(item.trip.slug));
+}
+
 // Client half of the All Trips tab — anonymous contributors only see
 // trips whose invite token is already stored in this browser; admins
 // and signed-in editors get a server-filtered list and skip that step.
-// Header + stack nav live in HomeShell / (home) layout.
 export default function AccessibleTripsIndex({ items, filterByInviteTokens }: AccessibleTripsIndexProps) {
-  const [visible, setVisible] = useState<TripListItem[]>(() => (filterByInviteTokens ? [] : items));
-  const [ready, setReady] = useState(!filterByInviteTokens);
+  // Admins/editors: items are ready on first paint. Invite visitors:
+  // localStorage is only available after mount — skeleton for that tick.
+  const [visible, setVisible] = useState<TripListItem[] | null>(() =>
+    filterByInviteTokens ? null : items
+  );
 
   useEffect(() => {
     if (!filterByInviteTokens) {
       setVisible(items);
-      setReady(true);
       return;
     }
-    const slugSet = new Set(listInviteTripSlugs());
-    setVisible(items.filter((item) => slugSet.has(item.trip.slug)));
-    setReady(true);
+    setVisible(filterByInvite(items));
   }, [items, filterByInviteTokens]);
+
+  if (visible == null) {
+    return (
+      <main className={styles["root"]}>
+        <SurfacePageSkeleton cards={3} />
+      </main>
+    );
+  }
 
   return (
     <main className={styles["root"]}>
-      {!ready ? (
-        <p className={styles["empty-hint"]}>Loading…</p>
-      ) : visible.length === 0 ? (
+      {visible.length === 0 ? (
         <div className={styles["empty-block"]}>
           <p className={styles["empty-hint"]}>No trips you have access to.</p>
           <p className={styles["empty-hint"]}>

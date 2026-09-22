@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import OverviewMap from "@/components/OverviewMap";
 import FutureInterestAddDialog from "@/components/FutureInterestAddDialog";
 import type { AddedFieldPayload } from "@/components/AddFieldSelect";
-import PageLoading from "@/components/PageLoading";
+import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import FutureInterestCard from "./FutureInterestCard";
 import { useHomeActions } from "@/components/HomeShell/HomeActions";
 import type { FutureInterestViewItem } from "@/lib/futureInterest";
@@ -154,7 +154,16 @@ export default function FutureInterestPage({
         ? styles["grid-2"]
         : styles["list-layout"];
 
-  if (loading) return <PageLoading />;
+  if (loading) {
+    return (
+      <main className={styles["root"]}>
+        <div className={styles["toolbar"]}>
+          <h1 className={styles["heading"]}>{categoryLabel}</h1>
+        </div>
+        <SurfacePageSkeleton />
+      </main>
+    );
+  }
 
   return (
     <main className={styles["root"]}>

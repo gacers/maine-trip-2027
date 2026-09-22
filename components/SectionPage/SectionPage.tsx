@@ -7,7 +7,7 @@ import PairEntryDialog from "@/components/PairEntryDialog";
 import EntryCard from "@/components/EntryCard";
 import OverviewMap from "@/components/OverviewMap";
 import Button from "@/components/Button";
-import PageLoading from "@/components/PageLoading";
+import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import { useNavSlot } from "@/components/TripNavHeader/NavSlot";
 import { groupUnits } from "@/lib/groupUnits";
 import { computeTripNights } from "@/lib/fieldTypes/price";
@@ -490,7 +490,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
       )}
 
       {loading ? (
-        <PageLoading />
+        <SurfacePageSkeleton />
       ) : (
         <>
           {/* Independent of comparisonMode on purpose — OverviewMap is a
