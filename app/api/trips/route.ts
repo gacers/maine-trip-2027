@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAllTrips, sanitizeTripForClient } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
+import { ensureOwnedPosterImage } from "@/lib/mediaStore";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { slug, name, subtitle, startDate, endDate, nightsEstimate, mapConfig, completed } = body;
+  const { slug, name, subtitle, startDate, endDate, nightsEstimate, coverImage, mapConfig, completed } = body;
   if (!slug || !name) {
     return NextResponse.json({ error: "slug and name are required" }, { status: 400 });
   }
@@ -41,6 +42,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const ownedCover =
+      typeof coverImage === "string" && coverImage.trim()
+        ? await ensureOwnedPosterImage(coverImage.trim())
+        : null;
+
     const { data: trip, error } = await supabase!
       .from("trips")
       .insert({
@@ -50,6 +56,7 @@ export async function POST(request: NextRequest) {
         start_date: startDate || null,
         end_date: endDate || null,
         nights_estimate: nightsEstimate || null,
+        cover_image: ownedCover,
         map_config: mapConfig || {},
         // Setting this at creation (see NewTripForm's "documenting a
         // past trip" checkbox) is what makes every entry subsequently

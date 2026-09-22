@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import PhotoUrlField from "@/components/PhotoUrlField";
 import styles from "./NewTripForm.module.css";
 
 function slugify(s: string): string {
@@ -20,6 +21,7 @@ export default function NewTripForm() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [nightsEstimate, setNightsEstimate] = useState("");
+  const [coverImage, setCoverImage] = useState("");
   const [pastTrip, setPastTrip] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -43,6 +45,7 @@ export default function NewTripForm() {
           startDate: startDate || undefined,
           endDate: endDate || undefined,
           nightsEstimate: nightsEstimate ? Number(nightsEstimate) : undefined,
+          coverImage: coverImage || undefined,
           completed: pastTrip,
         }),
       });
@@ -80,6 +83,13 @@ export default function NewTripForm() {
         />
         <span className={styles["hint"]}>yoursite.com/{slug || "..."}</span>
       </label>
+      <PhotoUrlField
+        className={styles["field"]}
+        inputClassName={styles["input"]}
+        label="Cover image (optional — shown on the trips list)"
+        value={coverImage}
+        onChange={setCoverImage}
+      />
       <div className={styles["date-row"]}>
         <label className={styles["field"]}>
           Start date (optional — used to sort the trips list)

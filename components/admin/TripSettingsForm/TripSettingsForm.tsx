@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Button from "@/components/Button";
+import PhotoUrlField from "@/components/PhotoUrlField";
 import { fetchForwardGeocode } from "@/lib/geocodeClient";
 import ArchiveUnvisitedButton from "@/components/ArchiveUnvisitedButton";
 import ResetAllRatingsButton from "@/components/ResetAllRatingsButton";
@@ -135,15 +136,14 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
         Subtitle (optional)
         <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={styles["input"]} />
       </label>
-      <label className={styles["field"]}>
-        Cover image (optional — shown on the trips list)
-        <input
-          value={coverImage}
-          onChange={(e) => setCoverImage(e.target.value)}
-          placeholder="https://..."
-          className={styles["input"]}
-        />
-      </label>
+      <PhotoUrlField
+        className={styles["field"]}
+        inputClassName={styles["input"]}
+        label="Cover image (optional — shown on the trips list)"
+        value={coverImage}
+        onChange={setCoverImage}
+        tripSlug={trip.slug}
+      />
       <label className={styles["field"]}>
         Location / region (for Categories &amp; Future Interests filters)
         <input

@@ -4,6 +4,7 @@ import { requireWriteAccess, getAdminUser } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
 import { exportSection } from "@/lib/sheetsExport";
 import { restoreFutureInterestsFromTrip } from "@/lib/futureInterestPromote";
+import { ensureOwnedPosterImage } from "@/lib/mediaStore";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if ("altEndDate" in body) patch.alt_end_date = body.altEndDate || null;
   if ("nightsEstimate" in body) patch.nights_estimate = body.nightsEstimate || null;
   if ("mapConfig" in body) patch.map_config = body.mapConfig;
-  if ("coverImage" in body) patch.cover_image = body.coverImage || null;
+  if ("coverImage" in body) {
+    patch.cover_image = await ensureOwnedPosterImage(
+      typeof body.coverImage === "string" ? body.coverImage : null
+    );
+  }
   if ("country" in body) patch.country = typeof body.country === "string" && body.country.trim() ? body.country.trim() : null;
   if ("completed" in body) patch.completed = !!body.completed;
   // Hides the trip from the public trips index (getAllTrips filters on

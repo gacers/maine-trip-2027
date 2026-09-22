@@ -39,7 +39,7 @@ export default async function TripAdminLayout({
           </Link>
         </nav>
       </div>
-      {children}
+      <div className={styles["body"]}>{children}</div>
     </main>
   );
 }
