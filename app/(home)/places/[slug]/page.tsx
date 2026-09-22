@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { canAccessSiteCatalog } from "@/lib/auth";
-import { getAllTrips } from "@/lib/sections";
+import { getFirstTripSlug } from "@/lib/sections";
 import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
 import { siteCategoryLabel, type SiteCategorySlug } from "@/lib/siteCategories";
 import {
@@ -34,8 +34,8 @@ export default async function PlacesSlugPage({ params }: { params: Promise<{ slu
   const label =
     settings.categories.find((c) => c.slug === slug)?.label || siteCategoryLabel(slug);
 
-  const [trips, fieldDefs] = await Promise.all([
-    getAllTrips(),
+  const [geocodeTripSlug, fieldDefs] = await Promise.all([
+    getFirstTripSlug(),
     getFieldDefsForSiteCategory(categorySlug),
   ]);
   return (
@@ -43,7 +43,7 @@ export default async function PlacesSlugPage({ params }: { params: Promise<{ slu
       categorySlug={categorySlug}
       categoryLabel={label}
       initialFieldDefs={fieldDefs}
-      geocodeTripSlug={trips[0]?.slug}
+      geocodeTripSlug={geocodeTripSlug}
       cardLayout={cardLayoutForCategory(settings, slug)}
       showConcerns={supportsConcernsForCategory(settings, slug)}
     />

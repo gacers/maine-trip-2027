@@ -36,6 +36,8 @@ export interface MobileNavDrawerProps {
    * portals into this below 1024px so those stay out of the sticky
    * header (only +Add remains next to the hamburger). */
   onActionsSlotChange?: (el: HTMLDivElement | null) => void;
+  /** Optimistic active path + RSC prefetch on click. */
+  onNavigate?: (href: string) => void;
 }
 
 // Replaces the old anchored Radix DropdownMenu — a small popover reads
@@ -52,6 +54,7 @@ export default function MobileNavDrawer({
   onOpenChange,
   extraLink,
   onActionsSlotChange,
+  onNavigate,
 }: MobileNavDrawerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -75,7 +78,11 @@ export default function MobileNavDrawer({
         <nav className={styles["nav-groups"]} aria-label="Trip categories">
           {extraLink && (
             <DialogClose asChild>
-              <Link href={extraLink.href} className={pathname === extraLink.href ? styles["nav-link-active"] : styles["nav-link"]}>
+              <Link
+                href={extraLink.href}
+                className={pathname === extraLink.href ? styles["nav-link-active"] : styles["nav-link"]}
+                onClick={() => onNavigate?.(extraLink.href)}
+              >
                 {extraLink.label}
               </Link>
             </DialogClose>
@@ -87,7 +94,11 @@ export default function MobileNavDrawer({
                 const href = sectionPath(g.slug, s.slug);
                 return (
                   <DialogClose asChild key={s.id}>
-                    <Link href={href} className={pathname === href ? styles["nav-link-active"] : styles["nav-link"]}>
+                    <Link
+                      href={href}
+                      className={pathname === href ? styles["nav-link-active"] : styles["nav-link"]}
+                      onClick={() => onNavigate?.(href)}
+                    >
                       {s.sub_nav_label || s.label}
                     </Link>
                   </DialogClose>

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import SiteHeader, { siteHeaderStyles } from "@/components/SiteHeader";
 import SiteStackNav, { type SiteCategoryBasePath } from "@/components/SiteStackNav";
 import LoginPrompt from "@/components/LoginPrompt";
@@ -11,6 +10,7 @@ import CreateLoginPrompt from "@/components/CreateLoginPrompt";
 import Button from "@/components/Button";
 import { listInviteTripSlugs, readInviteToken } from "@/lib/inviteClient";
 import { SITE_CATEGORIES, isSiteCategorySlug } from "@/lib/siteCategories";
+import { useOptimisticPath } from "@/lib/useOptimisticPath";
 import { useHomeActions } from "./HomeActions";
 import styles from "./HomeShell.module.css";
 
@@ -38,7 +38,7 @@ export default function HomeShell({
   futureInterestsCategoryTabs,
   children,
 }: HomeShellProps) {
-  const pathname = usePathname();
+  const { path: pathname, go, prefetch } = useOptimisticPath();
   const homeActions = useHomeActions();
   const [inviteSlug, setInviteSlug] = useState<string | null>(null);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
@@ -127,6 +127,9 @@ export default function HomeShell({
         />
         {isAdmin ? (
           <SiteStackNav
+            pathname={pathname}
+            onNavigate={go}
+            onPrefetch={prefetch}
             categoryBasePath={categoryBasePath}
             categorySlug={categorySlug}
             categoryActions={showAdd ? homeActions?.categoryActions : undefined}

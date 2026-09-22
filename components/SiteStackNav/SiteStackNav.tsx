@@ -2,7 +2,6 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import Button from "@/components/Button";
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/NavigationMenu";
 import { SITE_CATEGORIES } from "@/lib/siteCategories";
@@ -13,6 +12,12 @@ import styles from "./SiteStackNav.module.css";
 export type SiteCategoryBasePath = "/categories" | "/future-interests" | "/places";
 
 export interface SiteStackNavProps {
+  /** Pathname used for active matching (may be optimistic). */
+  pathname: string;
+  /** Mark target selected immediately + prefetch RSC. */
+  onNavigate: (href: string) => void;
+  /** Prefetch RSC without changing active state. */
+  onPrefetch: (href: string) => void;
   /** When set, show Stays / Food & Drink / … tabs under the stack. */
   categoryBasePath?: SiteCategoryBasePath;
   categorySlug?: string;
@@ -37,6 +42,9 @@ export interface SiteStackNavProps {
 // TripNavHeader: below 1024px only the hamburger (+ Add when present)
 // stays visible.
 export default function SiteStackNav({
+  pathname,
+  onNavigate,
+  onPrefetch,
   categoryBasePath,
   categorySlug,
   categoryActions,
@@ -47,29 +55,34 @@ export default function SiteStackNav({
   placesHref = "/places/stays",
   futureInterestsHref = "/future-interests/stays",
 }: SiteStackNavProps) {
-  const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const tabs = categoryTabs ?? SITE_CATEGORIES;
-  const prefetch = usePrefetchSurfaceList();
+  const prefetchList = usePrefetchSurfaceList();
 
   const stack = [
-    { href: "/", label: "Trips", match: (path: string) => path === "/" },
+    { href: "/", label: "Trips", match: (p: string) => p === "/" },
     {
       href: "/categories/stays",
       label: "Categories",
-      match: (path: string) => path.startsWith("/categories"),
+      match: (p: string) => p.startsWith("/categories"),
     },
     {
       href: placesHref,
       label: "Places",
-      match: (path: string) => path.startsWith("/places"),
+      match: (p: string) => p.startsWith("/places"),
     },
     {
       href: futureInterestsHref,
       label: "Future Interests",
-      match: (path: string) => path.startsWith("/future-interests"),
+      match: (p: string) => p.startsWith("/future-interests"),
     },
   ] as const;
+
+  // Prefer the clicked path so category pills flip before RSC lands.
+  const activeCategorySlug =
+    categoryBasePath && pathname.startsWith(`${categoryBasePath}/`)
+      ? pathname.slice(categoryBasePath.length + 1).split("/")[0]
+      : categorySlug;
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
@@ -79,6 +92,11 @@ export default function SiteStackNav({
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
+
+  function warmSurface(basePath: SiteCategoryBasePath, slug: string, href: string) {
+    onPrefetch(href);
+    prefetchList(basePath, slug);
+  }
 
   return (
     <div className={styles["sticky-nav"]}>
@@ -92,11 +110,14 @@ export default function SiteStackNav({
           futureInterestsCategoryTabs={futureInterestsCategoryTabs}
           placesHref={placesHref}
           futureInterestsHref={futureInterestsHref}
+          onNavigate={onNavigate}
         />
         <div className={styles["mobile-actions"]}>
           {manageHref ? (
             <Button variant="secondary" size="sm" asChild>
-              <Link href={manageHref}>Manage</Link>
+              <Link href={manageHref} onClick={() => onNavigate(manageHref)}>
+                Manage
+              </Link>
             </Button>
           ) : null}
           {categoryActions}
@@ -110,7 +131,13 @@ export default function SiteStackNav({
               {stack.map((item) => (
                 <NavigationMenuItem key={item.label}>
                   <NavigationMenuLink asChild active={item.match(pathname)}>
-                    <Link href={item.href}>{item.label}</Link>
+                    <Link
+                      href={item.href}
+                      onPointerEnter={() => onPrefetch(item.href)}
+                      onClick={() => onNavigate(item.href)}
+                    >
+                      {item.label}
+                    </Link>
                   </NavigationMenuLink>
                 </NavigationMenuItem>
               ))}
@@ -118,7 +145,9 @@ export default function SiteStackNav({
           </NavigationMenu>
           {manageHref ? (
             <Button variant="secondary" size="sm" asChild className={styles["manage-button"]}>
-              <Link href={manageHref}>Manage</Link>
+              <Link href={manageHref} onClick={() => onNavigate(manageHref)}>
+                Manage
+              </Link>
             </Button>
           ) : null}
         </div>
@@ -127,18 +156,22 @@ export default function SiteStackNav({
           <div className={styles["sub-nav-row"]}>
             <NavigationMenu className={styles["menu"]} aria-label="Categories">
               <NavigationMenuList>
-                {tabs.map((c) => (
-                  <NavigationMenuItem key={c.slug}>
-                    <NavigationMenuLink asChild size="sm" active={categorySlug === c.slug}>
-                      <Link
-                        href={`${categoryBasePath}/${c.slug}`}
-                        onPointerEnter={() => prefetch(categoryBasePath, c.slug)}
-                      >
-                        {c.label}
-                      </Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                ))}
+                {tabs.map((c) => {
+                  const href = `${categoryBasePath}/${c.slug}`;
+                  return (
+                    <NavigationMenuItem key={c.slug}>
+                      <NavigationMenuLink asChild size="sm" active={activeCategorySlug === c.slug}>
+                        <Link
+                          href={href}
+                          onPointerEnter={() => warmSurface(categoryBasePath, c.slug, href)}
+                          onClick={() => onNavigate(href)}
+                        >
+                          {c.label}
+                        </Link>
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                  );
+                })}
               </NavigationMenuList>
             </NavigationMenu>
             {categoryActions ? <div className={styles["sub-nav-actions"]}>{categoryActions}</div> : null}

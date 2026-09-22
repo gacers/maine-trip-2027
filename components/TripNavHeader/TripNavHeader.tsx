@@ -2,7 +2,6 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/NavigationMenu";
 import Button from "@/components/Button";
 import RequestAccess from "@/components/RequestAccess";
@@ -12,6 +11,7 @@ import LogoutButton from "@/components/LogoutButton";
 import SiteHeader, { siteHeaderStyles } from "@/components/SiteHeader";
 import MobileNavDrawer from "./MobileNavDrawer";
 import { captureInviteToken, hasSeenCreateLoginNudge, markCreateLoginNudgeSeen, clearInviteAccess } from "@/lib/inviteClient";
+import { useOptimisticPath } from "@/lib/useOptimisticPath";
 import { useNavSlot } from "./NavSlot";
 import type { PublicTrip, NavGroup } from "@/lib/types";
 import styles from "./TripNavHeader.module.css";
@@ -58,7 +58,7 @@ export default function TripNavHeader({
   isEditor = false,
   contactEmail = null,
 }: TripNavHeaderProps) {
-  const pathname = usePathname();
+  const { path: pathname, go, prefetch } = useOptimisticPath();
   const barRef = useRef<HTMLDivElement>(null);
   const navSlot = useNavSlot();
   const [contributorToken, setContributorToken] = useState<string | null>(null);
@@ -261,13 +261,22 @@ export default function TripNavHeader({
           <div className={styles["nav-row"]}>
             <NavigationMenu className={styles["menu-desktop"]} aria-label="Trip categories">
               <NavigationMenuList>
-                {nav.map((g) => (
-                  <NavigationMenuItem key={g.id}>
-                    <NavigationMenuLink asChild active={g.id === activeGroup?.id}>
-                      <Link href={sectionPath(g.slug, g.sections[0].slug)}>{g.label}</Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                ))}
+                {nav.map((g) => {
+                  const href = sectionPath(g.slug, g.sections[0].slug);
+                  return (
+                    <NavigationMenuItem key={g.id}>
+                      <NavigationMenuLink asChild active={g.id === activeGroup?.id}>
+                        <Link
+                          href={href}
+                          onPointerEnter={() => prefetch(href)}
+                          onClick={() => go(href)}
+                        >
+                          {g.label}
+                        </Link>
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                  );
+                })}
                 {/* A fixed built-in page, not part of the nav_groups/
                     sections data model Section Designer manages — a
                     peer to the category tabs, not nested under one.
@@ -277,7 +286,13 @@ export default function TripNavHeader({
                 {isAdmin && (
                   <NavigationMenuItem>
                     <NavigationMenuLink asChild active={isItineraryRoute}>
-                      <Link href={itineraryPath}>Itinerary</Link>
+                      <Link
+                        href={itineraryPath}
+                        onPointerEnter={() => prefetch(itineraryPath)}
+                        onClick={() => go(itineraryPath)}
+                      >
+                        Itinerary
+                      </Link>
                     </NavigationMenuLink>
                   </NavigationMenuItem>
                 )}
@@ -293,6 +308,7 @@ export default function TripNavHeader({
                 open={drawerOpen}
                 onOpenChange={setDrawerOpen}
                 onActionsSlotChange={navSlot?.setMobileActionsSlot}
+                onNavigate={go}
               />
             </div>
 
@@ -313,13 +329,22 @@ export default function TripNavHeader({
             <div className={styles["sub-nav-row"]}>
               <NavigationMenu className={styles["sub-nav-menu"]} aria-label={`${activeGroup.label} sections`}>
                 <NavigationMenuList>
-                  {activeGroup.sections.map((s) => (
-                    <NavigationMenuItem key={s.id}>
-                      <NavigationMenuLink asChild size="sm" active={pathname === sectionPath(activeGroup.slug, s.slug)}>
-                        <Link href={sectionPath(activeGroup.slug, s.slug)}>{s.sub_nav_label || s.label}</Link>
-                      </NavigationMenuLink>
-                    </NavigationMenuItem>
-                  ))}
+                  {activeGroup.sections.map((s) => {
+                    const href = sectionPath(activeGroup.slug, s.slug);
+                    return (
+                      <NavigationMenuItem key={s.id}>
+                        <NavigationMenuLink asChild size="sm" active={pathname === href}>
+                          <Link
+                            href={href}
+                            onPointerEnter={() => prefetch(href)}
+                            onClick={() => go(href)}
+                          >
+                            {s.sub_nav_label || s.label}
+                          </Link>
+                        </NavigationMenuLink>
+                      </NavigationMenuItem>
+                    );
+                  })}
                 </NavigationMenuList>
               </NavigationMenu>
             </div>

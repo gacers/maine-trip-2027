@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
 import { SITE_CATEGORIES, siteCategoryLabel } from "@/lib/siteCategories";
 import {
@@ -118,20 +119,20 @@ function ensureCategoriesSurface(settings: SurfaceCategorySettings): SurfaceCate
   return { categories };
 }
 
-export async function getSurfaceCategorySettings(
-  surface: CategorySurface
-): Promise<SurfaceCategorySettings> {
-  const supabase = supabaseServiceRole();
-  const { data, error } = await supabase
-    .from("site_surface_settings")
-    .select("settings")
-    .eq("surface", surface)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  let settings = parseSettings(data?.settings, surface);
-  if (surface === "categories") settings = ensureCategoriesSurface(settings);
-  return settings;
-}
+export const getSurfaceCategorySettings = cache(
+  async (surface: CategorySurface): Promise<SurfaceCategorySettings> => {
+    const supabase = supabaseServiceRole();
+    const { data, error } = await supabase
+      .from("site_surface_settings")
+      .select("settings")
+      .eq("surface", surface)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    let settings = parseSettings(data?.settings, surface);
+    if (surface === "categories") settings = ensureCategoriesSurface(settings);
+    return settings;
+  }
+);
 
 async function saveSettings(
   surface: CategorySurface,

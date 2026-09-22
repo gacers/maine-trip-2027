@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogClose } from "@/components/Dialog";
 import Button from "@/components/Button";
@@ -31,6 +32,32 @@ export interface SiteStackMobileDrawerProps {
   futureInterestsCategoryTabs?: readonly { slug: string; label: string }[];
   placesHref?: string;
   futureInterestsHref?: string;
+  /** Optimistic active path + RSC prefetch on click. */
+  onNavigate?: (href: string) => void;
+}
+
+function NavLink({
+  href,
+  active,
+  onNavigate,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  onNavigate?: (href: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <DialogClose asChild>
+      <Link
+        href={href}
+        className={active ? styles["nav-link-active"] : styles["nav-link"]}
+        onClick={() => onNavigate?.(href)}
+      >
+        {children}
+      </Link>
+    </DialogClose>
+  );
 }
 
 // Same Dialog drawer as trip MobileNavDrawer — Trips / Categories /
@@ -44,6 +71,7 @@ export default function SiteStackMobileDrawer({
   futureInterestsCategoryTabs,
   placesHref = "/places/stays",
   futureInterestsHref = "/future-interests/stays",
+  onNavigate,
 }: SiteStackMobileDrawerProps) {
   const onTrips = pathname === "/";
   const onCategories = pathname.startsWith("/categories");
@@ -72,35 +100,22 @@ export default function SiteStackMobileDrawer({
         <nav className={styles["nav-groups"]} aria-label="Site sections">
           <div className={styles["nav-group"]}>
             <div className={styles["nav-group-label"]}>Site</div>
-            <DialogClose asChild>
-              <Link href="/" className={onTrips ? styles["nav-link-active"] : styles["nav-link"]}>
-                Trips
-              </Link>
-            </DialogClose>
-            <DialogClose asChild>
-              <Link href="/categories/stays" className={onCategories ? styles["nav-link-active"] : styles["nav-link"]}>
-                Categories
-              </Link>
-            </DialogClose>
-            <DialogClose asChild>
-              <Link href={placesHref} className={onPlaces ? styles["nav-link-active"] : styles["nav-link"]}>
-                Places
-              </Link>
-            </DialogClose>
-            <DialogClose asChild>
-              <Link
-                href={futureInterestsHref}
-                className={onFutureInterest ? styles["nav-link-active"] : styles["nav-link"]}
-              >
-                Future Interests
-              </Link>
-            </DialogClose>
+            <NavLink href="/" active={onTrips} onNavigate={onNavigate}>
+              Trips
+            </NavLink>
+            <NavLink href="/categories/stays" active={onCategories} onNavigate={onNavigate}>
+              Categories
+            </NavLink>
+            <NavLink href={placesHref} active={onPlaces} onNavigate={onNavigate}>
+              Places
+            </NavLink>
+            <NavLink href={futureInterestsHref} active={onFutureInterest} onNavigate={onNavigate}>
+              Future Interests
+            </NavLink>
             {manageHref ? (
-              <DialogClose asChild>
-                <Link href={manageHref} className={styles["nav-link"]}>
-                  Manage
-                </Link>
-              </DialogClose>
+              <NavLink href={manageHref} active={false} onNavigate={onNavigate}>
+                Manage
+              </NavLink>
             ) : null}
           </div>
 
@@ -108,13 +123,10 @@ export default function SiteStackMobileDrawer({
             <div className={styles["nav-group-label"]}>Categories</div>
             {SITE_CATEGORIES.map((c) => {
               const href = `/categories/${c.slug}`;
-              const active = pathname === href;
               return (
-                <DialogClose asChild key={`cat-${c.slug}`}>
-                  <Link href={href} className={active ? styles["nav-link-active"] : styles["nav-link"]}>
-                    {c.label}
-                  </Link>
-                </DialogClose>
+                <NavLink key={`cat-${c.slug}`} href={href} active={pathname === href} onNavigate={onNavigate}>
+                  {c.label}
+                </NavLink>
               );
             })}
           </div>
@@ -124,13 +136,10 @@ export default function SiteStackMobileDrawer({
               <div className={styles["nav-group-label"]}>Places</div>
               {placesTabs.map((c) => {
                 const href = `/places/${c.slug}`;
-                const active = pathname === href;
                 return (
-                  <DialogClose asChild key={`pl-${c.slug}`}>
-                    <Link href={href} className={active ? styles["nav-link-active"] : styles["nav-link"]}>
-                      {c.label}
-                    </Link>
-                  </DialogClose>
+                  <NavLink key={`pl-${c.slug}`} href={href} active={pathname === href} onNavigate={onNavigate}>
+                    {c.label}
+                  </NavLink>
                 );
               })}
             </div>
@@ -141,13 +150,10 @@ export default function SiteStackMobileDrawer({
               <div className={styles["nav-group-label"]}>Future Interests</div>
               {fiTabs.map((c) => {
                 const href = `/future-interests/${c.slug}`;
-                const active = pathname === href;
                 return (
-                  <DialogClose asChild key={`fi-${c.slug}`}>
-                    <Link href={href} className={active ? styles["nav-link-active"] : styles["nav-link"]}>
-                      {c.label}
-                    </Link>
-                  </DialogClose>
+                  <NavLink key={`fi-${c.slug}`} href={href} active={pathname === href} onNavigate={onNavigate}>
+                    {c.label}
+                  </NavLink>
                 );
               })}
             </div>

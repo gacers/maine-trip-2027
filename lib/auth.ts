@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { supabaseServer, supabaseServiceRole } from "@/lib/supabaseServer";
@@ -244,7 +245,7 @@ export async function requireReadAccess(request: Request, tripId: string): Promi
 // check their own membership row) — or, in `next dev` only, a stand-in
 // user if the /api/dev/admin cookie is set (see lib/devAuth.ts), so
 // every one of this function's callers gets the bypass for free.
-export async function getAdminUser(): Promise<User | null> {
+export const getAdminUser = cache(async (): Promise<User | null> => {
   const supabase = await supabaseServer();
   const {
     data: { user },
@@ -254,7 +255,7 @@ export async function getAdminUser(): Promise<User | null> {
     if (data) return user;
   }
   return (await hasDevAdminCookie()) ? DEV_ADMIN_USER : null;
-}
+});
 
 // A further restriction on top of regular admin — currently the only
 // thing this gates is the itinerary feature, still being tested

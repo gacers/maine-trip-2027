@@ -52,6 +52,21 @@ export async function getAllTrips(): Promise<Trip[]> {
   return data;
 }
 
+/** Cheapest slug for geocode/API trip context — avoids loading every trip. */
+export const getFirstTripSlug = cache(async (): Promise<string | undefined> => {
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase
+    .from("trips")
+    .select("slug")
+    .eq("archived", false)
+    .order("start_date", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.slug;
+});
+
 // Cached per-request: both a trip's layout and its page (and, for the
 // index redirect, its own page too) look this up for the same slug in
 // the same request — React's cache() dedupes that into one query.
