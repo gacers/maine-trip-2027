@@ -12,7 +12,12 @@ import {
   usePlacesList,
 } from "@/lib/surfaceListQueries";
 import { useSurfacePageConfig, type SurfacePageConfig } from "@/lib/surfacePageQueries";
-import type { CategorySurface, SurfaceCardLayout } from "@/lib/siteSurfaceShared";
+import {
+  defaultCardLayout,
+  type CategorySurface,
+  type SurfaceCardLayout,
+} from "@/lib/siteSurfaceShared";
+import { useHomeShell } from "@/lib/homeQueries";
 import styles from "./SurfaceSlugPage.module.css";
 
 export interface SurfaceSlugPageProps {
@@ -30,14 +35,33 @@ function AccessDenied() {
 function PageSkeleton({
   label,
   cardLayout,
+  surface,
+  slug,
 }: {
   label?: string;
   cardLayout?: SurfaceCardLayout;
+  surface: CategorySurface;
+  slug: string;
 }) {
+  const { data: shell } = useHomeShell();
+  // Places / FI use EntryCard media; Categories use Catalog thumbs.
+  const tone = surface === "categories" ? "surface" : "section";
+  const shellTabs =
+    surface === "places"
+      ? shell?.placesCategoryTabs
+      : surface === "future-interests"
+        ? shell?.futureInterestsCategoryTabs
+        : undefined;
+  const layoutFromShell = shellTabs?.find((t) => t.slug === slug)?.cardLayout;
+  const layout = cardLayout ?? layoutFromShell ?? defaultCardLayout(slug);
+
   return (
     <main className={styles["root"]}>
-      {label ? <h1 className={styles["heading"]}>{label}</h1> : <div className={styles["heading-skel"]} />}
-      <SurfacePageSkeleton cardLayout={cardLayout} />
+      <div className={styles["toolbar"]}>
+        {label ? <h1 className={styles["heading"]}>{label}</h1> : <div className={styles["heading-skel"]} />}
+        <div className={styles["filter-skel"]} />
+      </div>
+      <SurfacePageSkeleton cardLayout={layout} tone={tone} />
     </main>
   );
 }
@@ -107,7 +131,12 @@ export default function SurfaceSlugPage({ surface }: SurfaceSlugPageProps) {
   const waiting = configLoading || !config || list.loading;
   if (waiting) {
     return (
-      <PageSkeleton label={config?.categoryLabel} cardLayout={config?.cardLayout} />
+      <PageSkeleton
+        label={config?.categoryLabel}
+        cardLayout={config?.cardLayout}
+        surface={surface}
+        slug={slug}
+      />
     );
   }
 

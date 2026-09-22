@@ -106,4 +106,7 @@
   /* Page background/foreground (pre-existing, kept as-is) */
   --background: #fafaf9;
   --foreground: #171717;
+
+  /* Shared content column — trip sections, home surfaces, itinerary, etc. */
+  --content-max-width: 72rem;
 }

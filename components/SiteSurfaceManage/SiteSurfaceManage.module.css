@@ -1,17 +1,19 @@
 .root {
-  max-width: 48rem;
+  max-width: var(--content-max-width);
   margin-inline: auto;
   padding: 2rem 1rem 3rem;
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
   width: 100%;
+  min-width: 0;
 }
 
 .toolbar {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .eyebrow {
@@ -49,6 +51,7 @@
   gap: 0.75rem;
   padding: 1.25rem 0 0;
   border-top: 1px solid var(--color-zinc-200);
+  min-width: 0;
 }
 
 .section-title {
@@ -88,17 +91,27 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .section-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   border: 1px solid var(--color-zinc-200);
   border-radius: var(--radius);
   background: var(--color-white);
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .section-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 
 .section-card-disabled {
@@ -118,18 +131,21 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-zinc-900);
   font-size: var(--text-sm);
+  overflow-wrap: anywhere;
 }
 
 .section-meta {
   font-size: var(--text-xs);
   color: var(--color-zinc-500);
+  flex-shrink: 0;
 }
 
 .section-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
-  flex-shrink: 0;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
 }
 
 .enabled-checkbox-label {
@@ -238,6 +254,7 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
@@ -250,6 +267,8 @@
   color: var(--color-zinc-500);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  min-width: 0;
+  flex: 1 1 10rem;
 }
 
 .layout-select {
@@ -262,7 +281,9 @@
   border-radius: var(--radius);
   background: var(--color-white);
   color: var(--color-zinc-800);
+  width: 100%;
   max-width: 14rem;
+  min-width: 0;
 }
 
 .error {

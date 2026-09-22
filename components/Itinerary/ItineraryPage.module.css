@@ -1,13 +1,13 @@
 .root {
+  max-width: var(--content-max-width);
   margin: 0 auto;
   padding: 0 1rem 4rem;
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
-/* No max-width cap on either view — confirmed live that even Week's
-   100rem cap still left visible unused space on a wide screen. Full
-   width, just the .root padding for a gutter. */
+/* Week and list share the same content column as every other page. */
 .root-list,
 .root-week {
   width: 100%;

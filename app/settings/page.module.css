@@ -1,5 +1,5 @@
 .root {
-  max-width: 32rem;
+  max-width: var(--content-max-width);
   margin-inline: auto;
   padding: 3rem 1rem;
   display: flex;

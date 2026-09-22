@@ -9,6 +9,7 @@ import { usePrefetchSurfaceList } from "@/lib/surfaceListQueries";
 import { usePrefetchSurfacePageConfig } from "@/lib/surfacePageQueries";
 import type { CategorySurface } from "@/lib/siteSurfaceShared";
 import SiteStackMobileDrawer from "./SiteStackMobileDrawer";
+import CategorySubNav from "./CategorySubNav";
 import styles from "./SiteStackNav.module.css";
 
 export type SiteCategoryBasePath = "/categories" | "/future-interests" | "/places";
@@ -157,29 +158,14 @@ export default function SiteStackNav({
         </div>
 
         {categoryBasePath && (
-          <div className={styles["sub-nav-row"]}>
-            <NavigationMenu className={styles["menu"]} aria-label="Categories">
-              <NavigationMenuList>
-                {tabs.map((c) => {
-                  const href = `${categoryBasePath}/${c.slug}`;
-                  return (
-                    <NavigationMenuItem key={c.slug}>
-                      <NavigationMenuLink asChild size="sm" active={activeCategorySlug === c.slug}>
-                        <Link
-                          href={href}
-                          onPointerEnter={() => warmSurface(categoryBasePath, c.slug, href)}
-                          onClick={() => onNavigate(href)}
-                        >
-                          {c.label}
-                        </Link>
-                      </NavigationMenuLink>
-                    </NavigationMenuItem>
-                  );
-                })}
-              </NavigationMenuList>
-            </NavigationMenu>
-            {categoryActions ? <div className={styles["sub-nav-actions"]}>{categoryActions}</div> : null}
-          </div>
+          <CategorySubNav
+            categoryBasePath={categoryBasePath}
+            tabs={tabs}
+            activeCategorySlug={activeCategorySlug}
+            categoryActions={categoryActions}
+            onNavigate={onNavigate}
+            onWarm={(slug, href) => warmSurface(categoryBasePath, slug, href)}
+          />
         )}
       </div>
     </div>

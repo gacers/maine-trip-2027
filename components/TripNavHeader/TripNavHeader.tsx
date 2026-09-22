@@ -11,6 +11,7 @@ import LoginPrompt from "@/components/LoginPrompt";
 import LogoutButton from "@/components/LogoutButton";
 import SiteHeader, { siteHeaderStyles } from "@/components/SiteHeader";
 import MobileNavDrawer from "./MobileNavDrawer";
+import TripSubNav from "./TripSubNav";
 import { captureInviteToken, hasSeenCreateLoginNudge, markCreateLoginNudgeSeen, clearInviteAccess } from "@/lib/inviteClient";
 import { useOptimisticPath } from "@/lib/useOptimisticPath";
 import { useNavSlot } from "./NavSlot";
@@ -68,8 +69,6 @@ export default function TripNavHeader({
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Seeds CreateLoginPrompt's own defaultOpen — see the effect below.
   const [showCreateLoginNudge, setShowCreateLoginNudge] = useState(false);
-  /** Last section group with a sub-nav — kept while on Itinerary so the row doesn't collapse. */
-  const [rememberedGroupId, setRememberedGroupId] = useState<string | null>(null);
   // Nested under the nav group's own slug now — /{tripSlug}/{navGroupSlug}/
   // {sectionSlug} — since a section's slug is only unique within its own
   // group (see migration 0014), not trip-wide.
@@ -157,19 +156,12 @@ export default function TripNavHeader({
   );
   // Highlight only the group for the current section URL — never on Itinerary.
   const activeGroup = isItineraryRoute ? undefined : matchedGroup || nav[0];
-  // Sub-nav stays mounted on Itinerary using the last section group so the
-  // sticky bar doesn't collapse/expand (that flash felt like "no matches").
-  const subNavGroup =
-    matchedGroup ||
-    (rememberedGroupId ? nav.find((g) => g.id === rememberedGroupId) : undefined) ||
-    nav[0];
+  // Section sub-nav (Possible/Visited) only on section pages — Itinerary
+  // is a peer tab with no nested sections, so no second row there.
+  const subNavGroup = isItineraryRoute ? undefined : matchedGroup || nav[0];
   const activeSection =
     matchedGroup?.sections.find((s) => sectionPath(matchedGroup.slug, s.slug) === path) ||
     matchedGroup?.sections[0];
-
-  useEffect(() => {
-    if (matchedGroup) setRememberedGroupId(matchedGroup.id);
-  }, [matchedGroup?.id]);
 
   const canContribute = isAdmin || isEditor || !!contributorToken;
   const showRequestAccess = accessChecked && !canContribute && activeSection;
@@ -334,36 +326,16 @@ export default function TripNavHeader({
             <div ref={(el) => navSlot?.setSlot(el)} className={styles["nav-slot-target"]} />
           </div>
 
-          {/* Keep this row mounted on Itinerary (last section group) so the
-              sticky bar height doesn't jump away and back. No section is
-              active while Itinerary is selected. */}
-          {subNavGroup && subNavGroup.sections.length > 1 && (
-            <div
-              className={styles["sub-nav-row"]}
-              data-itinerary={isItineraryRoute ? "" : undefined}
-            >
-              <NavigationMenu className={styles["sub-nav-menu"]} aria-label={`${subNavGroup.label} sections`}>
-                <NavigationMenuList>
-                  {subNavGroup.sections.map((s) => {
-                    const href = sectionPath(subNavGroup.slug, s.slug);
-                    return (
-                      <NavigationMenuItem key={s.id}>
-                        <NavigationMenuLink asChild size="sm" active={!isItineraryRoute && path === href}>
-                          <Link
-                            href={href}
-                            onPointerEnter={() => prefetch(href)}
-                            onClick={() => go(href)}
-                          >
-                            {s.sub_nav_label || s.label}
-                          </Link>
-                        </NavigationMenuLink>
-                      </NavigationMenuItem>
-                    );
-                  })}
-                </NavigationMenuList>
-              </NavigationMenu>
-            </div>
-          )}
+          {/* Section sub-nav only — omitted on Itinerary (peer tab, no nested sections). */}
+          {subNavGroup ? (
+            <TripSubNav
+              group={subNavGroup}
+              path={path}
+              tripSlug={trip.slug}
+              go={go}
+              prefetch={prefetch}
+            />
+          ) : null}
         </div>
       )}
     </>

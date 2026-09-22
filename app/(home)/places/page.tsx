@@ -9,7 +9,7 @@ export default async function PlacesIndexPage() {
   const canAccess = await canAccessSiteCatalog();
   if (!canAccess) {
     return (
-      <main style={{ maxWidth: "72rem", margin: "0 auto", padding: "3rem 1rem" }}>
+      <main style={{ maxWidth: "var(--content-max-width)", margin: "0 auto", padding: "3rem 1rem" }}>
         <p style={{ color: "var(--color-zinc-500)", textAlign: "center" }}>
           Sign in as an admin to manage Places.
         </p>
@@ -21,7 +21,7 @@ export default async function PlacesIndexPage() {
   const tabs = enabledCategoryTabs(settings);
 
   return (
-    <main style={{ maxWidth: "40rem", margin: "0 auto", padding: "3rem 1rem" }}>
+    <main style={{ maxWidth: "var(--content-max-width)", margin: "0 auto", padding: "3rem 1rem" }}>
       <h1 style={{ margin: "0 0 0.75rem", fontSize: "var(--text-xl)", fontWeight: 600 }}>Places</h1>
       <p style={{ margin: "0 0 1.25rem", color: "var(--color-zinc-500)", fontSize: "var(--text-sm)" }}>
         Spots you already know — pick a category to browse.

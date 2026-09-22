@@ -44,7 +44,7 @@ export const SURFACE_DEFAULT_CATEGORIES: Omit<SurfaceCategory, "enabled" | "card
 ];
 
 export const CARD_LAYOUT_LABELS: Record<SurfaceCardLayout, string> = {
-  list: "One full-width card per row",
+  list: "One per row",
   "grid-2": "Two per row",
   "grid-3": "Three per row",
 };

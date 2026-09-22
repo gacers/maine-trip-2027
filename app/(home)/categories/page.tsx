@@ -4,7 +4,7 @@ import { SITE_CATEGORIES } from "@/lib/siteCategories";
 /** Landing for /categories — pick a category tab (no redirect). */
 export default function CategoriesIndexPage() {
   return (
-    <main style={{ maxWidth: "40rem", margin: "0 auto", padding: "3rem 1rem" }}>
+    <main style={{ maxWidth: "var(--content-max-width)", margin: "0 auto", padding: "3rem 1rem" }}>
       <h1 style={{ margin: "0 0 0.75rem", fontSize: "var(--text-xl)", fontWeight: 600 }}>Categories</h1>
       <p style={{ margin: "0 0 1.25rem", color: "var(--color-zinc-500)", fontSize: "var(--text-sm)" }}>
         Browse places across every trip by category.

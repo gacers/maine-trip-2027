@@ -1,0 +1,97 @@
+/* Mirror WeekView: day-picker strip + horizontal day lanes with StopCard-sized rows. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.day-picker {
+  margin: 0 -1rem;
+  padding: 0.5rem 1rem;
+  display: flex;
+  gap: 0.5rem;
+  overflow: hidden;
+  border-bottom: 1px solid var(--color-zinc-200);
+}
+
+.day-pill {
+  flex-shrink: 0;
+  width: 5.5rem;
+  height: 1.75rem;
+  border-radius: var(--radius-full);
+  background: var(--color-zinc-100);
+}
+
+.lanes {
+  display: flex;
+  gap: 1rem;
+  overflow: hidden;
+  padding-bottom: 1rem;
+}
+
+.lane {
+  flex: 1 1 21rem;
+  max-width: 32rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-zinc-200);
+  background: var(--color-zinc-50);
+  padding: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .lane {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  .lane:nth-child(n + 2) {
+    display: none;
+  }
+}
+
+.lane-header {
+  width: 7rem;
+  height: 0.875rem;
+  margin: 0.5rem 0;
+  border-radius: var(--radius);
+  background: var(--color-zinc-200);
+}
+
+.stop {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-zinc-200);
+  background: var(--color-white);
+  padding: 0.75rem;
+}
+
+.stop-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.line-time,
+.line-title,
+.line-meta {
+  height: 0.75rem;
+  border-radius: 0.25rem;
+  background: var(--color-zinc-200);
+}
+
+.line-time {
+  width: 3.5rem;
+}
+
+.line-title {
+  width: 70%;
+}
+
+.line-meta {
+  width: 45%;
+  background: var(--color-zinc-100);
+}

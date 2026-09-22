@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 /**
@@ -18,17 +18,26 @@ export function useOptimisticPath() {
     setPendingPath(null);
   }, [pathname]);
 
+  const go = useCallback(
+    (href: string) => {
+      setPendingPath(href);
+      router.prefetch(href);
+    },
+    [router]
+  );
+
+  const prefetch = useCallback(
+    (href: string) => {
+      router.prefetch(href);
+    },
+    [router]
+  );
+
   return {
     /** Pathname to use for active matching (pending click, else real). */
     path: pendingPath ?? pathname,
     pathname,
-    /** Mark a nav target as selected immediately; also prefetch RSC. */
-    go(href: string) {
-      setPendingPath(href);
-      router.prefetch(href);
-    },
-    prefetch(href: string) {
-      router.prefetch(href);
-    },
+    go,
+    prefetch,
   };
 }

@@ -1,13 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
+import type { SurfaceCardLayout } from "@/lib/siteSurfaceShared";
 
 export const homeShellKey = ["home-shell"] as const;
 export const tripsIndexKey = ["trips-index"] as const;
 
+export interface HomeShellCategoryTab {
+  slug: string;
+  label: string;
+  cardLayout?: SurfaceCardLayout;
+}
+
 export interface HomeShellData {
   isAdmin: boolean;
   isSignedIn: boolean;
-  placesCategoryTabs?: { slug: string; label: string }[];
-  futureInterestsCategoryTabs?: { slug: string; label: string }[];
+  placesCategoryTabs?: HomeShellCategoryTab[];
+  futureInterestsCategoryTabs?: HomeShellCategoryTab[];
 }
 
 export function useHomeShell() {

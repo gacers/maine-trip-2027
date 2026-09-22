@@ -10,8 +10,8 @@ export interface SurfacePageSkeletonProps {
   /** Overview map placeholder — matches OverviewMap frame + canvas height. */
   showMap?: boolean;
   /**
-   * `surface` — Catalog/Places/FI thumb heights (14 / 10 / 7.5rem).
-   * `section` — EntryMedia heights (13 / 15 / 11rem); use with largeMedia for Stays list.
+   * `surface` — Catalog thumbs (14 / 10 / 7.5rem).
+   * `section` — EntryMedia (13 / 15 / 11rem); Places / FI / trip sections.
    */
   tone?: "surface" | "section";
   /** Stays list — 20rem EntryMedia photo. */
@@ -67,10 +67,22 @@ export default function SurfacePageSkeleton({
         {Array.from({ length: count }, (_, i) => (
           <li key={i} className={styles["card"]}>
             <div className={thumbClass} />
-            <div className={styles["card-body"]}>
-              <div className={styles["line"]} />
-              <div className={styles["line-short"]} />
-            </div>
+            {tone === "section" ? (
+              <div className={styles["entry-body"]}>
+                <div className={styles["entry-section"]}>
+                  <div className={styles["line"]} />
+                  <div className={styles["line-short"]} />
+                </div>
+                <div className={styles["entry-section"]}>
+                  <div className={styles["line-meta"]} />
+                </div>
+              </div>
+            ) : (
+              <div className={styles["card-body"]}>
+                <div className={styles["line"]} />
+                <div className={styles["line-short"]} />
+              </div>
+            )}
           </li>
         ))}
       </ul>

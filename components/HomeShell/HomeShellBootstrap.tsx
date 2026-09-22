@@ -12,7 +12,7 @@ export default function HomeShellBootstrap({ children }: { children: ReactNode }
 
   if (isError) {
     return (
-      <main style={{ maxWidth: "40rem", margin: "0 auto", padding: "3rem 1rem", textAlign: "center" }}>
+      <main style={{ maxWidth: "var(--content-max-width)", margin: "0 auto", padding: "3rem 1rem", textAlign: "center" }}>
         <p style={{ color: "var(--color-zinc-500)" }}>Could not load site chrome.</p>
       </main>
     );

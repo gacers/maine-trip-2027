@@ -104,6 +104,11 @@ export default function HomeShell({
   const showAdd =
     categoryBasePath === "/future-interests" || categoryBasePath === "/places";
 
+  useEffect(() => {
+    if (showAdd) return;
+    homeActions?.setCategoryActions(null);
+  }, [showAdd, homeActions]);
+
   return (
     <>
       <div className={styles["sticky-chrome"]}>

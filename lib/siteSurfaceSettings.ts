@@ -153,8 +153,10 @@ async function saveSettings(
 
 export function enabledCategoryTabs(
   settings: SurfaceCategorySettings
-): { slug: string; label: string }[] {
-  return settings.categories.filter((c) => c.enabled).map(({ slug, label }) => ({ slug, label }));
+): { slug: string; label: string; cardLayout: SurfaceCardLayout }[] {
+  return settings.categories
+    .filter((c) => c.enabled)
+    .map(({ slug, label, cardLayout }) => ({ slug, label, cardLayout }));
 }
 
 export function isCategoryConfigured(settings: SurfaceCategorySettings, slug: string): boolean {

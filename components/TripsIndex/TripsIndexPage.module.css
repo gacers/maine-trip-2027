@@ -1,10 +1,10 @@
 .root {
-  max-width: 72rem;
+  max-width: var(--content-max-width);
   margin: 0 auto;
 }
 
 .message {
-  max-width: 40rem;
+  max-width: var(--content-max-width);
   margin: 0 auto;
   padding: 3rem 1rem;
   text-align: center;

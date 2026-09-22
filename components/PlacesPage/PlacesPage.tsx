@@ -86,11 +86,8 @@ export default function PlacesPage({
     );
   }, [homeActions?.setCategoryActions, categorySlug, fieldDefs, showConcerns, queryClient]);
 
-  useEffect(() => {
-    const setActions = homeActions?.setCategoryActions;
-    if (!setActions) return;
-    return () => setActions(null);
-  }, [homeActions?.setCategoryActions]);
+  // Don't clear on unmount — sibling tab mounts replace the dialog.
+  // HomeShell clears when leaving Places / Future Interests entirely.
 
   const countries = useMemo(() => {
     const set = new Set<string>();

@@ -1,5 +1,5 @@
 .root {
-  max-width: 88rem;
+  max-width: var(--content-max-width);
   margin-inline: auto;
   padding: 1.5rem 1rem 4rem;
   display: flex;
@@ -16,13 +16,6 @@
   .root {
     padding-inline: 2rem;
   }
-}
-
-/* Houses' own single-column cards are already rich/full-width — they
-   don't want the wide 3-across grid's own max-width, which would just
-   stretch each card further than it should go. */
-.root-houses {
-  max-width: 75rem;
 }
 
 /* The filter dropdown + sort-by select, combined into one row that

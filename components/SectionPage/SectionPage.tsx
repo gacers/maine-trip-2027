@@ -448,7 +448,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
     );
 
   return (
-    <main className={classNames(styles["root"], isHouses && styles["root-houses"])}>
+    <main className={styles["root"]}>
       {/* No hint that a Sheet even exists for a non-contributor — Request
           Access itself now lives once, globally, in TripNavHeader. Add/
           Sheet/Filter/Sort all live together in utilityControls now,

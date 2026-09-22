@@ -162,8 +162,28 @@
   padding: 1rem 1.125rem;
 }
 
+/* EntryCard-shaped body — section dividers under the media. */
+.entry-body {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--color-zinc-200);
+}
+
+.entry-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.125rem;
+  border-bottom: 1px solid var(--color-zinc-200);
+}
+
+.entry-section:last-child {
+  border-bottom: none;
+}
+
 .line,
-.line-short {
+.line-short,
+.line-meta {
   height: 0.75rem;
   border-radius: 0.25rem;
   background: var(--color-zinc-200);
@@ -175,4 +195,9 @@
 
 .line-short {
   width: 40%;
+}
+
+.line-meta {
+  width: 55%;
+  background: var(--color-zinc-100);
 }

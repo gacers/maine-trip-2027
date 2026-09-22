@@ -1,11 +1,12 @@
 .root {
-  max-width: 48rem;
+  max-width: var(--content-max-width);
   margin-inline: auto;
   padding: 1.5rem 1rem 4rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   width: 100%;
+  min-width: 0;
 }
 
 .header {
@@ -26,6 +27,8 @@
 
 .nav {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.5rem;
 }
 
@@ -37,6 +40,7 @@
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-zinc-700);
+  white-space: nowrap;
 
   &:hover {
     background: var(--color-zinc-50);
