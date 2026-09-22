@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
+import SiteHeader, { siteHeaderStyles } from "@/components/SiteHeader";
 import HomeShell from "@/components/HomeShell";
-import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
 import { useHomeShell } from "@/lib/homeQueries";
 import styles from "./HomeShell.module.css";
 
@@ -10,20 +10,23 @@ import styles from "./HomeShell.module.css";
 export default function HomeShellBootstrap({ children }: { children: ReactNode }) {
   const { data, isPending, isError } = useHomeShell();
 
-  if (isPending) {
-    return (
-      <>
-        <div className={styles["sticky-chrome"]} aria-hidden />
-        <SurfacePageSkeleton cards={3} />
-      </>
-    );
-  }
-
-  if (isError || !data) {
+  if (isError) {
     return (
       <main style={{ maxWidth: "40rem", margin: "0 auto", padding: "3rem 1rem", textAlign: "center" }}>
         <p style={{ color: "var(--color-zinc-500)" }}>Could not load site chrome.</p>
       </main>
+    );
+  }
+
+  // Shell data still loading — show real header, let the page own its skeleton.
+  if (isPending || !data) {
+    return (
+      <>
+        <div className={styles["sticky-chrome"]}>
+          <SiteHeader brand={<p className={siteHeaderStyles["brand-title"]}>Country Goth Travel</p>} />
+        </div>
+        {children}
+      </>
     );
   }
 

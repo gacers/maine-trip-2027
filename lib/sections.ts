@@ -94,6 +94,14 @@ export async function getTripNav(tripId: string): Promise<NavGroup[]> {
   }));
 }
 
+/** Same target as landing on a group tab — first nav group with an enabled section. */
+export function defaultTripSectionHref(tripSlug: string, nav: NavGroup[]): string {
+  const firstGroup = nav.find((g) => g.sections.some((s) => s.enabled));
+  const firstSection = firstGroup?.sections.find((s) => s.enabled);
+  if (!firstGroup || !firstSection) return `/${tripSlug}`;
+  return `/${tripSlug}/${firstGroup.slug}/${firstSection.slug}`;
+}
+
 /** First enabled section path per trip — one query for the trips index. */
 export async function getDefaultSectionHrefsForTrips(
   trips: Pick<Trip, "id" | "slug">[]
@@ -110,25 +118,23 @@ export async function getDefaultSectionHrefsForTrips(
     .order("sort_order");
   if (error) throw new Error(error.message);
 
-  const byTrip = new Map<string, typeof data>();
-  for (const group of data || []) {
-    const list = byTrip.get(group.trip_id) || [];
-    list.push(group);
-    byTrip.set(group.trip_id, list);
+  const byTrip = new Map<string, NavGroup[]>();
+  for (const row of data || []) {
+    const list = byTrip.get(row.trip_id) || [];
+    list.push({
+      id: row.trip_id + row.slug,
+      trip_id: row.trip_id,
+      slug: row.slug,
+      label: row.slug,
+      sort_order: row.sort_order,
+      sections: [...(row.sections || [])].sort((a, b) => a.sort_order - b.sort_order),
+    } as NavGroup);
+    byTrip.set(row.trip_id, list);
   }
 
   for (const trip of trips) {
-    const groups = byTrip.get(trip.id) || [];
-    let href = `/${trip.slug}`;
-    outer: for (const group of groups) {
-      const sections = [...(group.sections || [])].sort((a, b) => a.sort_order - b.sort_order);
-      for (const section of sections) {
-        if (!section.enabled) continue;
-        href = `/${trip.slug}/${group.slug}/${section.slug}`;
-        break outer;
-      }
-    }
-    hrefs.set(trip.id, href);
+    const nav = (byTrip.get(trip.id) || []).sort((a, b) => a.sort_order - b.sort_order);
+    hrefs.set(trip.id, defaultTripSectionHref(trip.slug, nav));
   }
 
   return hrefs;

@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { getCatalogForCategory } from "@/lib/catalog";
 import { getFieldDefsForSiteCategory } from "@/lib/siteCategoryFields";
-import { getAllTrips, getTripNav } from "@/lib/sections";
+import { getAllTrips } from "@/lib/sections";
 import { getSurfaceCategorySettings } from "@/lib/siteSurfaceSettings";
 import type { CategorySurface } from "@/lib/siteSurfaceShared";
 import {
@@ -9,7 +9,6 @@ import {
   catalogTag,
   siteCategoryFieldsTag,
   surfaceSettingsTag,
-  tripNavTag,
 } from "@/lib/cacheTags";
 
 const REVALIDATE_SECONDS = 60;
@@ -38,14 +37,6 @@ export function getCachedSurfaceCategorySettings(surface: CategorySurface) {
     () => getSurfaceCategorySettings(surface),
     ["surface-settings", surface],
     { revalidate: REVALIDATE_SECONDS, tags: [CACHE_TAGS.surfaceSettings, surfaceSettingsTag(surface)] }
-  )();
-}
-
-export function getCachedTripNav(tripId: string) {
-  return unstable_cache(
-    () => getTripNav(tripId),
-    ["trip-nav", tripId],
-    { revalidate: REVALIDATE_SECONDS, tags: [CACHE_TAGS.tripNav, tripNavTag(tripId)] }
   )();
 }
 

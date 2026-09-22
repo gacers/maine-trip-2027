@@ -1,7 +1,7 @@
 "use client";
 
 import AccessibleTripsIndex from "@/components/AccessibleTripsIndex";
-import SurfacePageSkeleton from "@/components/SurfacePageSkeleton";
+import TripsIndexSkeleton from "./TripsIndexSkeleton";
 import { useTripsIndex } from "@/lib/homeQueries";
 import styles from "./TripsIndexPage.module.css";
 
@@ -9,11 +9,7 @@ export default function TripsIndexPage() {
   const { data, isPending, isError } = useTripsIndex();
 
   if (isPending) {
-    return (
-      <main className={styles["root"]}>
-        <SurfacePageSkeleton cards={3} />
-      </main>
-    );
+    return <TripsIndexSkeleton />;
   }
 
   if (isError || !data) {

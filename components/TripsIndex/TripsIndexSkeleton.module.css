@@ -1,0 +1,37 @@
+.root {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: 3rem 1rem;
+  width: 100%;
+}
+
+.trip-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .trip-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .trip-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.card {
+  border-radius: 1.5rem;
+  background: var(--color-zinc-50);
+  border: 1px solid var(--color-zinc-200);
+  padding: 0.5rem;
+}
+
+.photo {
+  aspect-ratio: 3 / 4;
+  border-radius: 1.1rem;
+  background: var(--color-zinc-200);
+}

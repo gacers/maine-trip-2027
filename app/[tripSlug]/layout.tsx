@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { getCachedTripNav } from "@/lib/cachedQueries";
-import { getTripBySlug, sanitizeTripForClient } from "@/lib/sections";
+import { getTripBySlug, getTripNav, sanitizeTripForClient } from "@/lib/sections";
 import { getAdminUser } from "@/lib/auth";
 import { isEditorForTrip } from "@/lib/tripEditors";
 import { getContactEmail } from "@/lib/settings";
@@ -29,7 +28,7 @@ export default async function TripLayout({
   const trip = await getTripBySlug(tripSlug);
   if (!trip) notFound();
   const [nav, admin, contactEmail] = await Promise.all([
-    getCachedTripNav(trip.id),
+    getTripNav(trip.id),
     getAdminUser(),
     getContactEmail(),
   ]);
