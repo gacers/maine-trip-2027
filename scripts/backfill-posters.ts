@@ -48,20 +48,25 @@ async function ownUrl(source: string): Promise<string> {
   return result;
 }
 
+// Untyped filter chain — supabase-js's QueryBuilder vs FilterBuilder split
+// doesn't compose cleanly through a generic apply callback.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Query = any;
+
 async function fetchPaged(
   table: string,
   select: string,
-  apply?: (q: ReturnType<typeof supabase.from>) => ReturnType<typeof supabase.from>
+  apply?: (q: Query) => Query
 ): Promise<Record<string, unknown>[]> {
   const pageSize = 1000;
   const rows: Record<string, unknown>[] = [];
   for (let from = 0; ; from += pageSize) {
-    let q = supabase.from(table).select(select).range(from, from + pageSize - 1);
-    if (apply) q = apply(q) as typeof q;
+    let q: Query = supabase.from(table).select(select).range(from, from + pageSize - 1);
+    if (apply) q = apply(q);
     const { data, error } = await q;
     if (error) throw new Error(`${table}: ${error.message}`);
     if (!data?.length) break;
-    rows.push(...(data as Record<string, unknown>[]));
+    rows.push(...(data as unknown as Record<string, unknown>[]));
     if (data.length < pageSize) break;
   }
   return rows;
@@ -71,7 +76,7 @@ async function ingestColumn(opts: {
   label: string;
   table: string;
   column: "poster_image" | "cover_image";
-  originalFilter: (q: ReturnType<typeof supabase.from>) => ReturnType<typeof supabase.from>;
+  originalFilter: (q: Query) => Query;
 }) {
   const { label, table, column, originalFilter } = opts;
   const rows = await fetchPaged(table, `id, ${column}`, (q) =>
