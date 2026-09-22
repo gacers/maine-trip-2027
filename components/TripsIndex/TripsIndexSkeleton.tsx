@@ -5,7 +5,7 @@ export default function TripsIndexSkeleton() {
   return (
     <main className={styles["root"]} aria-busy="true" aria-label="Loading trips">
       <div className={styles["trip-grid"]}>
-        {[0, 1, 2].map((i) => (
+        {[0, 1, 2, 3].map((i) => (
           <div key={i} className={styles["card"]}>
             <div className={styles["photo"]} />
           </div>

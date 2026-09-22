@@ -53,6 +53,11 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+@media (min-width: 1280px) {
+  .trip-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
 
 .actions-row {
   display: flex;
