@@ -1,0 +1,19 @@
+.root {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.heading {
+  margin: 0 0 1rem;
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-semibold);
+}
+
+.message {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--color-zinc-500);
+}

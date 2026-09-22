@@ -1,11 +1,9 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSiteEditorAccess } from "@/lib/auth";
-import { isSiteCategorySlug } from "@/lib/siteCategories";
+import { CACHE_TAGS, siteCategoryFieldsTag } from "@/lib/cacheTags";
 import { syncFieldsForSiteCategory, type SiteCategoryFieldRow } from "@/lib/siteCategoryFields";
 import type { FieldType } from "@/lib/types";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 // Sync shared type/fields for a site category onto every trip section
 // in that category — Categories / Future Interests / Places Manage.
@@ -46,6 +44,8 @@ export async function PUT(request: NextRequest) {
 
   try {
     const next = await syncFieldsForSiteCategory(categorySlug, fields);
+    revalidateTag(siteCategoryFieldsTag(categorySlug), "max");
+    revalidateTag(CACHE_TAGS.siteCategoryFields, "max");
     return NextResponse.json({ fields: next });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

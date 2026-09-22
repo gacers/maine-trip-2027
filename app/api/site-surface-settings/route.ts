@@ -1,8 +1,10 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSiteEditorAccess } from "@/lib/auth";
+import { CACHE_TAGS, surfaceSettingsTag } from "@/lib/cacheTags";
+import { getCachedSurfaceCategorySettings } from "@/lib/cachedQueries";
 import {
   addSurfaceCategory,
-  getSurfaceCategorySettings,
   isSurfaceCardLayout,
   removeSurfaceCategory,
   setSurfaceCategoryCardLayout,
@@ -11,12 +13,14 @@ import {
   type CategorySurface,
 } from "@/lib/siteSurfaceSettings";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 function parseSurface(value: string | null): CategorySurface | null {
   if (value === "places" || value === "future-interests" || value === "categories") return value;
   return null;
+}
+
+function revalidateSurfaceCache(surface: CategorySurface) {
+  revalidateTag(surfaceSettingsTag(surface), "max");
+  revalidateTag(CACHE_TAGS.surfaceSettings, "max");
 }
 
 export async function GET(request: NextRequest) {
@@ -32,7 +36,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const settings = await getSurfaceCategorySettings(surface);
+    const settings = await getCachedSurfaceCategorySettings(surface);
     return NextResponse.json({ settings });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
@@ -66,11 +70,13 @@ export async function PUT(request: NextRequest) {
       const label = typeof body.label === "string" ? body.label.trim() : slug;
       if (!slug) return NextResponse.json({ error: "slug is required" }, { status: 400 });
       const settings = await addSurfaceCategory(surface, { slug, label });
+      revalidateSurfaceCache(surface);
       return NextResponse.json({ settings });
     }
     if (action === "setEnabled") {
       if (!slug) return NextResponse.json({ error: "slug is required" }, { status: 400 });
       const settings = await setSurfaceCategoryEnabled(surface, slug, body.enabled === true);
+      revalidateSurfaceCache(surface);
       return NextResponse.json({ settings });
     }
     if (action === "setCardLayout") {
@@ -79,6 +85,7 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: "cardLayout=list|grid-2|grid-3 required" }, { status: 400 });
       }
       const settings = await setSurfaceCategoryCardLayout(surface, slug, body.cardLayout);
+      revalidateSurfaceCache(surface);
       return NextResponse.json({ settings });
     }
     if (action === "setSupportsConcerns") {
@@ -88,11 +95,13 @@ export async function PUT(request: NextRequest) {
         slug,
         body.supportsConcerns === true
       );
+      revalidateSurfaceCache(surface);
       return NextResponse.json({ settings });
     }
     if (action === "remove") {
       if (!slug) return NextResponse.json({ error: "slug is required" }, { status: 400 });
       const settings = await removeSurfaceCategory(surface, slug);
+      revalidateSurfaceCache(surface);
       return NextResponse.json({ settings });
     }
 
@@ -112,6 +121,7 @@ export async function PUT(request: NextRequest) {
             supportsConcerns: defaultSupportsConcerns(s),
           })),
       });
+      revalidateSurfaceCache(surface);
       return NextResponse.json({ settings });
     }
 

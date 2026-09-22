@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { SITE_CATEGORIES } from "@/lib/siteCategories";
 
-export const dynamic = "force-dynamic";
-
 /** Landing for /categories — pick a category tab (no redirect). */
 export default function CategoriesIndexPage() {
   return (

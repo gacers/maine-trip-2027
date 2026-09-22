@@ -6,6 +6,7 @@ import { extractCount } from "@/lib/fieldTypes/count";
 import { exportSection } from "@/lib/sheetsExport";
 import { isSyncedEntryFieldPatch, propagateEntryUpdateFromSource } from "@/lib/entrySync";
 import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
+import { revalidateCatalog } from "@/lib/revalidateCatalog";
 import type { EntryRow, Trip, Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -151,6 +152,7 @@ export async function PATCH(
     if (isSyncedEntryFieldPatch(patch) || dataPatch) {
       propagateEntryUpdateFromSource(entryId).catch((err) => console.error("Entry sync propagation failed:", err));
     }
+    revalidateCatalog(navGroupSlug);
     return NextResponse.json({ entry: toClientEntry(entry) });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
@@ -171,6 +173,7 @@ export async function DELETE(
   try {
     await deleteEntry(supabase!, entryId);
     await exportSection(supabase!, trip, section);
+    revalidateCatalog(navGroupSlug);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

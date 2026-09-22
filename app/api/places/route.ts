@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSiteEditorAccess } from "@/lib/auth";
 import { createPlaceItem, listPlaces } from "@/lib/places";
+import { revalidateCatalog } from "@/lib/revalidateCatalog";
 import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
       sourceEntryId: typeof body.sourceEntryId === "string" ? body.sourceEntryId : null,
       visited: true,
     });
+    revalidateCatalog(categorySlug);
     return NextResponse.json({ item });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

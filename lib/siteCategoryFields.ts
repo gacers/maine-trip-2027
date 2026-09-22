@@ -220,10 +220,6 @@ export async function getFieldDefsForSiteCategory(categorySlug: string): Promise
     return orderStatusFirst([...byKey.values()]);
   }
 
-  for (const sectionId of sectionIds) {
-    await ensureBaseFieldDefsOnSection(sectionId, categorySlug);
-  }
-
   const { data: defs, error: defError } = await supabase
     .from("field_defs")
     .select("*")

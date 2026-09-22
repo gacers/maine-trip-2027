@@ -6,6 +6,8 @@ import Button from "@/components/Button";
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/NavigationMenu";
 import { SITE_CATEGORIES } from "@/lib/siteCategories";
 import { usePrefetchSurfaceList } from "@/lib/surfaceListQueries";
+import { usePrefetchSurfacePageConfig } from "@/lib/surfacePageQueries";
+import type { CategorySurface } from "@/lib/siteSurfaceShared";
 import SiteStackMobileDrawer from "./SiteStackMobileDrawer";
 import styles from "./SiteStackNav.module.css";
 
@@ -58,6 +60,7 @@ export default function SiteStackNav({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const tabs = categoryTabs ?? SITE_CATEGORIES;
   const prefetchList = usePrefetchSurfaceList();
+  const prefetchPageConfig = usePrefetchSurfacePageConfig();
 
   const stack = [
     { href: "/", label: "Trips", match: (p: string) => p === "/" },
@@ -96,6 +99,7 @@ export default function SiteStackNav({
   function warmSurface(basePath: SiteCategoryBasePath, slug: string, href: string) {
     onPrefetch(href);
     prefetchList(basePath, slug);
+    prefetchPageConfig(basePath.slice(1) as CategorySurface, slug);
   }
 
   return (

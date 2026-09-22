@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSiteEditorAccess } from "@/lib/auth";
-import { getCatalogForCategory } from "@/lib/catalog";
+import { getCachedCatalogForCategory } from "@/lib/cachedQueries";
 import { isSiteCategorySlug } from "@/lib/siteCategories";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -16,7 +13,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   try {
-    const items = await getCatalogForCategory(slug);
+    const items = await getCachedCatalogForCategory(slug);
     return NextResponse.json({ items });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

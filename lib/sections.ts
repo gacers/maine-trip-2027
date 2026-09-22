@@ -4,7 +4,7 @@
 // adding a trip or a section never requires a deploy.
 import { cache } from "react";
 import { supabaseServer, supabaseServiceRole } from "@/lib/supabaseServer";
-import { mergeBaseFieldDefs, ensureBaseFieldDefsOnSection } from "@/lib/siteCategoryFields";
+import { mergeBaseFieldDefs } from "@/lib/siteCategoryFields";
 import type { Trip, PublicTrip, NavGroup, Section } from "@/lib/types";
 
 // A trip row carries secrets/gated fields that must never reach a
@@ -94,6 +94,46 @@ export async function getTripNav(tripId: string): Promise<NavGroup[]> {
   }));
 }
 
+/** First enabled section path per trip — one query for the trips index. */
+export async function getDefaultSectionHrefsForTrips(
+  trips: Pick<Trip, "id" | "slug">[]
+): Promise<Map<string, string>> {
+  const hrefs = new Map<string, string>();
+  if (trips.length === 0) return hrefs;
+
+  const tripIds = trips.map((t) => t.id);
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase
+    .from("nav_groups")
+    .select("slug, trip_id, sort_order, sections(slug, enabled, sort_order)")
+    .in("trip_id", tripIds)
+    .order("sort_order");
+  if (error) throw new Error(error.message);
+
+  const byTrip = new Map<string, typeof data>();
+  for (const group of data || []) {
+    const list = byTrip.get(group.trip_id) || [];
+    list.push(group);
+    byTrip.set(group.trip_id, list);
+  }
+
+  for (const trip of trips) {
+    const groups = byTrip.get(trip.id) || [];
+    let href = `/${trip.slug}`;
+    outer: for (const group of groups) {
+      const sections = [...(group.sections || [])].sort((a, b) => a.sort_order - b.sort_order);
+      for (const section of sections) {
+        if (!section.enabled) continue;
+        href = `/${trip.slug}/${group.slug}/${section.slug}`;
+        break outer;
+      }
+    }
+    hrefs.set(trip.id, href);
+  }
+
+  return hrefs;
+}
+
 // Every section of a trip, flat (not nav-grouped) — used to re-export
 // every tab of a trip's Google Sheet at once (e.g. after rotating its
 // embedded invite token), where nav grouping/enabled-filtering don't
@@ -128,7 +168,6 @@ export async function getSectionBySlug(tripId: string, navGroupSlug: string, sec
   if (!data) return null;
   const { nav_groups, ...section } = data;
   const navSlug = (nav_groups as { slug: string } | null)?.slug || navGroupSlug;
-  await ensureBaseFieldDefsOnSection(section.id, navSlug);
   const { data: defs } = await supabaseServiceRole()
     .from("field_defs")
     .select("*")

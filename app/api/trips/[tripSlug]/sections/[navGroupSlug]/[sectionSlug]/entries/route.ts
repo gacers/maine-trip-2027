@@ -10,6 +10,7 @@ import { exportSection } from "@/lib/sheetsExport";
 import { sectionHasOptionsTraits } from "@/lib/tripCompletion";
 import { propagateNewEntryFromSource, seedMissingFieldDefsFromSource } from "@/lib/entrySync";
 import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
+import { revalidateCatalog } from "@/lib/revalidateCatalog";
 import type { Trip, Section, EntryRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -243,6 +244,7 @@ export async function POST(
     // one or more other sections (see lib/entrySync.ts), each of which
     // gets its own linked copy of a brand-new entry added here too.
     propagateNewEntryFromSource(entry).catch((err) => console.error("New-entry propagation failed:", err));
+    revalidateCatalog(navGroupSlug);
     return NextResponse.json({ entry: toClientEntry(entry) }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
