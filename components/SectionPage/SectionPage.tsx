@@ -492,15 +492,15 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
       {loading ? (
         <EmptyState busy />
       ) : (
-        <>
+        <div className="page-fade-in">
           {/* Independent of comparisonMode on purpose — OverviewMap is a
               plain "everything on one map, click a pin to jump to it"
               index, not the driving-times/Closest Town comparison
               tooling that flag actually governs. Every section with
               located entries gets one, "previous" included. */}
-          {!loading && activeUnits.length > 0 && <OverviewMap pins={pins} />}
+          {activeUnits.length > 0 && <OverviewMap pins={pins} />}
 
-          {!loading && activeUnits.length === 0 && (
+          {activeUnits.length === 0 && (
             <EmptyState>
               {active.length === 0
                 ? shortEmptyMessage(section.empty_message)
@@ -543,7 +543,7 @@ export default function SectionPage({ trip, section, navGroupSlug, isAdmin = fal
               )}
             </div>
           )}
-        </>
+        </div>
       )}
     </main>
   );

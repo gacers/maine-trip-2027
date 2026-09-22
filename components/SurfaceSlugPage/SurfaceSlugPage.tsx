@@ -158,7 +158,9 @@ export default function SurfaceSlugPage({ surface }: SurfaceSlugPageProps) {
   if (list.items.length === 0) {
     return (
       <PageChrome label={label}>
-        <EmptyState>Nothing here yet</EmptyState>
+        <div className="page-fade-in">
+          <EmptyState>Nothing here yet</EmptyState>
+        </div>
       </PageChrome>
     );
   }
@@ -169,5 +171,5 @@ export default function SurfaceSlugPage({ surface }: SurfaceSlugPageProps) {
     );
   }
 
-  return renderSurface(surface, slug as SiteCategorySlug, config);
+  return <div className="page-fade-in">{renderSurface(surface, slug as SiteCategorySlug, config)}</div>;
 }

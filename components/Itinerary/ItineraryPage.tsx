@@ -240,28 +240,30 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
 
       {loading ? (
         <EmptyState busy />
-      ) : stops.length === 0 ? (
-        <EmptyState>Nothing on the itinerary yet</EmptyState>
-      ) : viewMode === "week" ? (
-        <WeekView
-          stops={stops}
-          tripSlug={trip.slug}
-          authToken={authToken}
-          canContribute={canContribute}
-          onEdit={setEditingStop}
-          onMoveStop={moveStop}
-          onAdded={handleAdded}
-          onStatusChange={handleStatusChange}
-        />
       ) : (
-        <div className={styles["list"]}>
-          {stops.map((stop, i) => {
-            const prevStop = i > 0 ? stops[i - 1] : null;
-            const showDayHeader = i === 0 || prevStop?.date !== stop.date;
-            // Never across a day boundary — a new day's first stop is
-            // where you're starting from (usually the lodging you woke
-            // up at), not somewhere you just walked/drove to from
-            // yesterday's last stop.
+        <div className="page-fade-in">
+          {stops.length === 0 ? (
+            <EmptyState>Nothing on the itinerary yet</EmptyState>
+          ) : viewMode === "week" ? (
+            <WeekView
+              stops={stops}
+              tripSlug={trip.slug}
+              authToken={authToken}
+              canContribute={canContribute}
+              onEdit={setEditingStop}
+              onMoveStop={moveStop}
+              onAdded={handleAdded}
+              onStatusChange={handleStatusChange}
+            />
+          ) : (
+            <div className={styles["list"]}>
+              {stops.map((stop, i) => {
+                const prevStop = i > 0 ? stops[i - 1] : null;
+                const showDayHeader = i === 0 || prevStop?.date !== stop.date;
+                // Never across a day boundary — a new day's first stop is
+                // where you're starting from (usually the lodging you woke
+                // up at), not somewhere you just walked/drove to from
+                // yesterday's last stop.
             const showConnector =
               !showDayHeader &&
               prevStop != null &&
@@ -325,6 +327,8 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
               </div>
             );
           })}
+            </div>
+          )}
         </div>
       )}
 

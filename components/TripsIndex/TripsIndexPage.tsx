@@ -21,11 +21,13 @@ export default function TripsIndexPage() {
   }
 
   return (
-    <AccessibleTripsIndex
-      items={data.items}
-      filterByInviteTokens={data.filterByInviteTokens}
-      isAdmin={data.isAdmin}
-      isSignedIn={data.isSignedIn}
-    />
+    <div className="page-fade-in">
+      <AccessibleTripsIndex
+        items={data.items}
+        filterByInviteTokens={data.filterByInviteTokens}
+        isAdmin={data.isAdmin}
+        isSignedIn={data.isSignedIn}
+      />
+    </div>
   );
 }

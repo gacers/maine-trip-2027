@@ -1,13 +1,12 @@
 .root {
-  max-width: var(--content-max-width);
   margin: 0 auto;
   padding: 0 1rem 4rem;
   display: flex;
   flex-direction: column;
-  width: 100%;
 }
 
-/* Week and list share the same content column as every other page. */
+/* No max-width cap — week lanes need the full viewport; other trip
+   pages keep --content-max-width. */
 .root-list,
 .root-week {
   width: 100%;
