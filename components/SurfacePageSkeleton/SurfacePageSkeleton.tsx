@@ -10,8 +10,8 @@ export interface SurfacePageSkeletonProps {
   /** Overview map placeholder — matches OverviewMap frame + canvas height. */
   showMap?: boolean;
   /**
-   * `surface` — Catalog thumbs (14 / 10 / 7.5rem).
-   * `section` — EntryMedia (13 / 15 / 11rem); Places / FI / trip sections.
+   * `surface` — Catalog thumbs (14 / 10 / 12rem).
+   * `section` — EntryMedia (13 / 15 / 12rem); Places / FI / trip sections.
    */
   tone?: "surface" | "section";
   /** Stays list — 20rem EntryMedia photo. */

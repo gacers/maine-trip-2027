@@ -19,7 +19,7 @@
 
 .root-compact {
   composes: root;
-  height: 11rem;
+  height: 12rem;
 }
 
 .root-large {

@@ -130,8 +130,8 @@
 }
 
 .thumb-compact {
-  height: 7.5rem;
-  min-height: 7.5rem;
+  height: 12rem;
+  min-height: 12rem;
 }
 
 /* EntryMedia heights for trip section cards. */
@@ -146,8 +146,8 @@
 }
 
 .thumb-section-compact {
-  height: 11rem;
-  min-height: 11rem;
+  height: 12rem;
+  min-height: 12rem;
 }
 
 .thumb-section-large {

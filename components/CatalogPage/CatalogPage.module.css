@@ -126,9 +126,11 @@
   min-height: 10rem;
 }
 
+/* Same height as trip EntryMedia compact (grid-3) — categories cards
+   are the same shape. */
 .thumb-compact {
-  height: 7.5rem;
-  min-height: 7.5rem;
+  height: 12rem;
+  min-height: 12rem;
 }
 
 .card-body {

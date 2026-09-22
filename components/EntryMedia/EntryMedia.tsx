@@ -18,7 +18,8 @@ export interface EntryMediaProps {
   large?: boolean;
   /** The "small card, two per row" layout's own in-between photo
    * height — shorter than a full-width list card, taller than the
-   * compact 3-across grid. Ignored when compact or large is also set. */
+   * compact 3-across (12rem) grid. Ignored when compact or large is
+   * also set. */
   medium?: boolean;
   showRatings?: boolean;
   /** Offers the Collapse/Expand toggle as an overlay chip right on the
