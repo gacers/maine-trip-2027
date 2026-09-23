@@ -59,6 +59,18 @@ export async function PUT(
   const score = Math.round(raw * 2) / 2; // snap to the nearest half-star
 
   const service = supabaseServiceRole();
+  // Without this, entries/search's own intentionally-cross-trip lookup
+  // (see lib/entries.ts) hands back real ids from unrelated trips that
+  // could otherwise be rated straight through here.
+  const { data: entryRow, error: entryError } = await service
+    .from("entries")
+    .select("id")
+    .eq("id", entryId)
+    .eq("section_id", section.id)
+    .maybeSingle();
+  if (entryError) return NextResponse.json({ error: entryError.message }, { status: 500 });
+  if (!entryRow) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const { error: upsertError } = await service
     .from("entry_ratings")
     .upsert(
@@ -106,6 +118,15 @@ export async function DELETE(
   const clearAll = new URL(request.url).searchParams.get("all") === "true";
 
   const service = supabaseServiceRole();
+  const { data: entryRow, error: entryError } = await service
+    .from("entries")
+    .select("id")
+    .eq("id", entryId)
+    .eq("section_id", section.id)
+    .maybeSingle();
+  if (entryError) return NextResponse.json({ error: entryError.message }, { status: 500 });
+  if (!entryRow) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   let query = service.from("entry_ratings").delete().eq("entry_id", entryId);
   if (!clearAll) query = query.eq("rater_key", raterKey);
   const { error: delError } = await query;

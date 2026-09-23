@@ -21,6 +21,19 @@ export async function PATCH(
 
   try {
     const service = supabaseServiceRole();
+    // Same ownership check the reveal route already has — without it,
+    // any trip-scoped key could revoke any api_keys row in the entire
+    // database, including another trip's invite links or a global key.
+    const { data: existing, error: fetchError } = await service
+      .from("api_keys")
+      .select("trip_id")
+      .eq("id", keyId)
+      .maybeSingle();
+    if (fetchError) throw new Error(fetchError.message);
+    if (!existing || (existing.trip_id && existing.trip_id !== trip.id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const { data, error } = await service
       .from("api_keys")
       .update({ revoked: true })

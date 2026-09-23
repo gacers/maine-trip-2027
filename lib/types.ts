@@ -14,6 +14,24 @@ export type FieldType =
   | "boolean"
   | "date";
 
+// One source of truth for every route that validates a client-supplied
+// field_type before it lands in field_defs — previously duplicated
+// verbatim in two separate route files (and missing entirely from a
+// third), so a new FieldType added here needed remembering in each one
+// separately.
+export const VALID_FIELD_TYPES: FieldType[] = [
+  "text",
+  "textarea",
+  "url",
+  "image_url",
+  "number",
+  "count",
+  "price",
+  "select",
+  "boolean",
+  "date",
+];
+
 export interface FieldDef {
   id: string;
   section_id: string;

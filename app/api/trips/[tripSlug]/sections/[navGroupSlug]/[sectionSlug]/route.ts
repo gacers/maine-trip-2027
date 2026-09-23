@@ -4,23 +4,10 @@ import { requireWriteAccess, requireReadAccess } from "@/lib/auth";
 import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
 import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
 import { propagateFieldDefsFromSource, isImportDestination } from "@/lib/entrySync";
-import type { FieldType, Section } from "@/lib/types";
+import { VALID_FIELD_TYPES, type FieldType, type Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-const VALID_FIELD_TYPES: FieldType[] = [
-  "text",
-  "textarea",
-  "url",
-  "image_url",
-  "number",
-  "count",
-  "price",
-  "select",
-  "boolean",
-  "date",
-];
 
 const VALID_CARD_LAYOUTS: Section["card_layout"][] = ["list", "grid-2", "grid-3"];
 

@@ -179,6 +179,14 @@ export async function DELETE(
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   try {
+    // Same check PATCH above already does — without it, a trip-scoped
+    // bearer key (service-role client, RLS bypassed) could delete an
+    // arbitrary entryId belonging to a completely different trip just
+    // by knowing its id.
+    const all = await getAllEntries(supabase!, section.id);
+    const existing = all.find((e) => e.id === entryId);
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
     await deleteEntry(supabase!, entryId);
     await exportSection(supabase!, trip, section);
     revalidateCatalog(navGroupSlug);

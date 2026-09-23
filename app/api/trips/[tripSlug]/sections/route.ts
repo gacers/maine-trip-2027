@@ -3,23 +3,10 @@ import { getTripBySlug, getTripNav, sanitizeTripForClient } from "@/lib/sections
 import { requireWriteAccess, requireReadAccess } from "@/lib/auth";
 import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
 import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
-import type { FieldType, Section } from "@/lib/types";
+import { VALID_FIELD_TYPES, type FieldType, type Section } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-const VALID_FIELD_TYPES: FieldType[] = [
-  "text",
-  "textarea",
-  "url",
-  "image_url",
-  "number",
-  "count",
-  "price",
-  "select",
-  "boolean",
-  "date",
-];
 
 const VALID_CARD_LAYOUTS: Section["card_layout"][] = ["list", "grid-2", "grid-3"];
 
@@ -106,6 +93,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     let resolvedNavGroupId = navGroupId || null;
     let resolvedNavGroupLabel = newNavGroupLabel || null;
+    // A client-supplied navGroupId is otherwise trusted outright — an
+    // admin with write access to trip A shouldn't be able to land a new
+    // section under trip B's own nav group just by knowing/guessing its
+    // uuid, so confirm it's actually one of this trip's own groups
+    // first, same as every other id this route is handed gets checked.
+    if (resolvedNavGroupId) {
+      const { data: ownedGroup } = await supabase!
+        .from("nav_groups")
+        .select("id")
+        .eq("id", resolvedNavGroupId)
+        .eq("trip_id", trip.id)
+        .maybeSingle();
+      if (!ownedGroup) {
+        return NextResponse.json({ error: "Unknown nav group for this trip" }, { status: 400 });
+      }
+    }
     if (!resolvedNavGroupId && newNavGroupLabel) {
       const groupSlug = newNavGroupLabel
         .toLowerCase()

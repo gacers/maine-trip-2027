@@ -4,7 +4,7 @@ import { requireWriteAccess } from "@/lib/auth";
 import { exportSection } from "@/lib/sheetsExport";
 import { isImportDestination, propagateFieldDefsFromSource } from "@/lib/entrySync";
 import { upsertCustomFieldTemplate } from "@/lib/customFieldTemplates";
-import type { Section, FieldType } from "@/lib/types";
+import { VALID_FIELD_TYPES, type Section, type FieldType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -41,6 +41,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const fieldType = body.fieldType as string | undefined;
   if (!sectionId || !key || !label || !fieldType) {
     return NextResponse.json({ error: "sectionId, key, label, and fieldType are required" }, { status: 400 });
+  }
+  if (!VALID_FIELD_TYPES.includes(fieldType as FieldType)) {
+    return NextResponse.json({ error: `Invalid fieldType: ${fieldType}` }, { status: 400 });
   }
 
   try {

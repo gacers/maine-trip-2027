@@ -25,8 +25,18 @@ export async function POST(
   const section = await getSectionBySlug(trip.id, navGroupSlug, sectionSlug);
   if (!section) return NextResponse.json({ error: "Unknown section" }, { status: 404 });
 
-  const { error: authError } = await requireWriteAccess(request, trip.id);
+  const { error: authError, raterKey } = await requireWriteAccess(request, trip.id);
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
+  // This route's own blast radius (every trip sharing this nav-group/
+  // section-slug pattern — see removeFieldEverywhere) isn't bounded by
+  // the caller's own trip, unlike everything else requireWriteAccess
+  // gates — so a trip-scoped bearer key, which is otherwise a
+  // legitimate "admin" of just this one trip, isn't enough here. Only a
+  // real interactive admin session (raterKey "admin:<user.id>", never
+  // "key:<api_keys.id>") gets through.
+  if (!raterKey?.startsWith("admin:")) {
+    return NextResponse.json({ error: "Sign in as an admin to remove a field from every trip" }, { status: 403 });
+  }
 
   let body: Record<string, unknown>;
   try {
