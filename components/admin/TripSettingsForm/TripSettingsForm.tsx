@@ -7,6 +7,8 @@ import { fetchForwardGeocode } from "@/lib/geocodeClient";
 import ArchiveUnvisitedButton from "@/components/ArchiveUnvisitedButton";
 import ResetAllRatingsButton from "@/components/ResetAllRatingsButton";
 import DangerZone from "./DangerZone";
+import ClosestOfEditor, { toDraftClosestPoints } from "./ClosestOfEditor";
+import { POI_COLORS } from "@/lib/mapColors";
 import type { Trip, NavGroup, MapReferencePoint } from "@/lib/types";
 import styles from "./TripSettingsForm.module.css";
 
@@ -14,8 +16,6 @@ export interface TripSettingsFormProps {
   trip: Trip;
   nav: NavGroup[];
 }
-
-const POI_COLORS = ["#2E7D32", "#8E24AA", "#F57C00", "#1976D2", "#C2185B", "#00897B"];
 
 interface DraftPoi extends MapReferencePoint {
   _key: string;
@@ -45,6 +45,7 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
   const [completed, setCompleted] = useState(trip.completed);
   const [archived, setArchived] = useState(trip.archived);
   const [pois, setPois] = useState<DraftPoi[]>(toDraftPois(trip.map_config?.alwaysShown));
+  const [closestOf, setClosestOf] = useState(toDraftClosestPoints(trip.map_config?.closestOf));
   const [poiQuery, setPoiQuery] = useState("");
   const [findingPoi, setFindingPoi] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -98,6 +99,12 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
         lng: p.lng,
         color: p.color,
       }));
+      const closestOfPoints: MapReferencePoint[] = closestOf.map((p) => ({
+        label: p.label,
+        lat: p.lat,
+        lng: p.lng,
+        color: p.color,
+      }));
       const res = await fetch(`/api/trips/${trip.slug}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -113,7 +120,7 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
           country: country || null,
           completed,
           archived,
-          mapConfig: { ...trip.map_config, alwaysShown },
+          mapConfig: { ...trip.map_config, alwaysShown, closestOf: closestOfPoints },
         }),
       });
       const data = await res.json();
@@ -300,6 +307,8 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
           </Button>
         </div>
       </div>
+
+      <ClosestOfEditor points={closestOf} onChange={setClosestOf} />
 
       {error && <p className={styles["error"]}>{error}</p>}
       {saved && <p className={styles["saved"]}>Saved.</p>}
