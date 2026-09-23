@@ -1,0 +1,9 @@
+.link {
+  color: var(--color-blue-600);
+  text-decoration: none;
+  word-break: break-word;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

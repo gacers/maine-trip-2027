@@ -1,5 +1,6 @@
 import BulletList from "@/components/BulletList";
 import ShowMore from "@/components/ShowMore";
+import Linkify from "@/components/Linkify";
 import styles from "./EntryDescription.module.css";
 
 export interface EntryDescriptionProps {
@@ -17,7 +18,9 @@ export default function EntryDescription({ bullets }: EntryDescriptionProps) {
         <ShowMore maxHeight={320}>
           <BulletList>
             {bullets.map((item, i) => (
-              <li key={i}>{item}</li>
+              <li key={i}>
+                <Linkify text={item} />
+              </li>
             ))}
           </BulletList>
         </ShowMore>
