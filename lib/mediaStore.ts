@@ -131,6 +131,28 @@ async function putImage(bytes: Buffer, contentType: string): Promise<IngestResul
   return { publicUrl: `${cfg.publicBaseUrl}/${key}`, key };
 }
 
+// A Places (New) photo URL from Place.photos[].getURI() (see
+// lib/googlePlaces.ts) embeds whichever key generated it — always the
+// client-side NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, since that's the one
+// loaded in the browser. That key is (correctly) HTTP-referrer-
+// restricted to this site's own domains, so a server-side fetch of the
+// exact same URL always gets Google's own "Requests from referer
+// <empty> are blocked" 403 — confirmed live, not occasional: every
+// Places-sourced poster image was silently keeping its Google URL
+// instead of ever actually landing in R2. The photo *path* itself
+// (places/{id}/photos/{id}/media) isn't tied to any particular key —
+// only the `key` query param picks which key's restrictions apply — so
+// swapping in the server-only key here (unrestricted by referrer, just
+// needs "Places API (New)" enabled for it in Google Cloud Console)
+// fixes this without needing anything from the client at all.
+function withServerGoogleMapsKey(url: URL): URL {
+  if (url.hostname !== "places.googleapis.com") return url;
+  const serverKey = process.env.GOOGLE_MAPS_SERVER_API_KEY;
+  if (!serverKey) return url;
+  url.searchParams.set("key", serverKey);
+  return url;
+}
+
 /**
  * Download a remote image and store it in R2. Rejects non-images and
  * oversized payloads. Caller should catch and fall back to the original
@@ -146,6 +168,7 @@ export async function ingestRemoteImage(sourceUrl: string): Promise<IngestResult
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("Image URL must be http(s)");
   }
+  parsed = withServerGoogleMapsKey(parsed);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
