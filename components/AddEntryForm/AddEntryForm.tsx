@@ -17,6 +17,7 @@ import PlacePicker from "@/components/PlacePicker";
 import DuplicateNotice from "./DuplicateNotice";
 import CoreFieldsGrid, { type CoreFields } from "./CoreFieldsGrid";
 import PairFieldsBox, { type PairPhase } from "./PairFieldsBox";
+import ExtraMapPointsEditor, { type DraftMarker } from "@/components/ExtraMapPointsEditor";
 import type { PublicTrip, Section, ClientEntry, PlaceResult, TitleMatch } from "@/lib/types";
 import styles from "./AddEntryForm.module.css";
 
@@ -142,6 +143,10 @@ export default function AddEntryForm({
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
+  // A kayak trip's put-in/take-out, a trailhead, etc — see
+  // ExtraMapPointsEditor. Only ever sent for the primary listing (see
+  // postEntry below), same as this form's own reuse-detection.
+  const [extraMarkers, setExtraMarkers] = useState<DraftMarker[]>([]);
 
   // Live "already on another trip?" suggestions as you type into the
   // idle-phase input — see lib/entries.ts's searchEntriesByTitle. Set
@@ -230,6 +235,7 @@ export default function AddEntryForm({
     setReusedFrom({ tripName: match.tripName, sectionLabel: match.sectionLabel });
     setReusedEntryId(match.id);
     setTitleMatches([]);
+    setExtraMarkers([]);
     setPhase("editing");
   }
 
@@ -262,6 +268,7 @@ export default function AddEntryForm({
     setAddress("");
     setGeocodeMsg("");
     setErrorMsg("");
+    setExtraMarkers([]);
     cancelPair();
   }
 
@@ -280,6 +287,7 @@ export default function AddEntryForm({
     setReusedFrom(null);
     setReusedEntryId(null);
     setErrorMsg("");
+    setExtraMarkers([]);
     setPhase("editing");
   }
 
@@ -395,6 +403,7 @@ export default function AddEntryForm({
         setCookieWarning(s.cookieWarning || null);
         setReusedFrom(resData.reusedFrom ? { tripName: resData.reusedFrom.tripName, sectionLabel: resData.reusedFrom.sectionLabel } : null);
         setReusedEntryId(resData.reusedFrom?.entryId || null);
+        setExtraMarkers([]);
         setPhase("editing");
       } catch (err) {
         setErrorMsg((err as Error).message);
@@ -460,24 +469,37 @@ export default function AddEntryForm({
     setReusedFrom(null);
     setReusedEntryId(null);
     setPlaceResults([]);
+    setExtraMarkers([]);
     setPhase("editing");
   }
 
-  // importSourceEntryId is only ever the PRIMARY listing's own match
-  // (reusedEntryId, from this same form's url/title-match flow) — the
-  // pair's own second listing has no reuse-detection of its own yet,
-  // so its own postEntry call must never inherit the primary's.
+  // importSourceEntryId/entryExtraMarkers are only ever the PRIMARY
+  // listing's own (reusedEntryId/extraMarkers, from this same form's
+  // own state) — the pair's own second listing has no reuse-detection
+  // or extra-map-points editor of its own yet, so its own postEntry
+  // call must never inherit the primary's.
   async function postEntry(
     entryUrl: string,
     entryFields: CoreFields,
     entryData: Record<string, unknown>,
     groupLabel: string | null,
-    importSourceEntryId: string | null = null
+    importSourceEntryId: string | null = null,
+    entryExtraMarkers: DraftMarker[] = []
   ) {
+    const cleanMarkers = entryExtraMarkers
+      .filter((m) => m.label && m.lat !== "" && m.lng !== "")
+      .map((m) => ({ label: m.label, color: m.color, lat: Number(m.lat), lng: Number(m.lng) }));
     const res = await fetch(apiBase, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({ url: entryUrl, ...entryFields, groupLabel, data: entryData, importSourceEntryId }),
+      body: JSON.stringify({
+        url: entryUrl,
+        ...entryFields,
+        groupLabel,
+        data: entryData,
+        importSourceEntryId,
+        extraMarkers: cleanMarkers,
+      }),
     });
     const resData = await res.json();
     return { ok: res.ok, status: res.status, data: resData };
@@ -520,7 +542,7 @@ export default function AddEntryForm({
     const groupLabel =
       fields.groupLabel.trim() || (paired ? deriveGroupLabel(fields.title, pairFieldsToSave.title) : "") || null;
     try {
-      const r1 = await postEntry(url, fields, data, groupLabel, reusedEntryId);
+      const r1 = await postEntry(url, fields, data, groupLabel, reusedEntryId, extraMarkers);
       let entry1: ClientEntry | null = null;
       if (r1.ok) {
         entry1 = r1.data.entry;
@@ -660,6 +682,8 @@ export default function AddEntryForm({
               presetGroupLabel={presetGroupLabel}
             />
           </div>
+
+          <ExtraMapPointsEditor points={extraMarkers} onChange={setExtraMarkers} />
 
           <div className={styles["actions"]}>
             <button type="submit" disabled={phase === "saving"} className={styles["primary-button"]}>

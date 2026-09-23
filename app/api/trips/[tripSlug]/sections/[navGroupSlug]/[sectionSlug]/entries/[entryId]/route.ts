@@ -8,7 +8,7 @@ import { isSyncedEntryFieldPatch, propagateEntryUpdateFromSource } from "@/lib/e
 import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
 import { revalidateCatalog } from "@/lib/revalidateCatalog";
 import { ensureOwnedPosterImage } from "@/lib/mediaStore";
-import type { EntryRow, Trip, Section } from "@/lib/types";
+import type { EntryRow, Trip, Section, MapReferencePoint } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -80,6 +80,17 @@ export async function PATCH(
   const loosePatch = patch as Record<string, unknown>;
   if (loosePatch.lat === "") patch.lat = null;
   if (loosePatch.lng === "") patch.lng = null;
+
+  // Not in CORE_TO_COLUMN above since it's an array, not a scalar
+  // column value passed straight through — EntryCard's own edit form
+  // (see its saveEdit) always sends this as a real (possibly empty)
+  // array on every save, local to this trip even for a synced entry
+  // (see isSyncedEntryFieldPatch below), so it's never actually missing
+  // in practice, but `"extraMarkers" in body` still guards against a
+  // stray automation client omitting it outright.
+  if ("extraMarkers" in body) {
+    patch.extra_markers = Array.isArray(body.extraMarkers) ? (body.extraMarkers as MapReferencePoint[]) : null;
+  }
 
   if ("poster_image" in patch) {
     const owned = await ensureOwnedPosterImage(

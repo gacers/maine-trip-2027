@@ -2,15 +2,16 @@
 
 import { useEffect, useRef } from "react";
 import { useGoogleMaps } from "@/lib/useGoogleMaps";
+import { pinIcon } from "@/lib/mapIcons";
 import type { LatLngLabel } from "@/lib/types";
 import styles from "./SimplePlaceMap.module.css";
 
 export interface SimplePlaceMapPoint extends LatLngLabel {
   /** Set for this entry's own "Extra map points" (kayak put-in/take-out,
-   * a trailhead, ...) — drawn as a colored circle like ListingMap's own
+   * a trailhead, ...) — drawn as a colored pin, same as ListingMap's own
    * destination pins, so they read as distinct from the entry's own
    * plain default-pin location. Omitted (the common case: just this
-   * entry's own spot, nothing extra) keeps the plain pin look. */
+   * entry's own spot, nothing extra) keeps the plain default pin. */
   color?: string;
 }
 
@@ -43,16 +44,7 @@ export default function SimplePlaceMap({ places }: SimplePlaceMapProps) {
         position: p,
         map,
         title: p.label,
-        icon: p.color
-          ? {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 10,
-              fillColor: p.color,
-              fillOpacity: 1,
-              strokeColor: "#ffffff",
-              strokeWeight: 2,
-            }
-          : undefined,
+        icon: p.color ? pinIcon(google, p.color) : undefined,
       });
       bounds.extend(p);
     });

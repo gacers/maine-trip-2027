@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGoogleMaps, type GoogleMapsApi } from "@/lib/useGoogleMaps";
 import { fetchTown, fetchForwardGeocode, type TownResult } from "@/lib/geocodeClient";
 import { fetchRoute } from "@/lib/routeClient";
+import { pinIcon } from "@/lib/mapIcons";
 import type { LatLngLabel, MapReferencePoint, MapConfig } from "@/lib/types";
 
 const DEFAULT_TOWN_COLOR = "#1976D2";
@@ -213,14 +214,7 @@ export function useListingMap({
         map,
         title: dest.label,
         label: { text: String.fromCharCode(65 + i), color: "#ffffff", fontWeight: "bold" },
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: dest.color,
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: 2,
-        },
+        icon: pinIcon(google, dest.color),
       });
       bounds.extend({ lat: dest.lat, lng: dest.lng });
 

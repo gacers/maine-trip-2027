@@ -15,8 +15,6 @@ export function isAddressLike(line: string): boolean {
   return US_ADDRESS_RE.test(line.trim());
 }
 
-export const MARKER_COLORS = ["#1A73E8", "#EF6C00", "#00897B", "#C2185B", "#5D4037", "#616161"];
-
 // A count field's label is stored plural ("Bedrooms", "Beds",
 // "Bathrooms") since that's how it reads in the field-defs admin UI and
 // in the count summary for the common >1 case — singularized here only

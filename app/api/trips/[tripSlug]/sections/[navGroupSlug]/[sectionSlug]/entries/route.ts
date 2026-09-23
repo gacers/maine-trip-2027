@@ -12,7 +12,7 @@ import { propagateNewEntryFromSource, seedMissingFieldDefsFromSource } from "@/l
 import { resolveEntryCountry } from "@/lib/resolveEntryCountry";
 import { revalidateCatalog } from "@/lib/revalidateCatalog";
 import { ensureOwnedPosterImage } from "@/lib/mediaStore";
-import type { Trip, Section, EntryRow } from "@/lib/types";
+import type { Trip, Section, EntryRow, MapReferencePoint } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -92,6 +92,10 @@ export async function POST(
   }
 
   const { url, title, posterImage, description, lat, lng, notes, concerns, groupLabel, data } = body;
+  // Local to this trip even for a reference to a matchedSource entry
+  // elsewhere (same as notes/concerns/groupLabel below) — never taken
+  // from the matched entry itself.
+  const extraMarkers: MapReferencePoint[] | null = Array.isArray(body.extraMarkers) ? body.extraMarkers : null;
   // Set by AddEntryForm when the preview route's own findEntryByUrlAnywhere
   // found this exact url already documented elsewhere and the admin
   // kept the match (didn't change the url away from it) — see below.
@@ -194,6 +198,7 @@ export async function POST(
         notes: notes || null,
         concerns: concerns || null,
         group_label: groupLabel || null,
+        extra_markers: extraMarkers,
         visited: autoVisited,
         data: matchedSource.data,
       });
@@ -237,6 +242,7 @@ export async function POST(
         notes: notes || null,
         concerns: concerns || null,
         group_label: groupLabel || null,
+        extra_markers: extraMarkers,
         visited: autoVisited,
         data: filledData,
       });

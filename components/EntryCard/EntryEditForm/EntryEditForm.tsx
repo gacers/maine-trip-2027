@@ -2,18 +2,13 @@ import Button from "@/components/Button";
 import FieldInput from "@/components/FieldInput";
 import AddFieldSelect from "@/components/AddFieldSelect";
 import PhotoUrlField from "@/components/PhotoUrlField";
-import { MARKER_COLORS } from "../helpers";
+import ExtraMapPointsEditor, { type DraftMarker } from "@/components/ExtraMapPointsEditor";
 import { visibleFieldDefsForEdit, stashMovedFrom, isTruthyFlag } from "@/lib/statusFields";
 import type { ImportSourceEntryInfo } from "@/lib/entrySync";
 import type { FieldDef } from "@/lib/types";
 import styles from "./EntryEditForm.module.css";
 
-export interface DraftMarker {
-  label: string;
-  color: string;
-  lat: string | number;
-  lng: string | number;
-}
+export type { DraftMarker };
 
 export interface EntryDraft {
   title: string;
@@ -101,19 +96,6 @@ export default function EntryEditForm({
 }: EntryEditFormProps) {
   const countFields = fieldDefs.filter((f) => f.field_type === "count");
   const canAddField = !locked && !!(onFieldAdded || (tripSlug && sectionId));
-
-  function updateMarker(i: number, field: keyof DraftMarker, value: string) {
-    onChange({ ...draft, extraMarkers: draft.extraMarkers.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)) });
-  }
-
-  function addMarker() {
-    const color = MARKER_COLORS[draft.extraMarkers.length % MARKER_COLORS.length];
-    onChange({ ...draft, extraMarkers: [...draft.extraMarkers, { label: "", color, lat: "", lng: "" }] });
-  }
-
-  function removeMarker(i: number) {
-    onChange({ ...draft, extraMarkers: draft.extraMarkers.filter((_, idx) => idx !== i) });
-  }
 
   return (
     <>
@@ -264,46 +246,10 @@ export default function EntryEditForm({
         )}
       </div>
 
-      <div>
-        <div className={styles["markers-header"]}>
-          <h4 className={styles["markers-title"]}>Extra map points</h4>
-          <Button variant="link" size="sm" onClick={addMarker}>
-            + Add point
-          </Button>
-        </div>
-        <p className={styles["markers-hint"]}>
-          Shown as extra pins on this item&apos;s own map alongside its main location — a kayak trip&apos;s
-          put-in/take-out, a trailhead, a nearby restaurant, etc. Add as many as you need, each with its own label.
-        </p>
-        <div className={styles["marker-row-list"]}>
-          {draft.extraMarkers.map((m, i) => (
-            <div key={i} className={styles["marker-row"]}>
-              <input
-                placeholder="Label"
-                value={m.label}
-                onChange={(e) => updateMarker(i, "label", e.target.value)}
-                className={styles["marker-label-input"]}
-              />
-              <input
-                placeholder="Latitude"
-                value={m.lat}
-                onChange={(e) => updateMarker(i, "lat", e.target.value)}
-                className={styles["marker-input"]}
-              />
-              <input
-                placeholder="Longitude"
-                value={m.lng}
-                onChange={(e) => updateMarker(i, "lng", e.target.value)}
-                className={styles["marker-input"]}
-              />
-              <input type="color" value={m.color} onChange={(e) => updateMarker(i, "color", e.target.value)} className={styles["marker-color-input"]} />
-              <Button variant="danger" size="sm" onClick={() => removeMarker(i)}>
-                Remove
-              </Button>
-            </div>
-          ))}
-        </div>
-      </div>
+      <ExtraMapPointsEditor
+        points={draft.extraMarkers}
+        onChange={(extraMarkers) => onChange({ ...draft, extraMarkers })}
+      />
     </>
   );
 }
