@@ -571,7 +571,7 @@ export default function EntryCard({
                   {currentAddressText || "View on map"}
                 </a>
               )}
-              {backupDateRange && <AvailabilityLinks url={entry.url} backup={backupDateRange} />}
+              <AvailabilityLinks url={entry.url} backup={backupDateRange} />
             </div>
             <div className={styles["header-actions"]}>
               <PriceDisplay entry={entry} priceFields={priceFields} />
