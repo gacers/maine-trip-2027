@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import classNames from "classnames";
-import styles from "./GoogleConnectionsPanel.module.css";
+import styles from "./ExternalConnectionsPanel.module.css";
 
 interface CredentialStatus {
-  key: "sheets" | "drive" | "maps";
+  key: "sheets" | "drive" | "maps" | "airbnb";
   label: string;
   ok: boolean;
   message: string;
@@ -22,7 +22,8 @@ interface PushField {
 // exact page differs by Google Cloud project, so these land on the
 // general list (service accounts / credentials) rather than a
 // project-specific deep link this app has no reliable way to build.
-const CONSOLE_LINKS: Record<CredentialStatus["key"], { label: string; href: string }> = {
+// Airbnb has no console page at all — see PUSH_FIELDS' own comment.
+const CONSOLE_LINKS: Partial<Record<CredentialStatus["key"], { label: string; href: string }>> = {
   sheets: { label: "Open Service Accounts in Google Cloud Console", href: "https://console.cloud.google.com/iam-admin/serviceaccounts" },
   drive: { label: "Open OAuth consent screen in Google Cloud Console", href: "https://console.cloud.google.com/apis/credentials/consent" },
   maps: { label: "Open API Credentials in Google Cloud Console", href: "https://console.cloud.google.com/apis/credentials" },
@@ -30,12 +31,15 @@ const CONSOLE_LINKS: Record<CredentialStatus["key"], { label: string; href: stri
 
 // Which env var(s) a manually-generated replacement for each credential
 // actually gets pushed into — see PUSHABLE_KEYS in
-// app/api/admin/google/push/route.ts, the server-side allowlist this
-// has to stay in sync with. Rotating a service account *key* only ever
-// changes its private key, never its email/identity, so sheets has
-// just the one field; Maps has two since the server (unrestricted) and
-// public (browser-exposed, usually HTTP-referrer-restricted) keys are
-// commonly two genuinely different key values.
+// app/api/admin/credentials/push/route.ts, the server-side allowlist
+// this has to stay in sync with. Rotating a service account *key* only
+// ever changes its private key, never its email/identity, so sheets
+// has just the one field; Maps has two since the server (unrestricted)
+// and public (browser-exposed, usually HTTP-referrer-restricted) keys
+// are commonly two genuinely different key values. Airbnb has no
+// console/API to regenerate anything at all — just log into airbnb.com,
+// open DevTools' Network tab, and copy the "cookie" request header off
+// any airbnb.com request (see lib/scrape.ts's own header comment).
 const PUSH_FIELDS: Record<CredentialStatus["key"], PushField[]> = {
   sheets: [
     {
@@ -55,6 +59,13 @@ const PUSH_FIELDS: Record<CredentialStatus["key"], PushField[]> = {
     { envKey: "GOOGLE_MAPS_SERVER_API_KEY", label: "New server key", placeholder: "Paste the new server-side API key" },
     { envKey: "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", label: "New public key", placeholder: "Paste the new browser-side API key" },
   ],
+  airbnb: [
+    {
+      envKey: "AIRBNB_SESSION_COOKIE",
+      label: "New session cookie",
+      placeholder: "Paste the full 'cookie' request header value from DevTools",
+    },
+  ],
 };
 
 function timeAgo(iso: string): string {
@@ -71,9 +82,10 @@ interface PushFieldRowProps {
 }
 
 // One "paste a new value, push it" control — generating the actual
-// replacement always happens by hand in Google Cloud Console first;
-// this is just the part that used to mean hand-navigating Vercel's own
-// dashboard to find the right env var and click redeploy.
+// replacement always happens by hand (Google Cloud Console, or a
+// logged-in Airbnb browser session) first; this is just the part that
+// used to mean hand-navigating Vercel's own dashboard to find the
+// right env var and click redeploy.
 function PushFieldRow({ field }: PushFieldRowProps) {
   const [value, setValue] = useState("");
   const [pushing, setPushing] = useState(false);
@@ -84,7 +96,7 @@ function PushFieldRow({ field }: PushFieldRowProps) {
     setPushing(true);
     setResult(null);
     try {
-      const res = await fetch("/api/admin/google/push", {
+      const res = await fetch("/api/admin/credentials/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: field.envKey, value: value.trim() }),
@@ -120,13 +132,17 @@ function PushFieldRow({ field }: PushFieldRowProps) {
   );
 }
 
-// Live status for the three, differently-authenticated Google
-// integrations this site depends on (see lib/googleCredentialHealth.ts)
-// — a Sheets/Docs service account, a Drive OAuth grant, and a plain
-// Maps/Places API key. Each fails independently and gets fixed a
-// different way, so this shows all three separately rather than one
-// combined "Google is broken" indicator.
-export default function GoogleConnectionsPanel() {
+// Live status for every external credential this site depends on that
+// can silently expire/get revoked out from under it — the three,
+// differently-authenticated Google integrations (see
+// lib/googleCredentialHealth.ts: a Sheets/Docs service account, a
+// Drive OAuth grant, a plain Maps/Places API key) plus Airbnb's own
+// logged-in session cookie (lib/airbnbCookieHealth.ts), which has no
+// API/console equivalent at all — just a raw browser cookie captured
+// by hand. Each fails independently and gets fixed a different way, so
+// this shows them separately rather than one combined "something's
+// broken" indicator.
+export default function ExternalConnectionsPanel() {
   const [statuses, setStatuses] = useState<CredentialStatus[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -136,9 +152,9 @@ export default function GoogleConnectionsPanel() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/google/health");
+      const res = await fetch("/api/admin/credentials/health");
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to check Google connections");
+      if (!res.ok) throw new Error(data.error || "Failed to check external connections");
       setStatuses(data.statuses);
     } catch (err) {
       setError((err as Error).message);
@@ -154,14 +170,14 @@ export default function GoogleConnectionsPanel() {
   return (
     <div className={styles["root"]}>
       <div className={styles["header"]}>
-        <h2 className={styles["title"]}>Google connections</h2>
+        <h2 className={styles["title"]}>External connections</h2>
         <button type="button" onClick={refresh} disabled={loading} className={styles["refresh-button"]}>
           {loading ? "Checking..." : "Refresh"}
         </button>
       </div>
       <p className={styles["hint"]}>
-        Sheets/Docs export, Drive file creation, and Maps/Places each use their own separate Google
-        credential — if one gets revoked or disabled, only that piece breaks. Checked live, not cached.
+        Sheets/Docs export, Drive file creation, Maps/Places, and Airbnb scraping each use their own
+        separate credential — if one gets revoked or expires, only that piece breaks. Checked live, not cached.
       </p>
 
       {error && <p className={styles["error"]}>{error}</p>}
@@ -180,9 +196,9 @@ export default function GoogleConnectionsPanel() {
               <div className={styles["card-footer"]}>
                 <span className={styles["card-time"]}>Checked {timeAgo(s.checkedAt)}</span>
                 <div className={styles["card-actions"]}>
-                  {!s.ok && (
-                    <a href={CONSOLE_LINKS[s.key].href} target="_blank" rel="noopener noreferrer" className={styles["fix-link"]}>
-                      {CONSOLE_LINKS[s.key].label} →
+                  {!s.ok && CONSOLE_LINKS[s.key] && (
+                    <a href={CONSOLE_LINKS[s.key]!.href} target="_blank" rel="noopener noreferrer" className={styles["fix-link"]}>
+                      {CONSOLE_LINKS[s.key]!.label} →
                     </a>
                   )}
                   <button

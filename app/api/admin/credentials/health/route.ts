@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/auth";
 import { checkAllGoogleCredentials } from "@/lib/googleCredentialHealth";
+import { checkAirbnbCookie } from "@/lib/airbnbCookieHealth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,6 +14,6 @@ export async function GET() {
   const { error: authError } = await requireSuperAdmin();
   if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
-  const statuses = await checkAllGoogleCredentials();
-  return NextResponse.json({ statuses });
+  const [googleStatuses, airbnbStatus] = await Promise.all([checkAllGoogleCredentials(), checkAirbnbCookie()]);
+  return NextResponse.json({ statuses: [...googleStatuses, airbnbStatus] });
 }

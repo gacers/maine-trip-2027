@@ -7,7 +7,7 @@ export const revalidate = 0;
 
 // Every env var this route is willing to overwrite — deliberately not
 // "any key the caller names": this is a write path straight into
-// production's own secrets, so it only ever touches the Google
+// production's own secrets, so it only ever touches the specific
 // credentials it exists for. Notably excludes GOOGLE_OAUTH_CLIENT_ID/
 // _SECRET (rotating those means creating a whole new OAuth client, not
 // just swapping a value) and the GOOGLE_KEY_ADMIN_*/VERCEL_API_TOKEN
@@ -20,11 +20,12 @@ const PUSHABLE_KEYS = new Set([
   "GOOGLE_OAUTH_REFRESH_TOKEN",
   "GOOGLE_MAPS_SERVER_API_KEY",
   "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY",
+  "AIRBNB_SESSION_COOKIE",
 ]);
 
 // Super-admin-only (see lib/auth.ts's own requireSuperAdmin) — this is
 // a write path straight into production's own secrets, so the bar is
-// higher than the rest of /api/admin/google. Pushes one credential's
+// higher than the rest of /api/admin/credentials. Pushes one credential's
 // new value to this project's own Vercel env vars and redeploys so it
 // actually takes effect (an existing running deployment already has
 // last build's values baked in). Redeploy is fire-and-check, not
