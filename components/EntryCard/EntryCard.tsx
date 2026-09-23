@@ -661,7 +661,7 @@ export default function EntryCard({
             )}
 
             {!isEditing && showMap && hasHouse && (
-              <LocationSection entry={entry} comparisonMode={comparisonMode} listingMapData={listingMapData} />
+              <LocationSection entry={entry} comparisonMode={comparisonMode} listingMapData={listingMapData} extraMarkers={extraMarkers} />
             )}
 
             {!isEditing && isMoved && oldMapsUrl ? (

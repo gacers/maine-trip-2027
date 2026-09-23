@@ -5,8 +5,17 @@ import { useGoogleMaps } from "@/lib/useGoogleMaps";
 import type { LatLngLabel } from "@/lib/types";
 import styles from "./SimplePlaceMap.module.css";
 
+export interface SimplePlaceMapPoint extends LatLngLabel {
+  /** Set for this entry's own "Extra map points" (kayak put-in/take-out,
+   * a trailhead, ...) — drawn as a colored circle like ListingMap's own
+   * destination pins, so they read as distinct from the entry's own
+   * plain default-pin location. Omitted (the common case: just this
+   * entry's own spot, nothing extra) keeps the plain pin look. */
+  color?: string;
+}
+
 export interface SimplePlaceMapProps {
-  places: LatLngLabel[];
+  places: SimplePlaceMapPoint[];
 }
 
 // A plain marker map for an entry that isn't being actively compared
@@ -16,7 +25,10 @@ export interface SimplePlaceMapProps {
 // times and no reverse-geocoded "Closest Town" the way ListingMap does
 // for a still-deciding section. `places` is one or more {lat, lng,
 // label}, matching ListingMap's `houses` shape so a group of 2 renders
-// on one shared map the same way GroupMap does for the full version.
+// on one shared map the same way GroupMap does for the full version —
+// also how an entry's own "Extra map points" (see EntryEditForm) show
+// up here: LocationSection appends them to this same list rather than
+// this component needing any special-case handling of its own.
 export default function SimplePlaceMap({ places }: SimplePlaceMapProps) {
   const mapDivRef = useRef<HTMLDivElement>(null);
   const { google, status, errorMsg } = useGoogleMaps();
@@ -27,7 +39,21 @@ export default function SimplePlaceMap({ places }: SimplePlaceMapProps) {
     const map = new google.maps.Map(mapDivRef.current, { zoom: 13, center: places[0] });
     const bounds = new google.maps.LatLngBounds();
     places.forEach((p) => {
-      new google.maps.Marker({ position: p, map, title: p.label });
+      new google.maps.Marker({
+        position: p,
+        map,
+        title: p.label,
+        icon: p.color
+          ? {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 10,
+              fillColor: p.color,
+              fillOpacity: 1,
+              strokeColor: "#ffffff",
+              strokeWeight: 2,
+            }
+          : undefined,
+      });
       bounds.extend(p);
     });
     if (places.length > 1) map.fitBounds(bounds);
@@ -55,8 +81,8 @@ export default function SimplePlaceMap({ places }: SimplePlaceMapProps) {
         </a>
       ) : (
         <ul className={styles["place-list"]}>
-          {places.map((p) => (
-            <li key={p.label}>
+          {places.map((p, i) => (
+            <li key={i}>
               <a href={mapsUrl(p)} target="_blank" rel="noopener noreferrer" className={styles["place-link"]}>
                 {p.label} — Open in Google Maps
               </a>

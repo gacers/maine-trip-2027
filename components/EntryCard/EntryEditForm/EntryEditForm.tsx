@@ -266,11 +266,15 @@ export default function EntryEditForm({
 
       <div>
         <div className={styles["markers-header"]}>
-          <h4 className={styles["markers-title"]}>Extra map points (restaurants, hikes, puffin tour, nearest town, etc.)</h4>
+          <h4 className={styles["markers-title"]}>Extra map points</h4>
           <Button variant="link" size="sm" onClick={addMarker}>
             + Add point
           </Button>
         </div>
+        <p className={styles["markers-hint"]}>
+          Shown as extra pins on this item&apos;s own map alongside its main location — a kayak trip&apos;s
+          put-in/take-out, a trailhead, a nearby restaurant, etc. Add as many as you need, each with its own label.
+        </p>
         <div className={styles["marker-row-list"]}>
           {draft.extraMarkers.map((m, i) => (
             <div key={i} className={styles["marker-row"]}>
@@ -278,7 +282,7 @@ export default function EntryEditForm({
                 placeholder="Label"
                 value={m.label}
                 onChange={(e) => updateMarker(i, "label", e.target.value)}
-                className={styles["marker-input"]}
+                className={styles["marker-label-input"]}
               />
               <input
                 placeholder="Latitude"
