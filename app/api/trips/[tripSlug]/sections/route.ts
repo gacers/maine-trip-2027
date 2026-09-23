@@ -129,9 +129,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         resolvedNavGroupId = existingGroup.id;
         resolvedNavGroupLabel = existingGroup.label;
       } else {
+        // Lands after every nav group this trip already has — a
+        // hardcoded 999 here (what this used to insert) ties every
+        // brand-new group at the same value, so which one a trip's own
+        // top nav (or the homepage's own "first section" link) treats
+        // as "first" ends up depending on undefined tie-breaking rather
+        // than actual intent. Confirmed live: most trips' nav_groups
+        // are stuck exactly like that.
+        const { data: maxRow } = await supabase!
+          .from("nav_groups")
+          .select("sort_order")
+          .eq("trip_id", trip.id)
+          .order("sort_order", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const nextSortOrder = (maxRow?.sort_order ?? -1) + 1;
         const { data: group, error: groupError } = await supabase!
           .from("nav_groups")
-          .insert({ trip_id: trip.id, slug: groupSlug, label: newNavGroupLabel, sort_order: 999 })
+          .insert({ trip_id: trip.id, slug: groupSlug, label: newNavGroupLabel, sort_order: nextSortOrder })
           .select()
           .single();
         if (groupError) throw new Error(groupError.message);

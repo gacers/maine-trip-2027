@@ -134,9 +134,21 @@ export async function PATCH(
       if (existingGroup) {
         patch.nav_group_id = existingGroup.id;
       } else {
+        // Same reasoning as the sections POST route's own insert — a
+        // hardcoded 999 ties every brand-new group at the same value
+        // instead of actually landing after whatever this trip already
+        // has.
+        const { data: maxRow } = await supabase!
+          .from("nav_groups")
+          .select("sort_order")
+          .eq("trip_id", trip.id)
+          .order("sort_order", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const nextSortOrder = (maxRow?.sort_order ?? -1) + 1;
         const { data: group, error: groupError } = await supabase!
           .from("nav_groups")
-          .insert({ trip_id: trip.id, slug: groupSlug, label: newNavGroupLabel.trim(), sort_order: 999 })
+          .insert({ trip_id: trip.id, slug: groupSlug, label: newNavGroupLabel.trim(), sort_order: nextSortOrder })
           .select()
           .single();
         if (groupError) throw new Error(groupError.message);
