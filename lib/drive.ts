@@ -10,7 +10,7 @@ import type { Trip } from "@/lib/types";
 // creation — that account has real quota — then shares it with the
 // service account, which does every read/write after that via the
 // normal Sheets API (see lib/googleSheetsAuth.ts).
-function getOAuthClient() {
+export function getOAuthClient() {
   const client = new google.auth.OAuth2(process.env.GOOGLE_OAUTH_CLIENT_ID, process.env.GOOGLE_OAUTH_CLIENT_SECRET);
   client.setCredentials({ refresh_token: process.env.GOOGLE_OAUTH_REFRESH_TOKEN });
   return client;
