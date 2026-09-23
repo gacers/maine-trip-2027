@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAdminUser } from "@/lib/auth";
+import { requireSuperAdmin } from "@/lib/auth";
 import { updateEnvVar, triggerRedeploy } from "@/lib/vercelEnv";
 
 export const dynamic = "force-dynamic";
@@ -22,17 +22,18 @@ const PUSHABLE_KEYS = new Set([
   "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY",
 ]);
 
-// Admin-session-only — same bar as everything else under
-// /api/admin/google. Pushes one credential's new value to this
-// project's own Vercel env vars and redeploys so it actually takes
-// effect (an existing running deployment already has last build's
-// values baked in). Redeploy is fire-and-check, not fire-and-wait — a
-// real build can take a couple of minutes, longer than this route
-// should sit open; the caller re-runs the health check afterward to
-// confirm it landed.
+// Super-admin-only (see lib/auth.ts's own requireSuperAdmin) — this is
+// a write path straight into production's own secrets, so the bar is
+// higher than the rest of /api/admin/google. Pushes one credential's
+// new value to this project's own Vercel env vars and redeploys so it
+// actually takes effect (an existing running deployment already has
+// last build's values baked in). Redeploy is fire-and-check, not
+// fire-and-wait — a real build can take a couple of minutes, longer
+// than this route should sit open; the caller re-runs the health check
+// afterward to confirm it landed.
 export async function POST(request: NextRequest) {
-  const user = await getAdminUser();
-  if (!user) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+  const { error: authError } = await requireSuperAdmin();
+  if (authError) return NextResponse.json({ error: authError.message }, { status: authError.status });
 
   let body: Record<string, unknown>;
   try {
