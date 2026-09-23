@@ -63,13 +63,15 @@
 
 /* Below 1024px there's rarely room for every group's flat text item
    plus its dropdown chevron without wrapping onto a second line, so
-   the whole row collapses into a single hamburger menu instead. */
+   the whole row collapses into a single hamburger menu instead.
+   Applied to a wrapper div (not NavigationMenu.root) so display:none
+   isn't overridden by that component's own display:flex. */
 .menu-desktop {
   display: none;
 }
 @media (min-width: 1024px) {
   .menu-desktop {
-    display: flex;
+    display: block;
   }
 }
 

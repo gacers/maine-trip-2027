@@ -269,45 +269,51 @@ export default function TripNavHeader({
       {nav.length > 0 && !isAdminRoute && (
         <div ref={barRef} className={styles["sticky-nav"]}>
           <div className={styles["nav-row"]}>
-            <NavigationMenu className={styles["menu-desktop"]} aria-label="Trip categories">
-              <NavigationMenuList>
-                {nav.map((g) => {
-                  const href = sectionPath(g.slug, g.sections[0].slug);
-                  return (
-                    <NavigationMenuItem key={g.id}>
-                      <NavigationMenuLink asChild active={g.id === activeGroup?.id}>
+            {/* Wrapper owns the show/hide breakpoint — putting
+               menu-desktop on NavigationMenu itself loses to that
+               component's .root { display: flex } (equal specificity,
+               import order wins), so both menus showed on mobile. */}
+            <div className={styles["menu-desktop"]}>
+              <NavigationMenu aria-label="Trip categories">
+                <NavigationMenuList>
+                  {nav.map((g) => {
+                    const href = sectionPath(g.slug, g.sections[0].slug);
+                    return (
+                      <NavigationMenuItem key={g.id}>
+                        <NavigationMenuLink asChild active={g.id === activeGroup?.id}>
+                          <Link
+                            href={href}
+                            onPointerEnter={() => prefetch(href)}
+                            onClick={() => go(href)}
+                          >
+                            {g.label}
+                          </Link>
+                        </NavigationMenuLink>
+                      </NavigationMenuItem>
+                    );
+                  })}
+                  {/* A fixed built-in page, not part of the nav_groups/
+                      sections data model Section Designer manages — a
+                      peer to the category tabs, not nested under one.
+                      Hidden entirely (not just disabled) unless isAdmin —
+                      not yet opened up to trip editors/contributors the
+                      way the rest of a trip's content is. */}
+                  {isAdmin && (
+                    <NavigationMenuItem>
+                      <NavigationMenuLink asChild active={isItineraryRoute}>
                         <Link
-                          href={href}
-                          onPointerEnter={() => prefetch(href)}
-                          onClick={() => go(href)}
+                          href={itineraryPath}
+                          onPointerEnter={() => prefetch(itineraryPath)}
+                          onClick={() => go(itineraryPath)}
                         >
-                          {g.label}
+                          Itinerary
                         </Link>
                       </NavigationMenuLink>
                     </NavigationMenuItem>
-                  );
-                })}
-                {/* A fixed built-in page, not part of the nav_groups/
-                    sections data model Section Designer manages — a
-                    peer to the category tabs, not nested under one.
-                    Hidden entirely (not just disabled) unless isAdmin —
-                    not yet opened up to trip editors/contributors the
-                    way the rest of a trip's content is. */}
-                {isAdmin && (
-                  <NavigationMenuItem>
-                    <NavigationMenuLink asChild active={isItineraryRoute}>
-                      <Link
-                        href={itineraryPath}
-                        onPointerEnter={() => prefetch(itineraryPath)}
-                        onClick={() => go(itineraryPath)}
-                      >
-                        Itinerary
-                      </Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                )}
-              </NavigationMenuList>
-            </NavigationMenu>
+                  )}
+                </NavigationMenuList>
+              </NavigationMenu>
+            </div>
 
             <div className={styles["menu-mobile"]}>
               <MobileNavDrawer
