@@ -18,10 +18,10 @@ export const dynamic = "force-dynamic";
 // depth, not the only thing stopping a direct request.
 export default async function TripItineraryPage({ params }: { params: Promise<{ tripSlug: string }> }) {
   const { tripSlug } = await params;
-  const trip = await getTripBySlug(tripSlug);
+  // Independent of each other — both always needed regardless of which
+  // resolves which way, so no reason to make one wait on the other.
+  const [trip, admin] = await Promise.all([getTripBySlug(tripSlug), getAdminUser()]);
   if (!trip) notFound();
-
-  const admin = await getAdminUser();
   if (!admin) notFound();
 
   return <ItineraryPage trip={sanitizeTripForClient(trip)} isAdmin={true} isEditor={false} />;

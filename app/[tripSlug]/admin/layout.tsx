@@ -15,10 +15,10 @@ export default async function TripAdminLayout({
   params: Promise<{ tripSlug: string }>;
 }) {
   const { tripSlug } = await params;
-  const trip = await getTripBySlug(tripSlug);
+  // Independent of each other — both always needed regardless of which
+  // resolves which way, so no reason to make one wait on the other.
+  const [trip, user] = await Promise.all([getTripBySlug(tripSlug), getAdminUser()]);
   if (!trip) notFound();
-
-  const user = await getAdminUser();
   if (!user) redirect(`/login?next=/${tripSlug}/admin/sections`);
 
   return (
