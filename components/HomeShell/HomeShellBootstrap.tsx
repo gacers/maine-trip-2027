@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import SiteHeader, { siteHeaderStyles } from "@/components/SiteHeader";
 import HomeShell from "@/components/HomeShell";
+import HomeShellSkeleton from "./HomeShellSkeleton";
 import { useHomeShell } from "@/lib/homeQueries";
 import styles from "./HomeShell.module.css";
 
@@ -19,7 +20,10 @@ export default function HomeShellBootstrap({ children }: { children: ReactNode }
     );
   }
 
-  // Shell data still loading — show real header, let the page own its skeleton.
+  // Shell data still loading — real header (doesn't depend on it) plus
+  // a stack-nav-shaped placeholder underneath, so the page's own
+  // content doesn't jump down once the real one (every admin visit has
+  // one — see HomeShellSkeleton's own comment) pops in a beat later.
   if (isPending || !data) {
     return (
       <>
@@ -31,6 +35,7 @@ export default function HomeShellBootstrap({ children }: { children: ReactNode }
               </Link>
             }
           />
+          <HomeShellSkeleton />
         </div>
         {children}
       </>

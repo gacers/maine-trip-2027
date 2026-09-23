@@ -35,9 +35,15 @@ export default function PhotoUrlField({
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  // Kept independent of the file input's own value (cleared after every
+  // attempt below so picking the exact same file again still fires a
+  // change event) — this is what lets "Try again" retry without making
+  // whoever's uploading go find and re-pick the same file a second time.
+  const [lastFile, setLastFile] = useState<File | null>(null);
 
   async function handleFile(file: File | null) {
     if (!file || disabled) return;
+    setLastFile(file);
     setUploading(true);
     setError("");
     try {
@@ -89,7 +95,16 @@ export default function PhotoUrlField({
           </>
         ) : null}
       </div>
-      {error ? <p className={styles["error"]}>{error}</p> : null}
+      {error ? (
+        <p className={styles["error"]}>
+          {error}
+          {lastFile && !disabled && (
+            <button type="button" onClick={() => handleFile(lastFile)} className={styles["retry-button"]}>
+              Try again
+            </button>
+          )}
+        </p>
+      ) : null}
     </div>
   );
 }

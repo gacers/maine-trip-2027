@@ -1,0 +1,22 @@
+/* Same shape as SiteStackNav's own .sticky-nav/.nav-row — duplicated
+   here (not imported) so this stays a self-contained component; keep
+   the padding/gap in sync with that file if it ever changes. */
+.root {
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-zinc-200);
+}
+
+.nav-row {
+  width: 100%;
+  padding: 0.625rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.pill {
+  height: 1.5rem;
+  border-radius: var(--radius);
+  background: var(--color-zinc-200);
+}
