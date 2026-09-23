@@ -23,7 +23,6 @@ import EntryEditForm, { type EntryDraft } from "./EntryEditForm";
 import EditableNoteList from "./EditableNoteList";
 import EntryFooter from "./EntryFooter";
 import AvailabilityLinks, { type DateRange } from "./AvailabilityLinks";
-import { withAvailabilityDates } from "@/lib/listingAvailability";
 import {
   applyMovedLocationChange,
   isStatusBooleanKey,
@@ -116,13 +115,11 @@ export interface EntryCardProps {
   collapsible?: boolean;
   /** Trip.start_date/end_date and alt_start_date/alt_end_date, resolved
    * once by SectionPage rather than every card re-reading trip fields
-   * itself. primaryDateRange feeds straight into the title link's own
-   * href (see titleHref below); backupDateRange shows as a separate
-   * "Check backup dates" link (see AvailabilityLinks) since a single
-   * title link can only point to one url at a time. Both are a no-op
-   * for anything but an Airbnb/VRBO url. Undefined (not just unset
-   * dates) for a section with no reason to ever show these — e.g. Food
-   * & Drink/Activities entries never pass this at all. */
+   * itself. Both show as their own "Check dates"/"Check backup dates"
+   * link (see AvailabilityLinks) and are a no-op for anything but an
+   * Airbnb/VRBO url. Undefined (not just unset dates) for a section
+   * with no reason to ever show these — e.g. Food & Drink/Activities
+   * entries never pass this at all. */
   primaryDateRange?: DateRange | null;
   backupDateRange?: DateRange | null;
   /** Future Interests — enable AddFieldSelect without a trip section. */
@@ -184,14 +181,14 @@ export default function EntryCard({
   const isArchived = entry.status === "archived";
   const extraMarkers = parseExtraMarkers(entry.extraMarkers);
   const hasHouse = hasCoords(entry);
-  // The title link itself goes straight to real availability for the
-  // trip's own dates when there's an Airbnb/VRBO url and dates to check
-  // — one link, not a bare listing plus a separate "Check dates" easy
-  // to mix up with it (confirmed live as genuinely confusing: both
-  // ended up blue and stacked right on top of each other). Falls back
-  // to the plain url otherwise — withAvailabilityDates itself already
-  // no-ops for any host it doesn't know a date-param convention for.
-  const titleHref = entry.url && primaryDateRange ? withAvailabilityDates(entry.url, primaryDateRange.start, primaryDateRange.end) : (entry.url ?? undefined);
+  // The title just goes to the plain listing — AvailabilityLinks' own
+  // "Check dates" button owns checking the trip's actual dates now (see
+  // its own comment); title used to bake primaryDateRange straight into
+  // its own href instead, which meant two separate links to the exact
+  // same availability search (the title, and a "Check dates" button
+  // right below it) — confirmed live as genuinely confusing once both
+  // existed at once.
+  const titleHref = entry.url ?? undefined;
   // Reference points/Closest Town/Driving Times are for a still-
   // deciding-among-house-options list — identified by ratings being on
   // (the manual Rank toggle this used to also key off of is retired).
@@ -571,7 +568,7 @@ export default function EntryCard({
                   {currentAddressText || "View on map"}
                 </a>
               )}
-              <AvailabilityLinks url={entry.url} backup={backupDateRange} />
+              <AvailabilityLinks url={entry.url} primary={primaryDateRange} backup={backupDateRange} />
             </div>
             <div className={styles["header-actions"]}>
               <PriceDisplay entry={entry} priceFields={priceFields} />

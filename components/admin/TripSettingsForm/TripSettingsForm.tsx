@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Button from "@/components/Button";
 import PhotoUrlField from "@/components/PhotoUrlField";
+import DateRangeFields from "@/components/DateRangeFields";
 import { fetchForwardGeocode } from "@/lib/geocodeClient";
 import ArchiveUnvisitedButton from "@/components/ArchiveUnvisitedButton";
 import ResetAllRatingsButton from "@/components/ResetAllRatingsButton";
@@ -160,46 +161,28 @@ export default function TripSettingsForm({ trip, nav }: TripSettingsFormProps) {
           className={styles["input"]}
         />
       </label>
-      <div className={styles["date-row"]}>
-        <label className={styles["field"]}>
-          Start date
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className={styles["input"]}
-          />
-        </label>
-        <label className={styles["field"]}>
-          End date
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className={styles["input"]}
-          />
-        </label>
-      </div>
-      <div className={styles["date-row"]}>
-        <label className={styles["field"]}>
-          Backup start date (optional)
-          <input
-            type="date"
-            value={altStartDate}
-            onChange={(e) => setAltStartDate(e.target.value)}
-            className={styles["input"]}
-          />
-        </label>
-        <label className={styles["field"]}>
-          Backup end date (optional)
-          <input
-            type="date"
-            value={altEndDate}
-            onChange={(e) => setAltEndDate(e.target.value)}
-            className={styles["input"]}
-          />
-        </label>
-      </div>
+      <DateRangeFields
+        start={startDate}
+        end={endDate}
+        onStartChange={setStartDate}
+        onEndChange={setEndDate}
+        startLabel="Start date"
+        endLabel="End date"
+        rowClassName={styles["date-row"]}
+        fieldClassName={styles["field"]}
+        inputClassName={styles["input"]}
+      />
+      <DateRangeFields
+        start={altStartDate}
+        end={altEndDate}
+        onStartChange={setAltStartDate}
+        onEndChange={setAltEndDate}
+        startLabel="Backup start date (optional)"
+        endLabel="Backup end date (optional)"
+        rowClassName={styles["date-row"]}
+        fieldClassName={styles["field"]}
+        inputClassName={styles["input"]}
+      />
       <p className={styles["hint"]}>
         A fallback week, if there is one — every Stay Option&apos;s Airbnb/VRBO link gets a &quot;Check backup
         dates&quot; button alongside the main one whenever both dates here are set.

@@ -1,0 +1,22 @@
+/* Fallback styling for a caller that doesn't pass its own classNames —
+   every current call site does (matching its own surrounding form), so
+   these mainly exist so the component still looks reasonable dropped
+   in somewhere new without a bespoke stylesheet. */
+
+.stacked-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--text-sm);
+  flex: 1 1 0;
+}
+
+.arrow {
+  color: var(--color-zinc-400);
+  font-size: var(--text-xs);
+}

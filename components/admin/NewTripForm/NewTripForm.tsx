@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import PhotoUrlField from "@/components/PhotoUrlField";
+import DateRangeFields from "@/components/DateRangeFields";
 import styles from "./NewTripForm.module.css";
 
 function slugify(s: string): string {
@@ -90,26 +91,17 @@ export default function NewTripForm() {
         value={coverImage}
         onChange={setCoverImage}
       />
-      <div className={styles["date-row"]}>
-        <label className={styles["field"]}>
-          Start date (optional — used to sort the trips list)
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className={styles["input"]}
-          />
-        </label>
-        <label className={styles["field"]}>
-          End date (optional)
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className={styles["input"]}
-          />
-        </label>
-      </div>
+      <DateRangeFields
+        start={startDate}
+        end={endDate}
+        onStartChange={setStartDate}
+        onEndChange={setEndDate}
+        startLabel="Start date (optional — used to sort the trips list)"
+        endLabel="End date (optional)"
+        rowClassName={styles["date-row"]}
+        fieldClassName={styles["field"]}
+        inputClassName={styles["input"]}
+      />
       <label className={styles["field"]}>
         Estimated length in nights (optional — for a price/night estimate before exact dates are known)
         <input
