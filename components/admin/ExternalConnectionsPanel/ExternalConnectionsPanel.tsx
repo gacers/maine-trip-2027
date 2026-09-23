@@ -16,6 +16,16 @@ interface PushField {
   envKey: string;
   label: string;
   placeholder: string;
+  /** Exactly where to get a replacement value and which part of it to
+   * copy — the thing this panel got asked for directly, after a first
+   * pass at generating one went wrong. */
+  steps: string[];
+  /** Only the two service-account private keys are real multi-line PEM
+   * blocks — pasting one into a single-line <input> silently mangled
+   * it (confirmed live: that's what actually broke Sheets, not the key
+   * itself), so this flags the one case that needs its own newline
+   * handling before the value gets pushed. */
+  pem?: boolean;
 }
 
 // Where to send someone to actually fix each credential by hand — the
@@ -36,16 +46,21 @@ const CONSOLE_LINKS: Partial<Record<CredentialStatus["key"], { label: string; hr
 // ever changes its private key, never its email/identity, so sheets
 // has just the one field; Maps has two since the server (unrestricted)
 // and public (browser-exposed, usually HTTP-referrer-restricted) keys
-// are commonly two genuinely different key values. Airbnb has no
-// console/API to regenerate anything at all — just log into airbnb.com,
-// open DevTools' Network tab, and copy the "cookie" request header off
-// any airbnb.com request (see lib/scrape.ts's own header comment).
+// are commonly two genuinely different key values.
 const PUSH_FIELDS: Record<CredentialStatus["key"], PushField[]> = {
   sheets: [
     {
       envKey: "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY",
       label: "New private key",
-      placeholder: "Paste the private_key value from the downloaded JSON key file",
+      placeholder: "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----",
+      pem: true,
+      steps: [
+        "Google Cloud Console → IAM & Admin → Service Accounts",
+        "Click the maine-2027 service account (same email this card is checking)",
+        "Keys tab → Add Key → Create new key → JSON → Create — this downloads a .json file",
+        "Open that file and copy the entire private_key value, including the BEGIN/END lines",
+        "Paste it below exactly as it appears in the file — real line breaks are fine, this field handles them",
+      ],
     },
   ],
   drive: [
@@ -53,17 +68,45 @@ const PUSH_FIELDS: Record<CredentialStatus["key"], PushField[]> = {
       envKey: "GOOGLE_OAUTH_REFRESH_TOKEN",
       label: "New refresh token",
       placeholder: "Paste the new refresh_token",
+      steps: [
+        "This one's different from the other two — it's not a key you can just generate on a Google Cloud page",
+        "It needs this app's OAuth client (GOOGLE_OAUTH_CLIENT_ID/_SECRET, unchanged) to re-run its consent flow for the Google account that owns the Drive files, which produces a fresh refresh_token",
+        "There's no self-serve console page for that step yet — ask for the \"Reconnect Google Drive\" button to be built if this one ever actually breaks, rather than trying to hand-generate a token",
+      ],
     },
   ],
   maps: [
-    { envKey: "GOOGLE_MAPS_SERVER_API_KEY", label: "New server key", placeholder: "Paste the new server-side API key" },
-    { envKey: "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", label: "New public key", placeholder: "Paste the new browser-side API key" },
+    {
+      envKey: "GOOGLE_MAPS_SERVER_API_KEY",
+      label: "New server key",
+      placeholder: "AIza...",
+      steps: [
+        "Google Cloud Console → APIs & Services → Credentials",
+        "Find the existing server-side key (no HTTP referrer restriction), or Create Credentials → API key for a new one",
+        "Click the key's name to open its details, then \"Show key\" and copy the value",
+      ],
+    },
+    {
+      envKey: "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY",
+      label: "New public key",
+      placeholder: "AIza...",
+      steps: [
+        "Same Credentials page — this is the *other* key, the one with an HTTP referrer restriction (it's exposed in the browser, so it's locked to this site's own domain instead of being kept secret)",
+        "Click that key's name, \"Show key\", copy the value",
+      ],
+    },
   ],
   airbnb: [
     {
       envKey: "AIRBNB_SESSION_COOKIE",
       label: "New session cookie",
       placeholder: "Paste the full 'cookie' request header value from DevTools",
+      steps: [
+        "Log into airbnb.com in your own browser (a real account, not incognito)",
+        "Open DevTools → Network tab, then reload the page",
+        "Click any request to airbnb.com in the list, open its Request Headers",
+        "Copy the entire \"cookie\" header value (it's long — get all of it)",
+      ],
     },
   ],
 };
@@ -77,15 +120,34 @@ function timeAgo(iso: string): string {
   return `${hours}h ago`;
 }
 
+// A pasted PEM block sometimes comes as real line breaks (copied
+// straight out of the downloaded JSON file's own pretty-printed
+// display) and sometimes as one line with literal \n escapes (copied
+// out of the raw JSON text) — either is fine; this always normalizes
+// to the single-line \n-escaped form the app already expects to find
+// in the env var and un-escape at read time (see
+// lib/googleSheetsAuth.ts). Blank lines from paste artifacts are
+// dropped; PEM bodies never have meaningful ones.
+function normalizePemValue(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed.includes("\n")) return trimmed;
+  return trimmed
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\\n");
+}
+
 interface PushFieldRowProps {
   field: PushField;
 }
 
 // One "paste a new value, push it" control — generating the actual
-// replacement always happens by hand (Google Cloud Console, or a
-// logged-in Airbnb browser session) first; this is just the part that
-// used to mean hand-navigating Vercel's own dashboard to find the
-// right env var and click redeploy.
+// replacement always happens by hand (Google Cloud Console, a
+// logged-in Airbnb browser session, or — for Drive — a separate
+// re-authorization step) first; this is just the part that used to
+// mean hand-navigating Vercel's own dashboard to find the right env
+// var and click redeploy.
 function PushFieldRow({ field }: PushFieldRowProps) {
   const [value, setValue] = useState("");
   const [pushing, setPushing] = useState(false);
@@ -93,13 +155,14 @@ function PushFieldRow({ field }: PushFieldRowProps) {
 
   async function push() {
     if (!value.trim()) return;
+    const toSend = field.pem ? normalizePemValue(value) : value.trim();
     setPushing(true);
     setResult(null);
     try {
       const res = await fetch("/api/admin/credentials/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: field.envKey, value: value.trim() }),
+        body: JSON.stringify({ key: field.envKey, value: toSend }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Push failed");
@@ -115,18 +178,21 @@ function PushFieldRow({ field }: PushFieldRowProps) {
   return (
     <div className={styles["push-row"]}>
       <label className={styles["push-label"]}>{field.label}</label>
-      <div className={styles["push-input-row"]}>
-        <input
-          type="password"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder={field.placeholder}
-          className={styles["push-input"]}
-        />
-        <button type="button" onClick={push} disabled={pushing || !value.trim()} className={styles["push-button"]}>
-          {pushing ? "Pushing..." : "Push & redeploy"}
-        </button>
-      </div>
+      <ol className={styles["steps-list"]}>
+        {field.steps.map((step, i) => (
+          <li key={i}>{step}</li>
+        ))}
+      </ol>
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={field.placeholder}
+        rows={field.pem ? 4 : 2}
+        className={styles["push-textarea"]}
+      />
+      <button type="button" onClick={push} disabled={pushing || !value.trim()} className={styles["push-button"]}>
+        {pushing ? "Pushing..." : "Push & redeploy"}
+      </button>
       {result && <p className={result.ok ? styles["push-success"] : styles["error"]}>{result.message}</p>}
     </div>
   );
