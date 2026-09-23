@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { nanoid } from "nanoid";
 import { getTripBySlug, getSectionBySlug, sanitizeTripForClient } from "@/lib/sections";
 import { getAllEntries, findEntryByUrl, createEntry, toClientEntry } from "@/lib/entries";
@@ -247,11 +247,16 @@ export async function POST(
         data: filledData,
       });
     }
-    await exportSection(supabase!, trip, section);
-    // Best-effort — this section might itself be the import source for
-    // one or more other sections (see lib/entrySync.ts), each of which
-    // gets its own linked copy of a brand-new entry added here too.
-    propagateNewEntryFromSource(entry).catch((err) => console.error("New-entry propagation failed:", err));
+    // Both genuinely best-effort (exportSection never throws; the
+    // propagation catches its own errors) and neither is needed for
+    // the response below — after() runs them once the response has
+    // actually gone out, instead of making every single add wait on a
+    // full Google Sheets round trip first.
+    after(() => exportSection(supabase!, trip, section));
+    // this section might itself be the import source for one or more
+    // other sections (see lib/entrySync.ts), each of which gets its
+    // own linked copy of a brand-new entry added here too.
+    after(() => propagateNewEntryFromSource(entry).catch((err) => console.error("New-entry propagation failed:", err)));
     revalidateCatalog(navGroupSlug);
     return NextResponse.json({ entry: toClientEntry(entry) }, { status: 201 });
   } catch (err) {

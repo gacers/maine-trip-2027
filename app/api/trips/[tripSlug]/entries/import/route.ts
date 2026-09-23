@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { getAllEntries, linkEntriesFromSource } from "@/lib/entries";
 import { requireWriteAccess } from "@/lib/auth";
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .eq("id", sectionId)
         .single();
       if (freshError) throw new Error(freshError.message);
-      await exportSection(supabase!, trip, freshSection as Section);
+      after(() => exportSection(supabase!, trip, freshSection as Section));
       return NextResponse.json({ removed });
     }
 
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .eq("id", sectionId)
         .single();
       if (freshError) throw new Error(freshError.message);
-      await exportSection(supabase!, trip, freshSection as Section);
+      after(() => exportSection(supabase!, trip, freshSection as Section));
       return NextResponse.json({ imported, skipped });
     }
 
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq("id", sectionId)
       .single();
     if (freshError) throw new Error(freshError.message);
-    await exportSection(supabase!, trip, freshSection as Section);
+    after(() => exportSection(supabase!, trip, freshSection as Section));
     return NextResponse.json({ imported, skipped });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

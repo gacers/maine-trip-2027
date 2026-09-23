@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { getTripBySlug, getSectionBySlug, sanitizeTripForClient } from "@/lib/sections";
 import { requireWriteAccess, requireReadAccess } from "@/lib/auth";
 import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
@@ -151,25 +151,27 @@ export async function PATCH(
       // stays invisible as a template even after being moved to its
       // own group, since PATCH otherwise never calls this at all.
       // Best-effort, same as the POST route's own capture call.
-      upsertCustomSectionTemplate(supabase!, newNavGroupLabel.trim(), trip.id, {
-        slug: section.slug,
-        label: (patch.label as string | undefined) ?? section.label,
-        subNavLabel: (patch.sub_nav_label as string | undefined) ?? section.sub_nav_label,
-        addPlaceholder: (patch.add_placeholder as string | undefined) ?? section.add_placeholder,
-        emptyMessage: (patch.empty_message as string | undefined) ?? section.empty_message,
-        supportsPairing: (patch.supports_pairing as boolean | undefined) ?? section.supports_pairing,
-        hasMap: (patch.has_map as boolean | undefined) ?? section.has_map,
-        supportsRatings: (patch.supports_ratings as boolean | undefined) ?? section.supports_ratings,
-        supportsConcerns: (patch.supports_concerns as boolean | undefined) ?? section.supports_concerns,
-        cardLayout: (patch.card_layout as Section["card_layout"] | undefined) ?? section.card_layout,
-        fieldDefs: (fieldDefs || section.field_defs || []).map((f: Record<string, unknown>) => ({
-          key: f.key as string,
-          label: f.label as string,
-          field_type: f.field_type as FieldType,
-          show_on_overview: !!f.show_on_overview,
-          options: (f.options as { aliases?: string[] } | undefined) || undefined,
-        })),
-      }).catch((err) => console.error("Template capture failed:", err));
+      after(() =>
+        upsertCustomSectionTemplate(supabase!, newNavGroupLabel.trim(), trip.id, {
+          slug: section.slug,
+          label: (patch.label as string | undefined) ?? section.label,
+          subNavLabel: (patch.sub_nav_label as string | undefined) ?? section.sub_nav_label,
+          addPlaceholder: (patch.add_placeholder as string | undefined) ?? section.add_placeholder,
+          emptyMessage: (patch.empty_message as string | undefined) ?? section.empty_message,
+          supportsPairing: (patch.supports_pairing as boolean | undefined) ?? section.supports_pairing,
+          hasMap: (patch.has_map as boolean | undefined) ?? section.has_map,
+          supportsRatings: (patch.supports_ratings as boolean | undefined) ?? section.supports_ratings,
+          supportsConcerns: (patch.supports_concerns as boolean | undefined) ?? section.supports_concerns,
+          cardLayout: (patch.card_layout as Section["card_layout"] | undefined) ?? section.card_layout,
+          fieldDefs: (fieldDefs || section.field_defs || []).map((f: Record<string, unknown>) => ({
+            key: f.key as string,
+            label: f.label as string,
+            field_type: f.field_type as FieldType,
+            show_on_overview: !!f.show_on_overview,
+            options: (f.options as { aliases?: string[] } | undefined) || undefined,
+          })),
+        }).catch((err) => console.error("Template capture failed:", err))
+      );
     }
 
     if (Object.keys(patch).length > 0) {
@@ -197,14 +199,16 @@ export async function PATCH(
 
         // Best-effort, same as the sections POST route's own capture.
         for (const f of fieldDefs as Record<string, unknown>[]) {
-          upsertCustomFieldTemplate(supabase!, trip.id, {
-            key: f.key as string,
-            label: f.label as string,
-            field_type: f.field_type as FieldType,
-            show_on_overview: !!f.show_on_overview,
-            required: !!f.required,
-            options: (f.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
-          }).catch((err) => console.error("Field template capture failed:", err));
+          after(() =>
+            upsertCustomFieldTemplate(supabase!, trip.id, {
+              key: f.key as string,
+              label: f.label as string,
+              field_type: f.field_type as FieldType,
+              show_on_overview: !!f.show_on_overview,
+              required: !!f.required,
+              options: (f.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
+            }).catch((err) => console.error("Field template capture failed:", err))
+          );
         }
       }
 
@@ -212,7 +216,7 @@ export async function PATCH(
       // for one or more other sections (possibly on other trips
       // entirely), whose own field_defs need to stay mirrored to
       // whatever just got saved here.
-      propagateFieldDefsFromSource(section.id).catch((err) => console.error("Field defs propagation failed:", err));
+      after(() => propagateFieldDefsFromSource(section.id).catch((err) => console.error("Field defs propagation failed:", err)));
     }
 
     // Not getSectionBySlug(trip.id, navGroupSlug, sectionSlug) here —
@@ -250,25 +254,27 @@ export async function PATCH(
     if (templateRelevantChange && !(newNavGroupLabel && newNavGroupLabel.trim())) {
       const { data: group } = await supabase!.from("nav_groups").select("label").eq("id", updated.nav_group_id).maybeSingle();
       if (group?.label) {
-        upsertCustomSectionTemplate(supabase!, group.label, trip.id, {
-          slug: updated.slug,
-          label: updated.label,
-          subNavLabel: updated.sub_nav_label,
-          addPlaceholder: updated.add_placeholder,
-          emptyMessage: updated.empty_message,
-          supportsPairing: updated.supports_pairing,
-          hasMap: updated.has_map,
-          supportsRatings: updated.supports_ratings,
-          supportsConcerns: updated.supports_concerns,
-          cardLayout: updated.card_layout,
-          fieldDefs: (updated.field_defs || []).map((f: Record<string, unknown>) => ({
-            key: f.key as string,
-            label: f.label as string,
-            field_type: f.field_type as FieldType,
-            show_on_overview: !!f.show_on_overview,
-            options: (f.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
-          })),
-        }).catch((err) => console.error("Template capture failed:", err));
+        after(() =>
+          upsertCustomSectionTemplate(supabase!, group.label, trip.id, {
+            slug: updated.slug,
+            label: updated.label,
+            subNavLabel: updated.sub_nav_label,
+            addPlaceholder: updated.add_placeholder,
+            emptyMessage: updated.empty_message,
+            supportsPairing: updated.supports_pairing,
+            hasMap: updated.has_map,
+            supportsRatings: updated.supports_ratings,
+            supportsConcerns: updated.supports_concerns,
+            cardLayout: updated.card_layout,
+            fieldDefs: (updated.field_defs || []).map((f: Record<string, unknown>) => ({
+              key: f.key as string,
+              label: f.label as string,
+              field_type: f.field_type as FieldType,
+              show_on_overview: !!f.show_on_overview,
+              options: (f.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
+            })),
+          }).catch((err) => console.error("Template capture failed:", err))
+        );
       }
     }
 

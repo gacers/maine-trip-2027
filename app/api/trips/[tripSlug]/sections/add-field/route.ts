@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { getTripBySlug } from "@/lib/sections";
 import { requireWriteAccess } from "@/lib/auth";
 import { exportSection } from "@/lib/sheetsExport";
@@ -87,22 +87,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Best-effort — this is already a known template in practice (it
     // came from that same list), so this just keeps it current rather
-    // than actually introducing anything new.
-    upsertCustomFieldTemplate(supabase!, trip.id, {
-      key,
-      label,
-      field_type: fieldType as FieldType,
-      show_on_overview: body.showOnOverview === true,
-      required: body.required === true,
-      options: (body.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
-    }).catch((err) => console.error("Field template capture failed:", err));
+    // than actually introducing anything new. Deferred to after() (not
+    // just left unawaited) so it's guaranteed to actually run instead
+    // of racing the response — a serverless invocation can be frozen
+    // the moment this function returns, before a bare unawaited promise
+    // gets a chance to finish.
+    after(() =>
+      upsertCustomFieldTemplate(supabase!, trip.id, {
+        key,
+        label,
+        field_type: fieldType as FieldType,
+        show_on_overview: body.showOnOverview === true,
+        required: body.required === true,
+        options: (body.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
+      }).catch((err) => console.error("Field template capture failed:", err))
+    );
 
     // Same as the sections PATCH route — adding a field via the entry
     // form's own picker used to only update THIS section, so destinations
     // synced from it kept their old field_defs and never showed the new
     // field (or its value) on cards even after the entry's own `data`
     // had propagated.
-    propagateFieldDefsFromSource(sectionId).catch((err) => console.error("Field defs propagation failed:", err));
+    after(() => propagateFieldDefsFromSource(sectionId).catch((err) => console.error("Field defs propagation failed:", err)));
 
     const { data: freshSection, error: freshError } = await supabase!
       .from("sections")
@@ -110,7 +116,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq("id", sectionId)
       .single();
     if (freshError) throw new Error(freshError.message);
-    await exportSection(supabase!, trip, freshSection as Section);
+    after(() => exportSection(supabase!, trip, freshSection as Section));
     return NextResponse.json({ section: freshSection });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

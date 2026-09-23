@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { getTripBySlug, getTripNav, sanitizeTripForClient } from "@/lib/sections";
 import { requireWriteAccess, requireReadAccess } from "@/lib/auth";
 import { upsertCustomSectionTemplate } from "@/lib/customSectionTemplates";
@@ -185,16 +185,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       // Best-effort, same reasoning as the nav-group capture below —
       // every named field becomes pickable on any other section/trip
-      // too (see FieldDefsEditor's own template picker).
+      // too (see FieldDefsEditor's own template picker). Deferred to
+      // after() (not just left unawaited) so these are guaranteed to
+      // actually run instead of racing the response.
       for (const f of fieldDefs as Record<string, unknown>[]) {
-        upsertCustomFieldTemplate(supabase!, trip.id, {
-          key: f.key as string,
-          label: f.label as string,
-          field_type: f.field_type as FieldType,
-          show_on_overview: !!f.show_on_overview,
-          required: !!f.required,
-          options: (f.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
-        }).catch((err) => console.error("Field template capture failed:", err));
+        after(() =>
+          upsertCustomFieldTemplate(supabase!, trip.id, {
+            key: f.key as string,
+            label: f.label as string,
+            field_type: f.field_type as FieldType,
+            show_on_overview: !!f.show_on_overview,
+            required: !!f.required,
+            options: (f.options as { choices?: string[]; aliases?: string[] } | undefined) || undefined,
+          }).catch((err) => console.error("Field template capture failed:", err))
+        );
       }
     }
 
@@ -202,25 +206,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // depends on it, so a failure here shouldn't fail the section it
     // was capturing.
     if (!skipTemplateCapture && resolvedNavGroupLabel) {
-      upsertCustomSectionTemplate(supabase!, resolvedNavGroupLabel, trip.id, {
-        slug: section.slug,
-        label: section.label,
-        subNavLabel: section.sub_nav_label,
-        addPlaceholder: section.add_placeholder,
-        emptyMessage: section.empty_message,
-        supportsPairing: section.supports_pairing,
-        hasMap: section.has_map,
-        supportsRatings: section.supports_ratings,
-        supportsConcerns: section.supports_concerns,
-        cardLayout: section.card_layout,
-        fieldDefs: (fieldDefs || []).map((f: Record<string, unknown>) => ({
-          key: f.key,
-          label: f.label,
-          field_type: f.field_type,
-          show_on_overview: !!f.show_on_overview,
-          options: f.options || undefined,
-        })),
-      }).catch((err) => console.error("Template capture failed:", err));
+      after(() =>
+        upsertCustomSectionTemplate(supabase!, resolvedNavGroupLabel, trip.id, {
+          slug: section.slug,
+          label: section.label,
+          subNavLabel: section.sub_nav_label,
+          addPlaceholder: section.add_placeholder,
+          emptyMessage: section.empty_message,
+          supportsPairing: section.supports_pairing,
+          hasMap: section.has_map,
+          supportsRatings: section.supports_ratings,
+          supportsConcerns: section.supports_concerns,
+          cardLayout: section.card_layout,
+          fieldDefs: (fieldDefs || []).map((f: Record<string, unknown>) => ({
+            key: f.key,
+            label: f.label,
+            field_type: f.field_type,
+            show_on_overview: !!f.show_on_overview,
+            options: f.options || undefined,
+          })),
+        }).catch((err) => console.error("Template capture failed:", err))
+      );
     }
 
     // Pull matching Future Interests manuals into this Options/primary

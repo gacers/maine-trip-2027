@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getTripBySlug } from "@/lib/sections";
 import { getAllEntries, updateEntry } from "@/lib/entries";
@@ -66,19 +66,28 @@ async function computeAndMaybeArchive(
       totalArchived += toArchive.length;
 
       if (!dryRun) {
-        for (const row of toArchive) {
-          await updateEntry(supabase!, row.id, {
-            status: "archived",
-            archive_reason: "Trip completed — not marked stayed/visited",
-          });
-        }
+        // Independent writes to different rows — no reason to make
+        // each one wait on the last, especially for a trip with a lot
+        // of unvisited entries to sweep at once.
+        await Promise.all(
+          toArchive.map((row) =>
+            updateEntry(supabase!, row.id, {
+              status: "archived",
+              archive_reason: "Trip completed — not marked stayed/visited",
+            })
+          )
+        );
         touchedSections.push(section);
       }
     }
 
     if (!dryRun) {
+      // Best-effort (exportSection never throws) and not needed for the
+      // response below — deferred to after() so this sweep doesn't sit
+      // there waiting on one Google Sheets round trip per touched
+      // section, one after another, before the admin sees it's done.
       for (const section of touchedSections) {
-        await exportSection(supabase!, trip, section);
+        after(() => exportSection(supabase!, trip, section));
       }
     }
 

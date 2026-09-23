@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { getTripBySlug, getAllSectionsForTrip } from "@/lib/sections";
 import { requireWriteAccess, getAdminUser } from "@/lib/auth";
 import { supabaseServiceRole } from "@/lib/supabaseServer";
@@ -75,9 +75,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   // auto-export call site — a Sheets hiccup here can't fail this save.
   if ("completed" in body) {
     const sections = await getAllSectionsForTrip(trip.id);
-    for (const section of sections) {
-      await exportSection(supabase!, data, section);
-    }
+    // Independent per-section exports, and best-effort (never throws)
+    // — deferred to after() and run together instead of one Sheets
+    // round trip at a time, blocking this save until every section in
+    // the trip has been re-exported.
+    after(() => Promise.all(sections.map((section) => exportSection(supabase!, data, section))));
   }
 
   return NextResponse.json({ trip: data });

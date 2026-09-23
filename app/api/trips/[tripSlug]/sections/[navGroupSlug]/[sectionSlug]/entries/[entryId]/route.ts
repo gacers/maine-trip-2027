@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { getTripBySlug, getSectionBySlug } from "@/lib/sections";
 import { getAllEntries, updateEntry, deleteEntry, toClientEntry } from "@/lib/entries";
 import { requireWriteAccess } from "@/lib/auth";
@@ -163,13 +163,17 @@ export async function PATCH(
     }
 
     const entry = await updateEntry(supabase!, entryId, patch);
-    await exportSection(supabase!, trip, section);
-    // Best-effort — this entry might itself be the import source for
-    // one or more entries elsewhere (see lib/entrySync.ts); harmless
-    // no-op otherwise. Only worth the extra round trip when a synced
-    // field actually changed.
+    // Both genuinely best-effort (exportSection never throws; the
+    // propagation catches its own errors) — after() runs them once the
+    // response has actually gone out, instead of making every single
+    // edit wait on a full Google Sheets round trip first.
+    after(() => exportSection(supabase!, trip, section));
+    // this entry might itself be the import source for one or more
+    // entries elsewhere (see lib/entrySync.ts); harmless no-op
+    // otherwise. Only worth the extra round trip when a synced field
+    // actually changed.
     if (isSyncedEntryFieldPatch(patch) || dataPatch) {
-      propagateEntryUpdateFromSource(entryId).catch((err) => console.error("Entry sync propagation failed:", err));
+      after(() => propagateEntryUpdateFromSource(entryId).catch((err) => console.error("Entry sync propagation failed:", err)));
     }
     revalidateCatalog(navGroupSlug);
     return NextResponse.json({ entry: toClientEntry(entry) });
@@ -199,7 +203,7 @@ export async function DELETE(
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     await deleteEntry(supabase!, entryId);
-    await exportSection(supabase!, trip, section);
+    after(() => exportSection(supabase!, trip, section));
     revalidateCatalog(navGroupSlug);
     return NextResponse.json({ ok: true });
   } catch (err) {
