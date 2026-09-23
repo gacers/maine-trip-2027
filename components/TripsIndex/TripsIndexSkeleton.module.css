@@ -5,6 +5,19 @@
   width: 100%;
 }
 
+.trip-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.heading-placeholder {
+  height: var(--text-lg--line-height);
+  width: 8rem;
+  border-radius: var(--radius);
+  background: var(--color-zinc-200);
+}
+
 .trip-grid {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));

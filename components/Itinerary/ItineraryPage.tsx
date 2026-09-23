@@ -145,10 +145,19 @@ export default function ItineraryPage({ trip, isAdmin, isEditor }: ItineraryPage
     reordered.splice(insertAt, 0, updatedDragged);
     setStops(reordered);
 
+    // Only whatever's own position (or, for the dragged stop, date)
+    // actually changed — a drag near either end of a long itinerary
+    // used to still PATCH every single stop, since it just re-sent
+    // every index unconditionally.
+    const originalIndex = new Map(stops.map((s, i) => [s.id, i]));
+    const toSave = reordered
+      .map((s, i) => ({ s, i }))
+      .filter(({ s, i }) => originalIndex.get(s.id) !== i || (dateChanged && s.id === draggedId));
+
     setError("");
     try {
       await Promise.all(
-        reordered.map((s, i) =>
+        toSave.map(({ s, i }) =>
           fetch(`/api/trips/${trip.slug}/itinerary/stops/${s.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json", ...authHeaders },
